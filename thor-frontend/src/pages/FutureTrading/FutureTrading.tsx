@@ -658,6 +658,14 @@ export default function FutureTrading(){
             onClick={()=> setPollMs(p=> p===2000?1000 : p===1000?5000 : 2000)}
             startIcon={<RefreshCw size={16} />}
             title="Toggle polling interval"
+            sx={{ 
+              borderColor: 'white', 
+              color: 'white',
+              '&:hover': {
+                borderColor: 'rgba(255, 255, 255, 0.8)',
+                backgroundColor: 'rgba(255, 255, 255, 0.1)'
+              }
+            }}
           >
             {pollMs/1000}s
           </Button>
