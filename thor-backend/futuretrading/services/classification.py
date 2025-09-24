@@ -64,7 +64,7 @@ FALLBACK_STAT_MAP = {
     'SI': {'STRONG_BUY': Decimal('0.06'), 'BUY': Decimal('0.01'), 'HOLD': Decimal('0'), 'SELL': Decimal('-0.01'), 'STRONG_SELL': Decimal('-0.06')},
     'HG': {'STRONG_BUY': Decimal('0.012'), 'BUY': Decimal('0.002'), 'HOLD': Decimal('0'), 'SELL': Decimal('-0.002'), 'STRONG_SELL': Decimal('-0.012')},
     'GC': {'STRONG_BUY': Decimal('3'), 'BUY': Decimal('0.5'), 'HOLD': Decimal('0'), 'SELL': Decimal('-0.5'), 'STRONG_SELL': Decimal('-3')},
-    'VX': {'STRONG_BUY': Decimal('0.10'), 'BUY': Decimal('0.05'), 'HOLD': Decimal('0'), 'SELL': Decimal('-0.05'), 'STRONG_SELL': Decimal('-0.10')},
+    'VX': {'STRONG_BUY': Decimal('0.05'), 'BUY': Decimal('0.03'), 'HOLD': Decimal('0'), 'SELL': Decimal('-0.03'), 'STRONG_SELL': Decimal('-0.05')},
     'DX': {'STRONG_BUY': Decimal('30'), 'BUY': Decimal('5'), 'HOLD': Decimal('0'), 'SELL': Decimal('-5'), 'STRONG_SELL': Decimal('-30')},
     'ZB': {'STRONG_BUY': Decimal('30'), 'BUY': Decimal('5'), 'HOLD': Decimal('0'), 'SELL': Decimal('-5'), 'STRONG_SELL': Decimal('-30')},
 }
@@ -109,6 +109,30 @@ def _get_signal_weight(signal: str) -> int:
         return 0
 
 
+def _is_bear_market_instrument(symbol: str) -> bool:
+    """Check if symbol is a bear market instrument with inverted logic."""
+    base = symbol.lstrip('/')
+    return base in {'VX', 'DX', 'GC', 'ZB'}
+
+
+def _get_inverted_signal_weight(signal: str) -> int:
+    """Get inverted signal weight for bear market instruments."""
+    # For bear market instruments, invert the weight:
+    # STRONG_BUY (market up) -> -2 (bearish for stocks)
+    # BUY (market up) -> -1 (bearish for stocks)  
+    # HOLD -> 0
+    # SELL (market down) -> +1 (bullish for stocks)
+    # STRONG_SELL (market down) -> +2 (bullish for stocks)
+    weight_map = {
+        'STRONG_BUY': -2,
+        'BUY': -1,
+        'HOLD': 0,
+        'SELL': 1,
+        'STRONG_SELL': 2,
+    }
+    return weight_map.get(signal, 0)
+
+
 def classify(symbol: str, net_change: Optional[Decimal | float | str]) -> Tuple[Optional[str], Optional[Decimal], Decimal, int]:
     """Classify a net change into a signal, returning (signal, stat_value, contract_weight, signal_weight).
 
@@ -149,7 +173,13 @@ def classify(symbol: str, net_change: Optional[Decimal | float | str]) -> Tuple[
         signal = 'STRONG_SELL'
 
     stat_value = stat_map.get(signal)
-    signal_weight = _get_signal_weight(signal)
+    
+    # Use inverted weights for bear market instruments
+    if _is_bear_market_instrument(symbol):
+        signal_weight = _get_inverted_signal_weight(signal)
+    else:
+        signal_weight = _get_signal_weight(signal)
+        
     return signal, stat_value, contract_weight, signal_weight
 
 

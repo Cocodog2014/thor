@@ -86,6 +86,9 @@ type ApiResponse = {
     count: number;
     denominator: string;
     as_of: string;
+    signal_weight_sum?: number;
+    composite_signal?: SignalKey;
+    composite_signal_weight?: number;
   };
 };
 
@@ -239,6 +242,7 @@ function TotalCard({totalData, theme}:{totalData: any; theme: any}){
               <Box 
                 height={64} 
                 display="flex" 
+                flexDirection="column"
                 alignItems="center" 
                 justifyContent="center"
                 sx={{ 
@@ -247,9 +251,24 @@ function TotalCard({totalData, theme}:{totalData: any; theme: any}){
                   color: 'white'
                 }}
               >
-                <Typography variant="h6" fontWeight="bold">
-                  📊 COMPOSITE
-                </Typography>
+                {totalData?.composite_signal ? (
+                  <>
+                    <Chip
+                      label={signalLabel(totalData.composite_signal)}
+                      color={signalColor(totalData.composite_signal) as any}
+                      size="small"
+                      variant="filled"
+                      sx={{ fontSize: '0.7rem', fontWeight: 'bold' }}
+                    />
+                    <Typography variant="caption" sx={{ mt: 0.5, color: 'rgba(255,255,255,0.8)' }}>
+                      Wgt: {totalData.signal_weight_sum || 0}
+                    </Typography>
+                  </>
+                ) : (
+                  <Typography variant="h6" fontWeight="bold">
+                    📊 COMPOSITE
+                  </Typography>
+                )}
               </Box>
             </Box>
           </Box>
@@ -473,7 +492,7 @@ export default function FutureTrading(){
       providerQuery = `provider=schwab&disable_fallback=1`;
     }
 
-    const endpoints = [ `/api/schwab/quotes/latest/?${providerQuery}&ts=${ts}` ];
+    const endpoints = [ `/api/quotes/latest` ];
     
     for (const endpoint of endpoints) {
       try {
