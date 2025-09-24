@@ -238,6 +238,22 @@ class JSONProvider(BaseProvider):
             change_percent = (change / previous_close) * 100 if previous_close else 0
             vwap = (prices['bid'] + prices['ask'] + prices['last']) / 3
             
+            # Symbol-specific precision (same as ExcelProvider)
+            precision_map = {
+                '/YM': 0, 'YM': 0,  # Dow mini trades in whole points
+                '/ES': 2, 'ES': 2,  # Quarter point increments
+                '/NQ': 2, 'NQ': 2,  # Quarter point increments
+                'RTY': 2,           # Tenth increments
+                'CL': 2,            # Penny increments
+                'SI': 3,            # Half-cent increments (0.005)
+                'HG': 4,            # 0.0005 tick size
+                'GC': 1,            # Dime increments
+                'VX': 2,            # 0.01
+                'DX': 2,            # 0.01
+                'ZB': 2,            # 1/32 simplified to 2 decimals
+            }
+            display_precision = precision_map.get(symbol, 2)
+            
             # Build market data entry
             market_data = {
                 "instrument": {
@@ -246,7 +262,7 @@ class JSONProvider(BaseProvider):
                     "name": base_future.get("name", symbol),
                     "exchange": base_future.get("exchange", "CME"),
                     "currency": "USD",
-                    "display_precision": 2,
+                    "display_precision": display_precision,
                     "is_active": True,
                     "sort_order": symbols.index(symbol) if symbol in symbols else 999
                 },
@@ -524,11 +540,28 @@ class ExcelProvider(BaseProvider):
             if alias:
                 by_symbol[alias] = row
 
+        # Symbol-specific precision defaults (matches futures contract conventions)
+        precision_defaults = {
+            '/YM': 0, 'YM': 0,  # Dow mini trades in whole points
+            '/ES': 2, 'ES': 2,  # Quarter point increments
+            '/NQ': 2, 'NQ': 2,  # Quarter point increments
+            'RTY': 2,           # Tenth increments
+            'CL': 2,            # Penny increments
+            'SI': 3,            # Half-cent increments (0.005)
+            'HG': 4,            # 0.0005 tick size
+            'GC': 1,            # Dime increments
+            'VX': 2,            # 0.01
+            'DX': 2,            # 0.01
+            'ZB': 2,            # 1/32 simplified to 2 decimals
+        }
+
         for symbol in symbols:
             row = by_symbol.get(symbol, {})
             name = self._coalesce(row, ['name', 'description'], symbol)
             exchange = self._coalesce(row, ['exchange', 'exch'], 'CME')
-            display_precision = int(self._coalesce(row, ['display_precision', 'precision', 'dp'], 2))
+            # Use symbol-specific default or fallback to 2
+            default_precision = precision_defaults.get(symbol, 2)
+            display_precision = int(self._coalesce(row, ['display_precision', 'precision', 'dp'], default_precision))
 
             # Pull numeric fields (support various header names)
             def f(keys, default=None):

@@ -216,11 +216,27 @@ class ExcelLiveProvider:
             net = _num(r[c_net]) if (c_net is not None and c_net < len(r)) else None
             pct = _num(r[c_pct]) if (c_pct is not None and c_pct < len(r)) else None
 
+            # Symbol-specific precision defaults
+            precision_map = {
+                '/YM': 0, 'YM': 0,  # Dow mini trades in whole points
+                '/ES': 2, 'ES': 2,  # Quarter point increments
+                '/NQ': 2, 'NQ': 2,  # Quarter point increments
+                'RTY': 2,           # Tenth increments
+                'CL': 2,            # Penny increments
+                'SI': 3,            # Half-cent increments (0.005)
+                'HG': 4,            # 0.0005 tick size
+                'GC': 1,            # Dime increments
+                'VX': 2,            # 0.01
+                'DX': 2,            # 0.01
+                'ZB': 2,            # 1/32 simplified to 2 decimals
+            }
+            display_precision = precision_map.get(sym, 2)
+
             row = {
                 "instrument": {
                     "symbol": sym,
                     "name": sym,
-                    "display_precision": 2,
+                    "display_precision": display_precision,
                     "is_active": True,
                     "sort_order": _CANONICAL11.index(sym) if sym in _CANONICAL11 else 999,
                 },

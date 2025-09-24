@@ -8,6 +8,7 @@ from decimal import Decimal
 import logging
 
 from .models import TradingInstrument, MarketData, TradingSignal, SignalStatValue, ContractWeight
+from .services.classification import enrich_quote_row, compute_composite
 
 
 logger = logging.getLogger(__name__)
@@ -135,6 +136,9 @@ class LatestQuotesView(APIView):
                     })
                 
                 row['extended_data'] = extended_data
+
+                # Enrich row with classification logic (signal/stat/weight) if missing
+                enrich_quote_row(row)
                 rows.append(row)
             
             # Calculate total composite
@@ -142,13 +146,8 @@ class LatestQuotesView(APIView):
             if total_weights > 0:
                 avg_weighted = weighted_sum / total_weights
             
-            total_data = {
-                'sum_weighted': str(weighted_sum),
-                'avg_weighted': str(avg_weighted) if avg_weighted is not None else None,
-                'count': len(rows),
-                'denominator': str(total_weights),
-                'as_of': timezone.now().isoformat(),
-            }
+            # Recompute composite from enriched rows (uses stat_value & contract_weight)
+            total_data = compute_composite(rows)
             
             return Response({
                 'rows': rows,
