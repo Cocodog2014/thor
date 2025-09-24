@@ -52,7 +52,7 @@ from decimal import Decimal
 from functools import lru_cache
 from typing import Optional, Tuple
 
-from ..models import SignalStatValue, ContractWeight, TradingInstrument
+from ..models import SignalStatValue, ContractWeight, TradingInstrument, SignalWeight
 
 # Fallback static defaults (only used if DB rows missing) – mirrors management command
 FALLBACK_STAT_MAP = {
@@ -99,23 +99,33 @@ def _get_weight_for_symbol(symbol: str) -> Decimal:
         return Decimal('1')
 
 
-def classify(symbol: str, net_change: Optional[Decimal | float | str]) -> Tuple[Optional[str], Optional[Decimal], Decimal]:
-    """Classify a net change into a signal, returning (signal, stat_value, weight).
+@lru_cache(maxsize=32)
+def _get_signal_weight(signal: str) -> int:
+    """Fetch signal weight from DB (2, 1, 0, -1, -2) or return 0."""
+    try:
+        sw = SignalWeight.objects.get(signal=signal)
+        return sw.weight
+    except SignalWeight.DoesNotExist:
+        return 0
 
-    If net_change is None or cannot be parsed, returns (None, None, weight).
+
+def classify(symbol: str, net_change: Optional[Decimal | float | str]) -> Tuple[Optional[str], Optional[Decimal], Decimal, int]:
+    """Classify a net change into a signal, returning (signal, stat_value, contract_weight, signal_weight).
+
+    If net_change is None or cannot be parsed, returns (None, None, contract_weight, 0).
     """
-    weight = _get_weight_for_symbol(symbol)
+    contract_weight = _get_weight_for_symbol(symbol)
     if net_change is None:
-        return None, None, weight
+        return None, None, contract_weight, 0
 
     try:
         change = Decimal(str(net_change))
     except Exception:
-        return None, None, weight
+        return None, None, contract_weight, 0
 
     stat_map = _get_stat_map_for_symbol(symbol)
     if not stat_map:
-        return None, None, weight
+        return None, None, contract_weight, 0
 
     # Extract needed values with fallbacks
     strong_buy = stat_map.get('STRONG_BUY')
@@ -124,7 +134,7 @@ def classify(symbol: str, net_change: Optional[Decimal | float | str]) -> Tuple[
     strong_sell = stat_map.get('STRONG_SELL')
 
     if None in (strong_buy, buy, sell, strong_sell):  # incomplete data
-        return None, None, weight
+        return None, None, contract_weight, 0
 
     # Classification using inequality ladder (mirrors VBA intent)
     if change > strong_buy:
@@ -139,11 +149,12 @@ def classify(symbol: str, net_change: Optional[Decimal | float | str]) -> Tuple[
         signal = 'STRONG_SELL'
 
     stat_value = stat_map.get(signal)
-    return signal, stat_value, weight
+    signal_weight = _get_signal_weight(signal)
+    return signal, stat_value, contract_weight, signal_weight
 
 
 def enrich_quote_row(row: dict) -> dict:
-    """Given a single quote dict (instrument + fields) add signal/stat/weight if missing.
+    """Given a single quote dict (instrument + fields) add signal/stat/weights if missing.
 
     Mutates and returns the row for convenience.
     Expected structure matches what LatestQuotesView assembles before enrichment.
@@ -155,17 +166,26 @@ def enrich_quote_row(row: dict) -> dict:
     # Only classify if we do not already have a signal
     if not extended.get('signal'):
         change_raw = row.get('change')
-        signal, stat_value, weight = classify(symbol, change_raw)
+        signal, stat_value, contract_weight, signal_weight = classify(symbol, change_raw)
         if signal:
             extended['signal'] = signal
         if stat_value is not None:
             extended['stat_value'] = str(stat_value)
         if 'contract_weight' not in extended:
-            extended['contract_weight'] = str(weight)
+            extended['contract_weight'] = str(contract_weight)
+        # Add the signal weight (2, 1, 0, -1, -2) for display in header
+        extended['signal_weight'] = str(signal_weight)
     else:
-        # Ensure weight present even if signal existed
+        # Ensure weights present even if signal existed
         if 'contract_weight' not in extended:
             extended['contract_weight'] = str(_get_weight_for_symbol(symbol))
+        if 'signal_weight' not in extended:
+            # Get signal weight based on existing signal
+            existing_signal = extended.get('signal')
+            if existing_signal:
+                extended['signal_weight'] = str(_get_signal_weight(existing_signal))
+            else:
+                extended['signal_weight'] = '0'
     return row
 
 

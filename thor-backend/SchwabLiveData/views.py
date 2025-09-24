@@ -15,6 +15,7 @@ import logging
 
 from .provider_factory import ProviderConfig, get_market_data_provider, get_provider_status
 from futuretrading.models import SignalStatValue, ContractWeight
+from futuretrading.services.classification import enrich_quote_row
 
 logger = logging.getLogger(__name__)
 
@@ -132,6 +133,9 @@ class SchwabQuotesView(APIView):
                 "stat_value": str(db_stat_value),
                 "contract_weight": str(db_contract_weight)
             })
+            
+            # Apply VBA signal classification logic to enrich with signal_weight
+            enrich_quote_row(quote)
             
             enriched.append(quote)
         

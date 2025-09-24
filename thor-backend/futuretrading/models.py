@@ -246,6 +246,23 @@ class SignalStatValue(models.Model):
         return f"{self.instrument.symbol} - {self.get_signal_display()}: {self.value}"
 
 
+class SignalWeight(models.Model):
+    """Weight values for signals (e.g., Strong Buy=2, Buy=1, Hold=0, Sell=-1, Strong Sell=-2)"""
+    signal = models.CharField(max_length=20, choices=TradingSignal.SIGNAL_CHOICES, unique=True)
+    weight = models.IntegerField(help_text="Weight value for this signal type (e.g., 2, 1, 0, -1, -2)")
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['-weight']  # Strong Buy first, Strong Sell last
+        verbose_name = 'Signal Weight'
+        verbose_name_plural = 'Signal Weights'
+    
+    def __str__(self):
+        return f"{self.get_signal_display()}: {self.weight}"
+
+
 class ContractWeight(models.Model):
     """Weights for how much each instrument influences the total composite score"""
     instrument = models.OneToOneField(TradingInstrument, on_delete=models.CASCADE, related_name='contract_weight')

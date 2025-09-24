@@ -2,7 +2,7 @@ from django.contrib import admin
 from .models import (
     InstrumentCategory, TradingInstrument, TradingSignal, MarketData,
     WatchlistGroup, WatchlistItem, DataProviderConfig,
-    SignalStatValue, ContractWeight, HbsThresholds
+    SignalStatValue, ContractWeight, HbsThresholds, SignalWeight
 )
 
 
@@ -105,6 +105,14 @@ class ContractWeightAdmin(admin.ModelAdmin):
     list_filter = ['instrument__category']
     search_fields = ['instrument__symbol', 'instrument__name']
     list_editable = ['weight']
+
+
+@admin.register(SignalWeight)
+class SignalWeightAdmin(admin.ModelAdmin):
+    list_display = ['signal', 'weight']
+    list_filter = ['signal']
+    list_editable = ['weight']
+    ordering = ['-weight']
 
 
 @admin.register(HbsThresholds)

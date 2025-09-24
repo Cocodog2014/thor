@@ -275,6 +275,7 @@ function L1Card({row, onSample, hist, theme}:{row: MarketData; onSample:(n:numbe
   const spread = row.bid && row.ask ? Number(row.ask) - Number(row.bid) : null;
   const sig = row.extended_data?.signal as SignalKey | undefined;
   const statValue = row.extended_data?.stat_value;
+  const signalWeight = row.extended_data?.signal_weight;
 
   useEffect(() => { onSample(Number(row.price)); }, [row.price]);
   const data = useMemo(() => hist.map((y,i)=>({x:i, y})), [hist]);
@@ -306,6 +307,20 @@ function L1Card({row, onSample, hist, theme}:{row: MarketData; onSample:(n:numbe
           <Typography variant="body2" fontWeight="bold">{row.instrument.symbol}</Typography>
           <Box display="flex" alignItems="center" gap={1}>
             <SignalBox sig={sig} />
+            <Typography 
+              variant="body2" 
+              fontWeight="bold"
+              sx={{ 
+                color: 'white',
+                bgcolor: 'rgba(255,255,255,0.2)',
+                px: 1,
+                py: 0.5,
+                borderRadius: 1,
+                fontSize: '0.75rem'
+              }}
+            >
+              Wgt: {signalWeight || "0"}
+            </Typography>
             <Typography 
               variant="body2" 
               fontWeight="bold"
