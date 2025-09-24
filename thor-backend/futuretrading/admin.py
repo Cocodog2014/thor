@@ -1,0 +1,138 @@
+from django.contrib import admin
+from .models import (
+    InstrumentCategory, TradingInstrument, TradingSignal, MarketData,
+    WatchlistGroup, WatchlistItem, DataProviderConfig,
+    SignalStatValue, ContractWeight, HbsThresholds
+)
+
+
+class SignalStatValueInline(admin.TabularInline):
+    model = SignalStatValue
+    extra = 0
+    fields = ['signal', 'value']
+
+
+class ContractWeightInline(admin.StackedInline):
+    model = ContractWeight
+    extra = 0
+    fields = ['weight']
+
+
+@admin.register(InstrumentCategory)
+class InstrumentCategoryAdmin(admin.ModelAdmin):
+    list_display = ['name', 'display_name', 'is_active', 'sort_order']
+    list_filter = ['is_active']
+    list_editable = ['is_active', 'sort_order']
+    search_fields = ['name', 'display_name']
+
+
+@admin.register(TradingInstrument)
+class TradingInstrumentAdmin(admin.ModelAdmin):
+    list_display = ['symbol', 'name', 'category', 'exchange', 'is_active', 'is_watchlist']
+    list_filter = ['category', 'is_active', 'is_watchlist', 'exchange']
+    list_editable = ['is_active', 'is_watchlist']
+    search_fields = ['symbol', 'name']
+    inlines = [SignalStatValueInline, ContractWeightInline]
+    
+    fieldsets = (
+        ('Basic Information', {
+            'fields': ('symbol', 'name', 'description', 'category')
+        }),
+        ('Market Information', {
+            'fields': ('exchange', 'currency')
+        }),
+        ('Trading Configuration', {
+            'fields': ('is_active', 'is_watchlist', 'sort_order')
+        }),
+        ('Display Configuration', {
+            'fields': ('display_precision', 'tick_size', 'contract_size')
+        }),
+        ('API Configuration', {
+            'fields': ('api_provider', 'api_symbol', 'update_frequency')
+        }),
+    )
+
+
+@admin.register(TradingSignal)
+class TradingSignalAdmin(admin.ModelAdmin):
+    list_display = ['instrument', 'signal', 'confidence', 'strength', 'created_at']
+    list_filter = ['signal', 'signal_source', 'created_at']
+    search_fields = ['instrument__symbol', 'instrument__name']
+    readonly_fields = ['created_at']
+
+
+@admin.register(MarketData)
+class MarketDataAdmin(admin.ModelAdmin):
+    list_display = ['instrument', 'price', 'change_percent', 'volume', 'market_status', 'timestamp']
+    list_filter = ['market_status', 'is_real_time', 'data_source']
+    search_fields = ['instrument__symbol', 'instrument__name']
+    readonly_fields = ['timestamp']
+    
+    fieldsets = (
+        ('Basic Information', {
+            'fields': ('instrument', 'timestamp', 'market_status')
+        }),
+        ('Price Data', {
+            'fields': ('price', 'bid', 'ask', 'last_size', 'bid_size', 'ask_size')
+        }),
+        ('Session Statistics', {
+            'fields': ('open_price', 'high_price', 'low_price', 'close_price', 'previous_close')
+        }),
+        ('Change & Volume', {
+            'fields': ('change', 'change_percent', 'volume', 'average_volume', 'vwap')
+        }),
+        ('Data Source', {
+            'fields': ('data_source', 'is_real_time', 'delay_minutes')
+        }),
+        ('Extended Data', {
+            'fields': ('extended_data',),
+            'classes': ('collapse',)
+        }),
+    )
+
+
+@admin.register(SignalStatValue)
+class SignalStatValueAdmin(admin.ModelAdmin):
+    list_display = ['instrument', 'signal', 'value']
+    list_filter = ['signal', 'instrument__category']
+    search_fields = ['instrument__symbol', 'instrument__name']
+    list_editable = ['value']
+
+
+@admin.register(ContractWeight)
+class ContractWeightAdmin(admin.ModelAdmin):
+    list_display = ['instrument', 'weight']
+    list_filter = ['instrument__category']
+    search_fields = ['instrument__symbol', 'instrument__name']
+    list_editable = ['weight']
+
+
+@admin.register(HbsThresholds)
+class HbsThresholdsAdmin(admin.ModelAdmin):
+    list_display = ['name', 'buy_hi', 'buy_lo', 'sell_lo', 'sell_hi', 'is_active']
+    list_filter = ['is_active']
+    list_editable = ['is_active']
+    search_fields = ['name']
+
+
+@admin.register(WatchlistGroup)
+class WatchlistGroupAdmin(admin.ModelAdmin):
+    list_display = ['name', 'sort_order', 'is_active']
+    list_editable = ['sort_order', 'is_active']
+    search_fields = ['name']
+
+
+@admin.register(WatchlistItem)
+class WatchlistItemAdmin(admin.ModelAdmin):
+    list_display = ['group', 'instrument', 'sort_order', 'is_active']
+    list_filter = ['group', 'is_active']
+    list_editable = ['sort_order', 'is_active']
+    search_fields = ['instrument__symbol', 'group__name']
+
+
+@admin.register(DataProviderConfig)
+class DataProviderConfigAdmin(admin.ModelAdmin):
+    list_display = ['name', 'display_name', 'is_active', 'is_primary']
+    list_filter = ['is_active', 'is_primary', 'supports_real_time', 'supports_futures']
+    list_editable = ['is_active', 'is_primary']
+    search_fields = ['name', 'display_name']

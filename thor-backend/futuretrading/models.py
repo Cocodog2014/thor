@@ -1,0 +1,320 @@
+from django.db import models
+from django.core.validators import MinValueValidator, MaxValueValidator
+from decimal import Decimal
+import uuid
+
+
+class InstrumentCategory(models.Model):
+    """Categories for different types of trading instruments"""
+    name = models.CharField(max_length=50, unique=True)  # e.g., 'futures', 'stocks', 'crypto', 'forex'
+    display_name = models.CharField(max_length=100)  # e.g., 'Futures Contracts', 'Stocks & ETFs'
+    description = models.TextField(blank=True)
+    is_active = models.BooleanField(default=True)
+    sort_order = models.IntegerField(default=0)
+    
+    # Display configuration
+    color_primary = models.CharField(max_length=7, default='#4CAF50')  # Hex color for UI
+    color_secondary = models.CharField(max_length=7, default='#81C784')
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['sort_order', 'name']
+        verbose_name = 'Instrument Category'
+        verbose_name_plural = 'Instrument Categories'
+    
+    def __str__(self):
+        return self.display_name
+
+
+class TradingInstrument(models.Model):
+    """Flexible model for any type of trading instrument"""
+    
+    # Basic identification
+    symbol = models.CharField(max_length=50, unique=True)  # e.g., '/NQ', 'AAPL', 'BTC-USD'
+    name = models.CharField(max_length=200)  # e.g., 'Nasdaq 100 Futures', 'Apple Inc'
+    description = models.TextField(blank=True)
+    
+    # Categorization
+    category = models.ForeignKey(InstrumentCategory, on_delete=models.CASCADE, related_name='instruments')
+    
+    # Market information
+    exchange = models.CharField(max_length=50, blank=True)  # e.g., 'CME', 'NASDAQ', 'Binance'
+    currency = models.CharField(max_length=10, default='USD')
+    
+    # Trading configuration
+    is_active = models.BooleanField(default=True)
+    is_watchlist = models.BooleanField(default=False)  # Show in main watchlist
+    sort_order = models.IntegerField(default=0)
+    
+    # Display configuration
+    display_precision = models.IntegerField(default=2)  # Decimal places to show
+    tick_size = models.DecimalField(max_digits=10, decimal_places=6, null=True, blank=True)
+    contract_size = models.DecimalField(max_digits=15, decimal_places=2, null=True, blank=True)
+    
+    # API configuration
+    api_provider = models.CharField(max_length=50, blank=True)  # 'alpha_vantage', 'iex', 'polygon'
+    api_symbol = models.CharField(max_length=100, blank=True)  # Symbol as used by API provider
+    update_frequency = models.IntegerField(default=5)  # Seconds between updates
+    
+    # Status
+    last_updated = models.DateTimeField(null=True, blank=True)
+    is_market_open = models.BooleanField(default=False)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['sort_order', 'symbol']
+        verbose_name = 'Trading Instrument'
+        verbose_name_plural = 'Trading Instruments'
+    
+    def __str__(self):
+        return f"{self.symbol} - {self.name}"
+
+
+class TradingSignal(models.Model):
+    """Trading signals and analytics for instruments"""
+    
+    SIGNAL_CHOICES = [
+        ('STRONG_BUY', 'Strong Buy'),
+        ('BUY', 'Buy'),
+        ('HOLD', 'Hold'),
+        ('SELL', 'Sell'),
+        ('STRONG_SELL', 'Strong Sell'),
+    ]
+    
+    instrument = models.ForeignKey(TradingInstrument, on_delete=models.CASCADE, related_name='signals')
+    signal = models.CharField(max_length=20, choices=SIGNAL_CHOICES, default='HOLD')
+    
+    # Signal metadata
+    confidence = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)  # 0-100%
+    strength = models.IntegerField(validators=[MinValueValidator(1), MaxValueValidator(10)], null=True, blank=True)
+    
+    # Source information
+    signal_source = models.CharField(max_length=100, blank=True)  # 'technical', 'fundamental', 'combined'
+    algorithm_version = models.CharField(max_length=50, blank=True)
+    
+    # Timing
+    valid_until = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['instrument', '-created_at']),
+            models.Index(fields=['signal']),
+        ]
+        verbose_name = 'Trading Signal'
+        verbose_name_plural = 'Trading Signals'
+    
+    def __str__(self):
+        return f"{self.instrument.symbol} - {self.get_signal_display()}"
+
+
+class MarketData(models.Model):
+    """Real-time and historical market data for any instrument"""
+    
+    instrument = models.ForeignKey(TradingInstrument, on_delete=models.CASCADE, related_name='market_data')
+    
+    # Core price data (Level 1)
+    price = models.DecimalField(max_digits=15, decimal_places=6)  # Last traded price
+    bid = models.DecimalField(max_digits=15, decimal_places=6, null=True, blank=True)
+    ask = models.DecimalField(max_digits=15, decimal_places=6, null=True, blank=True)
+    
+    # Size data (Level 1 order book)
+    last_size = models.IntegerField(null=True, blank=True)  # Size of last trade
+    bid_size = models.IntegerField(null=True, blank=True)   # Size at bid
+    ask_size = models.IntegerField(null=True, blank=True)   # Size at ask
+    
+    # Session statistics
+    open_price = models.DecimalField(max_digits=15, decimal_places=6, null=True, blank=True)
+    high_price = models.DecimalField(max_digits=15, decimal_places=6, null=True, blank=True)  # 24h/session high
+    low_price = models.DecimalField(max_digits=15, decimal_places=6, null=True, blank=True)   # 24h/session low
+    close_price = models.DecimalField(max_digits=15, decimal_places=6, null=True, blank=True) # Official close
+    previous_close = models.DecimalField(max_digits=15, decimal_places=6, null=True, blank=True)
+    
+    # Change calculations
+    change = models.DecimalField(max_digits=15, decimal_places=6, null=True, blank=True)
+    change_percent = models.DecimalField(max_digits=8, decimal_places=4, null=True, blank=True)
+    
+    # VWAP and advanced metrics
+    vwap = models.IntegerField(null=True, blank=True)  # Volume Weighted Average Price (as integer)
+    
+    # Volume and activity
+    volume = models.BigIntegerField(null=True, blank=True)
+    average_volume = models.BigIntegerField(null=True, blank=True)
+    
+    # Market status
+    market_status = models.CharField(
+        max_length=20,
+        choices=[
+            ('OPEN', 'Market Open'),
+            ('CLOSED', 'Market Closed'),
+            ('PREMARKET', 'Pre-Market'),
+            ('AFTERHOURS', 'After Hours'),
+            ('HALT', 'Trading Halt'),
+        ],
+        default='CLOSED'
+    )
+    
+    # Data source and quality
+    data_source = models.CharField(max_length=50, blank=True)  # Which API provided this data
+    is_real_time = models.BooleanField(default=True)
+    delay_minutes = models.IntegerField(default=0)  # Data delay in minutes
+    
+    # Extended data (for flexibility)
+    extended_data = models.JSONField(default=dict, blank=True)  # Additional fields as needed
+    
+    timestamp = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['-timestamp']
+        indexes = [
+            models.Index(fields=['instrument', '-timestamp']),
+            models.Index(fields=['market_status']),
+            models.Index(fields=['timestamp']),
+        ]
+        verbose_name = 'Market Data'
+        verbose_name_plural = 'Market Data'
+    
+    def __str__(self):
+        return f"{self.instrument.symbol} - {self.price} @ {self.timestamp.strftime('%H:%M:%S')}"
+
+
+class WatchlistGroup(models.Model):
+    """User-defined groups for organizing instruments"""
+    name = models.CharField(max_length=100)
+    description = models.TextField(blank=True)
+    color = models.CharField(max_length=7, default='#2196F3')  # Hex color
+    sort_order = models.IntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['sort_order', 'name']
+        verbose_name = 'Watchlist Group'
+        verbose_name_plural = 'Watchlist Groups'
+    
+    def __str__(self):
+        return self.name
+
+
+class WatchlistItem(models.Model):
+    """Many-to-many relationship between watchlist groups and instruments"""
+    group = models.ForeignKey(WatchlistGroup, on_delete=models.CASCADE, related_name='items')
+    instrument = models.ForeignKey(TradingInstrument, on_delete=models.CASCADE, related_name='watchlist_items')
+    sort_order = models.IntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+    
+    # Display customization per item
+    show_extended_hours = models.BooleanField(default=False)
+    alert_price_above = models.DecimalField(max_digits=15, decimal_places=6, null=True, blank=True)
+    alert_price_below = models.DecimalField(max_digits=15, decimal_places=6, null=True, blank=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['sort_order', 'instrument__symbol']
+        unique_together = ['group', 'instrument']
+        verbose_name = 'Watchlist Item'
+        verbose_name_plural = 'Watchlist Items'
+    
+    def __str__(self):
+        return f"{self.group.name} - {self.instrument.symbol}"
+
+
+class SignalStatValue(models.Model):
+    """Statistical values mapped from trading signals per instrument"""
+    instrument = models.ForeignKey(TradingInstrument, on_delete=models.CASCADE, related_name='signal_stat_values')
+    signal = models.CharField(max_length=20, choices=TradingSignal.SIGNAL_CHOICES)
+    value = models.DecimalField(max_digits=10, decimal_places=6)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        unique_together = ['instrument', 'signal']
+        ordering = ['instrument__symbol', 'signal']
+        verbose_name = 'Signal Statistical Value'
+        verbose_name_plural = 'Signal Statistical Values'
+    
+    def __str__(self):
+        return f"{self.instrument.symbol} - {self.get_signal_display()}: {self.value}"
+
+
+class ContractWeight(models.Model):
+    """Weights for how much each instrument influences the total composite score"""
+    instrument = models.OneToOneField(TradingInstrument, on_delete=models.CASCADE, related_name='contract_weight')
+    weight = models.DecimalField(max_digits=8, decimal_places=6, default=Decimal('1.0'))
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['instrument__symbol']
+        verbose_name = 'Contract Weight'
+        verbose_name_plural = 'Contract Weights'
+    
+    def __str__(self):
+        return f"{self.instrument.symbol}: {self.weight}"
+
+
+class HbsThresholds(models.Model):
+    """Thresholds for auto-classifying signals from net change (optional future feature)"""
+    name = models.CharField(max_length=100, unique=True)
+    buy_hi = models.DecimalField(max_digits=10, decimal_places=6)
+    buy_lo = models.DecimalField(max_digits=10, decimal_places=6)
+    sell_lo = models.DecimalField(max_digits=10, decimal_places=6)
+    sell_hi = models.DecimalField(max_digits=10, decimal_places=6)
+    is_active = models.BooleanField(default=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['name']
+        verbose_name = 'HBS Threshold'
+        verbose_name_plural = 'HBS Thresholds'
+    
+    def __str__(self):
+        return f"{self.name} ({'Active' if self.is_active else 'Inactive'})"
+
+
+class DataProviderConfig(models.Model):
+    """Configuration for different market data providers"""
+    name = models.CharField(max_length=50, unique=True)  # 'alpha_vantage', 'iex', 'polygon'
+    display_name = models.CharField(max_length=100)
+    api_key = models.CharField(max_length=200, blank=True)
+    base_url = models.URLField()
+    
+    # Rate limiting
+    requests_per_minute = models.IntegerField(default=60)
+    requests_per_day = models.IntegerField(null=True, blank=True)
+    
+    # Capabilities
+    supports_real_time = models.BooleanField(default=True)
+    supports_historical = models.BooleanField(default=True)
+    supports_crypto = models.BooleanField(default=False)
+    supports_forex = models.BooleanField(default=False)
+    supports_futures = models.BooleanField(default=False)
+    
+    is_active = models.BooleanField(default=True)
+    is_primary = models.BooleanField(default=False)  # Default provider
+    
+    # Configuration JSON for provider-specific settings
+    config = models.JSONField(default=dict, blank=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['-is_primary', 'name']
+        verbose_name = 'Data Provider Config'
+        verbose_name_plural = 'Data Provider Configs'
+    
+    def __str__(self):
+        return self.display_name

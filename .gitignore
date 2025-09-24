@@ -1,0 +1,44 @@
+# Root-level data + build artifacts to ignore
+
+# Local Excel / data sources (do not version live RTD workbook)
+CleanData*.xlsm
+CleanData*.xlsx
+CleanData-ComputerLearning.csv
+~$CleanData*.xlsm
+~$*.xls*
+
+# Prevent accidental large binary data dumps
+*.csv
+!example*.csv
+
+# Python virtual environments (root-level safety)
+venv/
+.env
+
+# Backend venv (already ignored inside its own folder, repeated here for safety)
+thor-backend/venv/
+
+# Node modules / build output
+thor-frontend/node_modules/
+thor-frontend/dist/
+thor-frontend/.vite/
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Logs
+*.log
+logs/
+
+# Bytecode
+__pycache__/
+*.py[cod]
+
+# Temporary / lock / backup files
+*.tmp
+*.swp
+*.swo
+*.bak

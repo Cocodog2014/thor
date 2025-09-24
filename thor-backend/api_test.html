@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WorldClock API Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .endpoint { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .endpoint h3 { margin-top: 0; color: #333; }
+        .response { background: #f5f5f5; padding: 10px; border-radius: 3px; margin-top: 10px; }
+        button { background: #007cba; color: white; padding: 8px 15px; border: none; border-radius: 3px; cursor: pointer; }
+        button:hover { background: #005a87; }
+        .error { color: red; }
+        .success { color: green; }
+    </style>
+</head>
+<body>
+    <h1>🌍 WorldClock API Testing</h1>
+    <p>Test all the WorldClock API endpoints below:</p>
+
+    <div class="endpoint">
+        <h3>📍 All Markets</h3>
+        <p>Get list of all markets being monitored</p>
+        <button onclick="testEndpoint('/api/worldclock/markets/', 'markets-response')">Test Markets</button>
+        <div id="markets-response" class="response"></div>
+    </div>
+
+    <div class="endpoint">
+        <h3>🇺🇸 US Market Status</h3>
+        <p>Check if US markets are open (controls all data collection)</p>
+        <button onclick="testEndpoint('/api/worldclock/us-market-status/', 'us-status-response')">Test US Status</button>
+        <div id="us-status-response" class="response"></div>
+    </div>
+
+    <div class="endpoint">
+        <h3>🔴🟢 Live Market Status</h3>
+        <p>Get real-time status of all markets (open/closed with times)</p>
+        <button onclick="testEndpoint('/api/worldclock/markets/live_status/', 'live-status-response')">Test Live Status</button>
+        <div id="live-status-response" class="response"></div>
+    </div>
+
+    <div class="endpoint">
+        <h3>📊 Market Data Snapshots</h3>
+        <p>Get collected market data snapshots</p>
+        <button onclick="testEndpoint('/api/worldclock/market-snapshots/', 'snapshots-response')">Test Snapshots</button>
+        <div id="snapshots-response" class="response"></div>
+    </div>
+
+    <div class="endpoint">
+        <h3>🎯 Specific Market (Japan)</h3>
+        <p>Get details for a specific market</p>
+        <button onclick="testEndpoint('/api/worldclock/markets/1/', 'specific-market-response')">Test Market #1</button>
+        <div id="specific-market-response" class="response"></div>
+    </div>
+
+    <script>
+        async function testEndpoint(url, responseElementId) {
+            const responseElement = document.getElementById(responseElementId);
+            responseElement.innerHTML = '<em>Loading...</em>';
+            
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    responseElement.innerHTML = `
+                        <div class="success">✅ Status: ${response.status}</div>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    `;
+                } else {
+                    responseElement.innerHTML = `
+                        <div class="error">❌ Status: ${response.status}</div>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    `;
+                }
+            } catch (error) {
+                responseElement.innerHTML = `
+                    <div class="error">❌ Network Error: ${error.message}</div>
+                `;
+            }
+        }
+
+        // Test one endpoint on page load
+        window.onload = function() {
+            testEndpoint('/api/worldclock/markets/', 'markets-response');
+        };
+    </script>
+</body>
+</html>
