@@ -12,6 +12,7 @@ from rest_framework import status
 from django.http import JsonResponse
 from typing import List, Dict, Any
 import logging
+import json
 
 from .provider_factory import ProviderConfig, get_market_data_provider, get_provider_status
 from futuretrading.models import SignalStatValue, ContractWeight
@@ -237,3 +238,22 @@ def latest_quotes(request):
     symbols = ProviderConfig.DEFAULT_SYMBOLS
     data = provider.get_latest_quotes(symbols)
     return JsonResponse(data, safe=False)
+
+# Check for fallbacks to JSON data
+def get_quotes(request):
+    """
+    Get latest quotes from the provider.
+    """
+    try:
+        cfg = ProviderConfig(request)
+        provider = get_market_data_provider(cfg)
+        symbols = ProviderConfig.DEFAULT_SYMBOLS
+        data = provider.get_latest_quotes(symbols)
+        return JsonResponse(data, safe=False)
+    except Exception as e:
+        # No JSON fallback, just return the error
+        logger.error(f"Error fetching quotes: {e}", exc_info=True)
+        return JsonResponse(
+            {"error": f"Provider error: {str(e)}"}, 
+            status=500
+        )
