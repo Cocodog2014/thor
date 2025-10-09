@@ -2,37 +2,34 @@
 
 ## Architecture Overview
 
-Thor is a financial trading dashboard built with Django (backend) and React+Vite (frontend), focusing on futures market data visualization and analysis.
+Thor is a financial trading and analytics platform built with Django (backend) and React + Vite (frontend). It ingests live quotes from multiple sources, fans them through Redis for low-latency delivery, persists to Postgres for durability, and exports Parquet for ML/backtests.
 
 ### Core Architectural Principles
 
-1. **SchwabLiveData App** - Controls ALL live data and formatting
-2. **FuturesTrading App** - Contains ALL formulas and business logic
-3. **Clean Separation** - No cross-contamination of responsibilities
+1. Live inputs are independent and normalized into a single quote event contract.
+2. Redis is the real-time bus (Streams for replay + latest-hash for snapshots).
+3. Django is the single API/UI surface; the frontend never talks directly to Redis or external providers.
+4. Postgres is the durable store; Parquet exports power ML/backtests with DuckDB/Polars.
+5. A World Clock in Django drives market-aware triggers and schedules.
 
 ## Application Structure
 
 ```
 thor-backend/
-├── SchwabLiveData/          # Live Data & Formatting Layer
-│   ├── providers.py         # Data providers (Excel, JSON, Schwab API)
-│   ├── excel_live.py        # Real-time Excel integration
-│   ├── views.py            # API endpoints for live quotes
+├── SchwabLiveData/          # Live Data providers (Excel RTD via xlwings, JSON, Schwab API)
+│   ├── providers.py         # Provider implementations & precision rules
+│   ├── excel_live.py        # RTD bridge with Excel (Windows)
 │   └── provider_factory.py  # Provider selection logic
-├── futuretrading/          # Business Logic & Formulas Layer
-│   ├── models.py           # Trading instruments, signals, weights
-│   ├── views.py            # Enriched quotes with classifications
-│   └── services/
-│       └── classification.py # Signal classification formulas
-├── timezones/              # Deployment & Scheduling Control
-│   ├── models.py           # Market hours, deployment schedules
-│   ├── views.py            # Timezone-aware APIs
-│   └── services/           # Market timing logic
-├── thordata/               # Backtesting & Historical Analysis
-│   ├── models.py           # Historical data, backtest results
-│   ├── views.py            # Backtesting APIs
-│   └── services/           # Backtesting engines
-└── thor_project/           # Django settings
+├── futuretrading/           # Business logic (signals, weights, derived metrics)
+│   ├── models.py            # TradingInstrument, MarketData, TradingSignal, etc.
+│   └── services/            # e.g., classification.py
+├── timezones/               # World Clock & scheduling
+│   ├── models.py            # Market hours & holidays
+│   └── views.py             # World Clock/session endpoints
+├── thordata/                # Historical data & backtests
+│   ├── models.py            # Historical storage & analytics
+│   └── services/            # Exporters, backtest engines
+└── thor_project/            # Django settings & wiring
 
 thor-frontend/
 ├── src/
@@ -46,110 +43,110 @@ thor-frontend/
 ## Responsibility Matrix
 
 ### SchwabLiveData App - "Data Source Truth"
-**Owns:** Raw market data delivery and display formatting
+Owns raw data collection and display formatting at the edge; normalizes into the canonical quote event.
 
-- ✅ **Live Data Providers**
-  - Excel Live (xlwings integration)
-  - Excel File (openpyxl static reading)
-  - JSON Mock Data
-  - Future: Schwab API integration
+- ✅ Live Data Providers
+  - Thinkorswim via Excel RTD (xlwings script)
+  - Schwab API (JSON HTTP/Web)
+  - Excel File (openpyxl) and JSON mock (for dev/testing)
 
-- ✅ **Data Formatting**
+- ✅ Data Formatting
   - Symbol-specific display precision (YM=0, ES=2, SI=3, etc.)
   - Price rounding and string conversion
   - Field standardization (bid/ask/last/volume)
+  - Symbol normalization map across sources
 
-- ✅ **API Endpoints**
-  - `/api/schwab/quotes/latest/` - Primary live data feed
+- ✅ Publishing
+  - Publishes canonical events to Redis Streams and updates latest-hash per symbol
   - Provider health checks and status
 
-- ❌ **Does NOT Handle**
+- ❌ Does NOT Handle
   - Signal classification (Strong Buy/Sell/Hold)
   - Statistical value calculations
   - Contract weighting formulas
   - Composite score computations
 
 ### FuturesTrading App - "Business Logic Truth"
-**Owns:** All trading formulas and derived calculations
+Owns all trading formulas and derived calculations.
 
-- ✅ **Trading Models**
+- ✅ Trading Models
   - TradingInstrument, TradingSignal, MarketData
   - SignalStatValue (maps signals to numeric values)
   - ContractWeight (instrument weighting factors)
   - HbsThresholds (classification boundaries)
 
-- ✅ **Classification Formulas** (`services/classification.py`)
+- ✅ Classification Formulas (services/classification.py)
   - Net change → Signal mapping (Strong Buy/Buy/Hold/Sell/Strong Sell)
   - Statistical value lookups per instrument
   - Weighted composite calculations
 
-- ✅ **API Endpoints**
-  - `/api/quotes/latest/` - Enriched quotes with signals/weights
-  - Strategy definition and management APIs
-  - Real-time signal generation endpoints
+- ✅ API Endpoints
+  - `/api/quotes` - Snapshot quotes (reads Redis latest-hash)
+  - `/api/quotes/stream` - Server-Sent Events (tails unified Redis Stream)
+  - Strategy and signal endpoints (future)
 
-- ❌ **Does NOT Handle**
+- ❌ Does NOT Handle
   - Raw data collection
   - Display precision decisions
   - Provider selection logic
   - Deployment timing or scheduling
   - Historical data backtesting
 
-### Timezones App - "Deployment & Scheduling Control"
-**Owns:** When and how features are deployed and activated
+### Timezones App - "World Clock & Scheduling"
+Owns market calendars, open/close, and scheduling triggers.
 
-- ✅ **Market Timing**
+- ✅ Market Timing
   - Market open/close schedules per exchange
   - Trading session awareness (pre-market, regular, after-hours)
   - Holiday calendar management
   - Timezone conversions for global markets
 
-- ✅ **Deployment Control**
+- ✅ Deployment Control
   - Feature deployment schedules
   - Market-hours-aware feature activation
   - Rollback timing windows
   - Maintenance window scheduling
 
-- ✅ **Time-Based Logic**
+- ✅ Time-Based Logic
   - When to start/stop data collection
   - When to activate trading signals
   - When to send alerts or notifications
   - Session-based feature toggles
 
-- ❌ **Does NOT Handle**
+- ❌ Does NOT Handle
   - Trading calculations or formulas
   - Raw data formatting
   - User interface logic
   - Historical data analysis
 
 ### Thordata App - "Backtesting & Historical Analysis"
-**Owns:** All historical data processing and backtesting functionality
+Owns historical data processing and backtesting functionality.
 
-- ✅ **Historical Data Management**
+- ✅ Historical Data Management
   - Historical price data storage and retrieval
   - Data archiving and compression
   - Historical market data APIs
   - Data quality validation and cleaning
 
-- ✅ **Backtesting Engine**
+- ✅ Backtesting Engine
   - Strategy backtesting framework
   - Historical signal generation
   - Performance metrics calculation
   - Risk analysis and drawdown calculations
 
-- ✅ **Analysis Tools**
+- ✅ Analysis Tools
   - Historical pattern recognition
   - Statistical analysis of trading strategies
   - Performance comparison tools
   - Portfolio simulation capabilities
 
-- ✅ **API Endpoints**
+- ✅ API Endpoints
   - Historical data retrieval APIs
   - Backtesting execution endpoints
   - Performance reporting APIs
   - Strategy comparison tools
 
-- ❌ **Does NOT Handle**
+- ❌ Does NOT Handle
   - Live data collection or formatting
   - Real-time signal generation
   - Deployment timing or scheduling
@@ -159,28 +156,28 @@ thor-frontend/
 
 ### Live Data Flow
 ```
-Excel/API Data → SchwabLiveData → FuturesTrading → Frontend
-                 (formatting)     (classification)  (display)
-                      ↑                ↑
-                 Timezones ←──────────── Timezones
-                 (schedule)           (timing)
+TOS → Excel (RTD) → xlwings (collector) → Redis
+Schwab API (collector) → Redis
+
+Redis → Django: /api/quotes (snapshot) and /api/quotes/stream (SSE)
+Django → Frontend: React subscribes to SSE/REST only
+
+World Clock (Django) → Market Triggers → start/stop ingest & exports
 ```
 
 ### Historical Data Flow
 ```
-Historical Data → Thordata → FuturesTrading → Frontend
-                 (backtesting) (strategies)   (results)
-                      ↑
-                 Timezones
-                 (schedule)
+Unified stream → Ingestor → Postgres (ticks)
+Scheduled job → Export Parquet (partitioned by date/symbol)
+DuckDB/Polars → Training & Backtests → Results
 ```
 
 ### Combined Flow
-1. **Timezones** determines when data collection should be active
-2. **SchwabLiveData** fetches raw quotes with proper formatting (when scheduled)
-3. **FuturesTrading** enriches with signals/weights (when market is open)
-4. **Thordata** processes historical data and runs backtests (scheduled)
-5. **Frontend** renders both live data and backtest results
+1. World Clock determines session state and triggers start/stop.
+2. Collectors publish canonical events to Redis Streams and update latest cache.
+3. Django serves snapshots and SSE from Redis; optional aggregator merges sources.
+4. Ingestor batches events into Postgres; scheduled jobs export Parquet.
+5. ML/backtests consume Parquet; frontend shows live/session status from Django.
 ```
 
 ## Development Setup
@@ -195,14 +192,24 @@ Historical Data → Thordata → FuturesTrading → Frontend
 
 2. **Environment Variables**
    ```powershell
-   # Primary data source
-   $env:DATA_PROVIDER = 'excel_live'  # or 'excel', 'json', 'schwab'
-   
-   # Excel Live settings
-   $env:EXCEL_DATA_FILE = 'A:\Thor\CleanData.xlsm'
-   $env:EXCEL_SHEET_NAME = 'Futures'
-   $env:EXCEL_LIVE_RANGE = 'A1:M20'
-   $env:EXCEL_LIVE_REQUIRE_OPEN = '0'
+  # Primary data sources (collectors)
+  $env:DATA_PROVIDER = 'excel_live'  # or 'json', 'schwab'
+
+  # Excel Live settings (Windows)
+  $env:EXCEL_DATA_FILE = 'A:\\Thor\\CleanData.xlsm'
+  $env:EXCEL_SHEET_NAME = 'Futures'
+  $env:EXCEL_LIVE_RANGE = 'A1:M20'
+  $env:EXCEL_LIVE_REQUIRE_OPEN = '0'  # allows background read from closed workbook
+
+  # Redis (live bus)
+  $env:REDIS_URL = 'redis://localhost:6379/0'
+
+  # Postgres (durable store)
+  $env:DB_NAME = 'thor_db'
+  $env:DB_USER = 'postgres'
+  $env:DB_PASSWORD = 'postgres'
+  $env:DB_HOST = 'localhost'
+  $env:DB_PORT = '5432'
    ```
 
 3. **Database Setup**
@@ -236,15 +243,10 @@ Historical Data → Thordata → FuturesTrading → Frontend
 
 ## API Endpoints
 
-### SchwabLiveData Endpoints
-- `GET /api/schwab/quotes/latest/` - Raw formatted live data
-  - Query params: `provider`, `excel_file`, `sheet_name`, `live_sim`
-  - Returns: Raw quotes with display formatting applied
-
-### FuturesTrading Endpoints  
-- `GET /api/quotes/latest/` - Enriched data with signals/weights
-  - Includes classification results and composite calculations
-  - Uses SchwabLiveData as data source + adds business logic
+### Live Quotes Endpoints
+- `GET /api/quotes?symbols=AAPL,ES,YM` — Snapshot from Redis latest-hash
+- `GET /api/quotes/stream` — Server-Sent Events (stream of quote events + heartbeats)
+- `GET /api/session` — World Clock: open/closed, next_transition_at, holiday info
 
 ## Development Patterns
 
@@ -260,13 +262,13 @@ Historical Data → Thordata → FuturesTrading → Frontend
 2. Add to classification.py or new service module
 3. Enrich in LatestQuotesView
 
-### Provider Development
+### Collector Development (Providers)
 
-**Adding New Data Sources:**
-1. Create provider class in `SchwabLiveData/providers.py`
-2. Implement `BaseProvider` interface
-3. Register in `create_provider()` factory
-4. Add configuration to `ProviderConfig`
+Adding new sources:
+1. Implement a collector that emits the canonical quote event.
+2. Publish to Redis Streams (`quotes:stream:<source>`) and update latest-hash.
+3. Register provider in `SchwabLiveData/provider_factory.py` if used inside Django.
+4. Add precision rules and symbol normalization at the edge.
 
 ### Formula Development
 
@@ -291,9 +293,9 @@ Historical Data → Thordata → FuturesTrading → Frontend
 - Mock SchwabLiveData responses for isolation
 
 ### Integration Testing
-- End-to-end data flow testing
-- Frontend API contract validation
-- Real-time data update verification
+- End-to-end with Redis Streams + latest cache
+- Frontend API contract validation (snapshot + SSE)
+- Replay tests by reading from Streams and verifying idempotent DB writes
 
 ## Deployment Considerations
 
@@ -303,14 +305,84 @@ Historical Data → Thordata → FuturesTrading → Frontend
 - Development defaults to Excel Live for real-time testing
 
 ### Performance Optimization
-- Provider result caching (already implemented)
-- Database query optimization for large datasets
-- Frontend polling rate configuration
+- Redis Streams maxlen (time-bounded retention) and consumer groups
+- Batch size tuning for Postgres ingestion (COPY or batched INSERT)
+- SSE heartbeat intervals and client backoff
 
 ### Monitoring
-- Provider health check endpoints
-- Data freshness monitoring
-- Classification accuracy tracking
+-- Provider health checks
+-- Redis stream lag and consumer lag monitoring
+-- Data freshness (no events during open hours)
+-- Classification accuracy tracking
+
+---
+
+## Canonical Quote Event Contract (v1)
+
+All live sources must publish this JSON shape to Redis Streams and (after merge policy) to the unified stream. Nulls allowed where fields aren’t available.
+
+Required fields:
+- symbol: string (canonicalized, e.g., ES, YM, AAPL)
+- ts: string (UTC ISO8601) or number (epoch ms)
+- source: string ("TOS" | "SCHWAB" | "MOCK")
+- last, bid, ask: number | null
+- lastSize, bidSize, askSize: number | null
+
+Optional fields:
+- condition: string | null
+- venue: string | null
+- seq: integer | null (monotonic within source+symbol if available)
+- meta: object (free-form)
+
+Example:
+```
+{
+  "v": 1,
+  "symbol": "ES",
+  "ts": "2025-10-09T13:31:15.123456Z",
+  "source": "TOS",
+  "last": 5342.25,
+  "bid": 5342.00,
+  "ask": 5342.50,
+  "lastSize": 2,
+  "bidSize": 5,
+  "askSize": 3,
+  "seq": 184467,
+  "condition": null,
+  "venue": "CME",
+  "meta": {"precision": 2}
+}
+```
+
+### Redis Keys and Conventions
+- Streams per source: `quotes:stream:<source>` (e.g., quotes:stream:TOS, quotes:stream:SCHWAB)
+  - Use XADD with maxlen (time-bounded), create consumer groups for ingestors: `quotes:cgrp:ingest`
+- Latest snapshot per symbol: `quotes:latest:<symbol>` (hash)
+  - Fields mirror the event plus `updated_at` and `active_source`
+- Unified merged stream (optional): `quotes:stream:unified` (post-merge policy)
+- Small rolling per-symbol series (optional): `quotes:series:<symbol>`
+
+### Merge Policy
+If both sources provide the same symbol, prefer by:
+1) highest seq if comparable; else 2) preferred source per symbol; else 3) newest ts.
+Record `active_source` in latest-hash for UI transparency.
+
+---
+
+## Storage and ML Pipeline
+
+- Postgres table `ticks(symbol text, ts timestamptz, last numeric, bid numeric, ask numeric, last_size int, bid_size int, ask_size int, source text, cond text, seq bigint, extra jsonb)`
+- Batched ingestion from Redis Streams; idempotent upsert on (symbol, source, ts, seq)
+- Nightly export Parquet partitioned by `date=YYYY-MM-DD/symbol=<SYMBOL>`
+- DuckDB/Polars read Parquet for features, training, and backtests
+
+---
+
+## Frontend Contracts
+
+- `/api/quotes` returns an array of snapshot records (latest-hash), includes `active_source` and `updated_at`
+- `/api/quotes/stream` emits SSE with event: "quote" and data: canonical event (or merged event)
+- `/api/session` returns `{ is_open, market, now, next_transition_at, holiday }`
 
 ## Future Enhancements
 

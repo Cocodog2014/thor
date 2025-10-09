@@ -36,14 +36,10 @@ const Home: React.FC = () => {
           <button 
             className={`btn schwab-btn ${activeProvider === 'schwab' ? 'active' : ''}`}
             onClick={() => selectProvider('schwab')}
-          >
-            SCHWAB
+          > SCHWAB
           </button>
         </div>
-        <div className="provider-description">
-          <p><strong>EXCEL LIVE</strong>: Real-time data from Excel via RTD</p>
-          <p><strong>SCHWAB</strong>: Direct connection to Schwab API (future)</p>
-        </div>
+        
       </section>
     </div>
   );
