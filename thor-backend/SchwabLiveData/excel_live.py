@@ -1,3 +1,36 @@
+"""
+Excel Live Provider for SchwabLiveData
+
+PURPOSE:
+    Provides real-time connection to Excel workbooks containing market data
+    through xlwings, which enables access to Excel RTD formulas and live data.
+
+RESPONSIBILITIES:
+    - Opens/connects to Excel workbooks via COM interface
+    - Runs a background polling thread to continuously fetch fresh data
+    - Normalizes Excel grid data into API-friendly JSON structure
+    - Handles Excel-specific formats like fraction notation (e.g., 116'27)
+    - Maintains a snapshot of the latest data for low-latency API responses
+
+COMPONENTS:
+    - ExcelLiveProvider: Main class that manages Excel connection and polling
+    - Background thread for polling Excel without blocking the API
+    - Data normalization functions to convert Excel grid to structured data
+
+REQUIREMENTS:
+    - xlwings and pywin32 packages
+    - Windows environment (due to COM dependencies)
+    - Excel workbook with standard format (headers in row 1)
+
+USAGE:
+    provider = ExcelLiveProvider(
+        file_path="path/to/workbook.xlsm",
+        sheet_name="Futures",
+        range_address="A1:M20"
+    )
+    provider.start()  # Start polling thread
+    quotes = provider.get_latest_quotes()  # Get cached latest data
+"""
 from __future__ import annotations
 
 import threading
@@ -292,3 +325,4 @@ class ExcelLiveProvider:
 
     def get_provider_name(self) -> str:
         return "Excel Live Provider (xlwings)"
+
