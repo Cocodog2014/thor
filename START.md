@@ -1,10 +1,25 @@
 # 🔨 Thor - Norse Mythology Manager
 
-## Quick Start Guide (3 Simple Steps)
+## Quick Start Guide (4 Simple Steps)
 
 Follow these steps IN ORDER to start the Thor application:
 
-## Step 1: Start Database (Docker PostgreSQL)
+## Step 1: Start Redis (Docker)
+Redis powers the live quote bus. Use Docker Desktop on Windows 11.
+
+```powershell
+# From A:\Thor (repo root)
+docker compose up -d redis
+
+# Optional: verify
+docker compose ps
+docker exec thor_redis redis-cli ping  # expect PONG
+
+# Make Redis URL available to the backend in this session
+$env:REDIS_URL = 'redis://localhost:6379/0'
+```
+
+## Step 2: Start Database (Docker PostgreSQL)
 ```bash
 docker run --name thor_postgres \
   -e POSTGRES_DB=thor_db \
@@ -14,12 +29,14 @@ docker run --name thor_postgres \
   -d postgres:13
 ```
 
-## Step 2: Start Backend (Django)
+## Step 3: Start Backend (Django)
 ```powershell
 # From A:\Thor directory:
 cd A:\Thor\thor-backend
 # Activate the Thor_inv conda environment (contains all required packages)
 conda activate Thor_inv
+# Ensure Redis URL is set (if not already)
+$env:REDIS_URL = 'redis://localhost:6379/0'
 # Set environment for Excel Live provider
 $env:DATA_PROVIDER = 'excel_live'
 $env:EXCEL_DATA_FILE = 'A:\Thor\CleanData.xlsm'
@@ -30,7 +47,7 @@ $env:EXCEL_LIVE_REQUIRE_OPEN = '0'
 python manage.py runserver
 ```
 
-## Step 3: Start Frontend (React)
+## Step 4: Start Frontend (React)
 Open a new terminal:
 ```powershell
 # Activate the Thor_inv conda environment (contains Node.js and npm)

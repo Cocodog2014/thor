@@ -164,3 +164,6 @@ CORS_ALLOW_CREDENTIALS = True
 # Media files
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
+
+# Redis Configuration (live bus)
+REDIS_URL = config('REDIS_URL', default='redis://localhost:6379/0')
