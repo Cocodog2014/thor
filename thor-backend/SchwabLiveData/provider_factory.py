@@ -1,8 +1,40 @@
 """
 Provider Factory for SchwabLiveData
 
-This module handles the selection and configuration of market data providers.
-It focuses on Excel Live as the primary data provider.
+PURPOSE:
+    Manages creation and configuration of market data providers,
+    with Excel Live as the primary provider for real-time market data.
+
+RESPONSIBILITIES:
+    - Creates and configures the ExcelLiveProvider
+    - Manages provider lifecycle and caching
+    - Resolves configuration from environment variables
+    - Ensures a single provider instance is reused across requests
+    - Provides status and health information for diagnostics
+
+KEY COMPONENTS:
+    - ProviderConfig: Configuration class for provider settings
+    - get_market_data_provider(): Factory function to get/create providers
+    - Provider caching to maintain a single instance with polling thread
+    - Excel file path resolution with fallback options
+
+CONFIGURATION (Environment Variables):
+    - DATA_PROVIDER: Always "excel_live" in this implementation
+    - EXCEL_DATA_FILE: Path to Excel workbook with market data
+    - EXCEL_SHEET_NAME: Name of sheet containing futures data
+    - EXCEL_LIVE_RANGE: Cell range to poll (e.g., "A1:M20")
+    - EXCEL_LIVE_REQUIRE_OPEN: Whether workbook must be open (0/1)
+    - EXCEL_LIVE_POLL_MS: Polling frequency in milliseconds
+
+USAGE:
+    # Get a provider using environment configuration
+    provider = get_market_data_provider()
+    
+    # Get latest quotes for default symbols
+    quotes = provider.get_latest_quotes(ProviderConfig.DEFAULT_SYMBOLS)
+    
+    # Check provider health/status
+    status = get_provider_status()
 """
 
 import os

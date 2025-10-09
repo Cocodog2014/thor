@@ -6,8 +6,6 @@ import {
   Box,
   Typography,
   Button,
-  FormControlLabel,
-  Checkbox,
   Paper,
   Chip,
   Container,
@@ -453,9 +451,8 @@ function L1Card({row, onSample, hist, theme}:{row: MarketData; onSample:(n:numbe
 export default function FutureTrading(){
   const theme = useTheme();
   const [pollMs, setPollMs] = useState(2000);
-  const [mock, setMock] = useState(false);
-  // Source selection: choose explicitly between excel or schwab. Mock Mode overrides to JSON.
-  const [srcSelection, setSrcSelection] = useState<'excel_live'|'excel'|'schwab'>('excel_live');
+  // Source selection: choose explicitly between excel_live or schwab only.
+  const [srcSelection, setSrcSelection] = useState<'excel_live'|'schwab'>('excel_live');
   const [rows, setRows] = useState<MarketData[]>([]);
   const [totalData, setTotalData] = useState<any>(null);
 
@@ -467,30 +464,13 @@ export default function FutureTrading(){
     // Choose endpoints based on mock mode:
     // Mock Mode UNCHECKED = Use SchwabLiveData (our JSON file database)
     // Mock Mode CHECKED = Still use SchwabLiveData but allow selecting JSON variation easily
-    const ts = Date.now();
-  const params = new URLSearchParams(window.location.search);
-  const srcParam = (params.get('src') || '').toLowerCase(); // excel | schwab
-  const src = (srcSelection ?? (srcParam as any)) as 'excel_live'|'excel'|'schwab';
-    const variation = params.get('json_var') || '';
-    const excelPath = params.get('excel') || params.get('excel_file') || '';
-    const sheet = params.get('sheet') || params.get('sheet_name') || '';
-    const varQuery = variation ? `&json_variation=${encodeURIComponent(variation)}` : '';
+  // removed unused ts
+  // removed unused params
+  // removed unused src, excelPath, and sheet
 
-    // Build provider query from URL or Mock toggle
-    let providerQuery = '';
-    if (mock) {
-      // Mock Mode forces JSON test data; disable live simulation for determinism
-      providerQuery = `provider=json${varQuery}&live_sim=false`;
-    } else if (src === 'excel_live') {
-      // Excel Live source via xlwings; requires Excel running. Do not simulate.
-      providerQuery = `provider=excel_live${excelPath ? `&excel_file=${encodeURIComponent(excelPath)}` : ''}${sheet ? `&sheet_name=${encodeURIComponent(sheet)}` : ''}&live_sim=false`;
-    } else if (src === 'excel') {
-      // Excel source; disable live simulation so we only show sheet values
-      providerQuery = `provider=excel${excelPath ? `&excel_file=${encodeURIComponent(excelPath)}` : ''}${sheet ? `&sheet_name=${encodeURIComponent(sheet)}` : ''}&live_sim=false`;
-    } else {
-      // Schwab (no fallback)
-      providerQuery = `provider=schwab&disable_fallback=1`;
-    }
+  // Build provider query from URL
+  // removed unused providerQuery
+  // providerQuery logic removed; now handled server-side or by endpoint
 
     const endpoints = [ `/api/quotes/latest` ];
     
@@ -562,42 +542,16 @@ export default function FutureTrading(){
         setRows(emptyContainers);
       }
     })();
-  },[mock, srcSelection]);  // Re-fetch when mock mode or source selection changes
+  },[srcSelection]);  // Re-fetch when source selection changes
 
   useEffect(()=>{
-    // Poll for updates regardless of mock mode
+    // Poll for updates
     const id = setInterval(()=>{ fetchQuotes().catch(()=>{}); }, pollMs);
     return ()=> clearInterval(id);
-  },[pollMs,mock,srcSelection]);  // Include dependencies so polling updates when mode/source changes
+  },[pollMs,srcSelection]);  // Include dependencies so polling updates when source changes
 
-  const effective = rows;  // Always use real data, never mock
-
-  // Calculate mock total data when in mock mode
-  const mockTotalData = useMemo(() => {
-    if (!mock || effective.length === 0) return null;
-    
-    let sumWeighted = 0;
-    let totalWeights = 0;
-    
-    effective.forEach(row => {
-      const statValue = Number(row.extended_data?.stat_value ?? 0);
-      const weight = Number(row.extended_data?.contract_weight ?? 1);
-      sumWeighted += statValue * weight;
-      totalWeights += Math.abs(weight);
-    });
-    
-    const avgWeighted = totalWeights > 0 ? sumWeighted / totalWeights : 0;
-    
-    return {
-      sum_weighted: sumWeighted.toFixed(2),
-      avg_weighted: avgWeighted.toFixed(3),
-      count: effective.length,
-      denominator: totalWeights.toFixed(2),
-      as_of: new Date().toISOString()
-    };
-  }, [mock, effective]);
-
-  const currentTotalData = mock ? mockTotalData : totalData;
+  const effective = rows;
+  const currentTotalData = totalData;
 
   // Helper to create an empty placeholder row for missing symbols
   function makeEmptyRow(symbol: string, index: number): MarketData {
@@ -686,19 +640,8 @@ export default function FutureTrading(){
             aria-label="Data source"
           >
             <ToggleButton value="excel_live" aria-label="Excel Live">Excel Live</ToggleButton>
-            <ToggleButton value="excel" aria-label="Excel">Excel</ToggleButton>
             <ToggleButton value="schwab" aria-label="Schwab">Schwab</ToggleButton>
           </ToggleButtonGroup>
-          <FormControlLabel
-            control={
-              <Checkbox 
-                checked={mock} 
-                onChange={(e)=>setMock(e.target.checked)}
-                color="primary"
-              />
-            }
-            label="Mock Mode"
-          />
         </Box>
       </Box>
 

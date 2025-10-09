@@ -1,11 +1,21 @@
-import React from 'react';
+import React, { useState } from 'react';
 import TimeZone from '../TimeZone/TimeZone.tsx';
 import './Home.css';
 
-// The Home.css file is the single source of truth for positioning/layout
-// of all Home dashboard widgets (markets, charts, buttons, etc.).
-// Add new sections here and place them via CSS grid in Home.css.
 const Home: React.FC = () => {
+  const [activeProvider, setActiveProvider] = useState(
+    localStorage.getItem('selectedProvider') || 'excel_live'
+  );
+  
+  const selectProvider = (provider: string) => {
+    setActiveProvider(provider);
+    localStorage.setItem('selectedProvider', provider);
+    
+    window.dispatchEvent(new CustomEvent('provider-changed', { 
+      detail: { provider } 
+    }));
+  };
+  
   return (
     <div className="dashboard-grid">
       {/* Global Markets (World Clock) */}
@@ -13,9 +23,28 @@ const Home: React.FC = () => {
         <TimeZone />
       </section>
 
-      {/* Future widgets go here; keep structure, position via Home.css only */}
-      {/* <section className="dashboard-card charts" aria-label="Charts">Charts TBD</section> */}
-      {/* <section className="dashboard-card quick-actions" aria-label="Quick Actions">Buttons TBD</section> */}
+      {/* Provider Selection - Added from futures page */}
+      <section className="dashboard-card data-source" aria-label="Data Source">
+        <h2>Data Source</h2>
+        <div className="provider-controls">
+          <button 
+            className={`btn excel-live-btn ${activeProvider === 'excel_live' ? 'active' : ''}`}
+            onClick={() => selectProvider('excel_live')}
+          >
+            EXCEL LIVE
+          </button>
+          <button 
+            className={`btn schwab-btn ${activeProvider === 'schwab' ? 'active' : ''}`}
+            onClick={() => selectProvider('schwab')}
+          >
+            SCHWAB
+          </button>
+        </div>
+        <div className="provider-description">
+          <p><strong>EXCEL LIVE</strong>: Real-time data from Excel via RTD</p>
+          <p><strong>SCHWAB</strong>: Direct connection to Schwab API (future)</p>
+        </div>
+      </section>
     </div>
   );
 };
