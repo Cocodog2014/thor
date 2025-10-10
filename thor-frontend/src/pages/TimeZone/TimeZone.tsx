@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import './TimeZone.css';
 import type { Market } from '../../types';
 import marketsService from '../../services/markets';
 

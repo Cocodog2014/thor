@@ -13,7 +13,6 @@ import {
 import ToggleButton from "@mui/material/ToggleButton";
 import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
 import { useTheme } from "@mui/material/styles";
-import "./FutureTrading.css";
 
 /**
  * Level-1 12-Futures Dashboard (6x2) — with Signal box + VWAP box

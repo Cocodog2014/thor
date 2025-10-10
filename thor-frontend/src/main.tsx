@@ -7,6 +7,7 @@ import CssBaseline from '@mui/material/CssBaseline'
 import { Toaster } from 'react-hot-toast'
 import App from './App.tsx'
 import theme from './theme'
+import './styles/global.css'
 
 // Create a client
 const queryClient = new QueryClient({
@@ -31,10 +32,6 @@ createRoot(document.getElementById('root')!).render(
             position="top-right"
             toastOptions={{
               duration: 4000,
-              style: {
-                background: '#1a1f2e',
-                color: '#fff',
-              },
             }}
           />
         </BrowserRouter>
