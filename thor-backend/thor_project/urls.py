@@ -19,6 +19,7 @@ from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 from timezones.views import api_test_page, debug_market_times, sync_markets
+from SchwabLiveData.views import schwab_auth_callback
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -29,6 +30,8 @@ urlpatterns = [
     path('test/', api_test_page, name='api_test'),  # API test page
     path('debug/', debug_market_times, name='debug_market_times'),  # Debug endpoint
     path('sync/', sync_markets, name='sync_markets'),  # Sync markets endpoint
+    # Root-level OAuth callback to match Schwab portal setting (e.g., https://360edu.org/auth/callback)
+    path('auth/callback', schwab_auth_callback, name='schwab_auth_callback_root'),
 ]
 
 # Serve media files during development

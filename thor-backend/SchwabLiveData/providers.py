@@ -113,11 +113,13 @@ class SchwabProvider(BaseProvider):
         info = self.client.health()
         return {
             "provider": "schwab",
-            "connected": info.get("configured", False) and self._connected,
+            "connected": bool(info.get("configured")) and bool(self._connected),
             "status": info.get("status", "not_configured"),
             "auth": info.get("auth", {}),
-            "base_url": self.config.get("base_url"),
-            "scopes": self.config.get("scopes"),
+            "oauth": info.get("oauth", {}),
+            # Report effective values from the client (env/.env resolved)
+            "base_url": getattr(self.client, "base_url", None),
+            "scopes": getattr(self.client, "scopes", None),
         }
     
     def get_provider_name(self) -> str:

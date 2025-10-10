@@ -201,6 +201,28 @@ SCHWAB_REDIRECT_URI=your_redirect
 SCHWAB_SCOPES=read
 ```
 
+## OAuth quickstart (non-breaking)
+
+We added a minimal OAuth flow that does not call the real token API yet but lets you verify the Schwab app wiring:
+
+1) In `thor-backend/.env`, add your credentials from the Schwab portal:
+
+	- `SCHWAB_CLIENT_ID` = App Key
+	- `SCHWAB_CLIENT_SECRET` = Secret
+	- `SCHWAB_REDIRECT_URI` = https://360edu.org/auth/callback (matches your portal screenshot)
+
+2) Keep `DATA_PROVIDER=excel_live` so existing Excel data keeps working while you test.
+
+3) Start the backend server, then open this URL to begin the OAuth redirect:
+
+	- `http://localhost:8000/api/schwab/auth/login/`
+
+4) After approving, Schwab will redirect to your callback; our callback echoes the code/state so you can confirm it arrived:
+
+	- `http://localhost:8000/api/schwab/auth/callback?code=...&state=thor`
+
+Once access is fully approved, implement token exchange in `schwab_client.py` and switch `DATA_PROVIDER=schwab` to enable the real provider.
+
 ### Provider Options
 - **Excel Live** (recommended): Real-time Excel COM integration
 - **Excel File**: Static file reading via openpyxl  

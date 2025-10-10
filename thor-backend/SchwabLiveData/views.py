@@ -10,12 +10,14 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from django.http import JsonResponse
+from django.http import HttpResponseRedirect
 from typing import List, Dict, Any
 import logging
 import json
 
 from .provider_factory import ProviderConfig, get_market_data_provider, get_provider_status
 from FutureTrading.models import SignalStatValue, ContractWeight
+from .schwab_client import SchwabApiClient
 
 logger = logging.getLogger(__name__)
 
@@ -187,7 +189,8 @@ class ProviderStatusView(APIView):
     def get(self, request):
         """Get current provider status and configuration."""
         try:
-            provider_status = get_provider_status()
+            cfg = ProviderConfig(request)
+            provider_status = get_provider_status(cfg)
             return Response(provider_status)
         except Exception as e:
             logger.error(f"Error getting provider status: {e}")
@@ -257,3 +260,38 @@ def get_quotes(request):
             {"error": f"Provider error: {str(e)}"}, 
             status=500
         )
+
+
+# --- OAuth flow endpoints ---
+def schwab_auth_start(request):
+    """Begin Schwab OAuth by redirecting to provider's authorization URL.
+
+    This only constructs the URL; token exchange is not implemented yet.
+    """
+    try:
+        client = SchwabApiClient()
+        url = client.build_authorization_url(state="thor")
+        return HttpResponseRedirect(url)
+    except Exception as e:
+        logger.error(f"Auth start error: {e}")
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+def schwab_auth_callback(request):
+    """Handle the OAuth redirect from Schwab.
+
+    For now, we simply echo the 'code' and 'state' so we can verify wiring.
+    """
+    try:
+        code = request.GET.get("code")
+        state = request.GET.get("state")
+        error = request.GET.get("error")
+        return JsonResponse({
+            "received": True,
+            "code": code,
+            "state": state,
+            "error": error,
+        })
+    except Exception as e:
+        logger.error(f"Callback error: {e}")
+        return JsonResponse({"error": str(e)}, status=500)

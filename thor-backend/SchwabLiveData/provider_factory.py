@@ -194,33 +194,43 @@ def get_market_data_provider(config: ProviderConfig = None):
         raise
 
 
-def get_provider_status() -> dict:
-    """
-    Get the current provider configuration and status.
-    
+def get_provider_status(config: ProviderConfig | None = None) -> dict:
+    """Get the current provider configuration and status.
+
+    If a config is provided, it is honored (including request query args). Otherwise,
+    environment variables are used. This function does not assume a specific provider.
+
     Returns:
         Dictionary with provider info, configuration, and health status
     """
     try:
-        cfg = ProviderConfig()
+        cfg = config or ProviderConfig()
         provider = get_market_data_provider(cfg)
         health = provider.health_check() if hasattr(provider, 'health_check') else None
-        
-        return {
-            "provider_type": "excel_live",
-            "provider_name": provider.get_provider_name() if hasattr(provider, 'get_provider_name') else "ExcelLiveProvider",
+
+        # Base info common to all providers
+        info: dict = {
+            "provider_type": cfg.provider,
+            "provider_name": getattr(provider, 'get_provider_name', lambda: provider.__class__.__name__)(),
             "symbols_count": len(ProviderConfig.DEFAULT_SYMBOLS),
-            "excel_file": cfg.excel_file or ProviderConfig.get_excel_file_path(),
-            "excel_sheet": cfg.excel_sheet,
-            "excel_range": cfg.excel_range,
-            "poll_ms": cfg.poll_ms,
-            "require_open": cfg.require_open,
             "health": health,
-            "status": "ok"
+            "status": "ok",
         }
+
+        # Provider-specific details
+        if cfg.provider == "excel_live":
+            info.update({
+                "excel_file": cfg.excel_file or ProviderConfig.get_excel_file_path(),
+                "excel_sheet": cfg.excel_sheet,
+                "excel_range": cfg.excel_range,
+                "poll_ms": cfg.poll_ms,
+                "require_open": cfg.require_open,
+            })
+
+        return info
     except Exception as e:
         return {
-            "provider_type": "excel_live",
+            "provider_type": (config.provider if config else "unknown") if isinstance(config, ProviderConfig) else "unknown",
             "error": str(e),
-            "status": "error"
+            "status": "error",
         }
