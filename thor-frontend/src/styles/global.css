@@ -1,6 +1,7 @@
 /* Thor Global CSS - Single Entry Point for All Styles */
 
 /* Import all component and page CSS files */
+@import '../App.css';
 @import '../components/GlobalHeader.css';
 @import '../pages/TimeZone/TimeZone.css';
 @import '../pages/FutureTrading/FutureTrading.css';

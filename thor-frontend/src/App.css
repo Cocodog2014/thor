@@ -1,0 +1,62 @@
+/* App.css - Styling for App.tsx component and inline HomeContent */
+
+/* Dashboard Grid Layout for Home Content */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr; /* Two columns to allow space for other components */
+  grid-template-rows: 1fr auto; /* Auto-sized rows */
+  gap: 20px;
+  margin-bottom: 10px;
+  min-height: calc(100vh - 70px); /* approximate header + top spacing */
+  padding: 20px;
+  align-content: start;
+}
+
+/* Global Markets Section - Positioned at bottom left */
+.dashboard-card.global-markets {
+  width: 100%; /* Use full available width in its grid cell */
+  grid-column: 1; /* First column (left side) */
+  grid-row: 2; /* Second row (bottom) */
+  align-self: end; /* Stick to bottom of the grid */
+}
+
+/* Dashboard Card Base Styling */
+.dashboard-card {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 12px;
+  padding: 25px;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.dashboard-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2);
+}
+
+.dashboard-card h3 {
+  margin: 0 0 15px 0;
+  font-size: 1.3rem;
+  font-weight: 600;
+  color: white;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .dashboard-grid {
+    grid-template-columns: 1fr; /* Single column on mobile */
+    grid-template-rows: auto; /* Auto rows on mobile */
+  }
+  
+  .dashboard-card.global-markets {
+    grid-column: 1; /* First column on mobile */
+    grid-row: auto; /* Auto row positioning on mobile */
+    align-self: auto; /* Normal alignment on mobile */
+  }
+  
+  .dashboard-grid {
+    padding: 10px;
+  }
+}

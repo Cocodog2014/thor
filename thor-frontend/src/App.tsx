@@ -3,6 +3,10 @@ import { Container } from '@mui/material'
 import GlobalHeader from './components/GlobalHeader.tsx'
 import TimeZone from './pages/TimeZone/TimeZone.tsx'
 import FutureTrading from './pages/FutureTrading'
+
+// NOTE: This App.tsx also serves as the home page component
+// The HomeContent inline component below handles the home page display
+// instead of having a separate Home.tsx file for simplicity
 // Removed Heroes, Quests, and Artifacts pages
 // Note: App.css and index.css are not used; global resets via MUI CssBaseline, page layout via Home.css
 
