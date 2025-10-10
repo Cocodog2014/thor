@@ -9,10 +9,10 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  align-items: stretch;
+  align-items: flex-start;
   justify-content: flex-start;
   min-height: calc(100vh - 128px);
-  padding: var(--thor-spacing-xl);
+  padding: 1px 1px 1px1px;
   gap: var(--thor-spacing-xl);
   text-align: left;
 }
@@ -22,8 +22,8 @@
   flex-direction: column;
   gap: var(--thor-spacing-lg);
   width: 100%;
-  max-width: 525px;
-  margin-left: auto;
+  max-width: 750px;
+  margin-left: 0;
 }
 
 .stock-trading-panel {

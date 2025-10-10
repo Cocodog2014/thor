@@ -15,7 +15,7 @@ function App() {
   const location = useLocation();
   
   // Routes that should have full-width layout (no Container)
-  const fullWidthRoutes = ['/', '/home', '/futures'];
+  const fullWidthRoutes = ['/', '/home', '/futures', '/stock-trading'];
   const isFullWidth = fullWidthRoutes.includes(location.pathname);
 
   // Inline Home component - just the TimeZone display
@@ -34,6 +34,7 @@ function App() {
           <Route path="/" element={<HomeContent />} />
           <Route path="/home" element={<HomeContent />} />
           <Route path="/futures" element={<FutureTrading />} />
+          <Route path="/stock-trading" element={<StockTrading />} />
         </Routes>
       ) : (
         <Container maxWidth="xl" sx={{ mt: 4, mb: 4 }}>
