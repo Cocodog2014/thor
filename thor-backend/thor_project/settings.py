@@ -45,7 +45,7 @@ INSTALLED_APPS = [
     'api',
     'timezones',  # WorldClock and Market data
     'thordata',   # Large Excel import app
-    'futuretrading',  # Modern real-time market data system
+    'FutureTrading',  # Modern real-time market data system
     'SchwabLiveData',  # Provider-based market data system
 ]
 

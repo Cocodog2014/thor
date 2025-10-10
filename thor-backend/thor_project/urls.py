@@ -23,7 +23,7 @@ from timezones.views import api_test_page, debug_market_times, sync_markets
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', include('api.urls')),           # Thor APIs
-    path('api/', include('futuretrading.urls')), # Future Trading APIs
+    path('api/', include('FutureTrading.urls')), # Future Trading APIs
     path('api/schwab/', include('SchwabLiveData.urls')), # Schwab Data Provider APIs
     path('api/worldclock/', include('timezones.urls')),  # WorldClock APIs
     path('test/', api_test_page, name='api_test'),  # API test page

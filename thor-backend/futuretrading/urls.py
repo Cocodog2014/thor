@@ -1,7 +1,9 @@
 from django.urls import path
 from .views import LatestQuotesView
 
-app_name = 'futuretrading'
+from . import views
+
+app_name = 'FutureTrading'
 
 urlpatterns = [
     path('quotes/latest', LatestQuotesView.as_view(), name='quotes-latest'),

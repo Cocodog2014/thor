@@ -15,7 +15,7 @@ import logging
 import json
 
 from .provider_factory import ProviderConfig, get_market_data_provider, get_provider_status
-from futuretrading.models import SignalStatValue, ContractWeight
+from FutureTrading.models import SignalStatValue, ContractWeight
 
 logger = logging.getLogger(__name__)
 
