@@ -60,8 +60,12 @@ class ProviderConfig:
     ]
     
     def __init__(self, request=None):
-        # Provider type is now fixed to excel_live
-        self.provider = "excel_live"
+        # Get provider type from request parameter, environment, or default to excel_live
+        self.provider = (
+            (request.GET.get("provider") if request else None) or 
+            os.getenv("DATA_PROVIDER") or 
+            "excel_live"
+        )
         
         # Excel file configuration
         self.excel_file = (request.GET.get("excel_file") if request else None) or os.getenv("EXCEL_DATA_FILE")
@@ -121,9 +125,9 @@ def _config_snapshot(config: ProviderConfig) -> tuple:
 
 
 def get_market_data_provider(config: ProviderConfig = None):
-    """Return an Excel Live provider instance.
+    """Return a provider instance based on configuration.
     
-    This function initializes an ExcelLiveProvider based on the given configuration.
+    This function initializes the appropriate provider based on the given configuration.
     If no config is provided, it creates one using environment variables and settings.
     The provider instance is cached to ensure the polling thread persists across requests.
     
@@ -131,7 +135,7 @@ def get_market_data_provider(config: ProviderConfig = None):
         config: Optional ProviderConfig instance
         
     Returns:
-        ExcelLiveProvider instance
+        Provider instance (ExcelLiveProvider or SchwabProvider)
         
     Raises:
         Exception: If the provider cannot be initialized
@@ -147,20 +151,38 @@ def get_market_data_provider(config: ProviderConfig = None):
     if _CACHED_PROVIDER is not None and _CACHED_CONFIG == snap:
         return _CACHED_PROVIDER
 
-    # Get Excel file path
-    excel_file = config.excel_file or ProviderConfig.get_excel_file_path()
-    sheet = config.excel_sheet or "Futures"
-    
-    # Initialize Excel Live provider
     try:
-        provider = ExcelLiveProvider(
-            file_path=excel_file,
-            sheet_name=sheet,
-            range_address=config.excel_range or "A1:M20",
-            poll_ms=config.poll_ms,
-            require_open=config.require_open,
-        )
-        provider.start()
+        # Import providers
+        from .providers import create_provider
+        
+        if config.provider == "excel_live":
+            # Get Excel file path
+            excel_file = config.excel_file or ProviderConfig.get_excel_file_path()
+            sheet = config.excel_sheet or "Futures"
+            
+            # Initialize Excel Live provider
+            provider = create_provider(
+                'excel_live',
+                excel_file=excel_file,
+                sheet_name=sheet,
+                live_range=config.excel_range or "A1:M20",
+                poll_ms=config.poll_ms,
+                require_open=config.require_open,
+            )
+            
+        elif config.provider == "schwab":
+            # Initialize Schwab provider (placeholder - will show not implemented)
+            provider = create_provider(
+                'schwab',
+                # Add Schwab-specific config when implemented
+            )
+            
+        else:
+            raise ValueError(f"Unsupported provider type: {config.provider}")
+        
+        # Start provider if it has a start method (Excel Live)
+        if hasattr(provider, 'start'):
+            provider.start()
         
         # Cache the provider
         _CACHED_PROVIDER = provider

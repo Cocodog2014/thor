@@ -460,18 +460,14 @@ export default function FutureTrading(){
   const getSeries = (sym:string) => (seriesRef.current[sym] ||= []);
 
   async function fetchQuotes(){
-    // Choose endpoints based on mock mode:
-    // Mock Mode UNCHECKED = Use SchwabLiveData (our JSON file database)
-    // Mock Mode CHECKED = Still use SchwabLiveData but allow selecting JSON variation easily
-  // removed unused ts
-  // removed unused params
-  // removed unused src, excelPath, and sheet
-
-  // Build provider query from URL
-  // removed unused providerQuery
-  // providerQuery logic removed; now handled server-side or by endpoint
-
-    const endpoints = [ `/api/quotes/latest` ];
+    // Get the active provider from localStorage (set by header buttons)
+    const activeProvider = localStorage.getItem('selectedProvider') || 'excel_live';
+    
+    // Choose endpoints based on provider selection
+    const endpoints = [ 
+      `/api/quotes/latest?provider=${activeProvider}`,
+      `/api/schwab/quotes/latest?provider=${activeProvider}` 
+    ];
     
     for (const endpoint of endpoints) {
       try {
@@ -548,6 +544,17 @@ export default function FutureTrading(){
     const id = setInterval(()=>{ fetchQuotes().catch(()=>{}); }, pollMs);
     return ()=> clearInterval(id);
   },[pollMs,srcSelection]);  // Include dependencies so polling updates when source changes
+
+  // Listen for provider changes from header buttons
+  useEffect(() => {
+    const handleProviderChange = () => {
+      // Refresh data when provider selection changes
+      fetchQuotes().catch(console.error);
+    };
+
+    window.addEventListener('provider-changed', handleProviderChange);
+    return () => window.removeEventListener('provider-changed', handleProviderChange);
+  }, []);
 
   const effective = rows;
   const currentTotalData = totalData;
