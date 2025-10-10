@@ -32,6 +32,8 @@ urlpatterns = [
     path('sync/', sync_markets, name='sync_markets'),  # Sync markets endpoint
     # Root-level OAuth callback to match Schwab portal setting (e.g., https://360edu.org/auth/callback)
     path('auth/callback', schwab_auth_callback, name='schwab_auth_callback_root'),
+    # Alternate root-level path if your Schwab portal uses /schwab/callback
+    path('schwab/callback', schwab_auth_callback, name='schwab_auth_callback_alt'),
 ]
 
 # Serve media files during development

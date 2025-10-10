@@ -47,7 +47,62 @@ $env:EXCEL_LIVE_REQUIRE_OPEN = '0'
 python manage.py runserver
 ```
 
-## Step 4: Start Frontend (React)
+
+
+## Step 4: Enable Schwab OAuth for Local Dev (ngrok)
+Use ngrok to expose your local Django server over HTTPS so Schwab can call your callback URL.
+
+1) Ensure the backend is running on port 8000
+```powershell
+cd A:\Thor\thor-backend
+conda activate Thor_inv
+python manage.py runserver
+```
+
+2) Configure ngrok once with your authtoken (from https://dashboard.ngrok.com/get-started/your-authtoken)
+```powershell
+& "$env:LOCALAPPDATA\Microsoft\WindowsApps\ngrok.exe" config add-authtoken <YOUR_REAL_TOKEN>
+```
+
+3) Start the tunnel to your local server and copy the HTTPS Forwarding URL
+```powershell
+& "$env:LOCALAPPDATA\Microsoft\WindowsApps\ngrok.exe" http 8000
+```
+It will print something like: https://your-subdomain.ngrok-free.app
+
+4) Update the Schwab callback in BOTH places to match exactly
+- Schwab Developer Portal → Callback URL:
+  - https://your-subdomain.ngrok-free.app/auth/callback  (or /schwab/callback)
+
+- A:\Thor\thor-backend\.env → add/update:
+  - SCHWAB_REDIRECT_URI=https://360edu.org/auth/callback  (production)
+  - SCHWAB_REDIRECT_URI_DEV=https://your-subdomain.ngrok-free.app/auth/callback  (dev)
+
+5) Restart Django so .env changes are loaded
+```powershell
+Ctrl+C   # in the backend terminal
+python manage.py runserver
+```
+
+6) Start the Schwab OAuth flow and approve
+```powershell
+# Open in your browser
+http://localhost:8000/api/schwab/auth/login/
+```
+
+7) Verify tokens and connection
+```powershell
+# Open in your browser
+http://localhost:8000/api/schwab/provider/status/?provider=schwab
+```
+You should see tokens.present: true and connected: true.
+
+Tip: You’ll need to run ngrok when developing locally. For a stable URL, consider an ngrok reserved domain or Cloudflare Tunnel.
+
+TEST: Ensure OAuth tokens are saved (connected should show true):
+http://localhost:8000/api/schwab/provider/status/?provider=schwab
+
+## Step 5: Start Frontend (React)
 Open a new terminal:
 ```powershell
 # Activate the Thor_inv conda environment (contains Node.js and npm)

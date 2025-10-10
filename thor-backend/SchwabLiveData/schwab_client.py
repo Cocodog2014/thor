@@ -36,7 +36,8 @@ class SchwabApiClient:
         self.base_url = get("SCHWAB_BASE_URL", "https://api.schwabapi.com")
         scopes_raw = get("SCHWAB_SCOPES", "read")
         self.scopes = scopes_raw.split(",") if isinstance(scopes_raw, str) else scopes_raw
-        self.redirect_uri = get("SCHWAB_REDIRECT_URI")
+        # Allow a dev-specific redirect override, falling back to the standard one
+        self.redirect_uri = get("SCHWAB_REDIRECT_URI_DEV") or get("SCHWAB_REDIRECT_URI")
         self.auth_url = get("SCHWAB_AUTH_URL") or urllib.parse.urljoin(self.base_url + "/", "oauth2/authorize")
         self.token_url = get("SCHWAB_TOKEN_URL") or urllib.parse.urljoin(self.base_url + "/", "oauth2/token")
         # Placeholders for future token handling
@@ -171,6 +172,39 @@ class SchwabApiClient:
                 json.dump(to_save, f)
         except Exception:
             pass
+
+    # --- Minimal authenticated GET for debugging ---
+    def _auth_headers(self) -> Dict[str, str]:
+        if not self._access_token:
+            raise RuntimeError("No access token present; complete OAuth flow first")
+        return {"Authorization": f"Bearer {self._access_token}"}
+
+    def get_raw(self, path: str, params: Optional[Dict[str, Any]] = None, timeout: int = 20) -> Dict[str, Any]:
+        """Perform a simple authenticated GET to the Schwab API for diagnostics.
+
+        Args:
+            path: Either an absolute URL or a path like "/v1/accounts".
+            params: Optional query parameters.
+            timeout: Request timeout in seconds.
+
+        Returns: JSON with status_code, ok, text snippet, and url called.
+        """
+        if not path:
+            raise ValueError("path is required")
+        url = path
+        if not path.lower().startswith("http"):
+            url = urllib.parse.urljoin(self.base_url.rstrip('/') + '/', path.lstrip('/'))
+
+        headers = self._auth_headers()
+        resp = requests.get(url, headers=headers, params=params or {}, timeout=timeout)
+        text = resp.text or ""
+        snippet = text[:2000]  # limit size
+        return {
+            "url": resp.url,
+            "status_code": resp.status_code,
+            "ok": resp.ok,
+            "text_snippet": snippet,
+        }
 
     # def get_quotes(self, symbols: list[str]) -> dict:
     #     """TODO: Implement when API access is granted."""

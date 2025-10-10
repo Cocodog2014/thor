@@ -16,6 +16,7 @@ urlpatterns = [
     # Provider management endpoints
     path('provider/status/', views.ProviderStatusView.as_view(), name='provider_status'),
     path('provider/health/', views.ProviderHealthView.as_view(), name='provider_health'),
+    path('debug/get/', views.SchwabDebugGetView.as_view(), name='debug_get'),
 
     # OAuth: start and callback endpoints for Schwab
     path('auth/login/', views.schwab_auth_start, name='auth_login'),

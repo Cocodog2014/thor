@@ -223,6 +223,21 @@ class ProviderHealthView(APIView):
                 "error": str(e)
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+class SchwabDebugGetView(APIView):
+    """Debug endpoint to test a raw GET against the Schwab API using stored tokens.
+
+    Usage: /api/schwab/debug/get/?path=/v1/accounts or full URL
+    """
+    def get(self, request):
+        try:
+            path = request.GET.get("path")
+            if not path:
+                return Response({"error": "missing 'path' query param"}, status=status.HTTP_400_BAD_REQUEST)
+            client = SchwabApiClient()
+            result = client.get_raw(path)
+            return Response(result)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 # Legacy function-based view for compatibility
 def schwab_quotes_legacy(request):

@@ -28,6 +28,15 @@ DEBUG = config('DEBUG', default=True, cast=bool)
 
 ALLOWED_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0']
 
+# Allow additional hosts via env (comma-separated). Useful for tunnels and staging hosts.
+_extra_hosts = [h.strip() for h in config('ALLOWED_HOSTS_EXTRA', default='').split(',') if h.strip()]
+
+# In development, also allow common tunnel domains so callbacks through HTTPS work.
+if DEBUG:
+    ALLOWED_HOSTS += ['.ngrok-free.app', '.ngrok-free.dev']
+
+ALLOWED_HOSTS += _extra_hosts
+
 
 # Application definition
 
@@ -160,6 +169,15 @@ CORS_ALLOWED_ORIGINS = [
 ]
 
 CORS_ALLOW_CREDENTIALS = True
+
+# Trust CSRF for local and tunnel domains used during development
+if DEBUG:
+    CSRF_TRUSTED_ORIGINS = [
+        'https://localhost',
+        'https://127.0.0.1',
+        'https://*.ngrok-free.app',
+        'https://*.ngrok-free.dev',
+    ]
 
 # Media files
 MEDIA_URL = '/media/'
