@@ -1,0 +1,142 @@
+# Cloudflare Tunnel for Thor (plan for next week)
+
+This guide wires thor.360edu.org to your local Django dev server (port 8000) using Cloudflare Tunnel. No app changes are required right now; this is a ready-to-run plan for later.
+
+Note: Our app already supports root-level OAuth callback routes at `/auth/callback` and `/schwab/callback`, and the Schwab login endpoint is `/api/schwab/auth/login/`. We’ll point the Schwab portal to the tunnel host when you’re ready.
+
+---
+
+## A) One-time Cloudflare setup (Free plan)
+
+1) Add the domain to Cloudflare (Free plan)
+- Add `360edu.org` in the Cloudflare dashboard.
+- Update nameservers at Network Solutions to the two nameservers Cloudflare provides.
+- Wait until the domain shows Active in Cloudflare.
+
+We will use `thor.360edu.org` for the backend tunnel. Your main site remains unchanged.
+
+---
+
+## B) Install and authenticate cloudflared (Windows)
+
+Open PowerShell and either install via Chocolatey or download the exe to PATH.
+
+```powershell
+# Install with Chocolatey
+choco install cloudflared -y
+
+# Or download cloudflared.exe and add it to PATH
+```
+
+Authenticate cloudflared with your Cloudflare account:
+
+```powershell
+cloudflared tunnel login
+```
+
+This opens the browser; pick your Cloudflare account and zone (`360edu.org`).
+
+---
+
+## C) Create the tunnel and DNS route
+
+Create a named tunnel (Cloudflare returns a UUID and writes a credentials JSON file under %USERPROFILE%\.cloudflared):
+
+```powershell
+cloudflared tunnel create thor-local
+```
+
+Route the subdomain to the tunnel:
+
+```powershell
+cloudflared tunnel route dns thor-local thor.360edu.org
+```
+
+---
+
+## D) Configure the tunnel to proxy Django (localhost:8000)
+
+Create `%USERPROFILE%\.cloudflared\config.yml` with:
+
+```yaml
+tunnel: thor-local
+credentials-file: C:\Users\<YourWindowsUser>\.cloudflared\<YOUR-UUID>.json
+
+ingress:
+  - hostname: thor.360edu.org
+    service: http://localhost:8000
+  - service: http_status:404
+```
+
+Replace `<YourWindowsUser>` and `<YOUR-UUID>` with your actual values from step C.
+
+---
+
+## E) Run the tunnel
+
+Keep it running while you develop, or install as a service so it auto-starts.
+
+```powershell
+# Foreground run (good for testing)
+cloudflared tunnel run thor-local
+
+# Optional: install as a Windows service
+# cloudflared service install
+# cloudflared tunnel run thor-local
+```
+
+---
+
+## F) Point Schwab and the app to the new HTTPS callback
+
+In the Schwab Developer Portal (Thor Trading app), add the callback URL:
+
+```
+https://thor.360edu.org/schwab/callback
+```
+
+Also keep your existing production callback if applicable.
+
+Update your local `.env` for development. Prefer using the dev override so production stays unchanged:
+
+```
+SCHWAB_REDIRECT_URI=https://360edu.org/auth/callback                    # production
+SCHWAB_REDIRECT_URI_DEV=https://thor.360edu.org/schwab/callback        # dev via Cloudflare Tunnel
+```
+
+Restart Django so the new env values are picked up.
+
+Routes that must exist (already implemented):
+- Login start: `/api/schwab/auth/login/` (redirects to Schwab)
+- Callback: `/schwab/callback` (root-level) and `/api/schwab/auth/callback` (app-level)
+
+---
+
+## G) Test the full OAuth flow
+
+1) Start Django on port 8000.
+2) Ensure `cloudflared tunnel run thor-local` is running.
+3) Visit:
+
+- Start login locally: `http://127.0.0.1:8000/api/schwab/auth/login/`
+- After Schwab approval, you should land on `https://thor.360edu.org/schwab/callback` (Cloudflare terminates TLS and forwards to localhost), and the app will exchange the `code` for tokens.
+
+Useful verification endpoints:
+- Provider status: `http://127.0.0.1:8000/api/schwab/provider/status/?provider=schwab`
+- Debug raw GET: `http://127.0.0.1:8000/api/schwab/debug/get/?path=/v1/accounts`
+
+---
+
+## Notes and safety
+
+- If a Schwab client secret was previously exposed, regenerate it in the portal and update `.env`.
+- Ensure `.env` stays out of Git (it’s in `.gitignore`).
+- Windows Firewall can remain on; Cloudflare Tunnel uses outbound connections only.
+- If you later deploy the backend, you can keep `thor.360edu.org` and repoint the tunnel/DNS to that server instead of localhost.
+- For non-DEBUG environments, add `thor.360edu.org` to Django `ALLOWED_HOSTS` and `CSRF_TRUSTED_ORIGINS` (or use an env-driven allowlist).
+
+---
+
+## Do not implement yet
+
+This document is a plan for next week. We are not changing the app right now. If desired later, we can also add convenience routes like `/schwab/login` and `/schwab/accounts`, but the current endpoints already support the full OAuth flow and testing.

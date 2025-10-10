@@ -1,445 +1,122 @@
-# Schwab Live Data Provider System
+## Schwab Live Data – What we implemented now (Schwab only)
 
-## 🎯 Overview
+This page captures exactly what we added for the Charles Schwab integration so you can reference it and know where to resume next week. It focuses only on Schwab.
 
-The **SchwabLiveData** app provides a flexible provider system for market data that allows easy switching between fake/mock data (for development) and real Schwab API data (for production).
+## What’s in place today
 
-### Key Benefits
-- **Development**: Use JSON file with realistic fake data
-- **Production**: Switch to real Schwab API with one environment variable
-- **No Code Changes**: Frontend and business logic remain unchanged when switching
-- **Easy Testing**: Built-in simulation and health checks
+- OAuth2 flow endpoints to start login and handle callback
+- Token exchange and file-based persistence
+- Provider status/health that reports Schwab readiness and token state
+- Dev redirect override so you can use ngrok without changing production settings
+- A debug GET endpoint to hit real Schwab API routes with the stored token
+- Root-level callback routes to match the Schwab portal
 
----
+Excel Live remains the default provider (no breaking changes). To view Schwab status, pass `?provider=schwab` or switch via env.
 
-## 🏗️ Architecture
+## Endpoints (backend)
+
+- Start OAuth: `GET /api/schwab/auth/login/`
+- OAuth callback (app): `GET /api/schwab/auth/callback`
+- OAuth callback (root-level convenience):
+    - `GET /auth/callback`
+    - `GET /schwab/callback`
+- Provider status: `GET /api/schwab/provider/status/?provider=schwab`
+- Provider health: `GET /api/schwab/provider/health/?provider=schwab`
+- Debug raw GET: `GET /api/schwab/debug/get/?path=/v1/accounts`
+
+Files that define these routes:
+- `thor-backend/SchwabLiveData/urls.py` (under `/api/schwab/...`)
+- `thor-backend/thor_project/urls.py` (root-level `/auth/callback` and `/schwab/callback`)
+
+## Configuration (.env)
+
+Required/environment keys (resolved by python-decouple in `SchwabLiveData/schwab_client.py`):
 
 ```
-Frontend (React)
-       ↓
-Django API Endpoint (/api/schwab/quotes/latest/)
-       ↓
-Provider Factory (selects provider)
-       ↓
-┌─────────────────┬─────────────────┐
-│   JSON Provider │  Schwab Provider │
-│   (Development) │   (Production)   │
-└─────────────────┴─────────────────┘
-       ↓                    ↓
-  JSON File            Schwab API
+DATA_PROVIDER=excel_live                 # keep this default
+
+# Schwab OAuth / API
+SCHWAB_CLIENT_ID=...
+SCHWAB_CLIENT_SECRET=...
+SCHWAB_BASE_URL=https://api.schwabapi.com
+SCHWAB_SCOPES=read
+
+# Redirects
+SCHWAB_REDIRECT_URI=https://360edu.org/auth/callback            # production
+SCHWAB_REDIRECT_URI_DEV=https://<your-subdomain>.ngrok-free.app/auth/callback  # dev
+
+# Optional overrides
+SCHWAB_AUTH_URL=   # default: <BASE_URL>/oauth2/authorize
+SCHWAB_TOKEN_URL=  # default: <BASE_URL>/oauth2/token
 ```
 
----
-
-## 📁 File Structure
-
-```
-thor-backend/
-├── SchwabLiveData/               # New Django app
-│   ├── futures_data.json         # 🗃️ FAKE DATA (delete when Schwab ready)
-│   ├── providers.py              # Provider classes (JSON & Schwab)
-│   ├── provider_factory.py       # Provider selection logic
-│   ├── views.py                  # API endpoints
-│   ├── urls.py                   # URL routing
-│   └── management/commands/
-│       └── test_provider.py      # Testing command
-└── thor_project/
-    ├── settings.py               # Added SchwabLiveData to INSTALLED_APPS
-    └── urls.py                   # Added /api/schwab/ routes
-```
-
----
-
-## 🚀 Quick Start
-
-### 1. Test the System
-```bash
-# Navigate to backend
-cd thor-backend
-.\venv\Scripts\Activate.ps1
-
-# Test the provider system
-python manage.py test_provider
-
-# Start Django server
-python manage.py runserver
-```
-
-### 2. Access API Endpoints
-- **Market Data**: http://127.0.0.1:8000/api/schwab/quotes/latest/
-- **Provider Status**: http://127.0.0.1:8000/api/schwab/provider/status/
-- **Health Check**: http://127.0.0.1:8000/api/schwab/provider/health/
-
-### 3. Frontend Integration
-The frontend automatically tries the new provider first, then falls back to the old system:
-```typescript
-// Updated in FutureTrading.tsx
-async function fetchQuotes(){
-  const endpoints = [
-    `/api/schwab/quotes/latest?ts=${Date.now()}`,  // New provider
-    `/api/quotes/latest?ts=${Date.now()}`          // Fallback
-  ];
-  // Tries endpoints in order...
-}
-```
-
----
-
-## 📊 Working with Fake Data (JSON Provider)
-
-### Current JSON File Location
-```
-thor-backend/SchwabLiveData/futures_data.json
-```
-
-### JSON Structure
-```json
-{
-  "futures": [
-    {
-      "symbol": "/YM",
-      "name": "Dow Jones Mini Futures",
-      "base_price": 317.92,
-      "signal": "BUY",
-      "stat_value": 10.000,
-      "contract_weight": 1.5
-    }
-    // ... 10 more futures
-  ]
-}
-```
-
-### Modifying Fake Data
-
-#### Option 1: Edit JSON File Directly
-```bash
-# Edit the JSON file
-code thor-backend/SchwabLiveData/futures_data.json
-
-# Changes take effect immediately (no restart needed)
-```
-
-#### Option 2: Replace Entire JSON File
-```bash
-# Backup current file
-cp futures_data.json futures_data_backup.json
-
-# Replace with your new data
-# (just ensure it follows the same structure)
-```
-
-### Live Simulation Features
-
-The JSON provider adds realistic behavior:
-- **Price Movement**: Simulates realistic price changes from base prices
-- **Signal Rotation**: Occasionally changes signals (BUY → SELL → HOLD)
-- **Bid/Ask Spreads**: Realistic spreads per instrument type
-- **Volume/Size**: Random but realistic trading volumes
-
-**Control Simulation:**
-```bash
-# Disable live simulation (static prices)
-export ENABLE_LIVE_SIMULATION=false
-
-# Enable live simulation (default)
-export ENABLE_LIVE_SIMULATION=true
-```
-
----
-
-## 🔄 Provider Switching
-
-### Environment Variable Control
-```bash
-# Use JSON provider (default - for development)
-export DATA_PROVIDER=json
-
-# Use Schwab provider (for production)
-export DATA_PROVIDER=schwab
-```
-
-### Testing Different Providers
-```bash
-# Test JSON provider
-python manage.py test_provider --provider json
-
-# Test Schwab provider (will show "not implemented" error)
-python manage.py test_provider --provider schwab
-
-# Test with no simulation
-python manage.py test_provider --no-simulation
-```
-
-### Provider Priority
-1. **Environment Variable**: `DATA_PROVIDER=json|schwab`
-2. **Django Setting**: `DATA_PROVIDER` in settings.py
-3. **Default**: `json` (safe fallback)
-
----
-
-## 🌐 Switching to Real Schwab API
-
-### Phase 1: Get Schwab API Access
-
-1. **Apply for Schwab Developer Account**
-   - Visit: https://developer.schwab.com/
-   - Register for API access
-   - Get your `client_id` and `client_secret`
-
-2. **Understand Schwab API**
-   - Read Schwab API documentation
-   - Understand authentication (OAuth2)
-   - Identify endpoints for futures data
-   - Note field names and data formats
-
-### Phase 2: Configure Environment
-
-Set up environment variables for Schwab:
-```bash
-# Schwab API credentials
-export SCHWAB_CLIENT_ID=your_client_id_here
-export SCHWAB_CLIENT_SECRET=your_secret_here
-export SCHWAB_BASE_URL=https://api.schwabapi.com
-export SCHWAB_SCOPES=read
-
-# Switch to Schwab provider
-export DATA_PROVIDER=schwab
-```
-
-### Phase 3: Implement Schwab Provider
-
-Edit `thor-backend/SchwabLiveData/providers.py`:
-
-```python
-class SchwabProvider(BaseProvider):
-    def get_latest_quotes(self, symbols: List[str]) -> List[Dict[str, Any]]:
-        """
-        IMPLEMENT THIS METHOD when you have Schwab API access
-        """
-        # 1. Authenticate with Schwab (OAuth2)
-        token = self._get_auth_token()
-        
-        # 2. Make API calls to get quotes
-        schwab_data = self._fetch_schwab_quotes(symbols, token)
-        
-        # 3. Map Schwab fields to our standard format
-        standardized_quotes = self._map_schwab_to_standard(schwab_data)
-        
-        return standardized_quotes
-    
-    def _get_auth_token(self):
-        """Handle OAuth2 authentication with Schwab"""
-        # TODO: Implement OAuth2 flow
-        pass
-    
-    def _fetch_schwab_quotes(self, symbols, token):
-        """Make REST API calls to Schwab"""
-        # TODO: Implement API calls
-        pass
-    
-    def _map_schwab_to_standard(self, schwab_data):
-        """Convert Schwab response to our standard format"""
-        # TODO: Map fields like:
-        # schwab_response['last'] -> our_format['price']
-        # schwab_response['bid'] -> our_format['bid']
-        # etc.
-        pass
-```
-
-### Phase 4: Test Schwab Integration
-
-```bash
-# Test Schwab connection
-python manage.py test_provider --provider schwab
-
-# Check health
-curl http://127.0.0.1:8000/api/schwab/provider/health/
-
-# Test API endpoint
-curl http://127.0.0.1:8000/api/schwab/quotes/latest/
-```
-
-### Phase 5: Go Live
-
-1. **Set Production Environment**:
-   ```bash
-   export DATA_PROVIDER=schwab
-   export ENABLE_LIVE_SIMULATION=false
-   ```
-
-2. **Remove JSON File** (optional):
-   ```bash
-   rm thor-backend/SchwabLiveData/futures_data.json
-   ```
-
-3. **Deploy**: Your frontend continues working unchanged!
-
----
-
-## 🛠️ Implementation Details
-
-### Schwab API Integration Points
-
-**Authentication (OAuth2)**:
-```python
-# You'll need to implement:
-def authenticate_with_schwab():
-    # 1. Get access token using client credentials
-    # 2. Store token securely
-    # 3. Handle token refresh
-    pass
-```
-
-**Data Fetching**:
-```python
-# You'll need to implement:
-def fetch_quotes_from_schwab(symbols):
-    # 1. Make HTTP requests to Schwab endpoints
-    # 2. Handle rate limits
-    # 3. Parse responses
-    # 4. Handle errors gracefully
-    pass
-```
-
-**Field Mapping**:
-```python
-# Example mapping (actual fields may differ):
-schwab_to_standard = {
-    'last': 'price',
-    'bidPrice': 'bid', 
-    'askPrice': 'ask',
-    'totalVolume': 'volume',
-    # ... map all required fields
-}
-```
-
-### Error Handling Strategy
-
-```python
-def get_latest_quotes(self, symbols):
-    try:
-        # Try Schwab API
-        return self._fetch_from_schwab(symbols)
-    except SchwabAPIError as e:
-        # Log error, try fallback, or return cached data
-        logger.error(f"Schwab API failed: {e}")
-        return self._get_fallback_data(symbols)
-```
-
----
-
-## 🧪 Testing & Development
-
-### Development Workflow
-
-1. **Develop with JSON**: Start with fake data
-2. **Test Provider Switching**: Verify environment variables work
-3. **Implement Schwab**: Build real API integration
-4. **Test Both**: Ensure both providers work
-5. **Deploy**: Switch to Schwab in production
-
-### Useful Commands
-
-```bash
-# Test current provider
-python manage.py test_provider
-
-# Test specific provider
-python manage.py test_provider --provider json
-python manage.py test_provider --provider schwab
-
-# Test without simulation
-python manage.py test_provider --no-simulation
-
-# Get JSON output
-python manage.py test_provider --format json
-
-# Test specific symbols
-python manage.py test_provider --symbols /YM /ES
-```
-
-### Monitoring
-
-```bash
-# Check provider status
-curl http://127.0.0.1:8000/api/schwab/provider/status/
-
-# Health check
-curl http://127.0.0.1:8000/api/schwab/provider/health/
-
-# Test endpoint
-curl http://127.0.0.1:8000/api/schwab/quotes/latest/
-```
-
----
-
-## 🚨 Common Issues & Solutions
-
-### Issue: "Provider not implemented"
-**Solution**: You're trying to use Schwab provider before implementing it
-```bash
-export DATA_PROVIDER=json  # Switch back to JSON
-```
-
-### Issue: "JSON file not found"
-**Solution**: Check file path and permissions
-```bash
-ls -la thor-backend/SchwabLiveData/futures_data.json
-```
-
-### Issue: Frontend not getting data
-**Solution**: Check both endpoints are accessible
-```bash
-curl http://127.0.0.1:8000/api/schwab/quotes/latest/
-curl http://127.0.0.1:8000/api/quotes/latest/
-```
-
-### Issue: Schwab API rate limits
-**Solution**: Implement caching and retry logic
-```python
-# Add to SchwabProvider
-def get_latest_quotes(self, symbols):
-    # Check cache first
-    cached = self._get_cached_data()
-    if cached and not self._cache_expired():
-        return cached
-    
-    # Fetch from API with rate limiting
-    return self._fetch_with_rate_limit(symbols)
-```
-
----
-
-## 🎯 Summary
-
-### Current State (JSON Provider)
-- ✅ **11 futures** with exact data from your dashboard
-- ✅ **Live simulation** with realistic price movements  
-- ✅ **API endpoints** ready for frontend
-- ✅ **Provider switching** via environment variables
-
-### Future State (Schwab Provider)
-- 🔄 **Same API endpoints** (no frontend changes)
-- 🔄 **Same data format** (no business logic changes)
-- ➕ **Real market data** from Schwab API
-- ➕ **OAuth2 authentication** 
-- ➕ **Production ready** with error handling
-
-### The Transition
-1. **Develop**: Use JSON provider with fake data
-2. **Implement**: Build Schwab provider when API access available
-3. **Switch**: Change one environment variable
-4. **Delete**: Remove JSON file (optional)
-5. **Done**: Real data flowing with zero code changes! 🎉
-
----
-
-## 📞 Next Steps
-
-1. **Test the current system** with your frontend
-2. **Modify JSON data** as needed for your use cases
-3. **Apply for Schwab API access** when ready
-4. **Implement Schwab provider** following the templates above
-5. **Switch over** with confidence knowing your frontend won't change!
-
-The beauty of this system: **Your JSON file is temporary and will disappear in one step when Schwab is ready!** 🚀
+Important:
+- SCHWAB_REDIRECT_URI_DEV must EXACTLY match the callback configured in the Schwab portal (host + path).
+- Keep production redirect (SCHWAB_REDIRECT_URI) unchanged; dev uses the DEV override when present.
+
+## Token storage
+
+On successful exchange, tokens are saved to:
+- `thor-backend/data/schwab_tokens.json`
+
+Saved fields include: `access_token`, `refresh_token`, `expires_in`, `expires_at`, `saved_at`.
+
+## How to test end-to-end (today)
+
+1) Run backend on 8000.
+2) Start ngrok and copy the HTTPS forwarding URL.
+3) Set `SCHWAB_REDIRECT_URI_DEV` in `.env` to `https://<ngrok>.ngrok-free.app/auth/callback` (or `/schwab/callback` if you prefer that route) and ensure the same is configured in the Schwab portal.
+4) Visit: `http://localhost:8000/api/schwab/auth/login/`, approve, and complete OAuth.
+5) Check status: `http://localhost:8000/api/schwab/provider/status/?provider=schwab`.
+     - Expect `tokens.present: true` and `connected: true` (not expired).
+6) Optional: Debug API call: `http://localhost:8000/api/schwab/debug/get/?path=/v1/accounts`.
+
+For detailed dev tunnel steps and troubleshooting, see `START.md` (Step 4) and `ngrok.md` in the repo root.
+
+## How it works (under the hood)
+
+- `SchwabLiveData/schwab_client.py`
+    - Reads config from env/.env (python-decouple)
+    - `build_authorization_url()` constructs the authorize URL
+    - `exchange_code_for_token()` posts to token endpoint and saves tokens
+    - `health()` reports configured flags and token presence/expiry
+    - `get_raw(path)` performs authenticated GETs with the Bearer token
+
+- `SchwabLiveData/providers.py`
+    - `SchwabProvider.health_check()` uses client.health() to report
+        - `connected = True` when tokens are present and not expired
+    - `SchwabProvider.get_latest_quotes()` is not implemented yet (intentionally)
+
+- `SchwabLiveData/views.py`
+    - `schwab_auth_start` → redirects to Schwab authorize
+    - `schwab_auth_callback` → exchanges `code` for tokens and responds with connection info
+    - `SchwabDebugGetView` → proxy to `client.get_raw()` for diagnostics
+    - Quotes and totals continue to use Excel Live until Schwab quotes are implemented
+
+- `SchwabLiveData/provider_factory.py`
+    - Provider selection honors query string `?provider=` or env; default is Excel Live
+    - `get_provider_status()` surfaces provider name, health, and config
+
+## Django settings (dev tunnel support)
+
+- In DEBUG, the project allows `*.ngrok-free.*` domains in `ALLOWED_HOSTS` and `CSRF_TRUSTED_ORIGINS` so callbacks via ngrok reach Django.
+
+## Where to resume next week
+
+1) Implement real quotes in `SchwabLiveData/providers.py → SchwabProvider.get_latest_quotes()`
+     - Use `SchwabApiClient` to call Schwab’s market data endpoints
+     - Map fields to the unified quote schema used by `SchwabQuotesView`
+     - Handle token expiry (refresh if provided) and basic rate limiting
+
+2) Optionally add specific client helpers in `schwab_client.py` (e.g., `get_quotes(symbols)`)
+
+3) Verify via:
+     - `GET /api/schwab/quotes/latest/?provider=schwab`
+     - Frontend should work unchanged once the provider returns the normalized rows
+
+## Common pitfalls (quick)
+
+- Callback mismatch → 400 or no callback; ensure portal and `.env` match exactly
+- Missing ngrok authtoken → fix ngrok setup before testing OAuth
+- CSRF/host blocked → ensure DEBUG and settings include ngrok domains
+- Tokens missing/expired → re-run login; check `data/schwab_tokens.json`
