@@ -59,7 +59,7 @@ npm run dev
 ## 🎯 URLs to Access
 - **Frontend**: http://localhost:5173 (or 5174 if 5173 is busy)
 - **Backend API**: http://127.0.0.1:8000/api/
-- **Admin Panel**: http://127.0.0.1:8000/admin/ (admin/Coco1464#
+- **Admin Panel**: http://127.0.0.1:8000/admin/ (admin/Coco1464#)
 
 That's it! ⚡
 
