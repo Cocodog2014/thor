@@ -1,0 +1,46 @@
+.stock-trading-wrapper {
+  position: relative;
+  display: flex;
+  width: 100%;
+  min-height: calc(100vh - 128px);
+}
+
+.stock-trading-page {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: calc(100vh - 128px);
+  padding: var(--thor-spacing-xl);
+  gap: var(--thor-spacing-md);
+  text-align: center;
+}
+
+.stock-trading-title {
+  font-family: var(--thor-font-title);
+  font-size: clamp(2rem, 4vw, 3rem);
+  color: var(--thor-blue-light);
+  letter-spacing: 0.08em;
+}
+
+.stock-trading-description {
+  max-width: 640px;
+  font-size: 1.1rem;
+  line-height: 1.75;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.stock-trading-coming-soon {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--thor-spacing-sm);
+  padding: var(--thor-spacing-sm) var(--thor-spacing-md);
+  background: rgba(25, 118, 210, 0.15);
+  border: 1px solid rgba(25, 118, 210, 0.35);
+  border-radius: var(--thor-spacing-md);
+  text-transform: uppercase;
+  font-size: 0.85rem;
+  letter-spacing: 0.12em;
+  color: var(--thor-blue-light);
+}

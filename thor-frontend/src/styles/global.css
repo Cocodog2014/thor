@@ -5,6 +5,7 @@
 @import '../components/GlobalHeader.css';
 @import '../pages/TimeZone/TimeZone.css';
 @import '../pages/FutureTrading/FutureTrading.css';
+@import '../pages/StockTrading/StockTrading.css';
 
 /* ========================================= */
 /*                RESETS & BASE             */

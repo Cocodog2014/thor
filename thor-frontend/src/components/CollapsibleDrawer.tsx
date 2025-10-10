@@ -15,6 +15,7 @@ import {
   Home as HomeIcon,
   ChevronLeft as ChevronLeftIcon,
   ChevronRight as ChevronRightIcon,
+  CandlestickChart as CandlestickChartIcon,
   TrendingUp as TrendingUpIcon,
 } from '@mui/icons-material';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -32,6 +33,7 @@ export const DEFAULT_WIDTH_CLOSED = 72;
 const navigationItems = [
   { text: 'Home', icon: <HomeIcon />, path: '/' },
   { text: 'Futures', icon: <TrendingUpIcon />, path: '/futures' },
+  { text: 'Stock Trading', icon: <CandlestickChartIcon />, path: '/stock-trading' },
 ];
 
 const CollapsibleDrawer: React.FC<CollapsibleDrawerProps> = ({

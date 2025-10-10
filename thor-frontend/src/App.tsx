@@ -3,6 +3,7 @@ import { Container } from '@mui/material'
 import GlobalHeader from './components/GlobalHeader.tsx'
 import TimeZone from './pages/TimeZone/TimeZone.tsx'
 import FutureTrading from './pages/FutureTrading'
+import StockTrading from './pages/StockTrading'
 
 // NOTE: This App.tsx also serves as the home page component
 // The HomeContent inline component below handles the home page display
@@ -40,6 +41,7 @@ function App() {
             <Route path="/" element={<HomeContent />} />
             <Route path="/home" element={<HomeContent />} />
             <Route path="/futures" element={<FutureTrading />} />
+            <Route path="/stock-trading" element={<StockTrading />} />
           </Routes>
         </Container>
       )}
