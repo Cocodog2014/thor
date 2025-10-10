@@ -1,11 +1,16 @@
 import {
+  Box,
   Drawer,
+  FormControl,
   IconButton,
+  InputLabel,
   List,
   ListItem,
   ListItemButton,
   ListItemIcon,
   ListItemText,
+  MenuItem,
+  Select,
   Toolbar,
   Typography,
 } from '@mui/material';
@@ -18,12 +23,17 @@ import {
   ReceiptLong as ReceiptLongIcon,
 } from '@mui/icons-material';
 import { DEFAULT_WIDTH_OPEN, DEFAULT_WIDTH_CLOSED } from '../../components/CollapsibleDrawer';
+import type { SelectChangeEvent } from '@mui/material/Select';
+
+type DrawerTradingMode = 'live' | 'paper';
 
 interface StockTradingDrawerProps {
   open: boolean;
   onToggle: () => void;
   widthOpen?: number;
   widthClosed?: number;
+  mode: DrawerTradingMode;
+  onModeChange: (value: DrawerTradingMode) => void;
 }
 
 const defaultItems = [
@@ -36,10 +46,16 @@ const defaultItems = [
 const StockTradingDrawer: React.FC<StockTradingDrawerProps> = ({
   open,
   onToggle,
+  mode,
+  onModeChange,
   widthOpen = DEFAULT_WIDTH_OPEN,
   widthClosed = DEFAULT_WIDTH_CLOSED,
 }) => {
   const drawerWidth = open ? widthOpen : widthClosed;
+
+  const handleChange = (event: SelectChangeEvent) => {
+    onModeChange(event.target.value as DrawerTradingMode);
+  };
 
   return (
     <Drawer
@@ -86,7 +102,24 @@ const StockTradingDrawer: React.FC<StockTradingDrawerProps> = ({
         </IconButton>
       </Toolbar>
 
-      <List sx={{ mt: 1 }}>
+      {open && (
+        <Box sx={{ px: 2, pb: 2 }}>
+          <FormControl fullWidth size="small">
+            <InputLabel id="stock-trading-mode">Trading Mode</InputLabel>
+            <Select
+              labelId="stock-trading-mode"
+              value={mode}
+              label="Trading Mode"
+              onChange={handleChange}
+            >
+              <MenuItem value="live">Live Trading</MenuItem>
+              <MenuItem value="paper">Paper Trading</MenuItem>
+            </Select>
+          </FormControl>
+        </Box>
+      )}
+
+      <List sx={{ mt: open ? 0 : 1 }}>
         {defaultItems.map((item) => (
           <ListItem key={item.label} disablePadding sx={{ display: 'block' }}>
             <ListItemButton
