@@ -286,11 +286,17 @@ def schwab_auth_callback(request):
         code = request.GET.get("code")
         state = request.GET.get("state")
         error = request.GET.get("error")
+        if error:
+            return JsonResponse({"received": True, "error": error, "state": state}, status=400)
+        if not code:
+            return JsonResponse({"received": False, "error": "missing code"}, status=400)
+
+        client = SchwabApiClient()
+        result = client.exchange_code_for_token(code)
         return JsonResponse({
             "received": True,
-            "code": code,
-            "state": state,
-            "error": error,
+            "token_exchange": result,
+            "connected": True,
         })
     except Exception as e:
         logger.error(f"Callback error: {e}")

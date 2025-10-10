@@ -111,9 +111,10 @@ class SchwabProvider(BaseProvider):
     def health_check(self) -> Dict[str, Any]:
         """Return health status for Schwab provider."""
         info = self.client.health()
+        connected = bool(info.get("tokens", {}).get("present")) and not bool(info.get("tokens", {}).get("expired"))
         return {
             "provider": "schwab",
-            "connected": bool(info.get("configured")) and bool(self._connected),
+            "connected": connected,
             "status": info.get("status", "not_configured"),
             "auth": info.get("auth", {}),
             "oauth": info.get("oauth", {}),
