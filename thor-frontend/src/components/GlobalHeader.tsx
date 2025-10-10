@@ -1,6 +1,5 @@
 import React from 'react';
-import { AppBar, Toolbar, Typography, Box, CssBaseline, IconButton } from '@mui/material';
-import MenuIcon from '@mui/icons-material/Menu';
+import { AppBar, Toolbar, Typography, Box, CssBaseline, Button } from '@mui/material';
 import CollapsibleDrawer, { DEFAULT_WIDTH_OPEN, DEFAULT_WIDTH_CLOSED } from './CollapsibleDrawer';
 import { useLocation } from 'react-router-dom';
 
@@ -10,8 +9,21 @@ interface LayoutProps {
 
 const GlobalHeader: React.FC<LayoutProps> = ({ children }) => {
   const [open, setOpen] = React.useState(false);
+  const [activeProvider, setActiveProvider] = React.useState(
+    localStorage.getItem('selectedProvider') || 'excel_live'
+  );
+  
   const toggleDrawer = () => setOpen((v) => !v);
   const location = useLocation();
+  
+  const selectProvider = (provider: string) => {
+    setActiveProvider(provider);
+    localStorage.setItem('selectedProvider', provider);
+    
+    window.dispatchEvent(new CustomEvent('provider-changed', { 
+      detail: { provider } 
+    }));
+  };
   const fullWidthRoutes = ['/', '/home', '/futures'];
   const isFullWidth = fullWidthRoutes.includes(location.pathname);
 
@@ -29,19 +41,77 @@ const GlobalHeader: React.FC<LayoutProps> = ({ children }) => {
           transition: 'margin 200ms ease, width 200ms ease',
         }}
       >
-        <Toolbar>
-          <IconButton
-            edge="start"
-            color="inherit"
-            aria-label="menu"
-            onClick={toggleDrawer}
-            sx={{ mr: 2 }}
+        <Toolbar sx={{ justifyContent: 'space-between', alignItems: 'center' }}>
+          {/* Data Source Section */}
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            <Button
+              variant={activeProvider === 'excel_live' ? 'contained' : 'outlined'}
+              size="small"
+              onClick={() => selectProvider('excel_live')}
+              sx={{
+                color: activeProvider === 'excel_live' ? 'white' : 'white',
+                borderColor: 'white',
+                '&.MuiButton-contained': {
+                  backgroundColor: '#4caf50', // Green when active
+                  '&:hover': {
+                    backgroundColor: '#45a049',
+                  }
+                },
+                '&.MuiButton-outlined': {
+                  borderColor: 'rgba(255, 255, 255, 0.5)',
+                  '&:hover': {
+                    borderColor: 'rgba(255, 255, 255, 0.8)',
+                    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                  }
+                },
+              }}
+            >
+              EXCEL LIVE
+            </Button>
+            <Button
+              variant={activeProvider === 'schwab' ? 'contained' : 'outlined'}
+              size="small"
+              onClick={() => selectProvider('schwab')}
+              sx={{
+                color: activeProvider === 'schwab' ? 'white' : 'white',
+                borderColor: 'white',
+                '&.MuiButton-contained': {
+                  backgroundColor: '#4caf50', // Green when active
+                  '&:hover': {
+                    backgroundColor: '#45a049',
+                  }
+                },
+                '&.MuiButton-outlined': {
+                  borderColor: 'rgba(255, 255, 255, 0.5)',
+                  '&:hover': {
+                    borderColor: 'rgba(255, 255, 255, 0.8)',
+                    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                  }
+                },
+              }}
+            >
+              SCHWAB
+            </Button>
+          </Box>
+
+          {/* Centered Title */}
+          <Typography 
+            variant="h4" 
+            noWrap 
+            component="div" 
+            sx={{ 
+              fontFamily: '"Cinzel", serif',
+              fontSize: '2.25rem',
+              position: 'absolute',
+              left: '50%',
+              transform: 'translateX(-50%)',
+            }}
           >
-            <MenuIcon />
-          </IconButton>
-          <Typography variant="h6" noWrap component="div" sx={{ fontFamily: '"Cinzel", serif' }}>
             Thor War Room
           </Typography>
+
+          {/* Empty space for balance */}
+          <Box sx={{ width: 'auto' }} />
         </Toolbar>
       </AppBar>
 
