@@ -1,4 +1,5 @@
-# Cloudflare Tunnel for Thor (plan for next week)
+![ is this correct
+]({D0A5AB28-6635-4E5A-85BF-8EC5B536E7D3}.png)# Cloudflare Tunnel for Thor (plan for next week)
 
 This guide wires thor.360edu.org to your local Django dev server (port 8000) using Cloudflare Tunnel. No app changes are required right now; this is a ready-to-run plan for later.
 
@@ -101,16 +102,42 @@ Update your local `.env` for development. Prefer using the dev override so produ
 
 ```
 SCHWAB_REDIRECT_URI=https://360edu.org/auth/callback                    # production
-SCHWAB_REDIRECT_URI_DEV=https://thor.360edu.org/schwab/callback        # dev via Cloudflare Tunnel
+SCHWAB_REDIRECT_URI_DEV=https://thor.360edu.org/schwab/callback        # dev via Cloudflare
 ```
 
 Restart Django so the new env values are picked up.
 
 Routes that must exist (already implemented):
-- Login start: `/api/schwab/auth/login/` (redirects to Schwab)
-- Callback: `/schwab/callback` (root-level) and `/api/schwab/auth/callback` (app-level)
 
 ---
+
+## G) Verification checklist and URLs
+
+Public domain via Cloudflare Tunnel:
+- https://thor.360edu.org
+
+Backend base (through tunnel):
+- https://thor.360edu.org/api/
+
+Schwab OAuth endpoints:
+- Start login (local): http://localhost:8000/api/schwab/auth/login/
+- Start login (through tunnel): https://thor.360edu.org/api/schwab/auth/login/
+- OAuth callback (root): https://thor.360edu.org/schwab/callback
+- OAuth callback (app): https://thor.360edu.org/api/schwab/auth/callback
+
+Provider diagnostics:
+- Health: https://thor.360edu.org/api/schwab/provider/health/?provider=schwab
+- Status: https://thor.360edu.org/api/schwab/provider/status/?provider=schwab
+- Debug GET: https://thor.360edu.org/api/schwab/debug/get/?path=/v1/accounts
+
+What to enter in Schwab Developer Portal:
+- Redirect URI: https://thor.360edu.org/schwab/callback
+
+Quick tests:
+1) Start Django locally on port 8000.
+2) Visit Health: https://thor.360edu.org/api/schwab/provider/health/?provider=schwab (auth.configured should be true when .env is set)
+3) Start OAuth: https://thor.360edu.org/api/schwab/auth/login/ (should redirect to Schwab)
+4) Complete consent and verify callback to https://thor.360edu.org/schwab/callback exchanges code for tokens.
 
 ## G) Test the full OAuth flow
 

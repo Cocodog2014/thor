@@ -98,7 +98,7 @@ SCHWAB_AUTH_URL=            # optional override; defaults to <BASE_URL>/oauth2/a
 SCHWAB_TOKEN_URL=           # optional override; defaults to <BASE_URL>/oauth2/token
 SCHWAB_SCOPES=read
 SCHWAB_REDIRECT_URI=        # production redirect (e.g., https://360edu.org/auth/callback)
-SCHWAB_REDIRECT_URI_DEV=    # dev redirect (e.g., https://<ngrok>.ngrok-free.app/auth/callback)
+SCHWAB_REDIRECT_URI_DEV=    # dev redirect (e.g., https://thor.360edu.org/schwab/callback)
 ```
 
 Tip: Ensure SCHWAB_REDIRECT_URI and SCHWAB_REDIRECT_URI_DEV are on separate lines in `.env`.
@@ -110,10 +110,10 @@ Excel Live stays the default provider. You can fully complete OAuth and persist 
 1) Configure env in `thor-backend/.env`:
 	- SCHWAB_CLIENT_ID and SCHWAB_CLIENT_SECRET from the Schwab portal
 	- SCHWAB_REDIRECT_URI for production (keep as-is)
-	- SCHWAB_REDIRECT_URI_DEV set to your ngrok HTTPS URL + `/auth/callback` (or `/schwab/callback`)
+	- SCHWAB_REDIRECT_URI_DEV set to your Cloudflare tunnel domain + `/schwab/callback`
 
-2) Start Django locally on port 8000, then start ngrok and copy the HTTPS forwarding URL.
-	- See repo root `START.md` Step 4 and `ngrok.md` for commands and troubleshooting.
+2) Start Django locally on port 8000. The Cloudflare Tunnel is already configured for `thor.360edu.org`.
+	- See repo root `START.md` Step 4 for backend startup steps.
 
 3) Update the Schwab Developer Portal to use the same callback URL you set in `.env`.
 
@@ -130,8 +130,8 @@ Excel Live stays the default provider. You can fully complete OAuth and persist 
 ## Troubleshooting
 
 - Callback mismatch: The URL in the Schwab portal must exactly match the one used by your dev tunnel (`SCHWAB_REDIRECT_URI_DEV`).
-- Ngrok/CSRF in Django: In DEBUG, the project includes the `*.ngrok-free.*` domains in `ALLOWED_HOSTS` and `CSRF_TRUSTED_ORIGINS`.
-- Authtoken error (ERR_NGROK_105): Ensure you added a real ngrok authtoken.
+- Cloudflare/CSRF in Django: Ensure `thor.360edu.org` is present in `ALLOWED_HOSTS` and `CSRF_TRUSTED_ORIGINS` (via env or settings).
+-- Remove any ngrok-specific settings; Cloudflare Tunnel doesn't require an authtoken in this project setup.
 - No tokens shown: Re-run the login URL and complete consent. Check `data/schwab_tokens.json` for saved tokens.
 
 ## Provider options

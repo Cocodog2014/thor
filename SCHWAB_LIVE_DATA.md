@@ -43,7 +43,7 @@ SCHWAB_SCOPES=read
 
 # Redirects
 SCHWAB_REDIRECT_URI=https://360edu.org/auth/callback            # production
-SCHWAB_REDIRECT_URI_DEV=https://<your-subdomain>.ngrok-free.app/auth/callback  # dev
+SCHWAB_REDIRECT_URI_DEV=https://thor.360edu.org/schwab/callback  # dev via Cloudflare
 
 # Optional overrides
 SCHWAB_AUTH_URL=   # default: <BASE_URL>/oauth2/authorize

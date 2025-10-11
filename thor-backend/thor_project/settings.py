@@ -33,7 +33,7 @@ _extra_hosts = [h.strip() for h in config('ALLOWED_HOSTS_EXTRA', default='').spl
 
 # In development, also allow common tunnel domains so callbacks through HTTPS work.
 if DEBUG:
-    ALLOWED_HOSTS += ['.ngrok-free.app', '.ngrok-free.dev']
+    ALLOWED_HOSTS += []  # ngrok removed; Cloudflare domain added via env
 
 ALLOWED_HOSTS += _extra_hosts
 
@@ -167,6 +167,7 @@ CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:5173",
     "http://localhost:5174",  # Vite development server alternate port
     "http://127.0.0.1:5174",
+    "https://thor.360edu.org",  # Cloudflare tunnel domain
 ]
 
 CORS_ALLOW_CREDENTIALS = True
@@ -176,9 +177,16 @@ if DEBUG:
     CSRF_TRUSTED_ORIGINS = [
         'https://localhost',
         'https://127.0.0.1',
-        'https://*.ngrok-free.app',
-        'https://*.ngrok-free.dev',
     ]
+
+# Allow adding more CSRF trusted origins via env (comma-separated), e.g., https://thor.360edu.org
+_csrf_extra = [o.strip() for o in config('CSRF_TRUSTED_ORIGINS_EXTRA', default='').split(',') if o.strip()]
+if _csrf_extra:
+    try:
+        # If defined above (e.g., in DEBUG), extend the list; otherwise set it fresh
+        CSRF_TRUSTED_ORIGINS = list(set((locals().get('CSRF_TRUSTED_ORIGINS') or []) + _csrf_extra))
+    except Exception:
+        CSRF_TRUSTED_ORIGINS = _csrf_extra
 
 # Media files
 MEDIA_URL = '/media/'
