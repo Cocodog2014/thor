@@ -17,6 +17,7 @@ import {
   ChevronRight as ChevronRightIcon,
   CandlestickChart as CandlestickChartIcon,
   TrendingUp as TrendingUpIcon,
+  AdminPanelSettings as AdminPanelSettingsIcon,
 } from '@mui/icons-material';
 import { useLocation, useNavigate } from 'react-router-dom';
 
@@ -34,6 +35,7 @@ const navigationItems = [
   { text: 'Home', icon: <HomeIcon />, path: '/' },
   { text: 'Futures', icon: <TrendingUpIcon />, path: '/futures' },
   { text: 'Stock Trading', icon: <CandlestickChartIcon />, path: '/stock-trading' },
+  { text: 'Django Admin', icon: <AdminPanelSettingsIcon />, path: 'http://127.0.0.1:8000/admin/', external: true },
 ];
 
 const CollapsibleDrawer: React.FC<CollapsibleDrawerProps> = ({
@@ -82,8 +84,14 @@ const CollapsibleDrawer: React.FC<CollapsibleDrawerProps> = ({
         {navigationItems.map((item) => (
           <ListItem key={item.text} disablePadding sx={{ display: 'block' }}>
             <ListItemButton
-              selected={location.pathname === item.path}
-              onClick={() => navigate(item.path)}
+              selected={!item.external && location.pathname === item.path}
+              onClick={() => {
+                if (item.external) {
+                  window.open(item.path, '_blank', 'noopener,noreferrer');
+                  return;
+                }
+                navigate(item.path);
+              }}
               sx={{
                 minHeight: 48,
                 justifyContent: open ? 'initial' : 'center',
