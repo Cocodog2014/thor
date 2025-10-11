@@ -264,26 +264,32 @@ const WatchList = () => {
         </table>
       </Box>
 
-      <OrderModal
-        open={orderOpen}
-        symbol={selectedSymbol}
-        onClose={handleOrderClose}
-        onSelectAction={handleSelectAction}
-      />
-      <ReviewModal
-        open={reviewOpen}
-        symbol={selectedSymbol}
-        initialSide={reviewSide}
-        onClose={handleReviewClose}
-        onReview={handleReviewComplete}
-      />
-      <FinalModal
-        open={finalOpen}
-        symbol={selectedSymbol}
-        details={finalDetails}
-        onClose={handleFinalClose}
-        onConfirm={handleFinalConfirm}
-      />
+      {orderOpen && !reviewOpen && !finalOpen && (
+        <OrderModal
+          open={orderOpen}
+          symbol={selectedSymbol}
+          onClose={handleOrderClose}
+          onSelectAction={handleSelectAction}
+        />
+      )}
+      {reviewOpen && !finalOpen && (
+        <ReviewModal
+          open={reviewOpen}
+          symbol={selectedSymbol}
+          initialSide={reviewSide}
+          onClose={handleReviewClose}
+          onReview={handleReviewComplete}
+        />
+      )}
+      {finalOpen && (
+        <FinalModal
+          open={finalOpen}
+          symbol={selectedSymbol}
+          details={finalDetails}
+          onClose={handleFinalClose}
+          onConfirm={handleFinalConfirm}
+        />
+      )}
     </Paper>
   );
 };

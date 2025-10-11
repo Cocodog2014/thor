@@ -167,6 +167,22 @@
   letter-spacing: 0.06em;
 }
 
+.positions-symbol-button {
+  all: unset;
+  display: block;
+  width: 100%;
+  cursor: pointer;
+}
+
+.positions-symbol-button:focus-visible {
+  outline: 1px solid var(--thor-blue-light);
+  outline-offset: 2px;
+}
+
+.positions-symbol-button:hover .positions-symbol-text {
+  color: var(--thor-blue-light);
+}
+
 .positions-symbol-text {
   font-size: 0.7rem;
 }

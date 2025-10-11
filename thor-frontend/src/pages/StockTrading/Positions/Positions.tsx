@@ -1,5 +1,9 @@
-import { Fragment } from 'react';
+import { Fragment, useState } from 'react';
 import { Paper, Typography, Box } from '@mui/material';
+import OrderModal from '../Orders/Order';
+import ReviewModal from '../Orders/Review';
+import FinalModal from '../Orders/Final';
+import type { WatchListSymbol, ReviewOrderDetails } from '../Orders/types';
 
 const Positions = () => {
   const columns = [
@@ -177,6 +181,86 @@ const Positions = () => {
     bid: { text: '-' },
   };
 
+  const toWatchListSymbol = (row: PositionRow, accountName: string): WatchListSymbol => {
+    const mark = row.fields.mark?.text ?? '-';
+    const marketChange = row.fields.marketChange?.text ?? '0.00';
+    const tradePrice = row.fields.tradePrice?.text ?? '-';
+    const bid = row.fields.bid?.text ?? '-';
+    const ask = row.fields.ask?.text ?? '-';
+    const size = row.size ?? '-';
+    const tone = row.fields.marketChange?.tone;
+    const quoteTrend: WatchListSymbol['quoteTrend'] = tone === 'gain' ? 'up' : tone === 'loss' ? 'down' : 'flat';
+
+    return {
+      symbol: row.symbol,
+      description: `${accountName} · ${size !== '-' ? `${size} position` : 'Open position'}`,
+      last: mark,
+      netChange: marketChange,
+      open: tradePrice,
+      bid,
+      ask,
+      size,
+      volume: row.fields.plOpen?.text ?? '--',
+      high: mark,
+      low: mark,
+      fiftyTwoWeekHigh: mark,
+      fiftyTwoWeekLow: mark,
+      quoteTrend,
+      bidX: `Bid: ${bid}`,
+      askX: `Ask: ${ask}`,
+      lastX: `Mark: ${mark}`,
+    };
+  };
+
+  const [selectedSymbol, setSelectedSymbol] = useState<WatchListSymbol | null>(null);
+  const [orderOpen, setOrderOpen] = useState(false);
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const [reviewSide, setReviewSide] = useState<'buy' | 'sell'>('buy');
+  const [finalOpen, setFinalOpen] = useState(false);
+  const [finalDetails, setFinalDetails] = useState<ReviewOrderDetails | null>(null);
+
+  const handlePositionClick = (row: PositionRow, accountName: string) => {
+    setSelectedSymbol(toWatchListSymbol(row, accountName));
+    setOrderOpen(true);
+  };
+
+  const handleOrderClose = () => {
+    setOrderOpen(false);
+    setSelectedSymbol(null);
+    setReviewOpen(false);
+    setFinalOpen(false);
+    setFinalDetails(null);
+    setReviewSide('buy');
+  };
+
+  const handleSelectAction = (side: 'buy' | 'sell') => {
+    setReviewSide(side);
+    setReviewOpen(true);
+    setOrderOpen(false);
+  };
+
+  const handleReviewClose = () => {
+    setReviewOpen(false);
+    setOrderOpen(true);
+  };
+
+  const handleReviewComplete = (details: ReviewOrderDetails) => {
+    setReviewOpen(false);
+    setReviewSide(details.side);
+    setFinalDetails(details);
+    setFinalOpen(true);
+  };
+
+  const handleFinalClose = () => {
+    setFinalOpen(false);
+    setFinalDetails(null);
+    setReviewOpen(true);
+  };
+
+  const handleFinalConfirm = () => {
+    handleOrderClose();
+  };
+
   const footerMetrics = [
     { label: 'P/L Day', value: '($9,130.08)', tone: 'loss' as MetricTone },
     { label: 'P/L Open', value: '$61,506.22', tone: 'gain' as MetricTone },
@@ -267,20 +351,27 @@ const Positions = () => {
                             key={`${row.symbol}-${column.key}`}
                             className={`positions-symbol-cell ${getAlignClass(column.align)}`}
                           >
-                            <Box className="positions-symbol">
-                              <Typography variant="body2" className="positions-symbol-text">
-                                {field?.text ?? row.symbol}
-                              </Typography>
-                              {row.size && (
-                                <Typography
-                                  variant="caption"
-                                  className="positions-symbol-size"
-                                  color={row.size.startsWith('-') ? 'error.main' : 'success.main'}
-                                >
-                                  {row.size}
+                            <button
+                              type="button"
+                              className="positions-symbol-button"
+                              onClick={() => handlePositionClick(row, account.name)}
+                              aria-label={`Open order modal for ${row.symbol}`}
+                            >
+                              <Box className="positions-symbol">
+                                <Typography variant="body2" className="positions-symbol-text">
+                                  {field?.text ?? row.symbol}
                                 </Typography>
-                              )}
-                            </Box>
+                                {row.size && (
+                                  <Typography
+                                    variant="caption"
+                                    className="positions-symbol-size"
+                                    color={row.size.startsWith('-') ? 'error.main' : 'success.main'}
+                                  >
+                                    {row.size}
+                                  </Typography>
+                                )}
+                              </Box>
+                            </button>
                           </td>
                         );
                       }
@@ -346,6 +437,33 @@ const Positions = () => {
           </Box>
         ))}
       </Box>
+
+      {orderOpen && !reviewOpen && !finalOpen && (
+        <OrderModal
+          open={orderOpen}
+          symbol={selectedSymbol}
+          onClose={handleOrderClose}
+          onSelectAction={handleSelectAction}
+        />
+      )}
+      {reviewOpen && !finalOpen && (
+        <ReviewModal
+          open={reviewOpen}
+          symbol={selectedSymbol}
+          initialSide={reviewSide}
+          onClose={handleReviewClose}
+          onReview={handleReviewComplete}
+        />
+      )}
+      {finalOpen && (
+        <FinalModal
+          open={finalOpen}
+          symbol={selectedSymbol}
+          details={finalDetails}
+          onClose={handleFinalClose}
+          onConfirm={handleFinalConfirm}
+        />
+      )}
     </Paper>
   );
 };
