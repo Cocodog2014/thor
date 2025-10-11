@@ -1,0 +1,81 @@
+.orders-final-dialog {
+  background: linear-gradient(180deg, #05070b 0%, #0c101a 100%) !important;
+  border: 1px solid rgba(66, 165, 245, 0.24);
+  color: white;
+}
+
+.orders-final-title {
+  padding: var(--thor-spacing-md) var(--thor-spacing-lg) var(--thor-spacing-sm);
+}
+
+.orders-final-heading {
+  font-family: var(--thor-font-title);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--thor-blue-light);
+}
+
+.orders-final-content {
+  padding: var(--thor-spacing-md) var(--thor-spacing-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--thor-spacing-md);
+}
+
+.orders-final-symbol {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: center;
+}
+
+.orders-final-symbol-text {
+  letter-spacing: 0.1em;
+}
+
+.orders-final-description {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.orders-final-divider {
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+.orders-final-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--thor-spacing-md);
+}
+
+.orders-final-summary div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.orders-final-summary span {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.orders-final-summary strong {
+  font-size: 1rem;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.orders-final-note {
+  text-align: center;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.orders-final-actions {
+  padding: var(--thor-spacing-sm) var(--thor-spacing-lg) var(--thor-spacing-md);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--thor-spacing-sm);
+}

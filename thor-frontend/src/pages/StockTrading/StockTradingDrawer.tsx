@@ -21,6 +21,7 @@ import {
   History as HistoryIcon,
   ListAlt as ListAltIcon,
   ReceiptLong as ReceiptLongIcon,
+  VisibilityOutlined as VisibilityIcon,
 } from '@mui/icons-material';
 import { DEFAULT_WIDTH_OPEN, DEFAULT_WIDTH_CLOSED } from '../../components/CollapsibleDrawer';
 import type { SelectChangeEvent } from '@mui/material/Select';
@@ -39,6 +40,7 @@ interface StockTradingDrawerProps {
 const defaultItems = [
   { label: 'Overview', icon: <AssessmentIcon /> },
   { label: 'Orders', icon: <ReceiptLongIcon /> },
+  { label: 'Watch List', icon: <VisibilityIcon /> },
   { label: 'Positions', icon: <ListAltIcon /> },
   { label: 'History', icon: <HistoryIcon /> },
 ];
