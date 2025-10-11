@@ -62,23 +62,23 @@
 .account-metric-label {
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  font-size: 0.5625rem;
+  font-size: 0.7rem;
   color: rgba(255, 255, 255, 0.65);
 }
 
 .account-metric-row--compact .account-metric-label {
-  letter-spacing: 0.05544em;
-  font-size: 0.51975rem;
+  letter-spacing: 0.1em;
+  font-size: 0.7rem;
 }
 
 .account-metric-value {
   font-family: var(--thor-font-mono);
   color: rgba(255, 255, 255, 0.95);
-  font-size: 0.75rem;
+  font-size: 0.7rem;
 }
 
 .account-metric-row--compact .account-metric-value {
-  font-size: 0.693rem;
+  font-size: 0.7rem;
 }
 
 .account-metric-hint {

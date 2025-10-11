@@ -20,7 +20,7 @@
 .stock-trading-content {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
-  gap: var(--thor-spacing-xl);
+  gap: calc(var(--thor-spacing-xl) * 0.25);
   width: 100%;
   max-width: 820px;
   margin-left: 0;

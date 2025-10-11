@@ -38,7 +38,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--thor-spacing-xs);
-  min-width: 1280px;
+  min-width: calc(12 * 112px);
 }
 
 .positions-table-header,
@@ -79,14 +79,16 @@
 }
 
 .positions-table {
-  width: 100%;
-  min-width: 1280px;
+  --positions-column-width: 112px;
+  width: calc(12 * var(--positions-column-width));
+  min-width: calc(12 * var(--positions-column-width));
   border-collapse: collapse;
   border-spacing: 0;
+  table-layout: fixed;
 }
 
 .positions-table thead th {
-  padding: var(--thor-spacing-sm) var(--thor-spacing-md);
+  padding: var(--thor-spacing-sm) var(--thor-spacing-sm);
   font-size: 0.7rem;
   text-transform: uppercase;
   letter-spacing: 0.1em;
@@ -95,10 +97,24 @@
   white-space: nowrap;
 }
 
+.positions-table thead th:nth-child(3),
+.positions-table thead th:nth-child(4),
+.positions-table thead th:nth-child(5) {
+  white-space: normal;
+  line-height: 1.2;
+}
+
 .positions-table tbody td {
-  padding: var(--thor-spacing-sm) var(--thor-spacing-md);
+  padding: var(--thor-spacing-sm) var(--thor-spacing-sm);
   border-top: 1px solid rgba(255, 255, 255, 0.06);
   white-space: nowrap;
+}
+
+.positions-table th,
+.positions-table td {
+  width: var(--positions-column-width);
+  min-width: var(--positions-column-width);
+  max-width: var(--positions-column-width);
 }
 
 .positions-table tbody tr:first-of-type td {
@@ -151,8 +167,16 @@
   letter-spacing: 0.06em;
 }
 
+.positions-symbol-text {
+  font-size: 0.7rem;
+}
+
+.positions-symbol-size {
+  font-size: 0.7rem;
+}
+
 .positions-symbol-cell {
-  min-width: 200px;
+  min-width: var(--positions-column-width);
 }
 
 .positions-cell {
@@ -163,10 +187,33 @@
   font-weight: 600;
 }
 
+.positions-account-label-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.positions-account-label-title {
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+}
+
+.positions-account-label-subtext {
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.7);
+}
+
 .positions-subtotal-label,
 .positions-overall-label {
   font-weight: 600;
   text-transform: uppercase;
+  font-size: 0.7rem;
+}
+
+.positions-table tbody td .MuiTypography-root {
+  font-size: 0.7rem;
 }
 
 .positions-align-left {

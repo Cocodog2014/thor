@@ -5,8 +5,9 @@ const Positions = () => {
   const columns = [
     { key: 'symbol', label: 'Symbol', align: 'left' as const },
     { key: 'plDay', label: 'P/L Day', align: 'right' as const },
-    { key: 'marketChange', label: 'Market Change', align: 'right' as const },
-    { key: 'tradePrice', label: 'Trade Price', align: 'right' as const },
+    { key: 'marketChange', label: 'Market\nChange', align: 'right' as const },
+    { key: 'mark', label: 'Mark', align: 'right' as const },
+    { key: 'tradePrice', label: 'Trade\nPrice', align: 'right' as const },
     { key: 'plOpen', label: 'P/L Open', align: 'right' as const },
     { key: 'plPercent', label: 'P/L %', align: 'right' as const },
     { key: 'plYtd', label: 'P/L YTD', align: 'right' as const },
@@ -42,9 +43,10 @@ const Positions = () => {
     {
       name: 'Joint Tenant',
       summary: {
-        symbol: { text: 'Account: Joint Tenant' },
+        symbol: { text: 'Account' },
         plDay: { text: '($37.80)', tone: 'loss' },
         marketChange: { text: '-0.28', tone: 'loss' },
+        mark: { text: '1.37' },
         tradePrice: { text: '-' },
         plOpen: { text: '($316.91)', tone: 'loss' },
         plPercent: { text: '-63.15%', tone: 'loss' },
@@ -62,6 +64,7 @@ const Positions = () => {
             symbol: { text: 'CGC' },
             plDay: { text: '($37.80)', tone: 'loss' },
             marketChange: { text: '-0.28', tone: 'loss' },
+            mark: { text: '1.37' },
             tradePrice: { text: '3.72' },
             plOpen: { text: '($316.91)', tone: 'loss' },
             plPercent: { text: '-63.15%', tone: 'loss' },
@@ -77,6 +80,7 @@ const Positions = () => {
         symbol: { text: 'Subtotals:' },
         plDay: { text: '($37.80)', tone: 'loss' },
         marketChange: { text: '-0.28', tone: 'loss' },
+  mark: { text: '1.37' },
         tradePrice: { text: '-' },
         plOpen: { text: '($316.91)', tone: 'loss' },
         plPercent: { text: '-63.15%', tone: 'loss' },
@@ -90,9 +94,10 @@ const Positions = () => {
     {
       name: 'Rollover IRA',
       summary: {
-        symbol: { text: 'Account: Rollover IRA' },
+        symbol: { text: 'Account' },
         plDay: { text: '($9,092.28)', tone: 'loss' },
         marketChange: { text: '-0.34', tone: 'loss' },
+        mark: { text: '1.06' },
         tradePrice: { text: '-' },
         plOpen: { text: '($61,506.22)', tone: 'loss' },
         plPercent: { text: '-63.17%', tone: 'loss' },
@@ -110,6 +115,7 @@ const Positions = () => {
             symbol: { text: 'VFF' },
             plDay: { text: '($8,840.00)', tone: 'loss' },
             marketChange: { text: '-0.34', tone: 'loss' },
+            mark: { text: '0.86' },
             tradePrice: { text: '0.85' },
             plOpen: { text: '$63,940.20', tone: 'gain' },
             plPercent: { text: '+289.06%', tone: 'gain' },
@@ -127,6 +133,7 @@ const Positions = () => {
             symbol: { text: 'CGC' },
             plDay: { text: '($252.28)', tone: 'loss' },
             marketChange: { text: '-0.28', tone: 'loss' },
+            mark: { text: '1.37' },
             tradePrice: { text: '3.71' },
             plOpen: { text: '($2,117.07)', tone: 'loss' },
             plPercent: { text: '-63.17%', tone: 'loss' },
@@ -142,6 +149,7 @@ const Positions = () => {
         symbol: { text: 'Subtotals:' },
         plDay: { text: '($9,092.28)', tone: 'loss' },
         marketChange: { text: '-', tone: 'neutral' },
+  mark: { text: '1.06', tone: 'neutral' },
         tradePrice: { text: '-' },
         plOpen: { text: '$61,823.13', tone: 'gain' },
         plPercent: { text: '+242.72%', tone: 'gain' },
@@ -158,6 +166,7 @@ const Positions = () => {
     symbol: { text: 'Overall Totals:' },
     plDay: { text: '($9,130.08)', tone: 'loss' },
     marketChange: { text: '-', tone: 'neutral' },
+    mark: { text: '1.12' },
     tradePrice: { text: '-' },
     plOpen: { text: '$61,506.22', tone: 'gain' },
     plPercent: { text: '+236.81%', tone: 'gain' },
@@ -202,7 +211,12 @@ const Positions = () => {
             <tr>
               {columns.map((column) => (
                 <th key={column.key} className={getAlignClass(column.align)} scope="col">
-                  {column.label}
+                  {column.label.split('\n').map((part, index, parts) => (
+                    <span key={`${column.key}-label-${index}`} className="positions-header-line">
+                      {part}
+                      {index < parts.length - 1 ? <br /> : null}
+                    </span>
+                  ))}
                 </th>
               ))}
             </tr>
@@ -217,12 +231,27 @@ const Positions = () => {
                         key={column.key}
                         className={`${getAlignClass(column.align)} ${column.key === 'symbol' ? 'positions-account-label positions-symbol-cell' : 'positions-cell'}`.trim()}
                       >
-                        <Typography
-                          variant="subtitle2"
-                          color={getToneColor(account.summary?.[column.key]?.tone)}
-                        >
-                          {account.summary?.[column.key]?.text ?? (column.key === 'symbol' ? `Account: ${account.name}` : '-')}
-                        </Typography>
+                        {column.key === 'symbol' ? (
+                          <Box className="positions-account-label-wrapper">
+                            <Typography
+                              variant="subtitle2"
+                              className="positions-account-label-title"
+                              color={getToneColor(account.summary?.[column.key]?.tone)}
+                            >
+                              {account.summary?.[column.key]?.text ?? 'Account'}
+                            </Typography>
+                            <Typography variant="caption" className="positions-account-label-subtext">
+                              {account.name}
+                            </Typography>
+                          </Box>
+                        ) : (
+                          <Typography
+                            variant="subtitle2"
+                            color={getToneColor(account.summary?.[column.key]?.tone)}
+                          >
+                            {account.summary?.[column.key]?.text ?? '-'}
+                          </Typography>
+                        )}
                       </td>
                     ))}
                   </tr>
@@ -239,10 +268,13 @@ const Positions = () => {
                             className={`positions-symbol-cell ${getAlignClass(column.align)}`}
                           >
                             <Box className="positions-symbol">
-                              <Typography variant="body2">{field?.text ?? row.symbol}</Typography>
+                              <Typography variant="body2" className="positions-symbol-text">
+                                {field?.text ?? row.symbol}
+                              </Typography>
                               {row.size && (
                                 <Typography
                                   variant="caption"
+                                  className="positions-symbol-size"
                                   color={row.size.startsWith('-') ? 'error.main' : 'success.main'}
                                 >
                                   {row.size}
