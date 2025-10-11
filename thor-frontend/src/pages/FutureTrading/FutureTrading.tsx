@@ -9,6 +9,8 @@ import {
   Paper,
   Chip,
   Container,
+  Alert,
+  CircularProgress,
 } from "@mui/material";
 import { useTheme, type Theme } from "@mui/material/styles";
 import type { ChipProps } from "@mui/material";
@@ -91,6 +93,24 @@ type ApiResponse = {
     composite_signal?: SignalKey;
     composite_signal_weight?: number;
   };
+};
+
+type RoutingFeed = {
+  code: string;
+  display_name: string;
+  connection_type: string;
+  provider_key?: string;
+  priority: number;
+  is_primary: boolean;
+};
+
+type RoutingPlanResponse = {
+  consumer: {
+    code: string;
+    display_name: string;
+  };
+  primary_feed: RoutingFeed | null;
+  feeds: RoutingFeed[];
 };
 
 type SignalKey =
@@ -456,25 +476,54 @@ function L1Card({row, onSample, hist, theme}:{row: MarketData; onSample:(value:n
 export default function FutureTrading(){
   const theme = useTheme();
   const [pollMs, setPollMs] = useState(2000);
-  // Source selection: choose explicitly between known providers.
-  const [srcSelection, setSrcSelection] = useState<'excel_live'|'schwab'|'bob_live'>('excel_live');
   const [rows, setRows] = useState<MarketData[]>([]);
   const [totalData, setTotalData] = useState<TotalData | null>(null);
+  const [routingPlan, setRoutingPlan] = useState<RoutingPlanResponse | null>(null);
+  const [routingError, setRoutingError] = useState<string | null>(null);
+  const [routingLoading, setRoutingLoading] = useState(true);
 
   // sparkline buffers
   const seriesRef = useRef<Record<string, number[]>>({});
   const getSeries = (sym:string) => (seriesRef.current[sym] ||= []);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    async function fetchRouting() {
+      setRoutingLoading(true);
+      setRoutingError(null);
+      try {
+        const res = await fetch("/api/schwab/feeds/routing/?consumer=futures");
+        if (!res.ok) {
+          throw new Error(`Routing request failed with status ${res.status}`);
+        }
+        const data: RoutingPlanResponse = await res.json();
+        if (!cancelled) {
+          setRoutingPlan(data);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setRoutingError(error instanceof Error ? error.message : "Unable to load feed routing");
+        }
+      } finally {
+        if (!cancelled) {
+          setRoutingLoading(false);
+        }
+      }
+    }
+
+    fetchRouting();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   async function fetchQuotes(){
-    // Get the active provider from localStorage (set by header buttons)
-  const activeProvider = localStorage.getItem('selectedProvider') || 'excel_live';
-    
-    // Choose endpoints based on provider selection
-    const endpoints = [ 
-      `/api/quotes/latest?provider=${activeProvider}`,
-      `/api/schwab/quotes/latest?provider=${activeProvider}` 
+    const endpoints = [
+      "/api/schwab/quotes/latest?consumer=futures",
+      "/api/quotes/latest?consumer=futures",
     ];
-    
+
     for (const endpoint of endpoints) {
       try {
         const r = await fetch(endpoint);
@@ -488,32 +537,17 @@ export default function FutureTrading(){
         console.warn(`Failed to fetch from ${endpoint}:`, error);
       }
     }
-    
+
     throw new Error("All quote endpoints failed");
   }
 
   useEffect(()=>{
-    // Initialize srcSelection from URL on first load
-    const params = new URLSearchParams(window.location.search);
-    const s = (params.get('src') || '').toLowerCase();
-    if (s === 'excel_live' || s === 'schwab' || s === 'bob_live') {
-      setSrcSelection(s);
-      return;
-    }
-    if (s === 'excel') {
-      setSrcSelection('excel_live');
-      return;
-    }
-    if (s === 'bob') {
-      setSrcSelection('bob_live');
-    }
-  },[]);
-
-  useEffect(()=>{
     (async()=>{
       try{
-        await fetchQuotes();
-  }catch{
+        if (!routingError) {
+          await fetchQuotes();
+        }
+      }catch{
         // Create empty containers for all 11 futures but with no data
         const emptyContainers = FUTURES_11.map((symbol, index) => ({
           instrument: {
@@ -551,29 +585,13 @@ export default function FutureTrading(){
         setRows(emptyContainers);
       }
     })();
-  },[srcSelection]);  // Re-fetch when source selection changes
+  },[routingError]);
 
   useEffect(()=>{
     // Poll for updates
     const id = setInterval(()=>{ fetchQuotes().catch(()=>{}); }, pollMs);
     return ()=> clearInterval(id);
-  },[pollMs,srcSelection]);  // Include dependencies so polling updates when source changes
-
-  // Listen for provider changes from header buttons
-  useEffect(() => {
-    const handleProviderChange = (event: Event) => {
-      const detail = (event as CustomEvent<{ provider?: string }>).detail;
-      const provider = detail?.provider;
-      if (provider === 'excel_live' || provider === 'schwab' || provider === 'bob_live') {
-        setSrcSelection(provider);
-      }
-      // Refresh data when provider selection changes
-      fetchQuotes().catch(console.error);
-    };
-
-    window.addEventListener('provider-changed', handleProviderChange);
-    return () => window.removeEventListener('provider-changed', handleProviderChange);
-  }, []);
+  },[pollMs]);
 
   const effective = rows;
   const currentTotalData = totalData;
@@ -630,6 +648,27 @@ export default function FutureTrading(){
 
   return (
     <Container maxWidth={false} sx={{ py: 3 }}>
+      {(routingLoading || routingError) && (
+        <Box mb={2}>
+          {routingLoading ? (
+            <Box display="flex" alignItems="center" gap={1}>
+              <CircularProgress size={20} />
+              <Typography variant="body2">Loading feed routing…</Typography>
+            </Box>
+          ) : routingError ? (
+            <Alert severity="warning">{routingError}</Alert>
+          ) : null}
+        </Box>
+      )}
+
+      {routingPlan && (
+        <Box mb={2}>
+          <Typography variant="caption" color="text.secondary">
+            Feed: {routingPlan.primary_feed?.display_name ?? "Not configured"}
+          </Typography>
+        </Box>
+      )}
+
       <Box display="flex" justifyContent="flex-end" alignItems="center" mb={3}>
         <Button
           variant="outlined"
