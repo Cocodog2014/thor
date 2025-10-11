@@ -39,6 +39,59 @@ This opens the browser; pick your Cloudflare account and zone (`360edu.org`).
 
 ---
 
+## Step 1 — Confirm the correct binary and service path (Windows)
+
+Goal: Ensure the cloudflared binary on PATH matches the Windows service binary, and that the service uses the expected config/credentials.
+
+- Expected binary path (verified on this machine):
+  - C:\Program Files (x86)\cloudflared\cloudflared.exe
+- Windows Service (verified):
+  - Name: cloudflared
+  - DisplayName: Cloudflared agent
+  - StartType: Automatic
+  - BinaryPath (ImagePath): C:\Program Files (x86)\cloudflared\cloudflared.exe
+- Service config and credentials (verified):
+  - Config: C:\ProgramData\cloudflared\config.yml
+  - Credentials file: C:\ProgramData\cloudflared\<TUNNEL-UUID>.json
+- User profile config (optional, used for foreground runs):
+  - Config: %USERPROFILE%\.cloudflared\config.yml
+  - Credentials file: %USERPROFILE%\.cloudflared\<TUNNEL-UUID>.json
+
+Quick checks you can run in PowerShell:
+
+```powershell
+# 1) Confirm the resolved binary on PATH
+where.exe cloudflared
+Get-Command cloudflared | Select-Object -Property Path
+
+# 2) Confirm the Windows service and its binary path
+Get-Service cloudflared | Format-Table Name,DisplayName,Status,StartType
+sc.exe qc cloudflared
+reg query "HKLM\SYSTEM\CurrentControlSet\Services\cloudflared" /v ImagePath
+
+# 3) Confirm service config and credentials exist
+Test-Path "C:\ProgramData\cloudflared\config.yml"
+Get-ChildItem "C:\ProgramData\cloudflared" | Format-Table Name,FullName,Length
+
+# 4) Confirm the tunnel is present
+cloudflared tunnel list
+```
+
+What “good” looks like:
+- The resolved binary path(s) output only C:\Program Files (x86)\cloudflared\cloudflared.exe.
+- The service exists, is Automatic start, and ImagePath matches the same binary.
+- C:\ProgramData\cloudflared\config.yml exists and references a credentials-file that also exists in the same folder.
+- `cloudflared tunnel list` shows your tunnel (e.g., `thor`) and a UUID.
+
+If something’s off:
+- Multiple binaries found: remove stale copies from PATH or prefer the full path in scripts.
+- Service missing config/creds in ProgramData: copy your user profile credentials JSON to ProgramData and point config.yml to it, or re-run `cloudflared service install`.
+- Service running but stuck (e.g., StopPending): try `Restart-Service cloudflared` and check Windows Event Viewer > Application logs for cloudflared.
+
+Once these checks pass, proceed to create/route the tunnel below.
+
+---
+
 ## C) Create the tunnel and DNS route
 
 Create a named tunnel (Cloudflare returns a UUID and writes a credentials JSON file under %USERPROFILE%\.cloudflared):
@@ -161,6 +214,33 @@ Useful verification endpoints:
 - Windows Firewall can remain on; Cloudflare Tunnel uses outbound connections only.
 - If you later deploy the backend, you can keep `thor.360edu.org` and repoint the tunnel/DNS to that server instead of localhost.
 - For non-DEBUG environments, add `thor.360edu.org` to Django `ALLOWED_HOSTS` and `CSRF_TRUSTED_ORIGINS` (or use an env-driven allowlist).
+
+---
+
+## Auto-Recovery (Windows Service)
+
+If Cloudflared crashes or is terminated, configure Windows Service recovery to auto-restart.
+
+Option A — Run the helper script (elevates automatically):
+
+```powershell
+./scripts/configure_cloudflared_recovery.ps1
+```
+
+Option B — Run commands manually (PowerShell as Administrator):
+
+```powershell
+sc.exe failure cloudflared reset= 86400 actions= restart/5000/restart/10000/""/15000
+sc.exe failureflag cloudflared 1
+```
+
+Verify settings:
+
+```powershell
+sc.exe qfailure cloudflared
+```
+
+✅ Why: Auto-restarts after 5 s and again after 10 s; resets the counter every 24 h. OK proceed.
 
 ---
 
