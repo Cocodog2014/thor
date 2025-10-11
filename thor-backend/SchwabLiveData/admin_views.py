@@ -6,6 +6,7 @@ from django.utils.decorators import method_decorator
 from django.contrib import messages
 
 from .services import cloudflared
+import time
 
 
 def superuser_required(view_func):
@@ -28,6 +29,12 @@ def cloudflared_control(request):
         msg_text = msg
         if ok:
             messages.success(request, "Triggered Cloudflared start")
+            # Briefly poll for RUNNING
+            for _ in range(8):  # ~8 seconds
+                time.sleep(1)
+                status = cloudflared.get_status(treat_stop_pending_as_stopped=False)
+                if status in {"running", "pending"}:  # show progress quickly
+                    break
         else:
             messages.error(request, f"Start failed: {msg}")
     elif action == "stop":
@@ -35,6 +42,12 @@ def cloudflared_control(request):
         msg_text = msg
         if ok:
             messages.success(request, "Triggered Cloudflared stop")
+            # Briefly poll for STOPPED
+            for _ in range(8):
+                time.sleep(1)
+                status = cloudflared.get_status(treat_stop_pending_as_stopped=False)
+                if status in {"stopped", "pending"}:  # show progress quickly
+                    break
         else:
             messages.error(request, f"Stop failed: {msg}")
 

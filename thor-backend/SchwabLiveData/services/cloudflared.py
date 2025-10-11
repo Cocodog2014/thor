@@ -1,3 +1,4 @@
+import re
 import subprocess
 import sys
 from typing import Literal, Tuple
@@ -14,7 +15,7 @@ def _run(cmd: list[str]) -> Tuple[int, str, str]:
         return 1, "", str(e)
 
 
-def get_status() -> Status:
+def get_status(treat_stop_pending_as_stopped: bool = True) -> Status:
     """Return cloudflared Windows service status.
 
     Uses `sc.exe query cloudflared` and parses STATE to one of:
@@ -30,14 +31,41 @@ def get_status() -> Status:
     if code != 0:
         return "unknown"
 
+    # Parse the numeric STATE code to avoid locale/text variations.
+    # Expected line example: "STATE              : 1  STOPPED"
     text = (out or "") + "\n" + (err or "")
-    t = text.lower()
-    if "running" in t:
+    m = re.search(r"STATE\s*:\s*(\d+)\s+([A-Z_]+)", text, flags=re.IGNORECASE)
+    if not m:
+        # Fallback to simple keyword checks if pattern isn't found
+        t = text.lower()
+        if "running" in t:
+            return "running"
+        if "stopped" in t:
+            return "stopped"
+        if "pending" in t:
+            return "pending"
+        return "unknown"
+
+    try:
+        code_num = int(m.group(1))
+    except Exception:
+        code_num = -1
+
+    # Map Windows service state codes
+    # 1: STOPPED, 2: START_PENDING, 3: STOP_PENDING, 4: RUNNING,
+    # 5: CONTINUE_PENDING, 6: PAUSE_PENDING, 7: PAUSED
+    if code_num == 4:
         return "running"
-    if "stopped" in t:
+    if code_num == 1:
         return "stopped"
-    if "start pending" in t or "stop pending" in t or "pending" in t:
+    if code_num in {2, 5, 6}:
         return "pending"
+    if code_num == 3:
+        # STOP_PENDING can be treated as stopped (idle view) or pending (action view)
+        return "stopped" if treat_stop_pending_as_stopped else "pending"
+    if code_num == 7:
+        # Treat paused similar to stopped for our simple control surface
+        return "stopped"
     return "unknown"
 
 
@@ -79,7 +107,7 @@ def toggle() -> Tuple[Status, str]:
 
     for _ in range(10):  # ~10 seconds
         time.sleep(1)
-        ns = get_status()
+        ns = get_status(treat_stop_pending_as_stopped=False)
         if status == "running" and ns in {"stopped", "pending"}:
             return ns, msg
         if status == "stopped" and ns in {"running", "pending"}:
