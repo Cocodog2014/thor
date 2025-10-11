@@ -1,0 +1,199 @@
+.positions-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--thor-spacing-lg);
+  width: 100%;
+  padding: var(--thor-spacing-lg);
+  background: rgba(0, 0, 0, 0.65) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: var(--thor-spacing-lg);
+  backdrop-filter: blur(6px);
+}
+
+.positions-header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--thor-spacing-xs);
+}
+
+.positions-title {
+  font-family: var(--thor-font-title);
+  font-size: 1.5rem;
+  letter-spacing: 0.06em;
+  color: var(--thor-blue-light);
+}
+
+.positions-subtitle {
+  color: rgba(255, 255, 255, 0.75);
+  line-height: 1.6;
+}
+
+.positions-table-scroll {
+  overflow-x: auto;
+  padding-top: var(--thor-spacing-md);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.positions-table {
+  display: flex;
+  flex-direction: column;
+  gap: var(--thor-spacing-xs);
+  min-width: 1280px;
+}
+
+.positions-table-header,
+.positions-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--thor-spacing-lg);
+  width: 100%;
+  padding: var(--thor-spacing-lg);
+  background: rgba(0, 0, 0, 0.65) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: var(--thor-spacing-lg);
+  backdrop-filter: blur(6px);
+}
+
+.positions-header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--thor-spacing-xs);
+}
+
+.positions-title {
+  font-family: var(--thor-font-title);
+  font-size: 1.5rem;
+  letter-spacing: 0.06em;
+  color: var(--thor-blue-light);
+}
+
+.positions-subtitle {
+  color: rgba(255, 255, 255, 0.75);
+  line-height: 1.6;
+}
+
+.positions-table-scroll {
+  overflow-x: auto;
+  padding-top: var(--thor-spacing-md);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.positions-table {
+  width: 100%;
+  min-width: 1280px;
+  border-collapse: collapse;
+  border-spacing: 0;
+}
+
+.positions-table thead th {
+  padding: var(--thor-spacing-sm) var(--thor-spacing-md);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: rgba(255, 255, 255, 0.6);
+  background: rgba(255, 255, 255, 0.04);
+  white-space: nowrap;
+}
+
+.positions-table tbody td {
+  padding: var(--thor-spacing-sm) var(--thor-spacing-md);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  white-space: nowrap;
+}
+
+.positions-table tbody tr:first-of-type td {
+  border-top: none;
+}
+
+.positions-account-header td {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.7);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.positions-row td {
+  background: transparent;
+}
+
+.positions-subtotal td {
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  font-weight: 600;
+  text-transform: uppercase;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.positions-overall td {
+  border-top: 1px solid rgba(255, 255, 255, 0.14);
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.positions-table th:first-child,
+.positions-table td:first-child {
+  position: sticky;
+  left: 0;
+  background: rgba(0, 0, 0, 0.78);
+  backdrop-filter: blur(6px);
+  z-index: 2;
+}
+
+.positions-table thead th:first-child {
+  z-index: 3;
+}
+
+.positions-symbol {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.positions-symbol-cell {
+  min-width: 200px;
+}
+
+.positions-cell {
+  background: transparent;
+}
+
+.positions-account-label {
+  font-weight: 600;
+}
+
+.positions-subtotal-label,
+.positions-overall-label {
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.positions-align-left {
+  text-align: left;
+}
+
+.positions-align-right {
+  text-align: right;
+}
+
+.positions-footer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--thor-spacing-xs);
+  padding-top: var(--thor-spacing-md);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.positions-footer-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.95rem;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.positions-footer-label {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}

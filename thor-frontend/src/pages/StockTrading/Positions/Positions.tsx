@@ -1,0 +1,321 @@
+import { Fragment } from 'react';
+import { Paper, Typography, Box } from '@mui/material';
+
+const Positions = () => {
+  const columns = [
+    { key: 'symbol', label: 'Symbol', align: 'left' as const },
+    { key: 'plDay', label: 'P/L Day', align: 'right' as const },
+    { key: 'marketChange', label: 'Market Change', align: 'right' as const },
+    { key: 'tradePrice', label: 'Trade Price', align: 'right' as const },
+    { key: 'plOpen', label: 'P/L Open', align: 'right' as const },
+    { key: 'plPercent', label: 'P/L %', align: 'right' as const },
+    { key: 'plYtd', label: 'P/L YTD', align: 'right' as const },
+    { key: 'margin', label: 'Margin', align: 'right' as const },
+    { key: 'delta', label: 'Delta', align: 'right' as const },
+    { key: 'ask', label: 'Ask', align: 'right' as const },
+    { key: 'bid', label: 'Bid', align: 'right' as const },
+  ] as const;
+
+  type ColumnKey = (typeof columns)[number]['key'];
+
+  type MetricTone = 'gain' | 'loss' | 'neutral';
+
+  type MetricValue = {
+    text: string;
+    tone?: MetricTone;
+  };
+
+  type PositionRow = {
+    symbol: string;
+    size?: string;
+    fields: Record<ColumnKey, MetricValue>;
+  };
+
+  type AccountSection = {
+    name: string;
+    summary?: Record<ColumnKey, MetricValue>;
+    rows: PositionRow[];
+    subtotal: Record<ColumnKey, MetricValue>;
+  };
+
+  const accountSections: AccountSection[] = [
+    {
+      name: 'Joint Tenant',
+      summary: {
+        symbol: { text: 'Account: Joint Tenant' },
+        plDay: { text: '($37.80)', tone: 'loss' },
+        marketChange: { text: '-0.28', tone: 'loss' },
+        tradePrice: { text: '-' },
+        plOpen: { text: '($316.91)', tone: 'loss' },
+        plPercent: { text: '-63.15%', tone: 'loss' },
+        plYtd: { text: '($316.91)', tone: 'loss' },
+        margin: { text: '$0.00' },
+        delta: { text: '-0.12', tone: 'loss' },
+        ask: { text: '3.73' },
+        bid: { text: '3.71' },
+      },
+      rows: [
+        {
+          symbol: 'CGC',
+          size: '+135',
+          fields: {
+            symbol: { text: 'CGC' },
+            plDay: { text: '($37.80)', tone: 'loss' },
+            marketChange: { text: '-0.28', tone: 'loss' },
+            tradePrice: { text: '3.72' },
+            plOpen: { text: '($316.91)', tone: 'loss' },
+            plPercent: { text: '-63.15%', tone: 'loss' },
+            plYtd: { text: '($316.91)', tone: 'loss' },
+            margin: { text: '$0.00' },
+            delta: { text: '-0.12', tone: 'loss' },
+            ask: { text: '3.73' },
+            bid: { text: '3.71' },
+          },
+        },
+      ],
+      subtotal: {
+        symbol: { text: 'Subtotals:' },
+        plDay: { text: '($37.80)', tone: 'loss' },
+        marketChange: { text: '-0.28', tone: 'loss' },
+        tradePrice: { text: '-' },
+        plOpen: { text: '($316.91)', tone: 'loss' },
+        plPercent: { text: '-63.15%', tone: 'loss' },
+        plYtd: { text: '($316.91)', tone: 'loss' },
+        margin: { text: '$0.00' },
+        delta: { text: '-0.12', tone: 'loss' },
+        ask: { text: '-' },
+        bid: { text: '-' },
+      },
+    },
+    {
+      name: 'Rollover IRA',
+      summary: {
+        symbol: { text: 'Account: Rollover IRA' },
+        plDay: { text: '($9,092.28)', tone: 'loss' },
+        marketChange: { text: '-0.34', tone: 'loss' },
+        tradePrice: { text: '-' },
+        plOpen: { text: '($61,506.22)', tone: 'loss' },
+        plPercent: { text: '-63.17%', tone: 'loss' },
+        plYtd: { text: '$61,823.13', tone: 'gain' },
+        margin: { text: '$28,500.00', tone: 'neutral' },
+        delta: { text: '+0.45', tone: 'gain' },
+        ask: { text: '0.87' },
+        bid: { text: '0.83' },
+      },
+      rows: [
+        {
+          symbol: 'VFF',
+          size: '+26000',
+          fields: {
+            symbol: { text: 'VFF' },
+            plDay: { text: '($8,840.00)', tone: 'loss' },
+            marketChange: { text: '-0.34', tone: 'loss' },
+            tradePrice: { text: '0.85' },
+            plOpen: { text: '$63,940.20', tone: 'gain' },
+            plPercent: { text: '+289.06%', tone: 'gain' },
+            plYtd: { text: '$63,940.20', tone: 'gain' },
+            margin: { text: '$20,400.00' },
+            delta: { text: '+0.32', tone: 'gain' },
+            ask: { text: '0.86' },
+            bid: { text: '0.84' },
+          },
+        },
+        {
+          symbol: 'CGC',
+          size: '+901',
+          fields: {
+            symbol: { text: 'CGC' },
+            plDay: { text: '($252.28)', tone: 'loss' },
+            marketChange: { text: '-0.28', tone: 'loss' },
+            tradePrice: { text: '3.71' },
+            plOpen: { text: '($2,117.07)', tone: 'loss' },
+            plPercent: { text: '-63.17%', tone: 'loss' },
+            plYtd: { text: '($2,117.07)', tone: 'loss' },
+            margin: { text: '$8,100.00' },
+            delta: { text: '+0.13', tone: 'gain' },
+            ask: { text: '3.72' },
+            bid: { text: '3.69' },
+          },
+        },
+      ],
+      subtotal: {
+        symbol: { text: 'Subtotals:' },
+        plDay: { text: '($9,092.28)', tone: 'loss' },
+        marketChange: { text: '-', tone: 'neutral' },
+        tradePrice: { text: '-' },
+        plOpen: { text: '$61,823.13', tone: 'gain' },
+        plPercent: { text: '+242.72%', tone: 'gain' },
+        plYtd: { text: '$61,823.13', tone: 'gain' },
+        margin: { text: '$28,500.00' },
+        delta: { text: '+0.45', tone: 'gain' },
+        ask: { text: '-' },
+        bid: { text: '-' },
+      },
+    },
+  ];
+
+  const overallTotals: Record<ColumnKey, MetricValue> = {
+    symbol: { text: 'Overall Totals:' },
+    plDay: { text: '($9,130.08)', tone: 'loss' },
+    marketChange: { text: '-', tone: 'neutral' },
+    tradePrice: { text: '-' },
+    plOpen: { text: '$61,506.22', tone: 'gain' },
+    plPercent: { text: '+236.81%', tone: 'gain' },
+    plYtd: { text: '$61,823.13', tone: 'gain' },
+    margin: { text: '$28,500.00' },
+    delta: { text: '+0.33', tone: 'gain' },
+    ask: { text: '-' },
+    bid: { text: '-' },
+  };
+
+  const footerMetrics = [
+    { label: 'P/L Day', value: '($9,130.08)', tone: 'loss' as MetricTone },
+    { label: 'P/L Open', value: '$61,506.22', tone: 'gain' as MetricTone },
+    { label: 'Net Liq', value: '$87,779.32', tone: 'gain' as MetricTone },
+    { label: 'Available Dollars', value: '$300.00', tone: 'gain' as MetricTone },
+    { label: 'Position Equity', value: '$63,940.20', tone: 'gain' as MetricTone },
+  ];
+
+  const getToneColor = (tone?: MetricTone) => {
+    if (tone === 'gain') return 'success.main';
+    if (tone === 'loss') return 'error.main';
+    return undefined;
+  };
+
+  const getAlignClass = (align: (typeof columns)[number]['align']) =>
+    align === 'right' ? 'positions-align-right' : 'positions-align-left';
+
+  return (
+    <Paper elevation={0} className="positions-panel">
+      <Box className="positions-header">
+        <Typography variant="h5" className="positions-title">
+          Positions
+        </Typography>
+        <Typography variant="body2" className="positions-subtitle">
+          Daily P/L and account breakdown
+        </Typography>
+      </Box>
+
+      <Box className="positions-table-scroll">
+        <table className="positions-table">
+          <thead>
+            <tr>
+              {columns.map((column) => (
+                <th key={column.key} className={getAlignClass(column.align)} scope="col">
+                  {column.label}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {accountSections.map((account) => (
+              <Fragment key={account.name}>
+                {account.summary && (
+                  <tr className="positions-account-header">
+                    {columns.map((column) => (
+                      <td
+                        key={column.key}
+                        className={`${getAlignClass(column.align)} ${column.key === 'symbol' ? 'positions-account-label positions-symbol-cell' : 'positions-cell'}`.trim()}
+                      >
+                        <Typography
+                          variant="subtitle2"
+                          color={getToneColor(account.summary?.[column.key]?.tone)}
+                        >
+                          {account.summary?.[column.key]?.text ?? (column.key === 'symbol' ? `Account: ${account.name}` : '-')}
+                        </Typography>
+                      </td>
+                    ))}
+                  </tr>
+                )}
+
+                {account.rows.map((row) => (
+                  <tr key={`${account.name}-${row.symbol}`} className="positions-row">
+                    {columns.map((column) => {
+                      const field = row.fields[column.key];
+                      if (column.key === 'symbol') {
+                        return (
+                          <td
+                            key={`${row.symbol}-${column.key}`}
+                            className={`positions-symbol-cell ${getAlignClass(column.align)}`}
+                          >
+                            <Box className="positions-symbol">
+                              <Typography variant="body2">{field?.text ?? row.symbol}</Typography>
+                              {row.size && (
+                                <Typography
+                                  variant="caption"
+                                  color={row.size.startsWith('-') ? 'error.main' : 'success.main'}
+                                >
+                                  {row.size}
+                                </Typography>
+                              )}
+                            </Box>
+                          </td>
+                        );
+                      }
+
+                      return (
+                        <td
+                          key={`${row.symbol}-${column.key}`}
+                          className={`positions-cell ${getAlignClass(column.align)}`}
+                        >
+                          <Typography variant="body2" color={getToneColor(field?.tone)}>
+                            {field?.text ?? '-'}
+                          </Typography>
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+
+                <tr className="positions-subtotal">
+                  {columns.map((column) => (
+                    <td
+                      key={`${account.name}-subtotal-${column.key}`}
+                      className={`${column.key === 'symbol' ? 'positions-subtotal-label positions-symbol-cell' : 'positions-cell'} ${getAlignClass(column.align)}`.trim()}
+                    >
+                      <Typography variant="body2" color={getToneColor(account.subtotal[column.key]?.tone)}>
+                        {account.subtotal[column.key]?.text ?? (column.key === 'symbol' ? 'Subtotals:' : '-')}
+                      </Typography>
+                    </td>
+                  ))}
+                </tr>
+              </Fragment>
+            ))}
+
+            <tr className="positions-overall">
+              {columns.map((column) => (
+                <td
+                  key={`overall-${column.key}`}
+                  className={`${column.key === 'symbol' ? 'positions-overall-label positions-symbol-cell' : 'positions-cell'} ${getAlignClass(column.align)}`.trim()}
+                >
+                  <Typography variant="body2" color={getToneColor(overallTotals[column.key]?.tone)}>
+                    {overallTotals[column.key]?.text ?? (column.key === 'symbol' ? 'Overall Totals:' : '-')}
+                  </Typography>
+                </td>
+              ))}
+            </tr>
+          </tbody>
+        </table>
+      </Box>
+
+      <Box className="positions-footer">
+        {footerMetrics.map((metric) => (
+          <Box key={metric.label} className="positions-footer-row">
+            <Typography variant="body2" className="positions-footer-label">
+              {metric.label}
+            </Typography>
+            <Typography
+              variant="body2"
+              className="positions-align-right"
+              color={getToneColor(metric.tone)}
+            >
+              {metric.value}
+            </Typography>
+          </Box>
+        ))}
+      </Box>
+    </Paper>
+  );
+};
+
+export default Positions;

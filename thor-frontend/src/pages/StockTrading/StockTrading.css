@@ -12,92 +12,18 @@
   align-items: flex-start;
   justify-content: flex-start;
   min-height: calc(100vh - 128px);
-  padding:2px 32px 48px 1px;
+  padding: 2px 32px 48px 16px;
   gap: var(--thor-spacing-xl);
   text-align: left;
 }
 
 .stock-trading-content {
-  display: flex;
-  flex-direction: column;
-  gap: var(--thor-spacing-lg);
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: var(--thor-spacing-xl);
   width: 100%;
-  max-width: 376px;
+  max-width: 820px;
   margin-left: 0;
-}
-
-.stock-trading-panel {
-  display: flex;
-  flex-direction: column;
-  gap: var(--thor-spacing-lg);
-  width: 100%;
-  padding: var(--thor-spacing-lg);
-  background: rgba(0, 0, 0, 0.65) !important;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: var(--thor-spacing-lg);
-  backdrop-filter: blur(6px);
-}
-
-.stock-trading-panel-header {
-  display: flex;
-  flex-direction: column;
-  gap: var(--thor-spacing-sm);
-}
-
-.stock-trading-title {
-  font-family: var(--thor-font-title);
-  font-size: 1.5rem;
-  letter-spacing: 0.06em;
-  color: var(--thor-blue-light);
-}
-
-.stock-trading-description {
-  margin-top: var(--thor-spacing-xs);
-  color: rgba(255, 255, 255, 0.75);
-  line-height: 1.6;
-  max-width: 280px;
-}
-
-.stock-metrics-list {
-  display: flex;
-  flex-direction: column;
-}
-
-.stock-metric-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  padding: var(--thor-spacing-md) 0;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.stock-metric-row:first-of-type {
-  border-top: none;
-}
-
-.stock-metric-text {
-  display: flex;
-  flex-direction: column;
-  gap: var(--thor-spacing-xs);
-  max-width: 280px;
-}
-
-.stock-metric-label {
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  font-size: 0.75rem;
-  color: rgba(255, 255, 255, 0.65);
-}
-
-.stock-metric-value {
-  font-family: var(--thor-font-mono);
-  color: rgba(255, 255, 255, 0.95);
-  font-size: 1rem;
-}
-
-.stock-metric-hint {
-  color: rgba(255, 255, 255, 0.5);
-  letter-spacing: 0.08em;
 }
 
 @media (max-width: 768px) {

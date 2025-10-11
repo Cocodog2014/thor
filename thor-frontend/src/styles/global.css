@@ -6,6 +6,8 @@
 @import '../pages/TimeZone/TimeZone.css';
 @import '../pages/FutureTrading/FutureTrading.css';
 @import '../pages/StockTrading/StockTrading.css';
+@import '../pages/StockTrading/Account/Account.css';
+@import '../pages/StockTrading/Positions/Positions.css';
 
 /* ========================================= */
 /*                RESETS & BASE             */
