@@ -10,8 +10,6 @@ import {
   Chip,
   Container,
 } from "@mui/material";
-import ToggleButton from "@mui/material/ToggleButton";
-import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
 import { useTheme } from "@mui/material/styles";
 
 /**
@@ -547,7 +545,12 @@ export default function FutureTrading(){
 
   // Listen for provider changes from header buttons
   useEffect(() => {
-    const handleProviderChange = () => {
+    const handleProviderChange = (event: Event) => {
+      const detail = (event as CustomEvent<{ provider?: string }>).detail;
+      const provider = detail?.provider;
+      if (provider === 'excel_live' || provider === 'schwab' || provider === 'bob_live') {
+        setSrcSelection(provider);
+      }
       // Refresh data when provider selection changes
       fetchQuotes().catch(console.error);
     };
@@ -612,43 +615,22 @@ export default function FutureTrading(){
   return (
     <Container maxWidth={false} sx={{ py: 3 }}>
       <Box display="flex" justifyContent="flex-end" alignItems="center" mb={3}>
-        <Box display="flex" alignItems="center" gap={2}>
-          <Button
-            variant="outlined"
-            onClick={()=> setPollMs(p=> p===2000?1000 : p===1000?5000 : 2000)}
-            startIcon={<RefreshCw size={16} />}
-            title="Toggle polling interval"
-            sx={{ 
-              borderColor: 'white', 
-              color: 'white',
-              '&:hover': {
-                borderColor: 'rgba(255, 255, 255, 0.8)',
-                backgroundColor: 'rgba(255, 255, 255, 0.1)'
-              }
-            }}
-          >
-            {pollMs/1000}s
-          </Button>
-          {/* Source selector: Excel | Schwab (Mock Mode overrides to JSON) */}
-          <ToggleButtonGroup
-            size="small"
-            exclusive
-            value={srcSelection}
-            onChange={(_, val)=>{
-              if (!val) return; // ignore deselect
-              setSrcSelection(val);
-              // Sync to URL
-              const params = new URLSearchParams(window.location.search);
-              params.set('src', val);
-              const qs = params.toString();
-              window.history.replaceState({}, '', `${window.location.pathname}${qs ? `?${qs}` : ''}`);
-            }}
-            aria-label="Data source"
-          >
-            <ToggleButton value="excel_live" aria-label="Excel Live">Excel Live</ToggleButton>
-            <ToggleButton value="schwab" aria-label="Schwab">Schwab</ToggleButton>
-          </ToggleButtonGroup>
-        </Box>
+        <Button
+          variant="outlined"
+          onClick={()=> setPollMs(p=> p===2000?1000 : p===1000?5000 : 2000)}
+          startIcon={<RefreshCw size={16} />}
+          title="Toggle polling interval"
+          sx={{ 
+            borderColor: 'white', 
+            color: 'white',
+            '&:hover': {
+              borderColor: 'rgba(255, 255, 255, 0.8)',
+              backgroundColor: 'rgba(255, 255, 255, 0.1)'
+            }
+          }}
+        >
+          {pollMs/1000}s
+        </Button>
       </Box>
 
       {/* Responsive grid layout - TOTAL card + 11 futures cards */}
