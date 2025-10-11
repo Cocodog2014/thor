@@ -20,8 +20,11 @@ from django.conf import settings
 from django.conf.urls.static import static
 from timezones.views import api_test_page, debug_market_times, sync_markets
 from SchwabLiveData.views import schwab_auth_callback
+from SchwabLiveData.admin_views import cloudflared_control
 
 urlpatterns = [
+    # Custom admin utility views
+    path('admin/cloudflared/', cloudflared_control, name='admin_cloudflared_control'),
     path('admin/', admin.site.urls),
     path('api/', include('api.urls')),           # Thor APIs
     path('api/', include('FutureTrading.urls')), # Future Trading APIs

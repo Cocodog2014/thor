@@ -1,5 +1,20 @@
-{% extends "admin/base_site.html" %}
+{% extends "admin/base.html" %}
+{% load static %}
 
+{# Keep default branding/title #}
+{% block branding %}
+  {{ block.super }}
+{% endblock %}
+
+{# Add extra links to the header (right side) #}
 {% block userlinks %}
-<a href="{{ FRONTEND_BASE_URL }}" target="_blank" rel="noopener noreferrer">&#127968; Thor UI</a> / {{ block.super }}
+  {{ block.super }}
+  <li>
+    <a href="{{ FRONTEND_BASE_URL }}" target="_blank" rel="noopener noreferrer">🏠 Thor UI</a>
+  </li>
+  {% if request.user.is_superuser %}
+    <li>
+      <a href="{% url 'admin_cloudflared_control' %}" title="Cloudflared Tunnel Control">☁️ Cloudflared</a>
+    </li>
+  {% endif %}
 {% endblock %}

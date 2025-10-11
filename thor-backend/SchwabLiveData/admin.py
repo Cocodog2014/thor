@@ -1,4 +1,5 @@
 from django.contrib import admin
+from django.contrib import messages
 
 from .models import ConsumerApp, DataFeed, FeedAssignment
 
@@ -51,3 +52,8 @@ class FeedAssignmentAdmin(admin.ModelAdmin):
 	ordering = ("consumer_app__display_name", "priority")
 	autocomplete_fields = ("consumer_app", "feed")
 	readonly_fields = ("created_at", "updated_at")
+
+
+## Note: Cloudflared admin control is exposed via a custom admin view in
+## SchwabLiveData.admin_views and wired under /admin/cloudflared/ in urls.py.
+

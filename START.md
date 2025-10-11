@@ -1,11 +1,16 @@
-# 🔨 Thor - Norse Mythology Manager
+# 🔨 Thor – Developer Quick Start (Windows)
 
-## Quick Start Guide (4 Simple Steps)
+This guide gets the dev stack up quickly on Windows with Anaconda and Docker.
+It uses Redis (Docker), Postgres (Docker), Django (conda), and Vite/React.
 
-Follow these steps IN ORDER to start the Thor application:
+Prereqs
+- Docker Desktop (Windows 11)
+- Anaconda/Miniconda (an env that you actually use, e.g., Thor_inv or ThorBot)
+- Node.js 18+ (for the frontend) – npm will prompt to install if missing
+- Optional: Cloudflare Tunnel (cloudflared) to expose HTTPS in dev
 
 ## Step 1: Start Redis (Docker)
-Redis powers the live quote bus. Use Docker Desktop on Windows 11.
+Redis powers the live quote bus.
 
 ```powershell
 # From A:\Thor (repo root)
@@ -20,23 +25,37 @@ $env:REDIS_URL = 'redis://localhost:6379/0'
 ```
 
 ## Step 2: Start Database (Docker PostgreSQL)
-```bash
-docker run --name thor_postgres \
-  -e POSTGRES_DB=thor_db \
-  -e POSTGRES_USER=thor_user \
-  -e POSTGRES_PASSWORD=thor_password \
-  -p 5433:5432 \
-  -d postgres:13
+```powershell
+# Create and run Postgres 15 (data is ephemeral unless you add a volume)
+docker run --name thor_postgres `
+  -e POSTGRES_DB=thor_db `
+  -e POSTGRES_USER=thor_user `
+  -e POSTGRES_PASSWORD=thor_password `
+  -p 5432:5432 `
+  -d postgres:15
+
+# If you choose a different host port, set DB_PORT in A:\Thor\thor-backend\.env accordingly.
 ```
 
 ## Step 3: Start Backend (Django)
 ```powershell
 # From A:\Thor directory:
 cd A:\Thor\thor-backend
-# Activate the Thor_inv conda environment (contains all required packages)
+# Activate your Anaconda env (the one with redis installed)
+# Example (update to your actual env name):
 conda activate Thor_inv
+
+# Confirm Python is from conda (should NOT be A:\\Thor\\thor-backend\\venv\\...)
+where python
 # Ensure Redis URL is set (if not already)
 $env:REDIS_URL = 'redis://localhost:6379/0'
+
+# Install/refresh backend deps inside THIS conda env
+python -m pip install -r requirements.txt
+
+# Database migrations and (optional) admin user
+#python manage.py migrate
+# python manage.py createsuperuser   # if you need to create an admin account
 # Set environment for Excel Live provider
 $env:DATA_PROVIDER = 'excel_live'
 $env:EXCEL_DATA_FILE = 'A:\Thor\CleanData.xlsm'
@@ -48,56 +67,24 @@ python manage.py runserver
 ```
 
 
+## Step 4: HTTPS callback for Schwab (Cloudflare Tunnel)
+Use Cloudflare Tunnel to expose your local Django server over HTTPS so Schwab can call your callback URL. See `CloudFlare.md` for full details.
 
-## Step 4: Enable Schwab OAuth for Local Dev (ngrok)
-Use ngrok to expose your local Django server over HTTPS so Schwab can call your callback URL.
+Quick outline:
+- Install cloudflared and authenticate: cloudflared tunnel login
+- Create and route a tunnel to localhost:8000
+- Verify the service path and auto-recovery (see Step 1 in CloudFlare.md)
+- Use the admin toggle page below to Start/Stop the tunnel via Windows Scheduled Tasks
 
-1) Ensure the backend is running on port 8000
-```powershell
-cd A:\Thor\thor-backend
-conda activate Thor_inv
-python manage.py runserver
+Update callbacks in your dev `.env` to match the tunnel hostname (example):
+```
+SCHWAB_REDIRECT_URI=https://360edu.org/auth/callback            # production
+SCHWAB_REDIRECT_URI_DEV=https://thor.360edu.org/schwab/callback # dev via Cloudflare
 ```
 
-2) Configure ngrok once with your authtoken (from https://dashboard.ngrok.com/get-started/your-authtoken)
-```powershell
-& "$env:LOCALAPPDATA\Microsoft\WindowsApps\ngrok.exe" config add-authtoken <YOUR_REAL_TOKEN>
-```
-
-3) Start the tunnel to your local server and copy the HTTPS Forwarding URL
-```powershell
-& "$env:LOCALAPPDATA\Microsoft\WindowsApps\ngrok.exe" http 8000
-```
-It will print something like: https://your-subdomain.ngrok-free.app
-
-4) Update the Schwab callback in BOTH places to match exactly
-- Schwab Developer Portal → Callback URL:
-  - https://your-subdomain.ngrok-free.app/auth/callback  (or /schwab/callback)
-
-- A:\Thor\thor-backend\.env → add/update:
-  - SCHWAB_REDIRECT_URI=https://360edu.org/auth/callback  (production)
-  - SCHWAB_REDIRECT_URI_DEV=https://your-subdomain.ngrok-free.app/auth/callback  (dev)
-
-5) Restart Django so .env changes are loaded
-```powershell
-Ctrl+C   # in the backend terminal
-python manage.py runserver
-```
-
-6) Start the Schwab OAuth flow and approve
-```powershell
-# Open in your browser
-http://localhost:8000/api/schwab/auth/login/
-```
-
-7) Verify tokens and connection
-```powershell
-# Open in your browser
-http://localhost:8000/api/schwab/provider/status/?provider=schwab
-```
-You should see tokens.present: true and connected: true.
-
-Tip: You’ll need to run ngrok when developing locally. For a stable URL, consider an ngrok reserved domain or Cloudflare Tunnel.
+Schwab OAuth URLs to try (through the tunnel):
+- Start login: https://thor.360edu.org/api/schwab/auth/login/
+- Provider status: https://thor.360edu.org/api/schwab/provider/status/?provider=schwab
 
 TEST: Ensure OAuth tokens are saved (connected should show true):
 http://localhost:8000/api/schwab/provider/status/?provider=schwab
@@ -105,9 +92,9 @@ http://localhost:8000/api/schwab/provider/status/?provider=schwab
 ## Step 5: Start Frontend (React)
 Open a new terminal:
 ```powershell
-# Activate the Thor_inv conda environment (contains Node.js and npm)
-conda activate Thor_inv
 cd A:\Thor\thor-frontend
+# First-time only
+npm install
 npm run dev
 ```
 
@@ -115,6 +102,15 @@ npm run dev
 - **Frontend**: http://localhost:5173 (or 5174 if 5173 is busy)
 - **Backend API**: http://127.0.0.1:8000/api/
 - **Admin Panel**: http://127.0.0.1:8000/admin/ (admin/Coco1464#)
+- **Cloudflared Control (Admin)**: http://127.0.0.1:8000/admin/cloudflared/ (dev-only)
+
+## 🔧 Troubleshooting
+- ModuleNotFoundError: redis
+  - You’re likely using the wrong Python (a local venv). Run `conda activate <your env>`; then `where python` should NOT point to `A:\Thor\thor-backend\venv`. Re-run `python -m pip install -r requirements.txt` inside that conda env.
+- Postgres connection refused
+  - Ensure the container is running: `docker ps`; confirm the mapped port (default host port 5432). If you used a different host port, set `DB_PORT` in `A:\Thor\thor-backend\.env`.
+- Cloudflared is on at boot but you don’t want it running
+  - In an elevated PowerShell: `Set-Service cloudflared -StartupType Manual; Stop-Service cloudflared`. See CloudFlare.md for the admin toggle and auto-recovery.
 
 That's it! ⚡
 

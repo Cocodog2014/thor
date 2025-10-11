@@ -244,6 +244,89 @@ sc.exe qfailure cloudflared
 
 ---
 
+## Control from Django Admin (dev-only)
+
+Goal: Start/Stop the Cloudflare Tunnel from the Django Admin without running Django as Administrator. We’ll use two Windows Scheduled Tasks that run with highest privileges and are triggered on-demand by Django.
+
+Why this approach
+- No UAC prompts during normal use; credentials are stored once in the tasks
+- Django can remain non-admin
+- Simple, auditable, and Windows-native
+
+One-time Windows setup (create two on-demand tasks)
+1) Open Task Scheduler → Create Task…
+   - General: Name = CloudflaredStart; check “Run with highest privileges”; “Run whether user is logged on or not”
+   - Actions: Start a program → Program/script: powershell.exe
+     - Arguments: -NoProfile -ExecutionPolicy Bypass -Command "Start-Service cloudflared"
+   - Triggers: none required (on-demand)
+   - Conditions/Settings: as you prefer
+   - On save, enter your Windows credentials (stored securely by Task Scheduler)
+
+2) Create a second task CloudflaredStop with the same settings, but Action Arguments:
+   - -NoProfile -ExecutionPolicy Bypass -Command "Stop-Service cloudflared"
+
+Optional: create tasks to toggle auto-start on boot
+- CloudflaredAutoStartOn: -Command "Set-Service cloudflared -StartupType Automatic"
+- CloudflaredAutoStartOff: -Command "Set-Service cloudflared -StartupType Manual"
+
+CLI alternative (run PowerShell as Administrator):
+
+```powershell
+# Create on-demand tasks you can trigger with `schtasks /Run` later
+schtasks /Create /TN CloudflaredStart /TR "powershell -NoProfile -ExecutionPolicy Bypass -Command Start-Service cloudflared" /SC ONCE /SD 01/01/1990 /ST 00:00 /RL HIGHEST /F
+schtasks /Create /TN CloudflaredStop  /TR "powershell -NoProfile -ExecutionPolicy Bypass -Command Stop-Service cloudflared"  /SC ONCE /SD 01/01/1990 /ST 00:00 /RL HIGHEST /F
+
+# Optional: tasks to toggle auto-start on boot
+schtasks /Create /TN CloudflaredAutoStartOn  /TR "powershell -NoProfile -ExecutionPolicy Bypass -Command Set-Service cloudflared -StartupType Automatic" /SC ONCE /SD 01/01/1990 /ST 00:00 /RL HIGHEST /F
+schtasks /Create /TN CloudflaredAutoStartOff /TR "powershell -NoProfile -ExecutionPolicy Bypass -Command Set-Service cloudflared -StartupType Manual"     /SC ONCE /SD 01/01/1990 /ST 00:00 /RL HIGHEST /F
+
+# Quick test (does not require admin once tasks exist)
+schtasks /Run /TN CloudflaredStart
+schtasks /Run /TN CloudflaredStop
+```
+
+Minimal Django wiring plan (SchwabLiveData app)
+- Location (dev convenience):
+  - Services: `thor-backend/SchwabLiveData/services/cloudflared.py`
+  - Admin UI: `thor-backend/SchwabLiveData/admin.py` (admin-only view with Start/Stop buttons and status)
+
+- Service helpers (to be implemented):
+  - get_status(): returns one of running|stopped|pending|unknown (uses `sc.exe query cloudflared`)
+  - start(): `schtasks /Run /TN CloudflaredStart`
+  - stop(): `schtasks /Run /TN CloudflaredStop`
+  - optional: autostart_on()/autostart_off() via the optional tasks above
+
+- Admin view behavior:
+  - Shows current status pill (Running/Stopped/Pending)
+  - Buttons: Start Tunnel, Stop Tunnel (POST)
+  - On action: trigger the task, then poll status up to ~15s and display result or a clear error
+  - Permissions: superuser-only; hide in production or behind DEBUG
+
+Status and troubleshooting commands
+```powershell
+# Check status
+sc.exe query cloudflared | findstr /i STATE
+Get-Service cloudflared | Format-Table Status,StartType,Name
+
+# Manually start/stop (admin shell)
+Start-Service cloudflared
+Stop-Service cloudflared
+
+# Trigger via tasks (no admin shell needed after creation)
+schtasks /Run /TN CloudflaredStart
+schtasks /Run /TN CloudflaredStop
+```
+
+Security notes
+- Keep this feature dev-only and restricted to superusers
+- Tasks store credentials; prefer a dev box/local admin account (not a shared production account)
+- The tunnel exposes your machine via thor.360edu.org; treat “On” as public exposure
+
+Placement rationale: SchwabLiveData
+- This control is primarily for developing and testing the Schwab OAuth flow through the tunnel, so placing the helpers and admin UI in `SchwabLiveData` keeps it close to that workflow. If we later generalize system controls, we can move these utilities to a dedicated `system` or `core` app.
+
+---
+
 ## Do not implement yet
 
 This document is a plan for next week. We are not changing the app right now. If desired later, we can also add convenience routes like `/schwab/login` and `/schwab/accounts`, but the current endpoints already support the full OAuth flow and testing.
