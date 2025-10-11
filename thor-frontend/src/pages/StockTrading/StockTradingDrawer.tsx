@@ -62,16 +62,21 @@ const StockTradingDrawer: React.FC<StockTradingDrawerProps> = ({
       variant="permanent"
       anchor="right"
       sx={{
-        width: drawerWidth,
-        flexShrink: 0,
-        whiteSpace: 'nowrap',
+        pointerEvents: 'none',
+        width: 0,
         '& .MuiDrawer-paper': {
+          pointerEvents: 'auto',
           width: drawerWidth,
           boxSizing: 'border-box',
           overflowX: 'hidden',
           transition: 'width 200ms ease',
           background: 'linear-gradient(180deg, #111725 0%, #05070b 100%)',
           borderLeft: '1px solid rgba(255, 255, 255, 0.08)',
+          position: 'fixed',
+          right: 0,
+          top: 0,
+          height: '100vh',
+          zIndex: (theme) => theme.zIndex.drawer + 1,
         },
       }}
     >
@@ -104,13 +109,54 @@ const StockTradingDrawer: React.FC<StockTradingDrawerProps> = ({
 
       {open && (
         <Box sx={{ px: 2, pb: 2 }}>
-          <FormControl fullWidth size="small">
+          <FormControl
+            fullWidth
+            size="small"
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                backgroundColor: 'rgba(5, 7, 11, 0.95)',
+                borderRadius: 2,
+                '& fieldset': {
+                  borderColor: 'rgba(66, 165, 245, 0.4)',
+                },
+                '&:hover fieldset': {
+                  borderColor: 'rgba(66, 165, 245, 0.6)',
+                },
+                '&.Mui-focused fieldset': {
+                  borderColor: 'var(--thor-blue-light)',
+                },
+              },
+              '& .MuiInputLabel-root': {
+                color: 'rgba(255, 255, 255, 0.7)',
+              },
+            }}
+          >
             <InputLabel id="stock-trading-mode">Trading Mode</InputLabel>
             <Select
               labelId="stock-trading-mode"
               value={mode}
               label="Trading Mode"
               onChange={handleChange}
+              MenuProps={{
+                PaperProps: {
+                  sx: {
+                    backgroundColor: 'rgba(5, 7, 11, 0.98)',
+                    border: '1px solid rgba(66, 165, 245, 0.35)',
+                    '& .MuiMenuItem-root': {
+                      color: '#fff',
+                      '&:hover': {
+                        backgroundColor: 'rgba(66, 165, 245, 0.18)',
+                      },
+                      '&.Mui-selected': {
+                        backgroundColor: 'rgba(66, 165, 245, 0.25)',
+                        '&:hover': {
+                          backgroundColor: 'rgba(66, 165, 245, 0.35)',
+                        },
+                      },
+                    },
+                  },
+                },
+              }}
             >
               <MenuItem value="live">Live Trading</MenuItem>
               <MenuItem value="paper">Paper Trading</MenuItem>

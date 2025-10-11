@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Box, Typography, Paper } from '@mui/material';
 import StockTradingDrawer from './StockTradingDrawer';
-import { DEFAULT_WIDTH_CLOSED, DEFAULT_WIDTH_OPEN } from '../../components/CollapsibleDrawer';
 
 type TradingModeKey = 'live' | 'paper';
 
@@ -80,7 +79,6 @@ const tradingModes: Record<TradingModeKey, {
 const StockTrading = () => {
   const [drawerOpen, setDrawerOpen] = useState(true);
   const [mode, setMode] = useState<TradingModeKey>('live');
-  const drawerWidth = drawerOpen ? DEFAULT_WIDTH_OPEN : DEFAULT_WIDTH_CLOSED;
   const modeConfig = useMemo(() => {
     const base = tradingModes[mode];
     const metrics = metricBlueprint.map(({ key, label }) => ({
@@ -96,13 +94,7 @@ const StockTrading = () => {
 
   return (
     <Box className="stock-trading-wrapper">
-      <Box
-        className="stock-trading-page"
-        sx={{
-          marginRight: drawerWidth,
-          transition: 'margin 200ms ease',
-        }}
-      >
+      <Box className="stock-trading-page">
         <Box className="stock-trading-content">
           <Paper elevation={0} className="stock-trading-panel">
             <Box className="stock-trading-panel-header">
