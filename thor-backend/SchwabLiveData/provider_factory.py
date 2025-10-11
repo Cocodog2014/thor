@@ -66,6 +66,7 @@ class ProviderConfig:
             os.getenv("DATA_PROVIDER") or 
             "excel_live"
         )
+        self.consumer = (request.GET.get("consumer") if request else None)
         
         # Excel file configuration
         self.excel_file = (request.GET.get("excel_file") if request else None) or os.getenv("EXCEL_DATA_FILE")
@@ -78,6 +79,22 @@ class ProviderConfig:
         
         # Poll frequency in milliseconds
         self.poll_ms = int((request.GET.get("poll_ms") if request else None) or os.getenv("EXCEL_LIVE_POLL_MS") or "200")
+
+        # If a consumer is provided, resolve provider via routing plan
+        if self.consumer:
+            try:
+                from .services.feed_routing import build_routing_plan
+
+                plan = build_routing_plan(self.consumer)
+                selected = plan.primary_feed or (plan.feeds[0] if plan.feeds else None)
+                if selected and selected.provider_key:
+                    self.provider = selected.provider_key
+                elif selected:
+                    # fallback to feed code when provider key missing
+                    self.provider = selected.code
+            except Exception as exc:  # pragma: no cover - defensive
+                # Log failure but do not block subsequent resolution
+                print(f"Feed routing resolution failed for consumer '{self.consumer}': {exc}")
 
     @staticmethod
     def get_excel_file_path() -> str:

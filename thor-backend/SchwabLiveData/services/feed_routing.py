@@ -16,6 +16,7 @@ class FeedInfo:
     code: str
     display_name: str
     connection_type: str
+    provider_key: str
     priority: int
     is_primary: bool
 
@@ -66,6 +67,7 @@ def build_routing_plan(consumer_code: str) -> RoutingPlan:
             code=a.feed.code,
             display_name=a.feed.display_name,
             connection_type=a.feed.connection_type,
+            provider_key=a.feed.provider_key,
             priority=a.priority,
             is_primary=a.is_primary,
         )
@@ -87,6 +89,7 @@ def build_routing_plan(consumer_code: str) -> RoutingPlan:
             code=consumer.default_feed.code,
             display_name=consumer.default_feed.display_name,
             connection_type=consumer.default_feed.connection_type,
+            provider_key=consumer.default_feed.provider_key,
             priority=0,
             is_primary=False,
         )

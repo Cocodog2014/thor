@@ -252,6 +252,7 @@ class FeedRoutingView(APIView):
                     "code": plan.primary_feed.code,
                     "display_name": plan.primary_feed.display_name,
                     "connection_type": plan.primary_feed.connection_type,
+                    "provider_key": plan.primary_feed.provider_key,
                     "priority": plan.primary_feed.priority,
                     "is_primary": plan.primary_feed.is_primary,
                 }
@@ -263,6 +264,7 @@ class FeedRoutingView(APIView):
                     "code": feed.code,
                     "display_name": feed.display_name,
                     "connection_type": feed.connection_type,
+                    "provider_key": feed.provider_key,
                     "priority": feed.priority,
                     "is_primary": feed.is_primary,
                 }

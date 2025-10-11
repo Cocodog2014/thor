@@ -5,8 +5,8 @@ from .models import ConsumerApp, DataFeed, FeedAssignment
 
 @admin.register(DataFeed)
 class DataFeedAdmin(admin.ModelAdmin):
-	list_display = ("display_name", "code", "connection_type", "is_active", "updated_at")
-	list_filter = ("connection_type", "is_active")
+	list_display = ("display_name", "code", "connection_type", "provider_key", "is_active", "updated_at")
+	list_filter = ("connection_type", "provider_key", "is_active")
 	search_fields = ("display_name", "code", "description")
 	ordering = ("display_name",)
 	readonly_fields = ("created_at", "updated_at")

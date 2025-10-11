@@ -14,6 +14,11 @@ class DataFeed(models.Model):
 		default="internal",
 		help_text="Logical connector type, e.g. excel_rtd, schwab_api, websocket",
 	)
+	provider_key = models.CharField(
+		max_length=64,
+		blank=True,
+		help_text="Identifier used by provider_factory to instantiate the backend connector.",
+	)
 	is_active = models.BooleanField(default=True)
 	metadata = models.JSONField(blank=True, default=dict)
 	created_at = models.DateTimeField(auto_now_add=True)
