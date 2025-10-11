@@ -10,7 +10,8 @@ import {
   Chip,
   Container,
 } from "@mui/material";
-import { useTheme } from "@mui/material/styles";
+import { useTheme, type Theme } from "@mui/material/styles";
+import type { ChipProps } from "@mui/material";
 
 /**
  * Level-1 12-Futures Dashboard (6x2) — with Signal box + VWAP box
@@ -69,7 +70,12 @@ type MarketData = {
   data_source: string;
   is_real_time: boolean;
   delay_minutes: number;
-  extended_data: { signal?: SignalKey; stat_value?: string; contract_weight?: string; [k: string]: any };
+  extended_data: {
+    signal?: SignalKey;
+    stat_value?: string;
+    contract_weight?: string;
+    signal_weight?: number;
+  } & Record<string, unknown>;
   timestamp: string; // ISO
 };
 
@@ -103,7 +109,7 @@ function fmt(n: string | number | null | undefined, dp = 2) {
   return num.toLocaleString(undefined, { minimumFractionDigits: dp, maximumFractionDigits: dp });
 }
 
-function pctColor(pct: number | null, theme: any) {
+function pctColor(pct: number | null, theme: Theme) {
   if (pct === null) return theme.palette.text.secondary;
   if (pct > 0) return theme.palette.success.main;
   if (pct < 0) return theme.palette.error.main;
@@ -121,7 +127,7 @@ function signalLabel(sig?: SignalKey) {
   }
 }
 
-function signalColor(sig?: SignalKey) {
+function signalColor(sig?: SignalKey): ChipProps["color"] {
   if (!sig) return "default";
   switch (sig) {
     case "STRONG_BUY": return "success";
@@ -150,7 +156,7 @@ function SignalBox({sig}:{sig?: SignalKey}){
   return (
     <Chip
       label={signalLabel(sig)}
-      color={signalColor(sig) as any}
+      color={signalColor(sig)}
       size="small"
       variant="filled"
       sx={{ fontSize: '0.6rem', fontWeight: 'bold' }}
@@ -158,7 +164,9 @@ function SignalBox({sig}:{sig?: SignalKey}){
   );
 }
 
-function TotalCard({totalData, theme}:{totalData: any; theme: any}){
+type TotalData = ApiResponse["total"];
+
+function TotalCard({totalData, theme}:{totalData: TotalData | null; theme: Theme}){
   const weightedAvg = totalData?.avg_weighted ? Number(totalData.avg_weighted) : null;
   const count = totalData?.count ?? 0;
   const asOf = totalData?.as_of ? new Date(totalData.as_of) : new Date();
@@ -250,7 +258,7 @@ function TotalCard({totalData, theme}:{totalData: any; theme: any}){
                   <>
                     <Chip
                       label={signalLabel(totalData.composite_signal)}
-                      color={signalColor(totalData.composite_signal) as any}
+                      color={signalColor(totalData.composite_signal)}
                       size="small"
                       variant="filled"
                       sx={{ fontSize: '0.7rem', fontWeight: 'bold' }}
@@ -284,14 +292,14 @@ function TotalCard({totalData, theme}:{totalData: any; theme: any}){
   );
 }
 
-function L1Card({row, onSample, hist, theme}:{row: MarketData; onSample:(n:number)=>void; hist:number[]; theme: any}){
+function L1Card({row, onSample, hist, theme}:{row: MarketData; onSample:(value:number)=>void; hist:number[]; theme: Theme}){
   const pct = row.change_percent ? Number(row.change_percent) : null;
   const spread = row.bid && row.ask ? Number(row.ask) - Number(row.bid) : null;
   const sig = row.extended_data?.signal as SignalKey | undefined;
   const statValue = row.extended_data?.stat_value;
   const signalWeight = row.extended_data?.signal_weight;
 
-  useEffect(() => { onSample(Number(row.price)); }, [row.price]);
+  useEffect(() => { onSample(Number(row.price)); }, [row.price, onSample]);
   const data = useMemo(() => hist.map((y,i)=>({x:i, y})), [hist]);
 
   return (
@@ -448,10 +456,10 @@ function L1Card({row, onSample, hist, theme}:{row: MarketData; onSample:(n:numbe
 export default function FutureTrading(){
   const theme = useTheme();
   const [pollMs, setPollMs] = useState(2000);
-  // Source selection: choose explicitly between excel_live or schwab only.
-  const [srcSelection, setSrcSelection] = useState<'excel_live'|'schwab'>('excel_live');
+  // Source selection: choose explicitly between known providers.
+  const [srcSelection, setSrcSelection] = useState<'excel_live'|'schwab'|'bob_live'>('excel_live');
   const [rows, setRows] = useState<MarketData[]>([]);
-  const [totalData, setTotalData] = useState<any>(null);
+  const [totalData, setTotalData] = useState<TotalData | null>(null);
 
   // sparkline buffers
   const seriesRef = useRef<Record<string, number[]>>({});
@@ -459,7 +467,7 @@ export default function FutureTrading(){
 
   async function fetchQuotes(){
     // Get the active provider from localStorage (set by header buttons)
-    const activeProvider = localStorage.getItem('selectedProvider') || 'excel_live';
+  const activeProvider = localStorage.getItem('selectedProvider') || 'excel_live';
     
     // Choose endpoints based on provider selection
     const endpoints = [ 
@@ -476,8 +484,8 @@ export default function FutureTrading(){
           setTotalData(data.total);
           return;
         }
-      } catch (e) {
-        console.warn(`Failed to fetch from ${endpoint}:`, e);
+      } catch (error) {
+        console.warn(`Failed to fetch from ${endpoint}:`, error);
       }
     }
     
@@ -488,8 +496,16 @@ export default function FutureTrading(){
     // Initialize srcSelection from URL on first load
     const params = new URLSearchParams(window.location.search);
     const s = (params.get('src') || '').toLowerCase();
-    if (s === 'excel_live' || s === 'excel' || s === 'schwab') {
-      setSrcSelection(s as any);
+    if (s === 'excel_live' || s === 'schwab' || s === 'bob_live') {
+      setSrcSelection(s);
+      return;
+    }
+    if (s === 'excel') {
+      setSrcSelection('excel_live');
+      return;
+    }
+    if (s === 'bob') {
+      setSrcSelection('bob_live');
     }
   },[]);
 
@@ -497,7 +513,7 @@ export default function FutureTrading(){
     (async()=>{
       try{
         await fetchQuotes();
-      }catch(e){
+  }catch{
         // Create empty containers for all 11 futures but with no data
         const emptyContainers = FUTURES_11.map((symbol, index) => ({
           instrument: {
