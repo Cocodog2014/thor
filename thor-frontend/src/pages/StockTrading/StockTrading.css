@@ -12,18 +12,22 @@
   align-items: flex-start;
   justify-content: flex-start;
   min-height: calc(100vh - 128px);
-  padding: 2px 32px 48px 16px;
-  gap: var(--thor-spacing-xl);
+  padding: var(--thor-spacing-lg) var(--thor-spacing-xl) var(--thor-spacing-xl) var(--thor-spacing-lg);
+  gap: var(--thor-spacing-md);
   text-align: left;
 }
 
 .stock-trading-content {
   display: grid;
-  grid-template-columns: repeat(3, minmax(300px, 1fr));
-  gap: calc(var(--thor-spacing-xl) * 0.25);
+  grid-template-columns: repeat(4, minmax(260px, 1fr));
+  gap: var(--thor-spacing-lg);
   width: 100%;
-  max-width: 1100px;
+  max-width: 1480px;
   margin-left: 0;
+}
+
+.stock-trading-content > * {
+  min-height: 100%;
 }
 
 @media (max-width: 768px) {

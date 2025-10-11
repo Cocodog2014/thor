@@ -4,6 +4,8 @@ import StockTradingDrawer from './StockTradingDrawer';
 import Account from './Account/Account';
 import Positions from './Positions/Positions';
 import WatchList from './WatchList/WatchList';
+import MarketOverview from './MarketOverview/MarketOverview.tsx';
+import NewsHeatmap from './NewsHeatmap/NewsHeatmap.tsx';
 import { type TradingModeKey } from './Account/accountData';
 
 const StockTrading = () => {
@@ -21,6 +23,8 @@ const StockTrading = () => {
           <Account mode={mode} />
           <Positions />
           <WatchList />
+          <MarketOverview />
+          <NewsHeatmap />
         </Box>
       </Box>
 

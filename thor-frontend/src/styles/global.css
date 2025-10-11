@@ -12,6 +12,11 @@
 @import '../pages/StockTrading/Orders/Order.css';
 @import '../pages/StockTrading/Orders/Review.css';
 @import '../pages/StockTrading/Orders/Final.css';
+@import '../pages/StockTrading/MarketOverview/MarketOverview.css';
+@import '../pages/StockTrading/NewsHeatmap/NewsHeatmap.css';
+@import '../pages/StockTrading/Orders/Order.css';
+@import '../pages/StockTrading/Orders/Review.css';
+@import '../pages/StockTrading/Orders/Final.css';
 
 /* ========================================= */
 /*                RESETS & BASE             */
