@@ -3,6 +3,7 @@ import { Box } from '@mui/material';
 import StockTradingDrawer from './StockTradingDrawer';
 import Account from './Account/Account';
 import Positions from './Positions/Positions';
+import WatchList from './WatchList/WatchList';
 import { type TradingModeKey } from './Account/accountData';
 
 const StockTrading = () => {
@@ -19,6 +20,7 @@ const StockTrading = () => {
         <Box className="stock-trading-content">
           <Account mode={mode} />
           <Positions />
+          <WatchList />
         </Box>
       </Box>
 

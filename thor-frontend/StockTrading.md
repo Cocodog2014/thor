@@ -21,6 +21,13 @@
 - Flesh out Positions panel interactions (collapse per account, hover tooltips, position filtering) and add toggleable columns (Delta, Bid/Ask, Margin).
 - Introduce performance tiles (daily change, YTD) and recent orders feed beneath primary grid.
 - Wire drawer tabs for orders/history views and align styling with main layout tokens.
+- Stand up `WatchList` container (mirrors panel styling) for quote summaries; ensure doc stays updated with column/interaction changes.
+
+## Watch List Panel Spec
+- **Column Order**: `Symbol`, `Last`, `Change`, `P/L %`, `Mark`, `Volume` (extend as needed for greeks or alerts).
+- **Row Composition**: Symbol column includes primary ticker plus smaller descriptor line; values right-align and inherit same typography scale as header.
+- **Styling Parity**: Shares panel chrome with Account/Positions (blurred glass, border, header stack) to maintain dashboard cohesion.
+- **Data Source**: Placeholder data mocked in `WatchList.tsx`; replace with live quote feed once backend wiring completes.
 
 ## Backend Integration Plan
 - Expose REST endpoints for balances, positions, orders segregated by trading mode.
