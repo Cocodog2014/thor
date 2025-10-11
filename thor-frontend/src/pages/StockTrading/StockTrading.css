@@ -12,7 +12,7 @@
   align-items: flex-start;
   justify-content: flex-start;
   min-height: calc(100vh - 128px);
-  padding: 16px 32px 48px 16px;
+  padding:2px 32px 48px 1px;
   gap: var(--thor-spacing-xl);
   text-align: left;
 }
