@@ -16,6 +16,8 @@ import logging
 import json
 
 from .provider_factory import ProviderConfig, get_market_data_provider, get_provider_status
+from .models import ConsumerApp
+from .services.feed_routing import build_routing_plan
 from FutureTrading.models import SignalStatValue, ContractWeight
 from .schwab_client import SchwabApiClient
 
@@ -222,6 +224,53 @@ class ProviderHealthView(APIView):
                 "status": "unhealthy",
                 "error": str(e)
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class FeedRoutingView(APIView):
+    """Expose the current feed-to-consumer routing matrix for front-end clients."""
+
+    def get(self, request):
+        consumer_code = request.GET.get("consumer")
+        if not consumer_code:
+            return Response(
+                {"error": "Missing 'consumer' query parameter"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            plan = build_routing_plan(consumer_code)
+        except ConsumerApp.DoesNotExist as exc:
+            return Response({"error": str(exc)}, status=status.HTTP_404_NOT_FOUND)
+
+        response_payload = {
+            "consumer": {
+                "code": plan.consumer_code,
+                "display_name": plan.consumer_name,
+            },
+            "primary_feed": (
+                {
+                    "code": plan.primary_feed.code,
+                    "display_name": plan.primary_feed.display_name,
+                    "connection_type": plan.primary_feed.connection_type,
+                    "priority": plan.primary_feed.priority,
+                    "is_primary": plan.primary_feed.is_primary,
+                }
+                if plan.primary_feed
+                else None
+            ),
+            "feeds": [
+                {
+                    "code": feed.code,
+                    "display_name": feed.display_name,
+                    "connection_type": feed.connection_type,
+                    "priority": feed.priority,
+                    "is_primary": feed.is_primary,
+                }
+                for feed in plan.feeds
+            ],
+        }
+
+        return Response(response_payload)
 
 class SchwabDebugGetView(APIView):
     """Debug endpoint to test a raw GET against the Schwab API using stored tokens.
