@@ -2,11 +2,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Iterable, List, Optional
+from typing import List, Optional
 
-from django.db.models import Prefetch, QuerySet
+from ..models import ConsumerApp, DataFeed
 
-from ..models import ConsumerApp, FeedAssignment
+from ..models import ConsumerApp, DataFeed
 
 
 @dataclass(frozen=True)
@@ -35,64 +35,48 @@ class RoutingPlan:
         return self.primary_feed.code if self.primary_feed else None
 
 
-def _active_assignments(assignments: QuerySet[FeedAssignment]) -> Iterable[FeedAssignment]:
-    """Return assignments that are enabled on both sides."""
-
-    for assignment in assignments:
-        if assignment.is_active:
-            yield assignment
-
-
 def build_routing_plan(consumer_code: str) -> RoutingPlan:
     """Construct a routing plan for the given consumer app code."""
 
-    consumer = (
-        ConsumerApp.objects.filter(code__iexact=consumer_code)
-        .prefetch_related(
-            Prefetch(
-                "assignments",
-                queryset=FeedAssignment.objects.select_related("feed").order_by("priority", "-is_primary", "feed__display_name"),
-            )
-        )
-        .first()
-    )
-
-    if consumer is None:
+    try:
+        consumer = ConsumerApp.objects.select_related('primary_feed', 'fallback_feed').get(code__iexact=consumer_code)
+    except ConsumerApp.DoesNotExist:
         raise ConsumerApp.DoesNotExist(f"Consumer app '{consumer_code}' is not registered")
 
-    assignments = list(_active_assignments(consumer.assignments.all()))
-
-    feeds = [
-        FeedInfo(
-            code=a.feed.code,
-            display_name=a.feed.display_name,
-            connection_type=a.feed.connection_type,
-            provider_key=a.feed.provider_key,
-            priority=a.priority,
-            is_primary=a.is_primary,
-        )
-        for a in assignments
-    ]
-
-    # Determine primary feed preference order: explicit primary flag, then lowest priority, then default fallback.
+    feeds = []
     primary_feed = None
-    for info in feeds:
-        if info.is_primary:
-            primary_feed = info
-            break
 
-    if primary_feed is None and feeds:
-        primary_feed = min(feeds, key=lambda info: info.priority)
+    # Add primary feed if exists and active
+    if consumer.primary_feed and consumer.primary_feed.is_active:
+        primary_info = FeedInfo(
+            code=consumer.primary_feed.code,
+            display_name=consumer.primary_feed.display_name,
+            connection_type=consumer.primary_feed.connection_type,
+            provider_key=consumer.primary_feed.provider_key,
+            priority=1,
+            is_primary=True,
+        )
+        feeds.append(primary_info)
+        primary_feed = primary_info
 
-    if primary_feed is None and consumer.default_feed and consumer.default_feed.is_active:
-        primary_feed = FeedInfo(
-            code=consumer.default_feed.code,
-            display_name=consumer.default_feed.display_name,
-            connection_type=consumer.default_feed.connection_type,
-            provider_key=consumer.default_feed.provider_key,
-            priority=0,
+    # Add fallback feed if exists, active, and different from primary
+    if (consumer.fallback_feed and 
+        consumer.fallback_feed.is_active and 
+        consumer.fallback_feed != consumer.primary_feed):
+        
+        fallback_info = FeedInfo(
+            code=consumer.fallback_feed.code,
+            display_name=consumer.fallback_feed.display_name,
+            connection_type=consumer.fallback_feed.connection_type,
+            provider_key=consumer.fallback_feed.provider_key,
+            priority=2,
             is_primary=False,
         )
+        feeds.append(fallback_info)
+        
+        # If no primary feed is set, use fallback as primary
+        if primary_feed is None:
+            primary_feed = fallback_info
 
     return RoutingPlan(
         consumer_code=consumer.code,

@@ -51,7 +51,7 @@ where python
 $env:REDIS_URL = 'redis://localhost:6379/0'
 
 # Install/refresh backend deps inside THIS conda env
-python -m pip install -r requirements.txt
+#python -m pip install -r requirements.txt
 
 # Database migrations and (optional) admin user
 #python manage.py migrate
@@ -114,3 +114,42 @@ npm run dev
 
 That's it! ⚡
 
+## 🔒 Security Note: Consumer App Validation
+
+**IMPORTANT**: The system now validates consumer apps to prevent fake registrations like the "best" app shown in your admin panel.
+
+### Check for Fake Apps:
+```powershell
+# Audit current consumer apps and detect fake ones
+python manage.py validate_consumers
+
+# Check a specific app
+python manage.py validate_consumers --consumer best
+
+# Clean up fake apps (dry run first)
+python manage.py validate_consumers --check-all --cleanup --dry-run
+
+# Actually remove fake apps
+python manage.py validate_consumers --check-all --cleanup --force
+```
+
+### For Real App Registration:
+1. Apps must register through the system with proper validation
+2. Apps must provide a callback URL for health checks
+3. Apps must authenticate with API keys and signatures
+4. Apps must be explicitly authorized for specific data capabilities
+
+**Example**: The "best" app in your screenshot is flagged as FAKE because it has no validation record.
+
+
+Cloud Flare:
+
+Start-Service cloudflared       # start
+Stop-Service cloudflared        # stop
+Restart-Service cloudflared     # restart
+Get-Service cloudflared         # status
+
+To start the tunnel manually (when needed):
+1: in another terminal after the back end is running
+
+cloudflared tunnel run thor
