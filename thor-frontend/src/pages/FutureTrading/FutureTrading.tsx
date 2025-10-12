@@ -493,7 +493,7 @@ export default function FutureTrading(){
       setRoutingLoading(true);
       setRoutingError(null);
       try {
-        const res = await fetch("/api/schwab/feeds/routing/?consumer=futures");
+        const res = await fetch("/api/schwab/feeds/routing/?consumer=futures_trading");
         if (!res.ok) {
           throw new Error(`Routing request failed with status ${res.status}`);
         }
@@ -520,8 +520,8 @@ export default function FutureTrading(){
 
   async function fetchQuotes(){
     const endpoints = [
-      "/api/schwab/quotes/latest?consumer=futures",
-      "/api/quotes/latest?consumer=futures",
+      "/api/schwab/quotes/latest?consumer=futures_trading",
+      "/api/quotes/latest?consumer=futures_trading",
     ];
 
     for (const endpoint of endpoints) {
