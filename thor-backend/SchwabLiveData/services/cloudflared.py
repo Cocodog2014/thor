@@ -15,7 +15,18 @@ def _run(cmd: list[str]) -> Tuple[int, str, str]:
         return 1, "", str(e)
 
 
-def get_status(treat_stop_pending_as_stopped: bool = True) -> Status:
+def _process_running() -> bool:
+    """Return True if a cloudflared.exe process is present."""
+    if sys.platform != "win32":
+        return False
+    code, out, err = _run(["tasklist", "/FI", "IMAGENAME eq cloudflared.exe"])  # nosec - system tool
+    if code != 0:
+        return False
+    txt = (out or "") + "\n" + (err or "")
+    return "cloudflared.exe" in txt
+
+
+def get_status(treat_stop_pending_as_stopped: bool = True, prefer_process_signal: bool = False) -> Status:
     """Return cloudflared Windows service status.
 
     Uses `sc.exe query cloudflared` and parses STATE to one of:
@@ -44,6 +55,9 @@ def get_status(treat_stop_pending_as_stopped: bool = True) -> Status:
             return "stopped"
         if "pending" in t:
             return "pending"
+        # Last resort: process signal
+        if prefer_process_signal and _process_running():
+            return "running"
         return "unknown"
 
     try:
@@ -57,11 +71,16 @@ def get_status(treat_stop_pending_as_stopped: bool = True) -> Status:
     if code_num == 4:
         return "running"
     if code_num == 1:
+        # If the service reports STOPPED but the process exists, prefer showing running when asked
+        if prefer_process_signal and _process_running():
+            return "running"
         return "stopped"
     if code_num in {2, 5, 6}:
         return "pending"
     if code_num == 3:
         # STOP_PENDING can be treated as stopped (idle view) or pending (action view)
+        if prefer_process_signal and _process_running():
+            return "running"
         return "stopped" if treat_stop_pending_as_stopped else "pending"
     if code_num == 7:
         # Treat paused similar to stopped for our simple control surface
@@ -107,9 +126,9 @@ def toggle() -> Tuple[Status, str]:
 
     for _ in range(10):  # ~10 seconds
         time.sleep(1)
-        ns = get_status(treat_stop_pending_as_stopped=False)
+        ns = get_status(treat_stop_pending_as_stopped=False, prefer_process_signal=True)
         if status == "running" and ns in {"stopped", "pending"}:
             return ns, msg
         if status == "stopped" and ns in {"running", "pending"}:
             return ns, msg
-    return get_status(), msg
+    return get_status(prefer_process_signal=True), msg

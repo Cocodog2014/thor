@@ -30,9 +30,9 @@ def cloudflared_control(request):
         if ok:
             messages.success(request, "Triggered Cloudflared start")
             # Briefly poll for RUNNING
-            for _ in range(8):  # ~8 seconds
+            for _ in range(10):  # ~10 seconds
                 time.sleep(1)
-                status = cloudflared.get_status(treat_stop_pending_as_stopped=False)
+                status = cloudflared.get_status(treat_stop_pending_as_stopped=False, prefer_process_signal=True)
                 if status in {"running", "pending"}:  # show progress quickly
                     break
         else:
@@ -43,9 +43,9 @@ def cloudflared_control(request):
         if ok:
             messages.success(request, "Triggered Cloudflared stop")
             # Briefly poll for STOPPED
-            for _ in range(8):
+            for _ in range(10):
                 time.sleep(1)
-                status = cloudflared.get_status(treat_stop_pending_as_stopped=False)
+                status = cloudflared.get_status(treat_stop_pending_as_stopped=False, prefer_process_signal=True)
                 if status in {"stopped", "pending"}:  # show progress quickly
                     break
         else:

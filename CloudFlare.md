@@ -48,7 +48,7 @@ Goal: Ensure the cloudflared binary on PATH matches the Windows service binary, 
 - Windows Service (verified):
   - Name: cloudflared
   - DisplayName: Cloudflared agent
-  - StartType: Automatic
+  - StartType: Manual (controlled via admin dashboard)
   - BinaryPath (ImagePath): C:\Program Files (x86)\cloudflared\cloudflared.exe
 - Service config and credentials (verified):
   - Config: C:\ProgramData\cloudflared\config.yml
@@ -79,7 +79,7 @@ cloudflared tunnel list
 
 What “good” looks like:
 - The resolved binary path(s) output only C:\Program Files (x86)\cloudflared\cloudflared.exe.
-- The service exists, is Automatic start, and ImagePath matches the same binary.
+- The service exists, is set to Manual start (controlled via admin), and ImagePath matches the same binary.
 - C:\ProgramData\cloudflared\config.yml exists and references a credentials-file that also exists in the same folder.
 - `cloudflared tunnel list` shows your tunnel (e.g., `thor`) and a UUID.
 
@@ -330,3 +330,29 @@ Placement rationale: SchwabLiveData
 ## Do not implement yet
 
 This document is a plan for next week. We are not changing the app right now. If desired later, we can also add convenience routes like `/schwab/login` and `/schwab/accounts`, but the current endpoints already support the full OAuth flow and testing.
+
+Start-Service cloudflared
+Get-Service cloudflared
+Stop-Service cloudflared
+Restart-Service cloudflared
+
+Set-Service cloudflared -StartupType Manual
+
+
+Set-Service cloudflared -StartupType Manual
+
+\\\\Quick one-click Start/Stop (with elevation)////
+
+If you want desktop buttons that auto-elevate:
+
+Start Cloudflared.cmd
+
+@echo off
+powershell -NoProfile -Command "Start-Process powershell -Verb RunAs -ArgumentList 'Start-Service cloudflared'"
+
+
+Stop Cloudflared.cmd
+
+@echo off
+powershell -NoProfile -Command "Start-Process powershell -Verb RunAs -ArgumentList 'Stop-Service cloudflared'"
+

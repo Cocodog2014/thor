@@ -4,7 +4,7 @@
 {% block content %}
   <div class="card" style="padding:16px;">
     <h1>Cloudflared Tunnel Control</h1>
-    <p>Status: <strong>{{ status|title }}</strong></p>
+  <p>Status: <strong>{{ status|title }}</strong> <a href="." class="button" style="margin-left:8px; padding:2px 8px;">Refresh</a></p>
     {% if message %}
       <p><em>{{ message }}</em></p>
     {% endif %}
