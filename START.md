@@ -94,7 +94,7 @@ Open a new terminal:
 ```powershell
 cd A:\Thor\thor-frontend
 # First-time only
-npm install
+#npm install
 npm run dev
 ```
 
