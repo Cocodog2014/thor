@@ -23,11 +23,11 @@
 /* Dashboard Card Base Styling */
 .dashboard-card {
   background: rgba(255, 255, 255, 0.15);
-  border-radius: 12px;
-  padding: 25px;
+  border-radius: 10px; /* 12px * 0.85 = 10.2px ≈ 10px */
+  padding: 21px; /* 25px * 0.85 = 21.25px ≈ 21px */
   backdrop-filter: blur(10px);
   border: 1px solid rgba(255, 255, 255, 0.2);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 7px 27px rgba(0, 0, 0, 0.1); /* 8px * 0.85 = 6.8px ≈ 7px, 32px * 0.85 = 27.2px ≈ 27px */
   transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
 

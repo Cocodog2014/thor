@@ -66,8 +66,8 @@
 /* Markets Table - New table layout with all data columns */
 .markets-table-container {
   background: rgba(0, 0, 0, 0.3);
-  border-radius: 12px;
-  padding: 12px 14px 12px 10px; /* slightly tighter left to hug the drawer */
+  border-radius: 10px; /* 12px * 0.85 = 10.2px ≈ 10px */
+  padding: 10px 12px 10px 9px; /* 12px * 0.85 = 10.2px ≈ 10px, 14px * 0.85 = 11.9px ≈ 12px, 10px * 0.85 = 8.5px ≈ 9px */
   backdrop-filter: blur(10px);
   border: 1px solid rgba(255, 255, 255, 0.2);
   overflow-x: auto;
@@ -80,20 +80,20 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
+  margin-bottom: 10px; /* 12px * 0.85 = 10.2px ≈ 10px */
   flex-wrap: wrap;
 }
 
 .markets-table-header h2 {
   margin: 0;
-  font-size: 1.5rem;
+  font-size: 1.28rem; /* 1.5rem * 0.85 = 1.275rem ≈ 1.28rem */
   font-weight: 600;
   color: white;
 }
 
 /* Match UTC time size to the title */
 .markets-table-header .last-update {
-  font-size: 1.5rem;
+  font-size: 1.28rem; /* 1.5rem * 0.85 = 1.275rem ≈ 1.28rem */
   font-weight: 600;
   opacity: 1;
 }
@@ -102,14 +102,14 @@
   width: 100%;
   border-collapse: collapse;
   color: white;
-  min-width: 450px; /* reduced to fit when container is half width */
+  min-width: 383px; /* 450px * 0.85 = 382.5px ≈ 383px */
   table-layout: fixed; /* keeps columns lined up with colgroup widths */
 }
 
 /* Make all columns equal width */
 .markets-table th,
 .markets-table td {
-  padding: 8px 6px;
+  padding: 7px 5px; /* 8px * 0.85 = 6.8px ≈ 7px, 6px * 0.85 = 5.1px ≈ 5px */
   text-align: center;
   white-space: nowrap;
   overflow: hidden;
@@ -125,9 +125,9 @@
 .markets-table th {
   background: rgba(255, 255, 255, 0.1);
   font-weight: 600;
-  font-size: 0.85rem;
+  font-size: 0.72rem; /* 0.85rem * 0.85 = 0.7225rem ≈ 0.72rem */
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.43px; /* 0.5px * 0.85 = 0.425px ≈ 0.43px */
   border-bottom: 2px solid rgba(255, 255, 255, 0.2);
   border-right: 1px solid rgba(255, 255, 255, 0.1);
   position: sticky;
@@ -178,14 +178,14 @@
 .market-open {
   font-family: 'Courier New', monospace;
   color: #00ff88;
-  letter-spacing: 0.15px;
+  letter-spacing: 0.13px; /* 0.15px * 0.85 = 0.1275px ≈ 0.13px */
   font-variant-numeric: tabular-nums;
 }
 
 .market-close {
   font-family: 'Courier New', monospace;
   color: #ff6b6b; /* red for close column */
-  letter-spacing: 0.15px;
+  letter-spacing: 0.13px; /* 0.15px * 0.85 = 0.1275px ≈ 0.13px */
   font-variant-numeric: tabular-nums;
 }
 
@@ -193,19 +193,19 @@
   font-family: 'Courier New', monospace;
   font-weight: 600;
   color: #00ff88;
-  letter-spacing: 0.3px;
+  letter-spacing: 0.26px; /* 0.3px * 0.85 = 0.255px ≈ 0.26px */
   animation: digitalGlow 2s ease-in-out infinite alternate;
-  text-shadow: 0 0 5px rgba(0, 255, 136, 0.5);
+  text-shadow: 0 0 4px rgba(0, 255, 136, 0.5); /* 5px * 0.85 = 4.25px ≈ 4px */
   font-variant-numeric: tabular-nums;
 }
 
 .status-indicator {
-  padding: 4px 12px;
-  border-radius: 20px;
-  font-size: 0.8rem;
+  padding: 3px 10px; /* 4px * 0.85 = 3.4px ≈ 3px, 12px * 0.85 = 10.2px ≈ 10px */
+  border-radius: 17px; /* 20px * 0.85 = 17px */
+  font-size: 0.68rem; /* 0.8rem * 0.85 = 0.68rem */
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.43px; /* 0.5px * 0.85 = 0.425px ≈ 0.43px */
   display: inline-block;
 }
 
