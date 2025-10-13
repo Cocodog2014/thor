@@ -5,29 +5,30 @@
   display: grid;
   grid-template-columns: 1fr 1fr; /* Two columns to allow space for other components */
   grid-template-rows: 1fr auto; /* Auto-sized rows */
-  gap: 17px; /* 20px * 0.85 = 17px */
-  margin-bottom: 9px; /* 10px * 0.85 = 8.5px ≈ 9px */
+  gap: 14px; /* Further reduced: 17px * 0.85 = 14.45px ≈ 14px */
+  margin-bottom: 8px; /* Further reduced: 9px * 0.85 = 7.65px ≈ 8px */
   min-height: calc(100vh - 70px); /* approximate header + top spacing */
-  padding: 17px; /* 20px * 0.85 = 17px */
+  padding: 0px 14px 14px 14px; /* Remove top padding to touch header: top=0, keep others */
   align-content: start;
 }
 
-/* Global Markets Section - Positioned at bottom left */
+/* Global Markets Section - Positioned at top left touching header */
 .dashboard-card.global-markets {
   width: 100%; /* Use full available width in its grid cell */
   grid-column: 1; /* First column (left side) */
-  grid-row: 2; /* Second row (bottom) */
-  align-self: end; /* Stick to bottom of the grid */
+  grid-row: 1; /* First row (top) to touch header */
+  align-self: start; /* Stick to top of the grid to touch header */
+  margin-top: 0; /* Remove any top margin */
 }
 
 /* Dashboard Card Base Styling */
 .dashboard-card {
   background: rgba(255, 255, 255, 0.15);
-  border-radius: 10px; /* 12px * 0.85 = 10.2px ≈ 10px */
-  padding: 21px; /* 25px * 0.85 = 21.25px ≈ 21px */
+  border-radius: 9px; /* Further reduced: 10px * 0.85 = 8.5px ≈ 9px */
+  padding: 0px 18px 18px 18px; /* Remove top padding completely: top=0, keep others */
   backdrop-filter: blur(10px);
   border: 1px solid rgba(255, 255, 255, 0.2);
-  box-shadow: 0 7px 27px rgba(0, 0, 0, 0.1); /* 8px * 0.85 = 6.8px ≈ 7px, 32px * 0.85 = 27.2px ≈ 27px */
+  box-shadow: 0 6px 23px rgba(0, 0, 0, 0.1); /* Further reduced: 7px * 0.85 = 5.95px ≈ 6px, 27px * 0.85 = 22.95px ≈ 23px */
   transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
 

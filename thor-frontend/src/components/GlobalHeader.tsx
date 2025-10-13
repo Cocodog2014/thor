@@ -61,7 +61,8 @@ const GlobalHeader: React.FC<LayoutProps> = ({ children }) => {
           transition: 'margin 200ms ease',
         }}
       >
-        <Toolbar disableGutters sx={{ pl: 0, pr: 0 }} />
+        {/* Only add toolbar spacer for non-full-width routes */}
+        {!isFullWidth && <Toolbar disableGutters sx={{ pl: 0, pr: 0 }} />}
         {children}
       </Box>
     </Box>
