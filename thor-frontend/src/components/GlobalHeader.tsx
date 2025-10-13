@@ -37,15 +37,9 @@ const GlobalHeader: React.FC<LayoutProps> = ({ children }) => {
             variant="h4" 
             noWrap 
             component="div" 
-            sx={{ 
-              fontFamily: '"Cinzel", serif',
-              fontSize: '2.25rem',
-              position: 'absolute',
-              left: '50%',
-              transform: 'translateX(-50%)',
-            }}
+            className="header-title"
           >
-            Thor War Room
+            ⚡🔨⚡ THOR'S WAR ROOM ⚡🔨⚡
           </Typography>
 
           {/* Empty space for balance */}

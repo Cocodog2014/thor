@@ -48,6 +48,11 @@
 .header-title {
   font-family: "Cinzel", serif !important;
   font-size: 2.25rem !important;
+  font-weight: 900 !important;
+  color: #8b0000 !important;
+  text-shadow: 4px 4px 8px rgba(0,0,0,1), 0px 0px 16px rgba(255,215,0,0.8), 3px 3px 0px rgba(205,127,50,1), -1px -1px 0px rgba(139,0,0,0.8) !important;
+  letter-spacing: 0.15em !important;
+  text-transform: uppercase !important;
   position: absolute;
   left: 50%;
   transform: translateX(-50%);

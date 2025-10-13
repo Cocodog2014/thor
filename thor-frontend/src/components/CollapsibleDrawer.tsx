@@ -2,7 +2,6 @@ import React from 'react';
 import {
   Drawer,
   Toolbar,
-  Typography,
   List,
   ListItem,
   ListItemButton,
@@ -10,6 +9,8 @@ import {
   ListItemText,
   IconButton,
   Box,
+  Typography,
+  Divider,
 } from '@mui/material';
 import {
   Home as HomeIcon,
@@ -66,19 +67,49 @@ const CollapsibleDrawer: React.FC<CollapsibleDrawerProps> = ({
       }}
       anchor="left"
     >
-      <Toolbar sx={{ display: 'flex', alignItems: 'center', justifyContent: open ? 'space-between' : 'center', px: 1 }}>
-        {open && (
-          <Typography
-            variant="h5"
-            sx={{ fontFamily: '"Cinzel", serif', color: '#1976d2', fontWeight: 'bold' }}
-          >
-            🔨 THOR
-          </Typography>
-        )}
+      <Toolbar sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', px: 1 }}>
         <IconButton onClick={onToggle} sx={{ color: '#1976d2' }} aria-label={open ? 'Collapse menu' : 'Expand menu'}>
           {open ? <ChevronLeftIcon /> : <ChevronRightIcon />}
         </IconButton>
       </Toolbar>
+
+      {/* Account Information Section */}
+      {open && (
+        <>
+          <Box sx={{ px: 2, py: 1 }}>
+            <Typography variant="subtitle2" sx={{ color: '#1976d2', fontWeight: 'bold', mb: 1 }}>
+              Account Info
+            </Typography>
+            <Box sx={{ fontSize: '0.75rem', color: 'text.secondary' }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                <span>Option Buying Power</span>
+                <span style={{ color: '#4caf50' }}>$301.95</span>
+              </Box>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                <span>Net Liq & Day Trades</span>
+                <span style={{ color: '#4caf50' }}>$86,081.37</span>
+              </Box>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                <span>Day Trading Buying Power</span>
+                <span style={{ color: '#4caf50' }}>$301.95</span>
+              </Box>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                <span>Day Trades Left</span>
+                <span style={{ color: '#ff9800' }}>3</span>
+              </Box>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                <span>Cash & Sweep Vehicle</span>
+                <span style={{ color: '#4caf50' }}>$301.95</span>
+              </Box>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span>Available Funds For Trading</span>
+                <span style={{ color: '#4caf50' }}>$301.95</span>
+              </Box>
+            </Box>
+          </Box>
+          <Divider sx={{ mx: 1 }} />
+        </>
+      )}
 
       <List>
         {navigationItems.map((item) => (
