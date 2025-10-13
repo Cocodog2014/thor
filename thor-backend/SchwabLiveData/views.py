@@ -110,32 +110,51 @@ class SchwabQuotesView(APIView):
         for quote in raw_quotes:
             symbol = quote["instrument"]["symbol"]
             
-            # Get signal from provider (fallback to database)
+            # Get signal from provider or classify from net change
             provider_signal = quote.get("extended_data", {}).get("signal")
             
-            # Look up stat value from database
-            try:
-                signal_stat = SignalStatValue.objects.get(
-                    instrument__symbol=symbol,
-                    signal=provider_signal
-                )
-                db_stat_value = float(signal_stat.value)  # Use 'value' not 'stat_value'
-            except SignalStatValue.DoesNotExist:
-                # Use provider value as fallback, but parse safely
-                db_stat_value = _safe_float(quote.get("extended_data", {}).get("stat_value", 0.0), 0.0)
-            
-            # Look up contract weight from database
-            try:
-                contract_weight_obj = ContractWeight.objects.get(instrument__symbol=symbol)
-                db_contract_weight = float(contract_weight_obj.weight)
-            except ContractWeight.DoesNotExist:
-                # Use provider value as fallback, but parse safely
-                db_contract_weight = _safe_float(quote.get("extended_data", {}).get("contract_weight", 1.0), 1.0)
+            if not provider_signal:
+                # Provider didn't provide signal, so classify from net change
+                from FutureTrading.services.classification import classify
+                net_change = quote.get("change")
+                classified_signal, classified_stat_value, classified_contract_weight, classified_signal_weight = classify(symbol, net_change)
+                
+                # Use classified values
+                db_signal = classified_signal
+                db_stat_value = float(classified_stat_value) if classified_stat_value is not None else 0.0
+                db_contract_weight = float(classified_contract_weight)
+                db_signal_weight = classified_signal_weight
+            else:
+                # Provider gave us a signal, look up corresponding values
+                db_signal = provider_signal
+                
+                # Look up stat value from database
+                try:
+                    signal_stat = SignalStatValue.objects.get(
+                        instrument__symbol=symbol,
+                        signal=provider_signal
+                    )
+                    db_stat_value = float(signal_stat.value)
+                except SignalStatValue.DoesNotExist:
+                    db_stat_value = _safe_float(quote.get("extended_data", {}).get("stat_value", 0.0), 0.0)
+                
+                # Look up contract weight from database
+                try:
+                    contract_weight_obj = ContractWeight.objects.get(instrument__symbol=symbol)
+                    db_contract_weight = float(contract_weight_obj.weight)
+                except ContractWeight.DoesNotExist:
+                    db_contract_weight = _safe_float(quote.get("extended_data", {}).get("contract_weight", 1.0), 1.0)
+                
+                # Look up signal weight
+                from FutureTrading.services.classification import _get_signal_weight
+                db_signal_weight = _get_signal_weight(db_signal)
             
             # Update extended_data with database values
             quote["extended_data"].update({
+                "signal": db_signal,
                 "stat_value": str(db_stat_value),
-                "contract_weight": str(db_contract_weight)
+                "contract_weight": str(db_contract_weight),
+                "signal_weight": str(db_signal_weight)
             })
             
             enriched.append(quote)
@@ -144,7 +163,7 @@ class SchwabQuotesView(APIView):
     
     def _calculate_composite_total(self, quotes: List[Dict]) -> Dict[str, Any]:
         """
-        Calculate weighted composite total from all quotes.
+        Calculate weighted composite total from all quotes using the proper classification system.
         
         Args:
             quotes: List of enriched quote dictionaries
@@ -152,33 +171,27 @@ class SchwabQuotesView(APIView):
         Returns:
             Composite total data dictionary
         """
-        sum_weighted = 0.0
-        total_weights = 0.0
-        count = 0
+        # Use the classification system's compute_composite function
+        from FutureTrading.services.classification import compute_composite
         
+        # Convert quotes to the format expected by compute_composite
+        rows = []
         for quote in quotes:
             try:
-                stat_value = float(quote["extended_data"]["stat_value"])
-                weight = float(quote["extended_data"]["contract_weight"])
-                
-                sum_weighted += stat_value * weight
-                total_weights += abs(weight)
-                count += 1
-                
-            except (KeyError, ValueError, TypeError) as e:
-                logger.warning(f"Error processing quote {quote.get('instrument', {}).get('symbol')}: {e}")
+                row = {
+                    'instrument': quote['instrument'],
+                    'price': quote.get('price'),
+                    'change': quote.get('change'),
+                    'extended_data': quote.get('extended_data', {}),
+                    'timestamp': quote.get('timestamp')
+                }
+                rows.append(row)
+            except Exception as e:
+                logger.warning(f"Error converting quote for composite: {e}")
                 continue
         
-        # Calculate weighted average
-        avg_weighted = sum_weighted / total_weights if total_weights > 0 else 0.0
-        
-        return {
-            "sum_weighted": f"{sum_weighted:.2f}",
-            "avg_weighted": f"{avg_weighted:.3f}",
-            "count": count,
-            "denominator": f"{total_weights:.2f}",
-            "as_of": quotes[0]["timestamp"] if quotes else None
-        }
+        # Calculate composite using the classification system
+        return compute_composite(rows)
 
 
 class ProviderStatusView(APIView):
