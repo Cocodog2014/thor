@@ -65,13 +65,14 @@
 
 /* Markets Table - New table layout with all data columns */
 .markets-table-container {
-  background: rgba(0, 0, 0, 0.3);
-  border-radius: 10px; /* 12px * 0.85 = 10.2px ≈ 10px */
-  padding: 10px 12px 10px 9px; /* 12px * 0.85 = 10.2px ≈ 10px, 14px * 0.85 = 11.9px ≈ 12px, 10px * 0.85 = 8.5px ≈ 9px */
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: transparent; /* Remove background container */
+  border-radius: 0; /* Remove rounded corners */
+  padding: 9px 10px 9px 8px; /* Keep padding for spacing */
+  backdrop-filter: none; /* Remove blur effect */
+  border: none; /* Remove border completely */
   overflow-x: auto;
   margin-left: 0; /* ensure no gap from drawer */
+  margin-right: 0; /* Remove excessive right margin to balance with left */
   align-self: flex-start;
 }
 
@@ -80,7 +81,9 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 10px; /* 12px * 0.85 = 10.2px ≈ 10px */
+  margin-bottom: 8px; /* Further reduced: 10px * 0.85 = 8.5px ≈ 8px */
+  margin-left: 0; /* Remove any left margin */
+  margin-right: 0; /* Remove any right margin */
   flex-wrap: wrap;
 }
 

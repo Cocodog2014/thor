@@ -5,10 +5,10 @@
   display: grid;
   grid-template-columns: 1fr 1fr; /* Two columns to allow space for other components */
   grid-template-rows: 1fr auto; /* Auto-sized rows */
-  gap: 20px;
-  margin-bottom: 10px;
+  gap: 17px; /* 20px * 0.85 = 17px */
+  margin-bottom: 9px; /* 10px * 0.85 = 8.5px ≈ 9px */
   min-height: calc(100vh - 70px); /* approximate header + top spacing */
-  padding: 20px;
+  padding: 17px; /* 20px * 0.85 = 17px */
   align-content: start;
 }
 
