@@ -24,11 +24,11 @@ const Login: React.FC = () => {
 
       // Temporary no-backend simulation
       await new Promise((r) => setTimeout(r, 500));
-  localStorage.setItem('thor_token', 'dev-token');
-  toast.success('Logged in (dev)');
-  const params = new URLSearchParams(location.search);
-  const next = params.get('next') || '/user';
-  navigate(next);
+      localStorage.setItem('thor_token', 'dev-token');
+      toast.success('Logged in (dev)');
+      const params = new URLSearchParams(location.search);
+      const next = params.get('next') || '/app/user';
+      navigate(next);
     } catch (err: any) {
       toast.error('Login failed');
     } finally {
@@ -38,10 +38,20 @@ const Login: React.FC = () => {
 
   return (
     <Box className="login-page" sx={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-start', p: 3 }}>
-      <Paper elevation={3} className="login-card">
-        <Typography variant="h4" className="login-title" gutterBottom>
-          Login
-        </Typography>
+      <Paper elevation={6} className="login-card">
+        {/* Thor Branding */}
+        <Box sx={{ textAlign: 'center', mb: 3 }}>
+          <Typography variant="h3" sx={{ fontSize: '3.75rem', mb: 1 }} className="lightning-animated thor-branding-animated">
+            ⚡🔨⚡
+          </Typography>
+          <Typography variant="h4" className="login-title" sx={{ fontWeight: 600, letterSpacing: 1 }}>
+            THOR'S WAR ROOM
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+            Sign in
+          </Typography>
+        </Box>
+
         <form onSubmit={handleSubmit} className="login-form">
           <TextField
             label="Email"
@@ -51,6 +61,8 @@ const Login: React.FC = () => {
             fullWidth
             required
             margin="normal"
+            variant="filled"
+            sx={{ mb: 2 }}
           />
           <TextField
             label="Password"
@@ -60,10 +72,30 @@ const Login: React.FC = () => {
             fullWidth
             required
             margin="normal"
+            variant="filled"
+            sx={{ mb: 3 }}
           />
-          <Button type="submit" variant="contained" color="primary" disabled={loading} fullWidth sx={{ mt: 2 }}>
-            {loading ? 'Logging in…' : 'Login'}
+          <Button 
+            type="submit" 
+            variant="contained" 
+            disabled={loading} 
+            fullWidth 
+            sx={{ 
+              mt: 1,
+              py: 1.5,
+              background: 'linear-gradient(45deg, #1976d2 30%, #42a5f5 90%)',
+              fontSize: '1rem',
+              fontWeight: 600,
+              '&:hover': {
+                background: 'linear-gradient(45deg, #1565c0 30%, #1976d2 90%)',
+              }
+            }}
+          >
+            {loading ? 'Logging in…' : 'LOGIN'}
           </Button>
+          <Typography variant="body2" sx={{ mt: 3, textAlign: 'center' }}>
+            Don't have an account? <a href="/auth/register" style={{ color: '#42a5f5', fontWeight: 500 }}>Create one</a>
+          </Typography>
         </form>
       </Paper>
     </Box>

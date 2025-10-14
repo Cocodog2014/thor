@@ -18,11 +18,29 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
+from django.http import JsonResponse
+from django.views.generic import RedirectView
 from timezones.views import api_test_page, debug_market_times, sync_markets
 from SchwabLiveData.views import schwab_auth_callback
 from SchwabLiveData.admin_views import cloudflared_control
 
+def api_root(request):
+    """Simple API root that shows available endpoints"""
+    return JsonResponse({
+        'message': 'Thor API Server',
+        'version': '1.0',
+        'endpoints': {
+            'admin': '/admin/',
+            'api': '/api/',
+            'schwab': '/api/schwab/',
+            'worldclock': '/api/worldclock/',
+            'futures': '/api/futures/',
+        }
+    })
+
 urlpatterns = [
+    # Root endpoint
+    path('', api_root, name='api_root'),
     # Custom admin utility views
     path('admin/cloudflared/', cloudflared_control, name='admin_cloudflared_control'),
     path('admin/', admin.site.urls),

@@ -9,7 +9,6 @@ import ActivityPositions from './pages/ActivityPositions'
 import ProtectedRoute from './components/ProtectedRoute'
 import AuthLayout from './layouts/AuthLayout'
 import AppLayout from './layouts/AppLayout'
-import { Link } from 'react-router-dom'
 import Register from './pages/User/Register'
 import User, { Login as UserLogin } from './pages/User'
 
@@ -53,9 +52,6 @@ function App() {
         element={
           <AuthLayout>
             <UserLogin />
-            <div style={{ marginTop: 16 }}>
-              <Link to="/auth/register">Don’t have an account? Create one</Link>
-            </div>
           </AuthLayout>
         }
       />
@@ -64,9 +60,6 @@ function App() {
         element={
           <AuthLayout>
             <Register />
-            <div style={{ marginTop: 16 }}>
-              <Link to="/auth/login">Already have an account? Sign in</Link>
-            </div>
           </AuthLayout>
         }
       />

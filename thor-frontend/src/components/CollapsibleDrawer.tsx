@@ -20,7 +20,7 @@ import {
   TrendingUp as TrendingUpIcon,
   AdminPanelSettings as AdminPanelSettingsIcon,
   AccountBalance as TradingActivityIcon,
-  Person as PersonIcon,
+  Logout as LogoutIcon,
 } from '@mui/icons-material';
 import { useLocation, useNavigate } from 'react-router-dom';
 
@@ -40,7 +40,6 @@ const navigationItems = [
   { text: 'Home', icon: <HomeIcon />, path: '/app/home' },
   { text: 'Futures', icon: <TrendingUpIcon />, path: '/app/futures' },
   { text: 'Stock Trading', icon: <CandlestickChartIcon />, path: '/app/stock-trading' },
-  { text: 'User', icon: <PersonIcon />, path: '/app/user' },
   { text: 'Django Admin', icon: <AdminPanelSettingsIcon />, path: 'http://127.0.0.1:8000/admin/', external: true },
 ];
 
@@ -56,6 +55,11 @@ const CollapsibleDrawer: React.FC<CollapsibleDrawerProps> = ({
   const navigate = useNavigate();
 
   const drawerWidth = open ? widthOpen : widthClosed;
+
+  const signOut = () => {
+    try { localStorage.removeItem('thor_token'); } catch {}
+    navigate('/auth/login');
+  };
 
   return (
     <Drawer
@@ -177,8 +181,28 @@ const CollapsibleDrawer: React.FC<CollapsibleDrawerProps> = ({
         </ListItem>
       </List>
 
-      {/* small spacer to keep content from hitting bottom on some screens */}
+      {/* Sign out at bottom */}
       <Box sx={{ flexGrow: 1 }} />
+      <List>
+        <ListItem disablePadding sx={{ display: 'block' }}>
+          <ListItemButton
+            onClick={signOut}
+            sx={{
+              minHeight: 48,
+              justifyContent: open ? 'initial' : 'center',
+              px: 2.5,
+              '&:hover': {
+                backgroundColor: 'rgba(25, 118, 210, 0.1)',
+              },
+            }}
+          >
+            <ListItemIcon sx={{ minWidth: 0, mr: open ? 3 : 'auto', justifyContent: 'center', color: '#1976d2' }}>
+              <LogoutIcon />
+            </ListItemIcon>
+            <ListItemText primary="Sign out" sx={{ opacity: open ? 1 : 0, color: '#fff' }} />
+          </ListItemButton>
+        </ListItem>
+      </List>
     </Drawer>
   );
 };

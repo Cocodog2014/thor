@@ -1,10 +1,18 @@
 /* Register styles imported via global.css */
 
+.register-page {
+  width: 100%;
+}
+
 .register-card {
+  width: 100%;
+  max-width: 480px;
   padding: var(--thor-spacing-xl);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.06);
-  border-radius: 12px;
+  border: 1px solid rgba(66, 165, 245, 0.3);
+  background: linear-gradient(135deg, rgba(25, 118, 210, 0.15) 0%, rgba(0, 0, 0, 0.8) 100%);
+  backdrop-filter: blur(10px);
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(25, 118, 210, 0.2);
 }
 
 .register-title {
@@ -13,5 +21,82 @@
 }
 
 .register-form {
-  margin-top: var(--thor-spacing-md);
+  margin-top: var(--thor-spacing-sm);
+}
+
+.register-form .MuiFormControlLabel-root {
+  margin-top: var(--thor-spacing-sm);
+}
+
+/* Thor Hammer Strike Animation */
+@keyframes hammerStrike {
+  0%, 100% {
+    transform: translateY(0) scale(1);
+  }
+  5% {
+    transform: translateY(-8px) scale(1.15);
+  }
+  10% {
+    transform: translateY(2px) scale(0.95);
+  }
+  15% {
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes lightningFlash {
+  0%, 100% {
+    text-shadow: 0 0 10px rgba(66, 165, 245, 0.3);
+  }
+  3% {
+    text-shadow: 0 0 10px rgba(66, 165, 245, 0.3);
+  }
+  5% {
+    text-shadow: 
+      0 0 30px rgba(66, 165, 245, 1),
+      0 0 60px rgba(66, 165, 245, 0.9),
+      0 0 80px rgba(66, 165, 245, 0.7),
+      0 0 100px rgba(255, 255, 255, 0.5);
+  }
+  7% {
+    text-shadow: 
+      0 0 25px rgba(66, 165, 245, 0.8),
+      0 0 50px rgba(66, 165, 245, 0.6);
+  }
+  10% {
+    text-shadow: 
+      0 0 20px rgba(66, 165, 245, 0.5),
+      0 0 40px rgba(66, 165, 245, 0.3);
+  }
+  15% {
+    text-shadow: 0 0 10px rgba(66, 165, 245, 0.3);
+  }
+}
+
+@keyframes marketShatter {
+  0%, 100% {
+    transform: scale(1);
+    filter: brightness(1);
+  }
+  5% {
+    transform: scale(1.05);
+    filter: brightness(1.5);
+  }
+  10% {
+    transform: scale(1);
+    filter: brightness(1);
+  }
+}
+
+.thor-branding-animated {
+  animation: hammerStrike 4s ease-in-out infinite;
+}
+
+.lightning-animated {
+  animation: hammerStrike 4s ease-in-out infinite, lightningFlash 4s ease-in-out infinite;
+  display: inline-block;
+}
+
+.register-card-animated {
+  animation: marketShatter 4s ease-in-out infinite;
 }

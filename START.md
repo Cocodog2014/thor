@@ -154,3 +154,9 @@ To start the tunnel manually (when needed):
 1: in another terminal after the back end is running
 
 cloudflared tunnel run thor
+
+# Navigate to root directory first
+cd A:\Thor
+
+# Start the tunnel (this will run in the foreground)
+cloudflared tunnel run thor
