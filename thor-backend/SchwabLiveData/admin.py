@@ -36,6 +36,17 @@ class DataFeedAdmin(admin.ModelAdmin):
 	search_fields = ("display_name", "code", "description")
 	ordering = ("display_name",)
 	readonly_fields = ("created_at", "updated_at")
+	actions = ['enable_feeds', 'disable_feeds']
+	
+	@admin.action(description='✅ Enable selected feeds')
+	def enable_feeds(self, request, queryset):
+		count = queryset.update(is_active=True)
+		self.message_user(request, f"Enabled {count} feed(s)", messages.SUCCESS)
+	
+	@admin.action(description='❌ Disable selected feeds')
+	def disable_feeds(self, request, queryset):
+		count = queryset.update(is_active=False)
+		self.message_user(request, f"Disabled {count} feed(s)", messages.WARNING)
 
 
 # Simplified ConsumerApp admin - no more complex FeedAssignment inline
@@ -44,9 +55,21 @@ class ConsumerAppAdmin(admin.ModelAdmin):
 	form = ConsumerAppForm
 	list_display = ("display_name", "code", "primary_feed", "fallback_feed", "is_active")
 	list_filter = ("is_active", "primary_feed", "fallback_feed")
+	list_editable = ("is_active",)  # Allow quick toggle in list view
 	search_fields = ("display_name", "code", "description")
 	ordering = ("display_name",)
 	readonly_fields = ("created_at", "updated_at", "authorized_capabilities")
+	actions = ['enable_consumers', 'disable_consumers']
+	
+	@admin.action(description='✅ Enable selected consumers')
+	def enable_consumers(self, request, queryset):
+		count = queryset.update(is_active=True)
+		self.message_user(request, f"Enabled {count} consumer(s)", messages.SUCCESS)
+	
+	@admin.action(description='❌ Disable selected consumers')
+	def disable_consumers(self, request, queryset):
+		count = queryset.update(is_active=False)
+		self.message_user(request, f"Disabled {count} consumer(s). No data will flow to these apps.", messages.WARNING)
 	
 	fieldsets = (
 		(None, {

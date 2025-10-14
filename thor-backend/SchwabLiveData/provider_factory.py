@@ -60,11 +60,11 @@ class ProviderConfig:
     ]
     
     def __init__(self, request=None):
-        # Get provider type from request parameter, environment, or default to excel_live
+        # Get provider type from request parameter or environment ONLY (no automatic fallback)
         self.provider = (
             (request.GET.get("provider") if request else None) or 
             os.getenv("DATA_PROVIDER") or 
-            "excel_live"
+            None  # No default - must be explicitly configured
         )
         self.consumer = (request.GET.get("consumer") if request else None)
         
@@ -92,9 +92,13 @@ class ProviderConfig:
                 elif selected:
                     # fallback to feed code when provider key missing
                     self.provider = selected.code
+                else:
+                    # No active feed configured for this consumer
+                    self.provider = None
             except Exception as exc:  # pragma: no cover - defensive
                 # Log failure but do not block subsequent resolution
                 print(f"Feed routing resolution failed for consumer '{self.consumer}': {exc}")
+                self.provider = None  # Explicitly set to None on error
 
     @staticmethod
     def get_excel_file_path() -> str:

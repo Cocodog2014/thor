@@ -486,6 +486,7 @@ export default function FutureTrading(){
   const seriesRef = useRef<Record<string, number[]>>({});
   const getSeries = (sym:string) => (seriesRef.current[sym] ||= []);
 
+  // Fetch routing configuration on mount
   useEffect(() => {
     let cancelled = false;
 
@@ -519,26 +520,23 @@ export default function FutureTrading(){
   }, []);
 
   async function fetchQuotes(){
-    const endpoints = [
-      "/api/schwab/quotes/latest?consumer=futures_trading",
-      "/api/quotes/latest?consumer=futures_trading",
-    ];
+    // Use SchwabLiveData provider endpoint (abstracts Excel Live and Schwab API)
+    const endpoint = "/api/schwab/quotes/latest?consumer=futures_trading";
 
-    for (const endpoint of endpoints) {
-      try {
-        const r = await fetch(endpoint);
-        if (r.ok) {
-          const data: ApiResponse = await r.json();
-          setRows(data.rows);
-          setTotalData(data.total);
-          return;
-        }
-      } catch (error) {
-        console.warn(`Failed to fetch from ${endpoint}:`, error);
+    try {
+      const r = await fetch(endpoint);
+      if (r.ok) {
+        const data: ApiResponse = await r.json();
+        setRows(data.rows);
+        setTotalData(data.total);
+        return;
+      } else {
+        throw new Error(`Request failed with status ${r.status}`);
       }
+    } catch (error) {
+      console.error(`Failed to fetch quotes:`, error);
+      throw new Error("Quote endpoint failed");
     }
-
-    throw new Error("All quote endpoints failed");
   }
 
   useEffect(()=>{

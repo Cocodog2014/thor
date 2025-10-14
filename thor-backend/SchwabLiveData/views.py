@@ -43,6 +43,22 @@ class SchwabQuotesView(APIView):
             # Build config from request (query params override env inside ProviderConfig)
             cfg = ProviderConfig(request)
 
+            # Check if provider is explicitly configured
+            if not cfg.provider:
+                return Response({
+                    "error": "No data provider configured",
+                    "message": "Please configure a data source in the SchwabLiveData admin panel",
+                    "rows": [],
+                    "total": {
+                        "sum_weighted": "0.00",
+                        "avg_weighted": "0.000",
+                        "count": 0,
+                        "denominator": "0.00",
+                        "composite_signal": "HOLD",
+                        "composite_signal_weight": 0,
+                    }
+                }, status=status.HTTP_200_OK)
+
             # Never simulate for Excel sources
             if cfg.provider in ("excel", "excel_live"):
                 cfg.live_sim = False

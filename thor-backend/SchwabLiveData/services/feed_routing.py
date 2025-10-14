@@ -43,6 +43,16 @@ def build_routing_plan(consumer_code: str) -> RoutingPlan:
     except ConsumerApp.DoesNotExist:
         raise ConsumerApp.DoesNotExist(f"Consumer app '{consumer_code}' is not registered")
 
+    # Check if consumer itself is active
+    if not consumer.is_active:
+        # Return empty routing plan if consumer is disabled
+        return RoutingPlan(
+            consumer_code=consumer.code,
+            consumer_name=consumer.display_name,
+            feeds=[],
+            primary_feed=None,
+        )
+
     feeds = []
     primary_feed = None
 
