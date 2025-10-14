@@ -8,6 +8,7 @@ import { Toaster } from 'react-hot-toast'
 import App from './App.tsx'
 import theme from './theme'
 import './styles/global.css'
+import { AuthProvider } from './context/AuthContext'
 
 // Create a client
 const queryClient = new QueryClient({
@@ -27,7 +28,9 @@ createRoot(document.getElementById('root')!).render(
       <ThemeProvider theme={theme}>
         <CssBaseline />
         <BrowserRouter>
-          <App />
+          <AuthProvider>
+            <App />
+          </AuthProvider>
           <Toaster 
             position="top-right"
             toastOptions={{

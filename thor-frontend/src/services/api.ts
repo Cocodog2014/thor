@@ -12,11 +12,13 @@ const api = axios.create({
 // Request interceptor
 api.interceptors.request.use(
   (config) => {
-    // You can add auth tokens here if needed
-    // const token = localStorage.getItem('token');
-    // if (token) {
-    //   config.headers.Authorization = `Bearer ${token}`;
-    // }
+    // Attach token if present
+    try {
+      const token = localStorage.getItem('thor_token');
+      if (token) {
+        (config.headers = config.headers || {}).Authorization = `Bearer ${token}`;
+      }
+    } catch {}
     return config;
   },
   (error) => {

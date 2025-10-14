@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Box, Paper, Typography, TextField, Button } from '@mui/material';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import api from '../../services/api';
 import './Login.css';
@@ -10,6 +10,7 @@ const Login: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const location = useLocation();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -23,9 +24,11 @@ const Login: React.FC = () => {
 
       // Temporary no-backend simulation
       await new Promise((r) => setTimeout(r, 500));
-      localStorage.setItem('thor_token', 'dev-token');
-      toast.success('Logged in (dev)');
-      navigate('/user');
+  localStorage.setItem('thor_token', 'dev-token');
+  toast.success('Logged in (dev)');
+  const params = new URLSearchParams(location.search);
+  const next = params.get('next') || '/user';
+  navigate(next);
     } catch (err: any) {
       toast.error('Login failed');
     } finally {

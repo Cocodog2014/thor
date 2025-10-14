@@ -1,0 +1,17 @@
+/* Register styles imported via global.css */
+
+.register-card {
+  padding: var(--thor-spacing-xl);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+}
+
+.register-title {
+  font-family: var(--thor-font-title);
+  letter-spacing: 0.5px;
+}
+
+.register-form {
+  margin-top: var(--thor-spacing-md);
+}
