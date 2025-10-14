@@ -50,6 +50,8 @@ INSTALLED_APPS = [
     'rest_framework',
     'corsheaders',
     'django_filters',
+    'users',  # Custom user management with identity & access
+    'account_statement',  # Paper and real trading account management
     'core',
     'api',
     'timezones',  # WorldClock and Market data
@@ -122,6 +124,11 @@ AUTH_PASSWORD_VALIDATORS = [
         'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
     },
 ]
+
+
+# Custom User Model
+# https://docs.djangoproject.com/en/5.2/topics/auth/customizing/#substituting-a-custom-user-model
+AUTH_USER_MODEL = 'users.CustomUser'
 
 
 # Internationalization
