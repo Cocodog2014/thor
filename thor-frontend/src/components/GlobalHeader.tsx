@@ -5,9 +5,11 @@ import { useLocation } from 'react-router-dom';
 
 interface LayoutProps {
   children: React.ReactNode;
+  onTradingActivityToggle?: () => void;
+  showTradingActivity?: boolean;
 }
 
-const GlobalHeader: React.FC<LayoutProps> = ({ children }) => {
+const GlobalHeader: React.FC<LayoutProps> = ({ children, onTradingActivityToggle, showTradingActivity }) => {
   const [open, setOpen] = React.useState(false);
 
   const toggleDrawer = () => setOpen((v) => !v);
@@ -48,7 +50,14 @@ const GlobalHeader: React.FC<LayoutProps> = ({ children }) => {
       </AppBar>
 
       {/* Sidebar */}
-  <CollapsibleDrawer open={open} onToggle={toggleDrawer} widthOpen={DEFAULT_WIDTH_OPEN} widthClosed={DEFAULT_WIDTH_CLOSED} />
+  <CollapsibleDrawer 
+    open={open} 
+    onToggle={toggleDrawer} 
+    widthOpen={DEFAULT_WIDTH_OPEN} 
+    widthClosed={DEFAULT_WIDTH_CLOSED}
+    onTradingActivityToggle={onTradingActivityToggle}
+    showTradingActivity={showTradingActivity}
+  />
 
       {/* Main Content */}
       <Box

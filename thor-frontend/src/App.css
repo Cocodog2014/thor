@@ -4,7 +4,7 @@
 .dashboard-grid {
   display: grid;
   grid-template-columns: 1fr 1fr; /* Two columns to allow space for other components */
-  grid-template-rows: 1fr auto; /* Auto-sized rows */
+  grid-template-rows: auto auto; /* Two auto-sized rows for Global Markets and Activity Positions */
   gap: 14px; /* Further reduced: 17px * 0.85 = 14.45px ≈ 14px */
   margin-bottom: 8px; /* Further reduced: 9px * 0.85 = 7.65px ≈ 8px */
   min-height: calc(100vh - 70px); /* approximate header + top spacing */
@@ -18,7 +18,16 @@
   grid-column: 1; /* First column (left side) */
   grid-row: 1; /* First row (top) to touch header */
   align-self: start; /* Stick to top of the grid to touch header */
-  margin-top: 0; /* Remove any top margin */
+  margin-top: 64px; /* Add space to clear the header and show Global Markets title */
+}
+
+/* Activity Positions Section - Positioned below Global Markets */
+.dashboard-card.activity-positions {
+  width: 100%; /* Use full available width in its grid cell */
+  grid-column: 1; /* First column (left side) */
+  grid-row: 2; /* Second row (below Global Markets) */
+  align-self: start; /* Stick to top of its grid cell */
+  margin-top: 0; /* No extra top margin */
 }
 
 /* Dashboard Card Base Styling */

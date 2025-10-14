@@ -19,6 +19,7 @@ import {
   CandlestickChart as CandlestickChartIcon,
   TrendingUp as TrendingUpIcon,
   AdminPanelSettings as AdminPanelSettingsIcon,
+  AccountBalance as TradingActivityIcon,
 } from '@mui/icons-material';
 import { useLocation, useNavigate } from 'react-router-dom';
 
@@ -27,6 +28,8 @@ export interface CollapsibleDrawerProps {
   onToggle: () => void;
   widthOpen?: number;
   widthClosed?: number;
+  onTradingActivityToggle?: () => void;
+  showTradingActivity?: boolean;
 }
 
 export const DEFAULT_WIDTH_OPEN = 240;
@@ -44,6 +47,8 @@ const CollapsibleDrawer: React.FC<CollapsibleDrawerProps> = ({
   onToggle,
   widthOpen = DEFAULT_WIDTH_OPEN,
   widthClosed = DEFAULT_WIDTH_CLOSED,
+  onTradingActivityToggle,
+  showTradingActivity = false,
 }) => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -143,6 +148,31 @@ const CollapsibleDrawer: React.FC<CollapsibleDrawerProps> = ({
             </ListItemButton>
           </ListItem>
         ))}
+        
+        {/* Trading Activity Toggle */}
+        <ListItem disablePadding sx={{ display: 'block' }}>
+          <ListItemButton
+            selected={showTradingActivity}
+            onClick={onTradingActivityToggle}
+            sx={{
+              minHeight: 48,
+              justifyContent: open ? 'initial' : 'center',
+              px: 2.5,
+              '&.Mui-selected': {
+                backgroundColor: 'rgba(25, 118, 210, 0.2)',
+                borderRight: '3px solid #1976d2',
+              },
+              '&:hover': {
+                backgroundColor: 'rgba(25, 118, 210, 0.1)',
+              },
+            }}
+          >
+            <ListItemIcon sx={{ minWidth: 0, mr: open ? 3 : 'auto', justifyContent: 'center', color: '#1976d2' }}>
+              <TradingActivityIcon />
+            </ListItemIcon>
+            <ListItemText primary="Trading Activity" sx={{ opacity: open ? 1 : 0, color: '#fff' }} />
+          </ListItemButton>
+        </ListItem>
       </List>
 
       {/* small spacer to keep content from hitting bottom on some screens */}

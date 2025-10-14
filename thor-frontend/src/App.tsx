@@ -1,9 +1,11 @@
+import { useState } from 'react'
 import { Routes, Route, useLocation } from 'react-router-dom'
 import { Container } from '@mui/material'
 import GlobalHeader from './components/GlobalHeader.tsx'
 import TimeZone from './pages/TimeZone/TimeZone.tsx'
 import FutureTrading from './pages/FutureTrading'
 import StockTrading from './pages/StockTrading'
+import ActivityPositions from './pages/ActivityPositions'
 
 // NOTE: This App.tsx also serves as the home page component
 // The HomeContent inline component below handles the home page display
@@ -13,10 +15,15 @@ import StockTrading from './pages/StockTrading'
 
 function App() {
   const location = useLocation();
+  const [showTradingActivity, setShowTradingActivity] = useState(false);
   
   // Routes that should have full-width layout (no Container)
   const fullWidthRoutes = ['/', '/home', '/futures', '/stock-trading'];
   const isFullWidth = fullWidthRoutes.includes(location.pathname);
+
+  const toggleTradingActivity = () => {
+    setShowTradingActivity(!showTradingActivity);
+  };
 
   // Inline Home component - just the TimeZone display
   const HomeContent = () => (
@@ -24,11 +31,16 @@ function App() {
       <section className="dashboard-card global-markets" aria-label="Global Markets">
         <TimeZone />
       </section>
+      {showTradingActivity && (
+        <section className="dashboard-card activity-positions" aria-label="Activity & Positions">
+          <ActivityPositions />
+        </section>
+      )}
     </div>
   );
 
   return (
-    <GlobalHeader>
+    <GlobalHeader onTradingActivityToggle={toggleTradingActivity} showTradingActivity={showTradingActivity}>
       {isFullWidth ? (
         <Routes>
           <Route path="/" element={<HomeContent />} />

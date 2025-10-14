@@ -1,0 +1,304 @@
+/* Activity Positions CSS */
+
+.activity-positions-container {
+  padding: 20px;
+  color: white;
+  background-color: transparent;
+  font-family: 'Inter', sans-serif;
+}
+
+.activity-positions-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: white;
+  margin: 0 0 24px 0;
+  text-align: center;
+}
+
+/* Section Styling */
+.section-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #42a5f5;
+  margin: 0 0 12px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding-bottom: 4px;
+}
+
+/* Trade Activity Section */
+.trade-activity-section {
+  margin-bottom: 24px;
+}
+
+.activity-group {
+  margin-bottom: 16px;
+}
+
+.activity-header {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #4caf50;
+  margin: 0 0 6px 0;
+}
+
+.activity-empty {
+  font-size: 0.85rem;
+  color: #888;
+  font-style: italic;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+}
+
+/* Cancelled Order Styling */
+.cancelled-order {
+  background: rgba(0, 100, 0, 0.15);
+  border: 1px solid rgba(76, 175, 80, 0.3);
+  border-radius: 6px;
+  padding: 10px;
+  font-size: 0.8rem;
+}
+
+.order-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.order-type {
+  color: #4caf50;
+  font-weight: 600;
+}
+
+.order-action {
+  color: #f44336;
+  font-weight: 600;
+}
+
+.order-details {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.order-symbol {
+  color: white;
+  font-weight: 500;
+}
+
+.order-info {
+  color: #ccc;
+}
+
+.order-status {
+  color: #ff9800;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+/* Rolling Strategies Section */
+.strategies-section {
+  margin-bottom: 24px;
+}
+
+.strategies-empty {
+  font-size: 0.85rem;
+  color: #888;
+  font-style: italic;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+}
+
+/* Position Statement Section */
+.positions-section {
+  margin-bottom: 24px;
+}
+
+.position-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+}
+
+.control-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: white;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.control-item input[type="checkbox"] {
+  accent-color: #42a5f5;
+}
+
+.weight-status {
+  color: #ff9800;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+/* Positions Table */
+.positions-table-container {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+  padding: 12px;
+  overflow-x: auto;
+}
+
+.positions-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+  min-width: 800px;
+}
+
+.positions-table th {
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+  font-weight: 600;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 8px 6px;
+  text-align: center;
+  border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+}
+
+.positions-table td {
+  padding: 8px 6px;
+  text-align: center;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  color: white;
+}
+
+.position-row:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+/* Cell Styling */
+.instrument-cell {
+  font-weight: 600;
+  color: #42a5f5 !important;
+}
+
+.qty-positive {
+  color: #4caf50 !important;
+  font-weight: 600;
+}
+
+.amount-positive {
+  color: #4caf50 !important;
+  font-weight: 500;
+}
+
+.amount-negative {
+  color: #f44336 !important;
+  font-weight: 500;
+}
+
+.amount-neutral {
+  color: #ccc !important;
+}
+
+.percent-positive {
+  color: #4caf50 !important;
+  font-weight: 500;
+}
+
+.percent-negative {
+  color: #f44336 !important;
+  font-weight: 500;
+}
+
+/* Subtotals */
+.position-subtotals {
+  margin-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+  padding-top: 8px;
+}
+
+.subtotal-row,
+.total-row {
+  display: grid;
+  grid-template-columns: 2fr repeat(5, 1fr);
+  gap: 12px;
+  padding: 4px 0;
+  font-size: 0.8rem;
+}
+
+.subtotal-row {
+  color: #ccc;
+}
+
+.total-row {
+  color: white;
+  font-weight: 600;
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+  padding-top: 8px;
+  margin-top: 4px;
+}
+
+.subtotal-label,
+.total-label {
+  text-align: left;
+  font-weight: 600;
+}
+
+.subtotal-amount,
+.total-amount {
+  text-align: center;
+}
+
+.subtotal-amount.negative,
+.total-amount.negative {
+  color: #f44336;
+}
+
+/* Account Status */
+.account-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 6px;
+  font-size: 0.85rem;
+  margin-top: 16px;
+}
+
+.status-label {
+  color: #ccc;
+  font-weight: 600;
+}
+
+.status-value.ok {
+  color: #4caf50;
+  font-weight: 700;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .activity-positions-container {
+    padding: 12px;
+  }
+  
+  .activity-positions-title {
+    font-size: 1.3rem;
+  }
+  
+  .positions-table {
+    font-size: 0.7rem;
+  }
+  
+  .positions-table th,
+  .positions-table td {
+    padding: 6px 4px;
+  }
+}
