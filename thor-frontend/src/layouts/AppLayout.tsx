@@ -1,10 +1,23 @@
 import React from 'react';
 import GlobalHeader from '../components/GlobalHeader';
 
-const AppLayout: React.FC<{ children: React.ReactNode } & { onTradingActivityToggle?: () => void; showTradingActivity?: boolean }>
-  = ({ children, onTradingActivityToggle, showTradingActivity }) => {
+type AppLayoutProps = {
+  children: React.ReactNode;
+  onTradingActivityToggle?: () => void;
+  showTradingActivity?: boolean;
+  onAccountStatementToggle?: () => void;
+  showAccountStatement?: boolean;
+};
+
+const AppLayout: React.FC<AppLayoutProps>
+  = ({ children, onTradingActivityToggle, showTradingActivity, onAccountStatementToggle, showAccountStatement }) => {
   return (
-    <GlobalHeader onTradingActivityToggle={onTradingActivityToggle} showTradingActivity={showTradingActivity}>
+    <GlobalHeader 
+      onTradingActivityToggle={onTradingActivityToggle} 
+      showTradingActivity={showTradingActivity}
+      onAccountStatementToggle={onAccountStatementToggle}
+      showAccountStatement={showAccountStatement}
+    >
       {children}
     </GlobalHeader>
   );

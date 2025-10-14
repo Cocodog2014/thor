@@ -6,9 +6,11 @@ interface LayoutProps {
   children: React.ReactNode;
   onTradingActivityToggle?: () => void;
   showTradingActivity?: boolean;
+  onAccountStatementToggle?: () => void;
+  showAccountStatement?: boolean;
 }
 
-const GlobalHeader: React.FC<LayoutProps> = ({ children, onTradingActivityToggle, showTradingActivity }) => {
+const GlobalHeader: React.FC<LayoutProps> = ({ children, onTradingActivityToggle, showTradingActivity, onAccountStatementToggle, showAccountStatement }) => {
   const [open, setOpen] = React.useState(false);
 
   const toggleDrawer = () => setOpen((v) => !v);
@@ -21,11 +23,12 @@ const GlobalHeader: React.FC<LayoutProps> = ({ children, onTradingActivityToggle
       <AppBar
         position="fixed"
         sx={{
-          width: `calc(100% - ${(open ? DEFAULT_WIDTH_OPEN : DEFAULT_WIDTH_CLOSED)}px)`,
-          ml: `${open ? DEFAULT_WIDTH_OPEN : DEFAULT_WIDTH_CLOSED}px`,
+          width: '100%',
+          ml: 0,
           background: 'linear-gradient(45deg, #1976d2 30%, #42a5f5 90%)',
           transition: 'margin 200ms ease, width 200ms ease',
-          zIndex: 1200,
+          // Place AppBar behind the drawer so there is no visual seam
+          zIndex: 1100,
         }}
       >
         <Toolbar sx={{ justifyContent: 'space-between', alignItems: 'center' }}>
@@ -54,6 +57,8 @@ const GlobalHeader: React.FC<LayoutProps> = ({ children, onTradingActivityToggle
     widthClosed={DEFAULT_WIDTH_CLOSED}
     onTradingActivityToggle={onTradingActivityToggle}
     showTradingActivity={showTradingActivity}
+    onAccountStatementToggle={onAccountStatementToggle}
+    showAccountStatement={showAccountStatement}
   />
 
       {/* Main Content */}
@@ -66,6 +71,8 @@ const GlobalHeader: React.FC<LayoutProps> = ({ children, onTradingActivityToggle
           minHeight: '100vh',
           transition: 'margin 200ms ease',
           pt: '64px', // Clear fixed header height
+          // Ensure content sits flush to the right of the drawer
+          ml: `${open ? DEFAULT_WIDTH_OPEN : DEFAULT_WIDTH_CLOSED}px`,
         }}
       >
         {children}

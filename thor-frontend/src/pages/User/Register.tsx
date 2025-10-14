@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { Box, Paper, Typography, TextField, Button, FormControlLabel, Checkbox } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
-import api from '../../services/api';
 import './Register.css';
 
 const Register: React.FC = () => {

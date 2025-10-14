@@ -6,6 +6,12 @@ from django.utils.timezone import now
 import json
 import time
 from .redis_client import get_redis, latest_key, unified_stream_key
+from django.contrib.auth.decorators import login_required
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.decorators import api_view, permission_classes
+from account_statement.models.paper import PaperAccount
+from account_statement.models.real import RealAccount
+from decimal import Decimal
 
 # API Overview
 @api_view(['GET'])
@@ -130,3 +136,75 @@ def quotes_stream(request: HttpRequest):
     resp['Cache-Control'] = 'no-cache'
     resp['X-Accel-Buffering'] = 'no'  # nginx friendly if used later
     return resp
+
+
+@api_view(['GET'])
+# In dev we allow anonymous reads for the summary so the frontend can render without auth wiring.
+# When auth is finalized, switch back to IsAuthenticated only.
+@permission_classes([])
+def account_statement_summary(request: HttpRequest):
+    """
+    GET /api/account-statement/summary?account_type=paper|real
+    Returns the current summary for the user's selected account.
+    If no account is found, returns empty strings for fields.
+    """
+    account_type = (request.GET.get('account_type') or 'paper').lower()
+
+    def fmt(val: Decimal | None) -> str:
+        if val is None:
+            return ''
+        try:
+            return f"${Decimal(val):,.2f}"
+        except Exception:
+            return str(val)
+
+    def pct(val: Decimal | None) -> str:
+        if val is None:
+            return ''
+        try:
+            return f"{Decimal(val):.2f}%"
+        except Exception:
+            return str(val)
+
+    account = None
+    is_authed = getattr(request, 'user', None) and request.user.is_authenticated
+
+    if account_type == 'paper':
+        if is_authed:
+            account = PaperAccount.objects.filter(user=request.user).first()
+            # Optionally auto-provision a paper account for authenticated users with none
+            # (commented to avoid side effects; enable if desired)
+            # if not account:
+            #     account = PaperAccount.objects.create(user=request.user)
+        if not account:
+            account = PaperAccount.objects.first()
+    elif account_type == 'real':
+        if is_authed:
+            account = RealAccount.objects.filter(user=request.user).first()
+        if not account:
+            account = RealAccount.objects.first()
+
+    if not account:
+        # No account available
+        return Response({
+            'netLiquidatingValue': '',
+            'stockBuyingPower': '',
+            'optionBuyingPower': '',
+            'dayTradingBuyingPower': '',  # map to stock buying power for now if available
+            'availableFundsForTrading': '',
+            'longStockValue': '',
+            'equityPercentage': '',
+        }, status=status.HTTP_200_OK)
+
+    # Map model fields to frontend shape
+    data = {
+        'netLiquidatingValue': fmt(account.net_liquidating_value),
+        'stockBuyingPower': fmt(account.stock_buying_power),
+        'optionBuyingPower': fmt(account.option_buying_power),
+        'dayTradingBuyingPower': fmt(account.stock_buying_power),  # using stock buying power as placeholder
+        'availableFundsForTrading': fmt(account.available_funds_for_trading),
+        'longStockValue': fmt(account.long_stock_value),
+        'equityPercentage': pct(account.equity_percentage),
+    }
+
+    return Response(data, status=status.HTTP_200_OK)

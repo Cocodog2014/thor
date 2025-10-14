@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { Box, Paper, Typography, TextField, Button } from '@mui/material';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
-import api from '../../services/api';
 import './Login.css';
 
 const Login: React.FC = () => {

@@ -1,14 +1,25 @@
 /* App.css - Styling for App.tsx component and inline HomeContent */
 
 /* Dashboard Grid Layout for Home Content */
-div.dashboard-grid {
+/* Home wrapper: force left alignment against the drawer */
+.home-screen {
+  display: flex !important;
+  justify-content: flex-start !important;
+  align-items: flex-start !important;
+  width: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.home-screen div.dashboard-grid {
   display: grid !important;
   grid-template-columns: 1fr !important; /* Single stacked column */
   grid-auto-rows: auto !important; /* Rows size to content */
   row-gap: 18px !important; /* Space between sections */
   width: 100% !important;
-  max-width: 980px !important; /* Constrain column so widgets aren't too wide */
-  margin: 0 !important; /* No outer margin from content edge */
+  /* Let the layout width be controlled by the main content area next to the drawer */
+  max-width: none !important;
+  margin: 0 !important; /* No outer margin */
   padding: 0 !important; /* No inner padding */
   min-height: calc(100vh - 70px) !important;
   justify-items: stretch !important; /* Make children fill the grid column width */
@@ -16,8 +27,8 @@ div.dashboard-grid {
 }
 
 /* Global Markets Section - Positioned at top left touching header */
-section.dashboard-card.global-markets {
-  width: 100% !important;
+.home-screen section.dashboard-card.global-markets {
+  width: 50% !important;
   grid-column: 1 !important;
   align-self: start !important;
   justify-self: stretch !important; /* Fill grid width */
@@ -26,8 +37,18 @@ section.dashboard-card.global-markets {
 }
 
 /* Activity Positions Section - Positioned below Global Markets */
-.dashboard-card.activity-positions {
-  width: 100% !important;
+.home-screen .dashboard-card.activity-positions {
+  width: 50% !important;
+  grid-column: 0 !important;
+  align-self: start !important;
+  justify-self: stretch !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* Account Statement Section - Positioned below Global Markets (same column) */
+.home-screen .dashboard-card.account-statement {
+  width: 50% !important;
   grid-column: 1 !important;
   align-self: start !important;
   justify-self: stretch !important;

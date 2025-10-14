@@ -6,6 +6,7 @@ import TimeZone from './pages/TimeZone/TimeZone.tsx'
 import FutureTrading from './pages/FutureTrading'
 import StockTrading from './pages/StockTrading'
 import ActivityPositions from './pages/ActivityPositions'
+import AccountStatement from './pages/AccountStatement/AccountStatement'
 import ProtectedRoute from './components/ProtectedRoute'
 import AuthLayout from './layouts/AuthLayout'
 import AppLayout from './layouts/AppLayout'
@@ -21,26 +22,42 @@ import User, { Login as UserLogin } from './pages/User'
 function App() {
   const location = useLocation();
   const [showTradingActivity, setShowTradingActivity] = useState(false);
+  const [showAccountStatement, setShowAccountStatement] = useState(false);
   
   // Routes that should have full-width layout (no Container)
-  const fullWidthRoutes = ['/', '/home', '/futures', '/stock-trading'];
-  const isFullWidth = fullWidthRoutes.includes(location.pathname);
+  // Ensure both bare paths and /app/* variants are treated as full width
+  const fullWidthRoutes = [
+    '/', '/home', '/futures', '/stock-trading',
+    '/app/home', '/app/futures', '/app/stock-trading'
+  ];
+  const isFullWidth = fullWidthRoutes.some((p) => location.pathname.startsWith(p));
 
   const toggleTradingActivity = () => {
     setShowTradingActivity(!showTradingActivity);
   };
 
+  const toggleAccountStatement = () => {
+    setShowAccountStatement(!showAccountStatement);
+  };
+
   // Inline Home component - just the TimeZone display
   const HomeContent = () => (
-    <div className="dashboard-grid">
-      <section className="dashboard-card global-markets" aria-label="Global Markets">
-        <TimeZone />
-      </section>
-      {showTradingActivity && (
-        <section className="dashboard-card activity-positions" aria-label="Activity & Positions">
-          <ActivityPositions />
+    <div className="home-screen">
+      <div className="dashboard-grid">
+        <section className="dashboard-card global-markets" aria-label="Global Markets">
+          <TimeZone />
         </section>
-      )}
+        {showAccountStatement && (
+          <section className="dashboard-card account-statement" aria-label="Account Statement">
+            <AccountStatement />
+          </section>
+        )}
+        {showTradingActivity && (
+          <section className="dashboard-card activity-positions" aria-label="Activity & Positions">
+            <ActivityPositions />
+          </section>
+        )}
+      </div>
     </div>
   );
 
@@ -69,7 +86,12 @@ function App() {
         path="/app/*"
         element={
           <ProtectedRoute>
-            <AppLayout onTradingActivityToggle={toggleTradingActivity} showTradingActivity={showTradingActivity}>
+            <AppLayout 
+              onTradingActivityToggle={toggleTradingActivity}
+              showTradingActivity={showTradingActivity}
+              onAccountStatementToggle={toggleAccountStatement}
+              showAccountStatement={showAccountStatement}
+            >
               {isFullWidth ? (
                 <Routes>
                   <Route path="home" element={<HomeContent />} />

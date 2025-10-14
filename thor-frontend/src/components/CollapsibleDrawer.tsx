@@ -22,6 +22,7 @@ import {
   AccountBalance as TradingActivityIcon,
   Logout as LogoutIcon,
 } from '@mui/icons-material';
+import ReceiptLongIcon from '@mui/icons-material/ReceiptLong';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 export interface CollapsibleDrawerProps {
@@ -31,6 +32,8 @@ export interface CollapsibleDrawerProps {
   widthClosed?: number;
   onTradingActivityToggle?: () => void;
   showTradingActivity?: boolean;
+  onAccountStatementToggle?: () => void;
+  showAccountStatement?: boolean;
 }
 
 export const DEFAULT_WIDTH_OPEN = 240;
@@ -50,6 +53,8 @@ const CollapsibleDrawer: React.FC<CollapsibleDrawerProps> = ({
   widthClosed = DEFAULT_WIDTH_CLOSED,
   onTradingActivityToggle,
   showTradingActivity = false,
+  onAccountStatementToggle,
+  showAccountStatement = false,
 }) => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -74,6 +79,7 @@ const CollapsibleDrawer: React.FC<CollapsibleDrawerProps> = ({
           overflowX: 'hidden',
           transition: 'width 200ms ease',
           background: 'linear-gradient(180deg, #1a1f2e 0%, #0a0e13 100%)',
+          borderRight: 'none', // Remove default MUI paper right border/seam
         },
       }}
       anchor="left"
@@ -154,8 +160,33 @@ const CollapsibleDrawer: React.FC<CollapsibleDrawerProps> = ({
             </ListItemButton>
           </ListItem>
         ))}
+
+        {/* Accounts & Statements Toggle (appears high in the list) */}
+        <ListItem disablePadding sx={{ display: 'block' }}>
+          <ListItemButton
+            selected={showAccountStatement}
+            onClick={onAccountStatementToggle}
+            sx={{
+              minHeight: 48,
+              justifyContent: open ? 'initial' : 'center',
+              px: 2.5,
+              '&.Mui-selected': {
+                backgroundColor: 'rgba(25, 118, 210, 0.2)',
+                borderRight: '3px solid #1976d2',
+              },
+              '&:hover': {
+                backgroundColor: 'rgba(25, 118, 210, 0.1)',
+              },
+            }}
+          >
+            <ListItemIcon sx={{ minWidth: 0, mr: open ? 3 : 'auto', justifyContent: 'center', color: '#1976d2' }}>
+              <ReceiptLongIcon />
+            </ListItemIcon>
+            <ListItemText primary="Accounts & Statements" sx={{ opacity: open ? 1 : 0, color: '#fff' }} />
+          </ListItemButton>
+        </ListItem>
         
-        {/* Trading Activity Toggle */}
+  {/* Trading Activity Toggle */}
         <ListItem disablePadding sx={{ display: 'block' }}>
           <ListItemButton
             selected={showTradingActivity}

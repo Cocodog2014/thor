@@ -24,7 +24,7 @@ class PaperAccount(BaseAccount):
     starting_balance = models.DecimalField(
         max_digits=15,
         decimal_places=2,
-        default=Decimal('100000.00'),
+        default=Decimal('10000.00'),
         help_text="Initial virtual balance for paper trading"
     )
     
