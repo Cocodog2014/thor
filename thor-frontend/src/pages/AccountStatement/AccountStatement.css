@@ -104,3 +104,36 @@
   color: #4caf50;
   font-weight: 600;
 }
+
+/* Reset button */
+.as-reset-btn {
+  background: linear-gradient(180deg, #5a2f2f 0%, #431e1e 100%);
+  color: #ffd4d4;
+  border: 1px solid #ff9080;
+  border-radius: 8px;
+  padding: 6px 14px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-left: 12px;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.as-reset-btn:hover:not(:disabled) {
+  border-color: #ffc2b7;
+  background: linear-gradient(180deg, #713b3b 0%, #522626 100%);
+}
+
+.as-reset-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.as-error {
+  background: rgba(255, 64, 64, 0.12);
+  border: 1px solid rgba(255, 140, 140, 0.6);
+  color: #ff9a9a;
+  padding: 6px 10px;
+  border-radius: 6px;
+  margin-bottom: 10px;
+  font-size: 0.9rem;
+}

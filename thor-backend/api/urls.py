@@ -9,4 +9,6 @@ urlpatterns = [
     path('quotes/stream', views.quotes_stream, name='quotes-stream'),
     # Account Statement summary (paper/real)
     path('account-statement/summary', views.account_statement_summary, name='account-statement-summary'),
+    # Paper account reset (dev open; will secure later)
+    path('account-statement/reset-paper', views.account_statement_reset_paper, name='account-statement-reset-paper'),
 ]

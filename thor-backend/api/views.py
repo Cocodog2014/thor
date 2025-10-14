@@ -208,3 +208,60 @@ def account_statement_summary(request: HttpRequest):
     }
 
     return Response(data, status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+@permission_classes([])  # Dev-only open; switch to [IsAuthenticated] when auth wiring ready
+def account_statement_reset_paper(request: HttpRequest):
+    """
+    POST /api/account-statement/reset-paper
+    Resets the authenticated user's paper account back to its starting balance, or
+    falls back to the first PaperAccount if unauthenticated (dev convenience).
+
+    Returns the refreshed summary payload (same shape as /summary) after reset.
+    """
+    is_authed = getattr(request, 'user', None) and request.user.is_authenticated
+
+    if is_authed:
+        account = PaperAccount.objects.filter(user=request.user).first()
+        if not account:
+            return Response({'detail': 'Paper account not found for user.'}, status=status.HTTP_404_NOT_FOUND)
+    else:
+        # Dev fallback: operate on first paper account so UI can demo without auth
+        account = PaperAccount.objects.first()
+        if not account:
+            return Response({'detail': 'No paper account available to reset.'}, status=status.HTTP_404_NOT_FOUND)
+
+    # Perform reset on model
+    account.reset_account()
+
+    # Helper formatters (duplicate minimal subset to avoid coupling)
+    def fmt(val: Decimal | None) -> str:
+        if val is None:
+            return ''
+        try:
+            return f"${Decimal(val):,.2f}"
+        except Exception:
+            return str(val)
+
+    def pct(val: Decimal | None) -> str:
+        if val is None:
+            return ''
+        try:
+            return f"{Decimal(val):.2f}%"
+        except Exception:
+            return str(val)
+
+    data = {
+        'netLiquidatingValue': fmt(account.net_liquidating_value),
+        'stockBuyingPower': fmt(account.stock_buying_power),
+        'optionBuyingPower': fmt(account.option_buying_power),
+        'dayTradingBuyingPower': fmt(account.stock_buying_power),
+        'availableFundsForTrading': fmt(account.available_funds_for_trading),
+        'longStockValue': fmt(account.long_stock_value),
+        'equityPercentage': pct(account.equity_percentage),
+        'resetCount': account.reset_count,
+        'lastReset': account.last_reset_date.isoformat() if account.last_reset_date else None,
+    }
+
+    return Response(data, status=status.HTTP_200_OK)

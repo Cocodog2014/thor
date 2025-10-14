@@ -54,9 +54,9 @@ class ProviderConfig:
     
     # Default futures symbols (11 futures as shown in dashboard)
     DEFAULT_SYMBOLS = [
-        "/YM", "/ES", "/NQ", "RTY",  # Equity index futures
-        "CL", "SI", "HG", "GC",      # Commodities  
-        "VX", "DX", "ZB"             # Vol, Dollar, Bonds
+        "/YM", "/ES", "/NQ", "/RTY",  # Equity index futures
+        "/CL", "/SI", "/HG", "/GC",   # Commodities  
+        "/VX", "/DX", "/ZB"           # Vol, Dollar, Bonds
     ]
     
     def __init__(self, request=None):

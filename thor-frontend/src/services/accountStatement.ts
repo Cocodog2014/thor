@@ -10,6 +10,8 @@ export interface AccountSummary {
   availableFundsForTrading?: string;
   longStockValue?: string;
   equityPercentage?: string; // include % sign
+  resetCount?: number;
+  lastReset?: string | null;
 }
 
 export async function fetchAccountSummary(accountType: AccountType): Promise<AccountSummary> {
@@ -21,5 +23,14 @@ export async function fetchAccountSummary(accountType: AccountType): Promise<Acc
   } catch (e) {
     // Backend only policy: surface empty values on error
     return {} as AccountSummary;
+  }
+}
+
+export async function resetPaperAccount(): Promise<AccountSummary | null> {
+  try {
+    const { data } = await api.post('/account-statement/reset-paper');
+    return data as AccountSummary;
+  } catch (e) {
+    return null;
   }
 }
