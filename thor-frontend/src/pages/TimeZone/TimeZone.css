@@ -2,6 +2,7 @@
 .timezone-container {
   width: 100%;
   margin: 0; /* ensure no outer margin */
+  padding: 0; /* ensure no padding */
   display: block;
   text-align: left;
 }
@@ -67,12 +68,11 @@
 .markets-table-container {
   background: transparent; /* Remove background container */
   border-radius: 0; /* Remove rounded corners */
-  padding: 3px 9px 8px 7px; /* Reduced top padding: 8px * 0.85 = 6.8px, then further reduced to 3px for more title space */
+  padding: 0; /* Remove all padding to sit flush */
   backdrop-filter: none; /* Remove blur effect */
   border: none; /* Remove border completely */
   overflow-x: auto;
-  margin-left: 0; /* ensure no gap from drawer */
-  margin-right: 0; /* Remove excessive right margin to balance with left */
+  margin: 0; /* Remove all margins */
   align-self: flex-start;
 }
 

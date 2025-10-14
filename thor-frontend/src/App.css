@@ -1,40 +1,45 @@
 /* App.css - Styling for App.tsx component and inline HomeContent */
 
 /* Dashboard Grid Layout for Home Content */
-.dashboard-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr; /* Two columns to allow space for other components */
-  grid-template-rows: auto auto; /* Two auto-sized rows for Global Markets and Activity Positions */
-  gap: 14px; /* Further reduced: 17px * 0.85 = 14.45px ≈ 14px */
-  margin-bottom: 8px; /* Further reduced: 9px * 0.85 = 7.65px ≈ 8px */
-  min-height: calc(100vh - 70px); /* approximate header + top spacing */
-  padding: 0px 14px 14px 14px; /* Remove top padding to touch header: top=0, keep others */
-  align-content: start;
+div.dashboard-grid {
+  display: grid !important;
+  grid-template-columns: 1fr !important; /* Single stacked column */
+  grid-auto-rows: auto !important; /* Rows size to content */
+  row-gap: 18px !important; /* Space between sections */
+  width: 100% !important;
+  max-width: 980px !important; /* Constrain column so widgets aren't too wide */
+  margin: 0 !important; /* No outer margin from content edge */
+  padding: 0 !important; /* No inner padding */
+  min-height: calc(100vh - 70px) !important;
+  justify-items: stretch !important; /* Make children fill the grid column width */
+  align-items: start !important;
 }
 
 /* Global Markets Section - Positioned at top left touching header */
-.dashboard-card.global-markets {
-  width: 100%; /* Use full available width in its grid cell */
-  grid-column: 1; /* First column (left side) */
-  grid-row: 1; /* First row (top) to touch header */
-  align-self: start; /* Stick to top of the grid to touch header */
-  margin-top: 64px; /* Add space to clear the header and show Global Markets title */
+section.dashboard-card.global-markets {
+  width: 100% !important;
+  grid-column: 1 !important;
+  align-self: start !important;
+  justify-self: stretch !important; /* Fill grid width */
+  margin: 0 !important;
+  padding: 0 !important;
 }
 
 /* Activity Positions Section - Positioned below Global Markets */
 .dashboard-card.activity-positions {
-  width: 100%; /* Use full available width in its grid cell */
-  grid-column: 1; /* First column (left side) */
-  grid-row: 2; /* Second row (below Global Markets) */
-  align-self: start; /* Stick to top of its grid cell */
-  margin-top: 0; /* No extra top margin */
+  width: 100% !important;
+  grid-column: 1 !important;
+  align-self: start !important;
+  justify-self: stretch !important;
+  margin: 0 !important;
+  padding: 0 !important;
 }
 
 /* Dashboard Card Base Styling */
 .dashboard-card {
   background: rgba(255, 255, 255, 0.15);
   border-radius: 9px; /* Further reduced: 10px * 0.85 = 8.5px ≈ 9px */
-  padding: 0px 18px 18px 18px; /* Remove top padding completely: top=0, keep others */
+  padding: 0; /* Remove all padding to sit flush */
   backdrop-filter: blur(10px);
   border: 1px solid rgba(255, 255, 255, 0.2);
   box-shadow: 0 6px 23px rgba(0, 0, 0, 0.1); /* Further reduced: 7px * 0.85 = 5.95px ≈ 6px, 27px * 0.85 = 22.95px ≈ 23px */
