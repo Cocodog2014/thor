@@ -8,5 +8,5 @@ class AccountStatementConfig(AppConfig):
     
     def ready(self):
         """Initialize app when Django starts."""
-        # Import any signals or initialization code here
-        pass
+        # Import signals so receivers get registered
+        from . import signals  # noqa: F401

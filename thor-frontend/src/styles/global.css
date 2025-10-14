@@ -18,6 +18,8 @@
 @import '../pages/StockTrading/Orders/Review.css';
 @import '../pages/StockTrading/Orders/Final.css';
 @import '../pages/ActivityPositions/ActivityPositions.css';
+@import '../pages/User/User.css';
+@import '../pages/User/Login.css';
 
 /* ========================================= */
 /*                RESETS & BASE             */

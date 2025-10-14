@@ -1,0 +1,55 @@
+/* User Page Styles - imported via src/styles/global.css */
+
+.user-page {
+  width: 100%;
+}
+
+.user-title {
+  font-family: var(--thor-font-title);
+  letter-spacing: 0.5px;
+  margin-bottom: var(--thor-spacing-lg);
+}
+
+.user-sections {
+  margin-top: var(--thor-spacing-md);
+}
+
+.user-col {
+  flex: 1 1 400px;
+  min-width: 320px;
+}
+
+.user-section {
+  padding: var(--thor-spacing-lg);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+}
+
+.user-section-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--thor-spacing-md);
+}
+
+.user-field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--thor-spacing-md);
+}
+
+.user-field .label {
+  color: var(--thor-gray-300);
+}
+
+.user-field .value {
+  color: #fff;
+  font-weight: 600;
+}
+
+.user-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--thor-spacing-sm);
+}

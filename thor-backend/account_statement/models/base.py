@@ -189,18 +189,20 @@ class BaseAccount(models.Model):
     
     def update_totals(self):
         """Recalculate total fields based on component values."""
+        from decimal import Decimal
+        
         self.total_commissions_fees_ytd = (
             self.equity_commissions_fees_ytd +
             self.option_commissions_fees_ytd +
             self.futures_commissions_fees_ytd
         )
         
-        # Update net liquidating value
+        # Update net liquidating value - ensure all values are Decimal
         self.net_liquidating_value = (
-            self.current_balance +
-            self.long_stock_value +
-            self.long_marginable_value -
-            self.short_marginable_value
+            Decimal(str(self.current_balance)) +
+            Decimal(str(self.long_stock_value)) +
+            Decimal(str(self.long_marginable_value)) -
+            Decimal(str(self.short_marginable_value))
         )
     
     def get_account_type_display(self):
@@ -232,7 +234,7 @@ class AccountSummary(models.Model):
     object_id = models.PositiveIntegerField(
         help_text="ID of the specific account"
     )
-    account = models.GenericForeignKey('content_type', 'object_id')
+    account = GenericForeignKey('content_type', 'object_id')
     
     statement_date = models.DateTimeField(
         help_text="Date and time of this snapshot"

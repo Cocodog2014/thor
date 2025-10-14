@@ -5,10 +5,42 @@ This app provides identity & access management with a CustomUser model
 that extends Django's AbstractUser with trading-specific fields.
 """
 
-from django.contrib.auth.models import AbstractUser
+from django.contrib.auth.models import AbstractUser, BaseUserManager
 from django.db import models
 from django.core.validators import RegexValidator
 from django.utils import timezone
+
+
+class CustomUserManager(BaseUserManager):
+    """Custom user manager for email-based authentication."""
+    
+    def create_user(self, email, password=None, **extra_fields):
+        """Create and return a regular user with an email and password."""
+        if not email:
+            raise ValueError('The Email field must be set')
+        
+        email = self.normalize_email(email)
+        # Set username to email if not provided
+        if not extra_fields.get('username'):
+            extra_fields['username'] = email
+            
+        user = self.model(email=email, **extra_fields)
+        user.set_password(password)
+        user.save(using=self._db)
+        return user
+    
+    def create_superuser(self, email, password=None, **extra_fields):
+        """Create and return a superuser with an email and password."""
+        extra_fields.setdefault('is_staff', True)
+        extra_fields.setdefault('is_superuser', True)
+        extra_fields.setdefault('role', UserRole.OWNER)
+        
+        if extra_fields.get('is_staff') is not True:
+            raise ValueError('Superuser must have is_staff=True.')
+        if extra_fields.get('is_superuser') is not True:
+            raise ValueError('Superuser must have is_superuser=True.')
+        
+        return self.create_user(email, password, **extra_fields)
 
 
 class UserRole(models.TextChoices):
@@ -95,6 +127,9 @@ class CustomUser(AbstractUser):
     # Use email as the username field
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['first_name', 'last_name']  # Required when creating superuser
+    
+    # Use custom manager
+    objects = CustomUserManager()
     
     class Meta:
         verbose_name = 'User'

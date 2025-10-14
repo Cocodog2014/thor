@@ -16,7 +16,7 @@ from .base import BaseAccount
 class BrokerageProvider(models.TextChoices):
     """Supported brokerage providers."""
     SCHWAB = 'SCHWAB', 'Charles Schwab'
-    INTERACTIVE_BROKERS = 'IB', 'Interactive Brokers'
+    INTERACTIVE_BROKERS = 'IB', 'Interactive Brokers'  # Using 'IB' as database value
     TD_AMERITRADE = 'TDA', 'TD Ameritrade'
     FIDELITY = 'FIDELITY', 'Fidelity'
     OTHER = 'OTHER', 'Other Brokerage'
@@ -32,7 +32,7 @@ class RealAccount(BaseAccount):
     
     # Real account specific fields
     brokerage_provider = models.CharField(
-        max_length=20,
+        max_length=30,  # Increased to accommodate longer provider names
         choices=BrokerageProvider.choices,
         default=BrokerageProvider.SCHWAB,
         help_text="Brokerage provider for this account"

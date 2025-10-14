@@ -6,6 +6,7 @@ import TimeZone from './pages/TimeZone/TimeZone.tsx'
 import FutureTrading from './pages/FutureTrading'
 import StockTrading from './pages/StockTrading'
 import ActivityPositions from './pages/ActivityPositions'
+import User, { Login as UserLogin } from './pages/User'
 
 // NOTE: This App.tsx also serves as the home page component
 // The HomeContent inline component below handles the home page display
@@ -47,6 +48,8 @@ function App() {
           <Route path="/home" element={<HomeContent />} />
           <Route path="/futures" element={<FutureTrading />} />
           <Route path="/stock-trading" element={<StockTrading />} />
+          <Route path="/user" element={<User />} />
+          <Route path="/user/login" element={<UserLogin />} />
         </Routes>
       ) : (
         <Container maxWidth="xl" sx={{ mt: 4, mb: 4 }}>
@@ -55,6 +58,8 @@ function App() {
             <Route path="/home" element={<HomeContent />} />
             <Route path="/futures" element={<FutureTrading />} />
             <Route path="/stock-trading" element={<StockTrading />} />
+            <Route path="/user" element={<User />} />
+            <Route path="/user/login" element={<UserLogin />} />
           </Routes>
         </Container>
       )}

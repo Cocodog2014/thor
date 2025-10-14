@@ -20,6 +20,7 @@ import {
   TrendingUp as TrendingUpIcon,
   AdminPanelSettings as AdminPanelSettingsIcon,
   AccountBalance as TradingActivityIcon,
+  Person as PersonIcon,
 } from '@mui/icons-material';
 import { useLocation, useNavigate } from 'react-router-dom';
 
@@ -39,6 +40,8 @@ const navigationItems = [
   { text: 'Home', icon: <HomeIcon />, path: '/' },
   { text: 'Futures', icon: <TrendingUpIcon />, path: '/futures' },
   { text: 'Stock Trading', icon: <CandlestickChartIcon />, path: '/stock-trading' },
+  { text: 'User', icon: <PersonIcon />, path: '/user' },
+  { text: 'Login', icon: <PersonIcon />, path: '/user/login' },
   { text: 'Django Admin', icon: <AdminPanelSettingsIcon />, path: 'http://127.0.0.1:8000/admin/', external: true },
 ];
 

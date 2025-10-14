@@ -476,7 +476,7 @@ class UserMarketWatchlist(models.Model):
     """
     User's personalized market watchlist for frontend display
     """
-    user = models.ForeignKey('auth.User', on_delete=models.CASCADE, related_name='market_watchlist')
+    user = models.ForeignKey('users.CustomUser', on_delete=models.CASCADE, related_name='market_watchlist')
     market = models.ForeignKey(Market, on_delete=models.CASCADE)
     display_name = models.CharField(max_length=100, blank=True)  # Custom name for the market
     is_primary = models.BooleanField(default=False)  # User's primary/home market

@@ -1,6 +1,8 @@
 from rest_framework import serializers
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
 from .models import Market, USMarketStatus, MarketDataSnapshot, UserMarketWatchlist
+
+User = get_user_model()
 
 
 class MarketSerializer(serializers.ModelSerializer):
