@@ -147,11 +147,18 @@ Done. No refactoring needed.
 ## API Endpoints
 
 ### Schwab OAuth
-- `POST /api/schwab/oauth/start/` - Start OAuth flow
-- `GET /api/schwab/oauth/callback/` - OAuth callback (Schwab redirects here)
+- `GET /api/schwab/oauth/start/` - Start OAuth flow (redirects to Schwab)
+- `GET /api/schwab/oauth/callback/` - OAuth callback (Schwab redirects here with code)
 - `GET /api/schwab/accounts/` - List connected accounts
 - `GET /api/schwab/accounts/{id}/positions/` - Fetch positions (publishes to Redis)
 - `GET /api/schwab/accounts/{id}/balances/` - Fetch balances (publishes to Redis)
+
+**Important:** Schwab OAuth requires HTTPS for callbacks. In development:
+1. Use Cloudflare Tunnel to expose your local server: `cloudflared tunnel run thor-local`
+2. Set `CLOUDFLARE_TUNNEL_URL=https://thor.360edu.org` in `.env`
+3. Django will automatically use the tunnel URL for OAuth callbacks
+
+See `../CloudFlare.md` for tunnel setup details.
 
 ### TOS Streaming
 - `GET /api/feed/tos/status/` - Check streamer status

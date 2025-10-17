@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Box, Paper, Typography, TextField, Button } from '@mui/material';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
+import api from '../../services/api';
 import './Login.css';
 
 const Login: React.FC = () => {
@@ -15,21 +16,25 @@ const Login: React.FC = () => {
     e.preventDefault();
     setLoading(true);
     try {
-      // Placeholder: call backend when endpoint is ready
-      // const { data } = await api.post('/auth/login/', { email, password });
-      // localStorage.setItem('thor_token', data.token);
-      // toast.success('Logged in');
-      // navigate('/user');
-
-      // Temporary no-backend simulation
-      await new Promise((r) => setTimeout(r, 500));
-      localStorage.setItem('thor_token', 'dev-token');
-      toast.success('Logged in (dev)');
+      // Call Django JWT login endpoint
+      // Note: Backend expects 'email' field (CustomUser.USERNAME_FIELD = 'email')
+      const { data } = await api.post('/api/users/login/', { 
+        email: email,  // CustomUser uses email as USERNAME_FIELD
+        password 
+      });
+      
+      // Store JWT tokens
+      localStorage.setItem('thor_access_token', data.access);
+      localStorage.setItem('thor_refresh_token', data.refresh);
+      
+      toast.success('Logged in successfully!');
       const params = new URLSearchParams(location.search);
       const next = params.get('next') || '/app/user';
       navigate(next);
     } catch (err: any) {
-      toast.error('Login failed');
+      console.error('Login error:', err);
+      const message = err.response?.data?.non_field_errors?.[0] || err.response?.data?.detail || 'Invalid credentials';
+      toast.error(message);
     } finally {
       setLoading(false);
     }

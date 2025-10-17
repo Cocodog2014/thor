@@ -12,9 +12,4 @@
   <li>
     <a href="{{ FRONTEND_BASE_URL }}" target="_blank" rel="noopener noreferrer">🏠 Thor UI</a>
   </li>
-  {% if request.user.is_superuser %}
-    <li>
-      <a href="{% url 'admin_cloudflared_control' %}" title="Cloudflared Tunnel Control">☁️ Cloudflared</a>
-    </li>
-  {% endif %}
 {% endblock %}

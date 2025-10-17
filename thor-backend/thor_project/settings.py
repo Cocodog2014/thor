@@ -11,10 +11,14 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 from pathlib import Path
-from decouple import config
+from decouple import Config, RepositoryEnv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Load .env from repository root (A:\Thor\.env)
+ENV_FILE = BASE_DIR.parent / '.env'
+config = Config(RepositoryEnv(ENV_FILE)) if ENV_FILE.exists() else Config()
 
 
 # Quick-start development settings - unsuitable for production
@@ -27,6 +31,7 @@ SECRET_KEY = config('SECRET_KEY', default='django-insecure-h=t6s&0w5sb$fcu(0h#^o
 DEBUG = config('DEBUG', default=True, cast=bool)
 
 ALLOWED_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0']
+# Note: Cloudflare tunnel domain is added dynamically below if configured
 
 # Allow additional hosts via env (comma-separated). Useful for tunnels and staging hosts.
 _extra_hosts = [h.strip() for h in config('ALLOWED_HOSTS_EXTRA', default='').split(',') if h.strip()]
@@ -161,11 +166,37 @@ REST_FRAMEWORK = {
         'rest_framework.permissions.IsAuthenticatedOrReadOnly',
     ],
     'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
         'rest_framework.authentication.SessionAuthentication',
         'rest_framework.authentication.BasicAuthentication',
     ],
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 20
+}
+
+# JWT Settings
+from datetime import timedelta
+
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(hours=5),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
+    'ROTATE_REFRESH_TOKENS': False,
+    'BLACKLIST_AFTER_ROTATION': False,
+    'UPDATE_LAST_LOGIN': True,
+
+    'ALGORITHM': 'HS256',
+    'SIGNING_KEY': SECRET_KEY,
+    'VERIFYING_KEY': None,
+    'AUDIENCE': None,
+    'ISSUER': None,
+
+    'AUTH_HEADER_TYPES': ('Bearer',),
+    'AUTH_HEADER_NAME': 'HTTP_AUTHORIZATION',
+    'USER_ID_FIELD': 'id',
+    'USER_ID_CLAIM': 'user_id',
+
+    'AUTH_TOKEN_CLASSES': ('rest_framework_simplejwt.tokens.AccessToken',),
+    'TOKEN_TYPE_CLAIM': 'token_type',
 }
 
 # CORS Configuration
@@ -181,21 +212,16 @@ CORS_ALLOWED_ORIGINS = [
 
 CORS_ALLOW_CREDENTIALS = True
 
-# Trust CSRF for local and tunnel domains used during development
-if DEBUG:
-    CSRF_TRUSTED_ORIGINS = [
-        'https://localhost',
-        'https://127.0.0.1',
-    ]
+# Initialize CSRF trusted origins (Cloudflare tunnel will be added dynamically below)
+CSRF_TRUSTED_ORIGINS = [
+    'https://localhost',
+    'https://127.0.0.1',
+] if DEBUG else []
 
 # Allow adding more CSRF trusted origins via env (comma-separated), e.g., https://thor.360edu.org
 _csrf_extra = [o.strip() for o in config('CSRF_TRUSTED_ORIGINS_EXTRA', default='').split(',') if o.strip()]
 if _csrf_extra:
-    try:
-        # If defined above (e.g., in DEBUG), extend the list; otherwise set it fresh
-        CSRF_TRUSTED_ORIGINS = list(set((locals().get('CSRF_TRUSTED_ORIGINS') or []) + _csrf_extra))
-    except Exception:
-        CSRF_TRUSTED_ORIGINS = _csrf_extra
+    CSRF_TRUSTED_ORIGINS.extend(_csrf_extra)
 
 # Media files
 MEDIA_URL = '/media/'
@@ -206,3 +232,37 @@ REDIS_URL = config('REDIS_URL', default='redis://localhost:6379/0')
 
 # Frontend base URL exposed in admin shortcuts and cross-links
 FRONTEND_BASE_URL = config('FRONTEND_BASE_URL', default='http://localhost:5173/')
+
+# ============================================================================
+# LiveData - Schwab OAuth Configuration
+# ============================================================================
+
+# Schwab API credentials (get from Schwab Developer Portal)
+SCHWAB_CLIENT_ID = config('SCHWAB_CLIENT_ID', default='')
+SCHWAB_CLIENT_SECRET = config('SCHWAB_CLIENT_SECRET', default='')
+
+# Cloudflare Tunnel URL (for HTTPS OAuth callback in dev)
+CLOUDFLARE_TUNNEL_URL = config('CLOUDFLARE_TUNNEL_URL', default='')
+
+# OAuth Callback URL
+# In dev: Use Cloudflare tunnel for HTTPS (Schwab requires HTTPS)
+# In prod: Use production domain
+if DEBUG and CLOUDFLARE_TUNNEL_URL:
+    SCHWAB_REDIRECT_URI = f"{CLOUDFLARE_TUNNEL_URL}/api/schwab/oauth/callback/"
+    
+    # Add tunnel domain to allowed hosts and CSRF trusted origins
+    tunnel_domain = CLOUDFLARE_TUNNEL_URL.replace('https://', '').replace('http://', '')
+    if tunnel_domain not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append(tunnel_domain)
+    if CLOUDFLARE_TUNNEL_URL not in CSRF_TRUSTED_ORIGINS:
+        CSRF_TRUSTED_ORIGINS.append(CLOUDFLARE_TUNNEL_URL)
+else:
+    # Production callback URL
+    SCHWAB_REDIRECT_URI = config('SCHWAB_REDIRECT_URI', default='https://360edu.org/api/schwab/oauth/callback/')
+
+# ============================================================================
+# Redis Configuration (LiveData shared message bus)
+# ============================================================================
+REDIS_HOST = config('REDIS_HOST', default='localhost')
+REDIS_PORT = config('REDIS_PORT', default=6379, cast=int)
+REDIS_DB = config('REDIS_DB', default=0, cast=int)

@@ -48,6 +48,7 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', include('api.urls')),           # Thor APIs
     path('api/', include('FutureTrading.urls')), # Future Trading APIs
+    path('api/users/', include('users.urls')),   # User authentication
     # LiveData endpoints (new structure)
     path('api/schwab/', include(('LiveData.schwab.urls', 'schwab'), namespace='schwab')),
     path('api/feed/tos/', include(('LiveData.tos.urls', 'tos'), namespace='tos')),

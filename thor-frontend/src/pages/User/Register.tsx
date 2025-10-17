@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Box, Paper, Typography, TextField, Button, FormControlLabel, Checkbox } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
+import api from '../../services/api';
 import './Register.css';
 
 const Register: React.FC = () => {
@@ -16,15 +17,33 @@ const Register: React.FC = () => {
     e.preventDefault();
     if (!agree) return toast.error('You must agree to the Terms & Privacy Policy');
     if (password !== confirm) return toast.error('Passwords do not match');
+    
     setLoading(true);
     try {
-      // Placeholder call; wire to backend when ready
-      // await api.post('/auth/register/', { email, password });
-      await new Promise((r) => setTimeout(r, 500));
-      toast.success('Account created. Sign in now.');
+      // Call Django register endpoint
+      await api.post('/api/users/register/', { 
+        email, 
+        password,
+        password_confirm: confirm,
+        username: email.split('@')[0], // Use email prefix as username
+        first_name: '',
+        last_name: ''
+      });
+      
+      toast.success('Account created! You can now sign in.');
       navigate('/auth/login');
     } catch (err: any) {
-      toast.error('Registration failed');
+      console.error('Registration error:', err);
+      // Extract error messages from Django response
+      const errors = err.response?.data;
+      if (errors) {
+        // Show first error message
+        const firstError = Object.values(errors)[0];
+        const message = Array.isArray(firstError) ? firstError[0] : firstError;
+        toast.error(message || 'Registration failed');
+      } else {
+        toast.error('Registration failed');
+      }
     } finally {
       setLoading(false);
     }

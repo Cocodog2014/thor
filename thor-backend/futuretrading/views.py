@@ -9,10 +9,12 @@ import logging
 
 from .models import TradingInstrument, MarketData, TradingSignal, SignalStatValue, ContractWeight
 from .services.classification import enrich_quote_row, compute_composite
-# TODO: Refactor to use LiveData/shared/redis_client.py instead of old provider factory
-# from SchwabLiveData.provider_factory import ProviderConfig, get_market_data_provider
 
 logger = logging.getLogger(__name__)
+
+# TODO: Refactor to use LiveData/shared/redis_client.py instead of old provider factory
+# TEMPORARY: Disabled until we restore Excel provider or implement TOS streaming
+PROVIDER_AVAILABLE = False
 
 
 class LatestQuotesView(APIView):
@@ -23,19 +25,15 @@ class LatestQuotesView(APIView):
     
     def get(self, request):
         try:
-            # TODO: Refactor to use LiveData Redis pub/sub instead of old provider
-            # For now, return empty data until refactor is complete
-            logger.warning("LatestQuotesView needs refactoring to use LiveData/shared/redis_client")
+            # TODO: Implement LiveData integration
+            # For now, return empty data until TOS streaming or Excel provider is restored
             raw_quotes = []
             
-            # OLD CODE (commented out until refactor):
-            # cfg = ProviderConfig(request)
-            # if cfg.provider in ("excel", "excel_live"):
-            #     cfg.live_sim = False
-            # provider = get_market_data_provider(cfg)
-            # symbols = ProviderConfig.DEFAULT_SYMBOLS
-            # raw = provider.get_latest_quotes(symbols)
-            # raw_quotes = raw.get("rows", raw) if isinstance(raw, dict) else raw
+            if PROVIDER_AVAILABLE:
+                # Old provider code would go here
+                pass
+            else:
+                logger.warning("LatestQuotesView: No data provider available - returning empty data")
             
             # Step 2: Apply FuturesTrading business logic - enrich with signals and classification
             enriched_rows = []
