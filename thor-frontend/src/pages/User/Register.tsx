@@ -21,7 +21,7 @@ const Register: React.FC = () => {
     setLoading(true);
     try {
       // Call Django register endpoint
-      await api.post('/api/users/register/', { 
+      await api.post('/users/register/', {  // baseURL already has /api
         email, 
         password,
         password_confirm: confirm,

@@ -18,7 +18,7 @@ const Login: React.FC = () => {
     try {
       // Call Django JWT login endpoint
       // Note: Backend expects 'email' field (CustomUser.USERNAME_FIELD = 'email')
-      const { data } = await api.post('/api/users/login/', { 
+      const { data } = await api.post('/users/login/', {  // baseURL already has /api
         email: email,  // CustomUser uses email as USERNAME_FIELD
         password 
       });
