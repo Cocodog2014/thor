@@ -520,8 +520,8 @@ export default function FutureTrading(){
   }, []);
 
   async function fetchQuotes(){
-    // Use SchwabLiveData provider endpoint (abstracts Excel Live and Schwab API)
-    const endpoint = "/api/schwab/quotes/latest?consumer=futures_trading";
+    // Use FutureTrading endpoint (fetches from TOS and enriches with signals)
+    const endpoint = "/api/quotes/latest?consumer=futures_trading";
 
     try {
       const r = await fetch(endpoint);

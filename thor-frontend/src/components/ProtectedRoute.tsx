@@ -3,7 +3,8 @@ import { Navigate, useLocation } from 'react-router-dom';
 
 const hasToken = () => {
   try {
-    return !!localStorage.getItem('thor_token');
+    // Check for JWT access token (stored by Login.tsx)
+    return !!localStorage.getItem('thor_access_token');
   } catch {
     return false;
   }
