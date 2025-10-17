@@ -21,8 +21,9 @@ from django.conf.urls.static import static
 from django.http import JsonResponse
 from django.views.generic import RedirectView
 from timezones.views import api_test_page, debug_market_times, sync_markets
-from SchwabLiveData.views import schwab_auth_callback
-from SchwabLiveData.admin_views import cloudflared_control
+# Legacy import (can be removed after testing)
+# from SchwabLiveData.views import schwab_auth_callback
+# from SchwabLiveData.admin_views import cloudflared_control
 
 def api_root(request):
     """Simple API root that shows available endpoints"""
@@ -33,6 +34,7 @@ def api_root(request):
             'admin': '/admin/',
             'api': '/api/',
             'schwab': '/api/schwab/',
+            'tos': '/api/feed/tos/',
             'worldclock': '/api/worldclock/',
             'futures': '/api/futures/',
         }
@@ -41,20 +43,23 @@ def api_root(request):
 urlpatterns = [
     # Root endpoint
     path('', api_root, name='api_root'),
-    # Custom admin utility views
-    path('admin/cloudflared/', cloudflared_control, name='admin_cloudflared_control'),
+    # Custom admin utility views (TODO: migrate from old SchwabLiveData)
+    # path('admin/cloudflared/', cloudflared_control, name='admin_cloudflared_control'),
     path('admin/', admin.site.urls),
     path('api/', include('api.urls')),           # Thor APIs
     path('api/', include('FutureTrading.urls')), # Future Trading APIs
-    path('api/schwab/', include('SchwabLiveData.urls')), # Schwab Data Provider APIs
+    # LiveData endpoints (new structure)
+    path('api/schwab/', include(('LiveData.schwab.urls', 'schwab'), namespace='schwab')),
+    path('api/feed/tos/', include(('LiveData.tos.urls', 'tos'), namespace='tos')),
     path('api/worldclock/', include('timezones.urls')),  # WorldClock APIs
     path('test/', api_test_page, name='api_test'),  # API test page
     path('debug/', debug_market_times, name='debug_market_times'),  # Debug endpoint
     path('sync/', sync_markets, name='sync_markets'),  # Sync markets endpoint
+    # TODO: Migrate OAuth callbacks after testing
     # Root-level OAuth callback to match Schwab portal setting (e.g., https://360edu.org/auth/callback)
-    path('auth/callback', schwab_auth_callback, name='schwab_auth_callback_root'),
+    # path('auth/callback', schwab_auth_callback, name='schwab_auth_callback_root'),
     # Alternate root-level path if your Schwab portal uses /schwab/callback
-    path('schwab/callback', schwab_auth_callback, name='schwab_auth_callback_alt'),
+    # path('schwab/callback', schwab_auth_callback, name='schwab_auth_callback_alt'),
 ]
 
 # Serve media files during development

@@ -5,7 +5,11 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'thor_project.settings')
 django.setup()
 
 from django.test import RequestFactory
-from SchwabLiveData.views import SchwabQuotesView
+# TODO: Update to use LiveData structure
+# from SchwabLiveData.views import SchwabQuotesView
+
+print("⚠️  This script needs updating - old SchwabLiveData.views no longer exists")
+exit(1)
 
 # Test the API endpoint that frontend calls
 rf = RequestFactory()

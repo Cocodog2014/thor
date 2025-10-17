@@ -9,7 +9,8 @@ import logging
 
 from .models import TradingInstrument, MarketData, TradingSignal, SignalStatValue, ContractWeight
 from .services.classification import enrich_quote_row, compute_composite
-from SchwabLiveData.provider_factory import ProviderConfig, get_market_data_provider
+# TODO: Refactor to use LiveData/shared/redis_client.py instead of old provider factory
+# from SchwabLiveData.provider_factory import ProviderConfig, get_market_data_provider
 
 logger = logging.getLogger(__name__)
 
@@ -22,15 +23,19 @@ class LatestQuotesView(APIView):
     
     def get(self, request):
         try:
-            # Step 1: Get live data from SchwabLiveData providers (architecture separation)
-            cfg = ProviderConfig(request)
-            if cfg.provider in ("excel", "excel_live"):
-                cfg.live_sim = False
+            # TODO: Refactor to use LiveData Redis pub/sub instead of old provider
+            # For now, return empty data until refactor is complete
+            logger.warning("LatestQuotesView needs refactoring to use LiveData/shared/redis_client")
+            raw_quotes = []
             
-            provider = get_market_data_provider(cfg)
-            symbols = ProviderConfig.DEFAULT_SYMBOLS
-            raw = provider.get_latest_quotes(symbols)
-            raw_quotes = raw.get("rows", raw) if isinstance(raw, dict) else raw
+            # OLD CODE (commented out until refactor):
+            # cfg = ProviderConfig(request)
+            # if cfg.provider in ("excel", "excel_live"):
+            #     cfg.live_sim = False
+            # provider = get_market_data_provider(cfg)
+            # symbols = ProviderConfig.DEFAULT_SYMBOLS
+            # raw = provider.get_latest_quotes(symbols)
+            # raw_quotes = raw.get("rows", raw) if isinstance(raw, dict) else raw
             
             # Step 2: Apply FuturesTrading business logic - enrich with signals and classification
             enriched_rows = []

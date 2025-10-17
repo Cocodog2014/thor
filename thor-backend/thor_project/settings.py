@@ -57,7 +57,9 @@ INSTALLED_APPS = [
     'timezones',  # WorldClock and Market data
     'thordata',   # Large Excel import app
     'FutureTrading',  # Modern real-time market data system
-    'SchwabLiveData',  # Provider-based market data system
+    # LiveData - Multi-broker live data pipeline
+    'LiveData.schwab.apps.SchwabConfig',  # Schwab OAuth + Trading API
+    'LiveData.tos.apps.TosConfig',        # Thinkorswim streaming
 ]
 
 MIDDLEWARE = [

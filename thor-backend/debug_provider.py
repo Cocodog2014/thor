@@ -4,7 +4,12 @@ import django
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'thor_project.settings')
 django.setup()
 
-from SchwabLiveData.provider_factory import ProviderConfig, get_market_data_provider
+# TODO: Update to use LiveData/shared/redis_client.py
+# from SchwabLiveData.provider_factory import ProviderConfig, get_market_data_provider
+
+print("⚠️  This script needs updating - old SchwabLiveData.provider_factory no longer exists")
+print("Use LiveData/shared/redis_client.py instead")
+exit(1)
 
 # Test Excel Live provider directly
 print('=== Testing Excel Live Provider ===')
