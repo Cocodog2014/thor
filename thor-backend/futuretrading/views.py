@@ -10,6 +10,7 @@ import requests
 
 from .models import TradingInstrument, MarketData, TradingSignal, SignalStatValue, ContractWeight
 from .services.classification import enrich_quote_row, compute_composite
+from .config import TOS_EXCEL_FILE, TOS_EXCEL_SHEET, TOS_EXCEL_RANGE
 
 logger = logging.getLogger(__name__)
 
@@ -25,20 +26,26 @@ class LatestQuotesView(APIView):
     def get(self, request):
         try:
             # Step 1: Get raw quotes from TOS Excel RTD via LiveData endpoint
+            # Pass our specific configuration to the TOS provider
             raw_quotes = []
             
             try:
-                # Call internal TOS endpoint
+                # Call internal TOS endpoint with our configuration
                 response = requests.get(
                     'http://localhost:8000/api/feed/tos/quotes/latest/',
-                    params={'consumer': 'futures_trading'},
+                    params={
+                        'consumer': 'futures_trading',
+                        'file_path': TOS_EXCEL_FILE,
+                        'sheet_name': TOS_EXCEL_SHEET,
+                        'data_range': TOS_EXCEL_RANGE,
+                    },
                     timeout=5
                 )
                 
                 if response.status_code == 200:
                     data = response.json()
                     raw_quotes = data.get('quotes', [])
-                    logger.info(f"Fetched {len(raw_quotes)} quotes from TOS Excel RTD")
+                    logger.info(f"Fetched {len(raw_quotes)} quotes from TOS Excel {TOS_EXCEL_RANGE}")
                 else:
                     logger.warning(f"TOS endpoint returned {response.status_code}")
                     

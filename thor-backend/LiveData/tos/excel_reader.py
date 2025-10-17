@@ -1,5 +1,8 @@
 """
-TOS Excel RTD Reader - Reads live data from TOS RTD Excel spreadsheet
+TOS Excel RTD Reader - Generic reader for TOS RTD Excel spreadsheets
+
+This is a GENERIC utility that can read any Excel range.
+Specific configurations (file paths, ranges) should be provided by the consumer.
 """
 import logging
 import os
@@ -182,36 +185,28 @@ class TOSExcelReader:
             return None
 
 
-def get_tos_excel_reader() -> Optional[TOSExcelReader]:
+def get_tos_excel_reader(file_path: str, sheet_name: str = "Futures", data_range: str = "A1:M20") -> Optional[TOSExcelReader]:
     """
-    Factory function to create TOS Excel reader from environment variables
+    Factory function to create TOS Excel reader
     
-    Environment variables:
-        EXCEL_DATA_FILE: Path to Excel file
-        EXCEL_SHEET_NAME: Sheet name (default: "Futures")
-        EXCEL_LIVE_RANGE: Data range (default: "A1:M20")
+    Args:
+        file_path: Path to Excel file
+        sheet_name: Sheet name (default: "Futures")
+        data_range: Data range to read (default: "A1:M20")
     
     Returns:
-        TOSExcelReader instance or None if not configured
+        TOSExcelReader instance or None if not available
     """
     if not XLWINGS_AVAILABLE:
         logger.warning("xlwings not available - cannot create TOS Excel reader")
         return None
-    
-    file_path = os.getenv('EXCEL_DATA_FILE')
-    if not file_path:
-        logger.warning("EXCEL_DATA_FILE not set - TOS Excel reader disabled")
-        return None
-    
-    sheet_name = os.getenv('EXCEL_SHEET_NAME', 'Futures')
-    data_range = os.getenv('EXCEL_LIVE_RANGE', 'A1:M20')
     
     try:
         reader = TOSExcelReader(file_path, sheet_name, data_range)
         if reader.connect():
             return reader
         else:
-            logger.error("Failed to connect to Excel file")
+            logger.error(f"Failed to connect to Excel file: {file_path}")
             return None
     except Exception as e:
         logger.error(f"Failed to create TOS Excel reader: {e}")

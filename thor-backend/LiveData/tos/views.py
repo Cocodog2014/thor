@@ -3,6 +3,9 @@ TOS streaming control views.
 
 HTTP endpoints for controlling the TOS streamer (optional).
 Also provides quotes endpoint for reading TOS RTD data from Excel.
+
+Configuration for TOS Excel RTD reader is in FutureTrading settings,
+not here - this is just a generic data provider.
 """
 
 import logging
@@ -12,11 +15,16 @@ from django.contrib.auth.decorators import login_required
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
+from django.conf import settings
 
 from .services import tos_streamer
 from .excel_reader import get_tos_excel_reader
 
 logger = logging.getLogger(__name__)
+
+# TOS Excel configuration - passed from FutureTrading consumer
+# This is set by FutureTrading views when they call get_latest_quotes
+TOS_EXCEL_CONFIG = None
 
 
 @require_http_methods(["GET"])
@@ -92,12 +100,20 @@ def get_latest_quotes(request):
     
     Query params:
         consumer: Consumer app name (for logging)
+        file_path: Excel file path (optional, uses default if not provided)
+        sheet_name: Sheet name (optional, default: "Futures")
+        data_range: Data range (optional, default passed by consumer)
     """
     consumer = request.GET.get('consumer', 'unknown')
     
+    # Allow consumer to specify configuration
+    file_path = request.GET.get('file_path', r'A:\Thor\CleanData.xlsm')
+    sheet_name = request.GET.get('sheet_name', 'Futures')
+    data_range = request.GET.get('data_range', 'T4:BJ13')  # Default to futures range
+    
     try:
-        # Get Excel reader instance
-        reader = get_tos_excel_reader()
+        # Get Excel reader instance with consumer-provided config
+        reader = get_tos_excel_reader(file_path, sheet_name, data_range)
         
         if not reader:
             logger.warning(f"TOS Excel reader not available (consumer: {consumer})")
@@ -110,13 +126,18 @@ def get_latest_quotes(request):
         # Read current data from Excel
         quotes = reader.read_data()
         
-        logger.debug(f"Serving {len(quotes)} quotes to {consumer}")
+        logger.debug(f"Serving {len(quotes)} quotes to {consumer} from {data_range}")
         
         # Return raw quotes - FutureTrading will enrich with signals and compute total
         return Response({
             'quotes': quotes,
             'count': len(quotes),
-            'source': 'TOS_RTD_Excel'
+            'source': 'TOS_RTD_Excel',
+            'config': {
+                'file': file_path,
+                'sheet': sheet_name,
+                'range': data_range
+            }
         }, status=status.HTTP_200_OK)
         
     except Exception as e:
