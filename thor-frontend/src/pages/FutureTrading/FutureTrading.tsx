@@ -486,37 +486,16 @@ export default function FutureTrading(){
   const seriesRef = useRef<Record<string, number[]>>({});
   const getSeries = (sym:string) => (seriesRef.current[sym] ||= []);
 
-  // Fetch routing configuration on mount
+  // Routing is no longer needed - we fetch directly from TOS Excel via LiveData
+  // Set routing to success state immediately
   useEffect(() => {
-    let cancelled = false;
-
-    async function fetchRouting() {
-      setRoutingLoading(true);
-      setRoutingError(null);
-      try {
-        const res = await fetch("/api/schwab/feeds/routing/?consumer=futures_trading");
-        if (!res.ok) {
-          throw new Error(`Routing request failed with status ${res.status}`);
-        }
-        const data: RoutingPlanResponse = await res.json();
-        if (!cancelled) {
-          setRoutingPlan(data);
-        }
-      } catch (error) {
-        if (!cancelled) {
-          setRoutingError(error instanceof Error ? error.message : "Unable to load feed routing");
-        }
-      } finally {
-        if (!cancelled) {
-          setRoutingLoading(false);
-        }
-      }
-    }
-
-    fetchRouting();
-    return () => {
-      cancelled = true;
-    };
+    setRoutingLoading(false);
+    setRoutingError(null);
+    setRoutingPlan({ 
+      consumer: 'futures_trading', 
+      provider: 'tos_excel', 
+      status: 'active' 
+    } as any);
   }, []);
 
   async function fetchQuotes(){

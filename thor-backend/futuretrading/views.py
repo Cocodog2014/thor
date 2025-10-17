@@ -47,28 +47,46 @@ class LatestQuotesView(APIView):
             
             # Step 2: Transform TOS quotes into FutureTrading structure (instrument + fields)
             transformed_rows = []
-            for quote in raw_quotes:
+            for idx, quote in enumerate(raw_quotes):
                 symbol = quote.get('symbol', '')
                 
-                # Wrap quote data in expected structure
+                # Convert Decimal/float to string for JSON serialization
+                def to_str(val):
+                    return str(val) if val is not None else None
+                
+                # Wrap quote data in expected MarketData structure
                 row = {
                     'instrument': {
+                        'id': idx + 1,
                         'symbol': symbol,
                         'name': symbol,
                         'exchange': 'TOS',
                         'currency': 'USD',
+                        'display_precision': 2,
+                        'is_active': True,
+                        'sort_order': idx
                     },
-                    'last': float(quote.get('last', 0)) if quote.get('last') else None,
-                    'bid': float(quote.get('bid', 0)) if quote.get('bid') else None,
-                    'ask': float(quote.get('ask', 0)) if quote.get('ask') else None,
+                    # Frontend expects these field names
+                    'price': to_str(quote.get('last')),  # Frontend calls it 'price', not 'last'
+                    'last': to_str(quote.get('last')),   # Also keep 'last' for compatibility
+                    'bid': to_str(quote.get('bid')),
+                    'ask': to_str(quote.get('ask')),
                     'volume': quote.get('volume'),
-                    'open': float(quote.get('open', 0)) if quote.get('open') else None,
-                    'high': float(quote.get('high', 0)) if quote.get('high') else None,
-                    'low': float(quote.get('low', 0)) if quote.get('low') else None,
-                    'close': float(quote.get('close', 0)) if quote.get('close') else None,
-                    'change': float(quote.get('change', 0)) if quote.get('change') else None,
+                    'open_price': to_str(quote.get('open')),
+                    'high_price': to_str(quote.get('high')),
+                    'low_price': to_str(quote.get('low')),
+                    'close_price': to_str(quote.get('close')),
+                    'previous_close': to_str(quote.get('close')),  # Previous close = close
+                    'change': to_str(quote.get('change')),
+                    'change_percent': None,  # Could calculate if needed
+                    'vwap': None,  # Not available in TOS RTD basic data
                     'bid_size': quote.get('bid_size'),
                     'ask_size': quote.get('ask_size'),
+                    'last_size': None,
+                    'market_status': 'CLOSED',  # Would need market hours logic
+                    'data_source': 'TOS_RTD',
+                    'is_real_time': True,
+                    'delay_minutes': 0,
                     'timestamp': quote.get('timestamp'),
                     'extended_data': {}  # Will be filled by enrich_quote_row
                 }
