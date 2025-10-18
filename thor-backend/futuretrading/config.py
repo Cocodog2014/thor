@@ -16,11 +16,10 @@ TOS_EXCEL_FILE = r"A:\Thor\CleanData.xlsm"
 # Sheet containing futures data
 TOS_EXCEL_SHEET = "Futures"
 
-# Data range: columns T:BJ, rows 4:13
-# - Row 3 contains headers (symbol names, field labels)
-# - Rows 4-13 contain data for 10 futures instruments
-# - Columns T-BJ contain all fields (Time, Num, Perc, OHLC, Volume, Bid/Ask, etc.)
-TOS_EXCEL_RANGE = "T4:BJ13"
+# Data range: Basic quote data (columns A-M, includes headers in row 1)
+# - Row 1: Headers (Symbol, Close, Open, NetChange, World High, World Low, Volume, Bid, Last, Ask, BidSize, AskSize)
+# - Rows 2-11: 10 futures instruments with live RTD data
+TOS_EXCEL_RANGE = "A1:M11"
 
 # Expected futures symbols (for validation and fallback)
 EXPECTED_FUTURES = [

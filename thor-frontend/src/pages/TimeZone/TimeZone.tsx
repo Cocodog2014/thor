@@ -28,8 +28,8 @@ const TimeZone: React.FC = () => {
     // Fetch immediately
     fetchMarkets();
 
-    // Update every 5 seconds to get fresh data from backend (live updating)
-    const interval = setInterval(fetchMarkets, 5000);
+    // Update every 1 seconds to get fresh data from backend (live updating)
+    const interval = setInterval(fetchMarkets, 1000);
 
     return () => clearInterval(interval);
   }, []);

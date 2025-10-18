@@ -75,9 +75,13 @@ class TOSExcelReader:
         self._workbook = None
         self._sheet = None
     
-    def read_data(self) -> List[Dict[str, Any]]:
+    def read_data(self, include_headers: bool = False) -> List[Dict[str, Any]]:
         """
         Read current data from Excel range
+        
+        Args:
+            include_headers: If True, expects first row to be headers.
+                           If False, data starts immediately (uses column indices)
         
         Returns:
             List of quote dictionaries with TOS RTD data
@@ -91,32 +95,48 @@ class TOSExcelReader:
             # Read data range as 2D array
             raw_data = self._sheet.range(self.data_range).value
             
-            if not raw_data or len(raw_data) < 2:
-                logger.warning("No data found in Excel range")
+            if not raw_data:
+                logger.warning(f"No data found in Excel range {self.data_range}")
                 return []
             
-            # First row is headers
-            headers = raw_data[0]
+            # Handle single row (convert to list of lists)
+            if not isinstance(raw_data[0], (list, tuple)):
+                raw_data = [raw_data]
             
             # Parse data rows
             quotes = []
-            for row_idx, row in enumerate(raw_data[1:], start=2):
+            start_row = 0
+            
+            if include_headers:
+                # First row is headers, data starts from row 1
+                if len(raw_data) < 2:
+                    logger.warning("No data rows found (only headers)")
+                    return []
+                headers = raw_data[0]
+                start_row = 1
+            else:
+                # No headers in range, all rows are data
+                # For T4:BJ13 range, we need to read headers from row 3 separately
+                headers = None
+                start_row = 0
+            
+            for row_idx, row in enumerate(raw_data[start_row:], start=start_row):
                 if not row or not any(row):  # Skip empty rows
                     continue
                 
                 try:
-                    quote = self._parse_row(headers, row, row_idx)
+                    quote = self._parse_row(headers, row, row_idx + 4)  # +4 because data starts at row 4
                     if quote:
                         quotes.append(quote)
                 except Exception as e:
-                    logger.warning(f"Failed to parse row {row_idx}: {e}")
+                    logger.warning(f"Failed to parse row {row_idx + 4}: {e}")
                     continue
             
-            logger.debug(f"Read {len(quotes)} quotes from Excel")
+            logger.info(f"Read {len(quotes)} quotes from Excel range {self.data_range}")
             return quotes
             
         except Exception as e:
-            logger.error(f"Error reading Excel data: {e}")
+            logger.error(f"Error reading Excel data from {self.data_range}: {e}")
             return []
     
     def _parse_row(self, headers: List[str], row: List[Any], row_idx: int) -> Optional[Dict[str, Any]]:
