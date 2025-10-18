@@ -13,6 +13,7 @@ from ..views.real import (
     real_account_sync,
     real_account_verify,
     real_account_risk_status,
+    schwab_account_summary,
 )
 
 app_name = 'real'
@@ -28,4 +29,7 @@ urlpatterns = [
     path('<int:pk>/sync/', real_account_sync, name='sync'),
     path('<int:pk>/verify/', real_account_verify, name='verify'),
     path('<int:pk>/risk-status/', real_account_risk_status, name='risk_status'),
+    
+    # Schwab integration
+    path('schwab/summary/', schwab_account_summary, name='schwab_summary'),
 ]

@@ -188,3 +188,59 @@ def get_balances(request, account_id):
     except Exception as e:
         logger.error(f"Failed to fetch balances: {e}")
         return JsonResponse({"error": str(e)}, status=500)
+
+
+@login_required
+@require_http_methods(["GET"])
+def account_summary(request):
+    """
+    Get account summary for display in the frontend.
+    
+    Returns formatted account balance and buying power information.
+    Query params:
+        - account_hash: Schwab encrypted account number (optional, uses first account if omitted)
+    """
+    try:
+        if not hasattr(request.user, 'schwab_token'):
+            return JsonResponse({
+                "error": "No Schwab account connected",
+                "connected": False
+            }, status=404)
+        
+        api = SchwabTraderAPI(request.user)
+        
+        # Get account_hash from query params, or fetch first account
+        account_hash = request.GET.get('account_hash')
+        
+        if not account_hash:
+            # Fetch all accounts and use the first one
+            accounts = api.fetch_accounts()
+            if not accounts:
+                return JsonResponse({
+                    "error": "No Schwab accounts found"
+                }, status=404)
+            
+            # Get the first account's hashValue
+            first_account = accounts[0]
+            account_hash = first_account.get('hashValue')
+            
+            if not account_hash:
+                return JsonResponse({
+                    "error": "Unable to get account identifier"
+                }, status=500)
+        
+        # Fetch account summary
+        summary = api.get_account_summary(account_hash)
+        
+        return JsonResponse({
+            "success": True,
+            "account_hash": account_hash,
+            "summary": summary
+        })
+        
+    except Exception as e:
+        logger.error(f"Failed to fetch account summary: {e}")
+        return JsonResponse({
+            "error": str(e),
+            "success": False
+        }, status=500)

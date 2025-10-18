@@ -12,6 +12,7 @@ from django.views.generic import ListView, DetailView, CreateView, UpdateView
 from django.contrib import messages
 from django.http import JsonResponse
 from django.urls import reverse_lazy
+from django.utils import timezone
 from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -292,3 +293,79 @@ class RealAccountViewSet(BaseAccountViewSet):
     def get_queryset(self):
         """Ensure users only see their own real accounts."""
         return RealAccount.objects.filter(user=self.request.user)
+
+@login_required
+def schwab_account_summary(request):
+    """
+    Get account summary from Schwab API and update/create real account.
+    
+    Returns formatted account summary for display in account statement UI.
+    """
+    try:
+        if not hasattr(request.user, 'schwab_token'):
+            return JsonResponse({
+                "error": "No Schwab account connected",
+                "connected": False
+            }, status=404)
+        
+        from LiveData.schwab.services import SchwabTraderAPI
+        
+        api = SchwabTraderAPI(request.user)
+        account_hash = request.GET.get('account_hash')
+        
+        if not account_hash:
+            accounts = api.fetch_accounts()
+            if not accounts:
+                return JsonResponse({"error": "No Schwab accounts found"}, status=404)
+            account_hash = accounts[0].get('hashValue')
+        
+        summary = api.get_account_summary(account_hash)
+        
+        def parse_currency(value_str):
+            from decimal import Decimal
+            if not value_str:
+                return Decimal('0.00')
+            cleaned = value_str.replace('$', '').replace(',', '')
+            return Decimal(cleaned)
+        
+        real_account, created = RealAccount.objects.get_or_create(
+            user=request.user,
+            brokerage_provider=BrokerageProvider.SCHWAB,
+            external_account_id=account_hash,
+            defaults={
+                'account_number': summary.get('account_number', f'SCHWAB-{account_hash[:8]}'),
+                'account_nickname': 'Schwab Account',
+                'api_enabled': True,
+                'is_verified': True,
+                'verification_date': timezone.now(),
+            }
+        )
+        
+        real_account.net_liquidating_value = parse_currency(summary.get('net_liquidating_value'))
+        real_account.stock_buying_power = parse_currency(summary.get('stock_buying_power'))
+        real_account.option_buying_power = parse_currency(summary.get('option_buying_power'))
+        real_account.available_funds_for_trading = parse_currency(summary.get('available_funds_for_trading'))
+        real_account.long_stock_value = parse_currency(summary.get('long_stock_value'))
+        real_account.current_balance = parse_currency(summary.get('cash_balance'))
+        real_account.maintenance_requirement = parse_currency(summary.get('maintenance_requirement'))
+        real_account.margin_balance = parse_currency(summary.get('margin_balance'))
+        real_account.last_sync_date = timezone.now()
+        real_account.sync_errors = 0
+        real_account.save()
+        
+        return JsonResponse({
+            "success": True,
+            "created": created,
+            "account_id": real_account.id,
+            "summary": summary,
+            "account_info": {
+                "account_number": real_account.account_number,
+                "last_sync": real_account.last_sync_date.isoformat(),
+            }
+        })
+        
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Schwab account summary error: {e}")
+        return JsonResponse({"error": str(e), "success": False}, status=500)

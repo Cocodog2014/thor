@@ -21,4 +21,7 @@ urlpatterns = [
     path('accounts/', views.list_accounts, name='list_accounts'),
     path('accounts/<str:account_id>/positions/', views.get_positions, name='get_positions'),
     path('accounts/<str:account_id>/balances/', views.get_balances, name='get_balances'),
+    
+    # Account summary for frontend
+    path('account/summary/', views.account_summary, name='account_summary'),
 ]
