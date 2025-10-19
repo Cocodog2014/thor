@@ -1,197 +1,76 @@
-# 🔨 Thor – Developer Quick Start (Windows)
+# � Thor – Quick Start Guide
 
-This guide gets the dev stack up quickly on Windows with Anaconda and Docker.
-It uses Redis (Docker), Postgres (Docker), Django (conda), and Vite/React.
+Simple startup sequence for Excel real-time data with Schwab integration.
 
-Prereqs
-- Docker Desktop (Windows 11)
-- Anaconda/Miniconda (an env that you actually use, e.g., Thor_inv or ThorBot)
-- Node.js 18+ (for the frontend) – npm will prompt to install if missing
-- Optional: Cloudflare Tunnel (cloudflared) to expose HTTPS in dev
+---
 
-## Step 1: Start Redis (Docker)
-Redis powers the live quote bus.
+## 1️⃣ Start Docker Services
 
 ```powershell
-# From A:\Thor (repo root)
+cd A:\Thor
 docker compose up -d redis
-
-# Optional: verify
-docker compose ps
-docker exec thor_redis redis-cli ping  # expect PONG
-
-# Make Redis URL available to the backend in this session
-$env:REDIS_URL = 'redis://localhost:6379/0'
+docker compose up -d postgres
 ```
 
-## Step 2: Start Database (Docker PostgreSQL)
-```powershell
-# Create and run Postgres 15 (data is ephemeral unless you add a volume)
-docker run --name thor_postgres `
-  -e POSTGRES_DB=thor_db `
-  -e POSTGRES_USER=thor_user `
-  -e POSTGRES_PASSWORD=thor_password `
-  -p 5432:5432 `
-  -d postgres:15
+---
 
-# If you choose a different host port, set DB_PORT in A:\Thor\thor-backend\.env accordingly.
+## 2️⃣ Start Cloudflare Tunnel
+
+```powershell
+Start-Service cloudflared
 ```
 
-## Step 3: Start Backend (Django)
+**Or manually** (in separate terminal):
 ```powershell
-# From A:\Thor directory:
+cd A:\Thor
+cloudflared tunnel run thor
+```
+
+---
+
+## 3️⃣ Activate Conda Environment & Start Django Backend
+
+```powershell
 cd A:\Thor\thor-backend
-# Activate your Anaconda env (the one with redis installed)
-# Example (update to your actual env name):
 conda activate Thor_inv
 
-# Confirm Python is from conda (should NOT be A:\\Thor\\thor-backend\\venv\\...)
-where python
-# Ensure Redis URL is set (if not already)
-$env:REDIS_URL = 'redis://localhost:6379/0'
-
-# Install/refresh backend deps inside THIS conda env
-#python -m pip install -r requirements.txt
-
-# Database migrations and (optional) admin user
-#python manage.py migrate
-# python manage.py createsuperuser   # if you need to create an admin account
-# Set environment for Excel Live provider
+# Set environment variables for Excel Live data
 $env:DATA_PROVIDER = 'excel_live'
 $env:EXCEL_DATA_FILE = 'A:\Thor\CleanData.xlsm'
 $env:EXCEL_SHEET_NAME = 'Futures'
 $env:EXCEL_LIVE_RANGE = 'A1:M20'
-# If Excel workbook must already be open, set to '1'; otherwise the provider will open it
-$env:EXCEL_LIVE_REQUIRE_OPEN = '0'
+$env:REDIS_URL = 'redis://localhost:6379/0'
+
+# Start Django
 python manage.py runserver
 ```
 
+---
 
-## Step 4: HTTPS callback for Schwab (Cloudflare Tunnel)
+## 4️⃣ Start Frontend (Optional)
 
-**Why needed:** Schwab OAuth requires HTTPS for callback URLs, but your dev Django server runs on HTTP.
-
-**Solution:** Cloudflare Tunnel terminates TLS and forwards to your local server.
-
-### Quick Setup
-
-1. **Install and authenticate cloudflared** (one-time):
-   ```powershell
-   # Install (if not already installed)
-   choco install cloudflared -y
-   
-   # Authenticate with Cloudflare
-   cloudflared tunnel login
-   ```
-
-2. **Create tunnel** (if not exists):
-   ```powershell
-   # Create tunnel named "thor-local"
-   cloudflared tunnel create thor-local
-   
-   # Route subdomain to tunnel
-   cloudflared tunnel route dns thor-local thor.360edu.org
-   ```
-
-3. **Create config file** at `%USERPROFILE%\.cloudflared\config.yml`:
-   ```yaml
-   tunnel: thor-local
-   credentials-file: C:\Users\<YourUser>\.cloudflared\<TUNNEL-UUID>.json
-   
-   ingress:
-     - hostname: thor.360edu.org
-       service: http://localhost:8000
-     - service: http_status:404
-   ```
-
-4. **Start tunnel** (run in separate terminal):
-   ```powershell
-   cd A:\Thor
-   cloudflared tunnel run thor-local
-   ```
-
-5. **Control via Windows Service** (optional - for auto-start):
-   ```powershell
-   # Install as Windows service (one-time)
-   cloudflared service install
-   
-   # Control commands
-   Start-Service cloudflared       # Start tunnel
-   Stop-Service cloudflared        # Stop tunnel
-   Get-Service cloudflared         # Check status
-   Restart-Service cloudflared     # Restart
-   
-   # Set startup behavior
-   Set-Service cloudflared -StartupType Manual      # Manual start (recommended for dev)
-   Set-Service cloudflared -StartupType Automatic   # Auto-start on boot
-   ```
-
-### Configure Environment
-
-Update your `.env` file (create from `.env.example` if needed):
-```env
-# Schwab OAuth credentials (get from developer.schwab.com)
-SCHWAB_CLIENT_ID=your_client_id_here
-SCHWAB_CLIENT_SECRET=your_client_secret_here
-
-# Cloudflare Tunnel URL (for OAuth callback)
-CLOUDFLARE_TUNNEL_URL=https://thor.360edu.org
-```
-
-### Update Schwab Developer Portal
-
-Add your callback URL in the Schwab Developer Portal:
-- Callback URL: `https://thor.360edu.org/api/schwab/oauth/callback/`
-
-### Test OAuth Flow
-
-1. Start Django: `python manage.py runserver`
-2. Start tunnel: `cloudflared tunnel run thor-local` (or `Start-Service cloudflared`)
-3. Visit: `http://localhost:8000/api/schwab/oauth/start/`
-4. Complete Schwab login → You'll be redirected back with tokens saved
-
-### Verify Connection
-
-Check if OAuth tokens are saved:
-```powershell
-# From Django shell
-python manage.py shell
-
-# Run:
-from LiveData.schwab.models import SchwabToken
-SchwabToken.objects.all()  # Should show your saved token
-```
-
-**Full details:** See `CloudFlare.md` for advanced configuration, auto-recovery, and troubleshooting.
-
-## Step 5: Start Frontend (React)
-Open a new terminal:
 ```powershell
 cd A:\Thor\thor-frontend
-# First-time only
-#npm install
 npm run dev
 ```
 
-## 🎯 URLs to Access
-- **Frontend**: http://localhost:5173 (or 5174 if 5173 is busy)
-- **Backend API**: http://127.0.0.1:8000/api/
-- **Admin Panel**: http://127.0.0.1:8000/admin/ 
+---
+
+## 📌 Important URLs
+
+### Local Access
+- **Backend API**: http://localhost:8000/api/
+- **Admin Panel**: http://localhost:8000/admin/
   - Email: `admin@360edu.org`
   - Password: `Coco1464#`
-- **Custom Login**: http://localhost:5173/auth/login
-  - Email: `admin@360edu.org`
-  - Password: `Coco1464#`
+- **Frontend**: http://localhost:5173
 
-### LiveData Endpoints (New!)
-- **Schwab OAuth Start**: http://localhost:8000/api/schwab/oauth/start/ (redirects to Schwab)
-- **Schwab OAuth Callback**: https://thor.360edu.org/api/schwab/oauth/callback/ (Schwab redirects here)
-- **TOS Stream Status**: http://localhost:8000/api/feed/tos/status/
-- **TOS Subscribe**: http://localhost:8000/api/feed/tos/subscribe/?symbol=AAPL
+### Schwab OAuth
+- **Start OAuth**: http://localhost:8000/api/schwab/oauth/start/
+- **Callback URL**: https://thor.360edu.org/api/schwab/oauth/callback/
 
-### Cloudflare Tunnel (Dev Only)
-- **Public URL**: https://thor.360edu.org (maps to http://localhost:8000)
-- **Control**: Use `Start-Service cloudflared` / `Stop-Service cloudflared` in PowerShell
+### Cloudflare Tunnel
+- **Public URL**: https://thor.360edu.org
 
 ## 🔧 Troubleshooting
 - ModuleNotFoundError: redis
