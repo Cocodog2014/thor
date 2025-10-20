@@ -181,19 +181,78 @@ class TOSExcelReader:
             'timestamp': None,  # Excel RTD updates in real-time
         }
         
-        # Only return if we have at least a valid symbol and last price
-        if quote['symbol'] and quote['last'] is not None:
+        # Only return if we have at least a valid symbol
+        # (last price can be None for instruments with parsing issues like Treasury bonds)
+        if quote['symbol'] and quote['symbol'] != f"FUTURE_{row_idx}":
+            if quote['last'] is None:
+                logger.warning(f"Row {row_idx} ({quote['symbol']}): No valid 'Last' price. Raw value: {data.get('Last')}")
             return quote
         return None
     
+    def _parse_bond_price(self, value: str) -> Optional[Decimal]:
+        """
+        Parse Treasury bond price in 32nds notation to decimal.
+        
+        Common formats:
+        - "111-16" = 111 + 16/32 = 111.50
+        - "111-16+" = 111 + 16.5/32 = 111.515625
+        - "111'16" = 111 + 16/32 = 111.50
+        - "111:16" = 111 + 16/32 = 111.50
+        
+        Returns decimal price or None if unparseable
+        """
+        if not value or not isinstance(value, str):
+            return None
+        
+        value = str(value).strip()
+        
+        # Try common separators: dash, apostrophe, colon
+        for sep in ['-', "'", ':']:
+            if sep in value:
+                try:
+                    parts = value.split(sep)
+                    if len(parts) != 2:
+                        continue
+                    
+                    whole = Decimal(parts[0].strip())
+                    frac_str = parts[1].strip()
+                    
+                    # Handle plus sign for half 32nds
+                    has_plus = frac_str.endswith('+')
+                    if has_plus:
+                        frac_str = frac_str[:-1]
+                    
+                    numerator = Decimal(frac_str)
+                    if has_plus:
+                        numerator += Decimal('0.5')
+                    
+                    # Convert 32nds to decimal
+                    decimal_part = numerator / Decimal('32')
+                    return whole + decimal_part
+                    
+                except (ValueError, TypeError, IndexError):
+                    continue
+        
+        return None
+    
     def _to_decimal(self, value: Any) -> Optional[Decimal]:
-        """Convert value to Decimal, return None if invalid"""
+        """Convert value to Decimal, handling bond 32nds notation"""
         if value is None or value == '':
             return None
+        
+        # First try normal decimal conversion
         try:
             return Decimal(str(value))
         except (ValueError, TypeError):
-            return None
+            pass
+        
+        # If that fails and it's a string, try bond price parsing
+        if isinstance(value, str):
+            bond_price = self._parse_bond_price(value)
+            if bond_price is not None:
+                return bond_price
+        
+        return None
     
     def _to_int(self, value: Any) -> Optional[int]:
         """Convert value to int, return None if invalid"""

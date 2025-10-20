@@ -18,8 +18,8 @@ TOS_EXCEL_SHEET = "Futures"
 
 # Data range: Basic quote data (columns A-M, includes headers in row 1)
 # - Row 1: Headers (Symbol, Close, Open, NetChange, World High, World Low, Volume, Bid, Last, Ask, BidSize, AskSize)
-# - Rows 2-11: 10 futures instruments with live RTD data
-TOS_EXCEL_RANGE = "A1:M11"
+# - Rows 2-12: 11 futures instruments with live RTD data
+TOS_EXCEL_RANGE = "A1:M12"
 
 # Expected futures symbols (for validation and fallback)
 EXPECTED_FUTURES = [
@@ -33,4 +33,5 @@ EXPECTED_FUTURES = [
     "GC",   # Gold
     "VX",   # VIX Futures
     "DX",   # Dollar Index
+    "ZB",   # 30-Year Treasury Bond
 ]
