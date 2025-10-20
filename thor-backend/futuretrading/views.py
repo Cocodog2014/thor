@@ -59,8 +59,12 @@ class LatestQuotesView(APIView):
                 
                 # Normalize symbol - fix common Excel RTD symbol mismatches
                 # RT -> RTY (Russell 2000 correct symbol)
+                # 30YrBond -> ZB (30-Year Treasury Bond)
                 symbol_map = {
                     'RT': 'RTY',
+                    '30YrBond': 'ZB',
+                    '30Yr T-BOND': 'ZB',
+                    'T-BOND': 'ZB',
                 }
                 symbol = symbol_map.get(raw_symbol, raw_symbol)
                 

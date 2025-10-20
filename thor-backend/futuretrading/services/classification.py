@@ -131,6 +131,15 @@ def _get_signal_weight(signal: str) -> int:
 def _is_bear_market_instrument(symbol: str) -> bool:
     """Check if symbol is a bear market instrument with inverted logic.
     
+    Bear market instruments (safety/insurance assets):
+    - VX: VIX - volatility index (fear gauge)
+    - DX: Dollar Index - safe haven currency
+    - GC: Gold - safe haven metal
+    - ZB: 30-Year Treasury Bond - safe haven bond (flight to safety)
+    
+    When these go UP, it's typically bearish for stocks (people fleeing to safety).
+    So we invert their signal weights for the composite calculation.
+    
     Handles symbol aliases (e.g., "RT" -> "RTY").
     """
     normalized = _normalize_symbol(symbol)

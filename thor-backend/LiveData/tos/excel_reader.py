@@ -125,11 +125,13 @@ class TOSExcelReader:
                     continue
                 
                 try:
-                    quote = self._parse_row(headers, row, row_idx + 4)  # +4 because data starts at row 4
+                    # Row index for error reporting (1-indexed Excel row)
+                    excel_row_num = row_idx + 1 if include_headers else row_idx
+                    quote = self._parse_row(headers, row, excel_row_num)
                     if quote:
                         quotes.append(quote)
                 except Exception as e:
-                    logger.warning(f"Failed to parse row {row_idx + 4}: {e}")
+                    logger.warning(f"Failed to parse row {excel_row_num}: {e}")
                     continue
             
             logger.info(f"Read {len(quotes)} quotes from Excel range {self.data_range}")
@@ -198,6 +200,7 @@ class TOSExcelReader:
         - "111-16+" = 111 + 16.5/32 = 111.515625
         - "111'16" = 111 + 16/32 = 111.50
         - "111:16" = 111 + 16/32 = 111.50
+        - "-0'06" = -0 - 6/32 = -0.1875
         
         Returns decimal price or None if unparseable
         """
@@ -206,8 +209,14 @@ class TOSExcelReader:
         
         value = str(value).strip()
         
-        # Try common separators: dash, apostrophe, colon
-        for sep in ['-', "'", ':']:
+        # Handle negative values
+        is_negative = value.startswith('-')
+        if is_negative:
+            value = value[1:]  # Remove the minus sign
+        
+        # Try common separators: apostrophe, dash, colon
+        # Note: Check apostrophe before dash to avoid splitting negative numbers
+        for sep in ["'", ':', '-']:
             if sep in value:
                 try:
                     parts = value.split(sep)
@@ -228,7 +237,13 @@ class TOSExcelReader:
                     
                     # Convert 32nds to decimal
                     decimal_part = numerator / Decimal('32')
-                    return whole + decimal_part
+                    result = whole + decimal_part
+                    
+                    # Apply negative sign if needed
+                    if is_negative:
+                        result = -result
+                    
+                    return result
                     
                 except (ValueError, TypeError, IndexError):
                     continue
@@ -243,7 +258,8 @@ class TOSExcelReader:
         # First try normal decimal conversion
         try:
             return Decimal(str(value))
-        except (ValueError, TypeError):
+        except (ValueError, TypeError, Exception):
+            # Catch all Decimal conversion errors including InvalidOperation
             pass
         
         # If that fails and it's a string, try bond price parsing
