@@ -66,12 +66,14 @@ npm run dev
   - Password: `Coco1464#`
 - **Frontend**: http://localhost:5173
 
-### Schwab OAuth
-- **Start OAuth**: http://localhost:8000/api/schwab/oauth/start/
-- **Callback URL**: https://thor.360edu.org/api/schwab/oauth/callback/
+### Cloudflare Tunnel (Public HTTPS)
+- **Frontend**: https://thor.360edu.org/
+- **Admin Panel**: https://thor.360edu.org/admin/
+- **Backend API**: https://thor.360edu.org/api/
 
-### Cloudflare Tunnel
-- **Public URL**: https://thor.360edu.org
+### Schwab OAuth
+- **Start OAuth**: https://thor.360edu.org/api/schwab/oauth/start/
+- **Callback URL**: https://thor.360edu.org/api/schwab/oauth/callback/
 
 ## 🔧 Troubleshooting
 - ModuleNotFoundError: redis
