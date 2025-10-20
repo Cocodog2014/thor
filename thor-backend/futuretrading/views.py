@@ -55,7 +55,14 @@ class LatestQuotesView(APIView):
             # Step 2: Transform TOS quotes into FutureTrading structure (instrument + fields)
             transformed_rows = []
             for idx, quote in enumerate(raw_quotes):
-                symbol = quote.get('symbol', '')
+                raw_symbol = quote.get('symbol', '')
+                
+                # Normalize symbol - fix common Excel RTD symbol mismatches
+                # RT -> RTY (Russell 2000 correct symbol)
+                symbol_map = {
+                    'RT': 'RTY',
+                }
+                symbol = symbol_map.get(raw_symbol, raw_symbol)
                 
                 # Convert Decimal/float to string for JSON serialization
                 def to_str(val):
@@ -65,7 +72,7 @@ class LatestQuotesView(APIView):
                 row = {
                     'instrument': {
                         'id': idx + 1,
-                        'symbol': symbol,
+                        'symbol': symbol,  # Use normalized symbol
                         'name': symbol,
                         'exchange': 'TOS',
                         'currency': 'USD',

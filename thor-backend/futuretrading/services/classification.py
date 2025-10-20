@@ -71,17 +71,33 @@ FALLBACK_STAT_MAP = {
 
 SIGNAL_ORDER = ['STRONG_BUY', 'BUY', 'HOLD', 'SELL', 'STRONG_SELL']
 
+# Symbol aliases - maps Excel/TOS symbols to database symbols
+SYMBOL_ALIASES = {
+    'RT': 'RTY',  # Russell 2000 in TOS is "RT" but database has "RTY"
+}
+
+
+def _normalize_symbol(symbol: str) -> str:
+    """Normalize symbol, handling aliases and slashes.
+    
+    Returns the canonical symbol without leading slash.
+    """
+    base = symbol.lstrip('/')
+    # Check if this is an alias
+    return SYMBOL_ALIASES.get(base, base)
+
 
 @lru_cache(maxsize=256)
 def _get_stat_map_for_symbol(symbol: str) -> dict:
     """Fetch stat values for a symbol from DB, fallback to static map.
 
     Accepts symbols with or without leading slash ("/YM" vs "YM").
+    Handles symbol aliases (e.g., "RT" -> "RTY").
     """
-    base = symbol.lstrip('/')
-    qs = SignalStatValue.objects.filter(instrument__symbol__in=[base, f'/{base}'])
+    normalized = _normalize_symbol(symbol)
+    qs = SignalStatValue.objects.filter(instrument__symbol__in=[normalized, f'/{normalized}'])
     if not qs.exists():
-        return FALLBACK_STAT_MAP.get(base, {})
+        return FALLBACK_STAT_MAP.get(normalized, {})
     out = {}
     for row in qs:
         out[row.signal] = Decimal(row.value)
@@ -90,10 +106,13 @@ def _get_stat_map_for_symbol(symbol: str) -> dict:
 
 @lru_cache(maxsize=256)
 def _get_weight_for_symbol(symbol: str) -> Decimal:
-    """Fetch contract weight from DB or return Decimal('1')."""
-    base = symbol.lstrip('/')
+    """Fetch contract weight from DB or return Decimal('1').
+    
+    Handles symbol aliases (e.g., "RT" -> "RTY").
+    """
+    normalized = _normalize_symbol(symbol)
     try:
-        cw = ContractWeight.objects.get(instrument__symbol__in=[base, f'/{base}'])
+        cw = ContractWeight.objects.get(instrument__symbol__in=[normalized, f'/{normalized}'])
         return Decimal(cw.weight)
     except ContractWeight.DoesNotExist:
         return Decimal('1')
@@ -110,9 +129,12 @@ def _get_signal_weight(signal: str) -> int:
 
 
 def _is_bear_market_instrument(symbol: str) -> bool:
-    """Check if symbol is a bear market instrument with inverted logic."""
-    base = symbol.lstrip('/')
-    return base in {'VX', 'DX', 'GC', 'ZB'}
+    """Check if symbol is a bear market instrument with inverted logic.
+    
+    Handles symbol aliases (e.g., "RT" -> "RTY").
+    """
+    normalized = _normalize_symbol(symbol)
+    return normalized in {'VX', 'DX', 'GC', 'ZB'}
 
 
 def _get_inverted_signal_weight(signal: str) -> int:

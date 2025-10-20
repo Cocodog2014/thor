@@ -123,8 +123,8 @@ def get_latest_quotes(request):
                 'error': 'TOS Excel reader not configured'
             }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
         
-        # Read current data from Excel
-        quotes = reader.read_data()
+        # Read current data from Excel (include_headers=True since range includes header row)
+        quotes = reader.read_data(include_headers=True)
         
         logger.debug(f"Serving {len(quotes)} quotes to {consumer} from {data_range}")
         

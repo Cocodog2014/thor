@@ -494,7 +494,11 @@ export default function FutureTrading(){
     setRoutingPlan({ 
       consumer: 'futures_trading', 
       provider: 'tos_excel', 
-      status: 'active' 
+      status: 'active',
+      primary_feed: {
+        code: 'TOS_RTD',
+        display_name: 'TOS Excel RTD'
+      }
     } as any);
   }, []);
 
@@ -612,8 +616,13 @@ export default function FutureTrading(){
 
   // Filter to our 11 futures and order exactly as FUTURES_11, padding with placeholders for missing ones
   const ordered: MarketData[] = useMemo(()=>{
-    const map = new Map(effective.map(r => [r.instrument.symbol, r]));
-    return FUTURES_11.map((sym: string, idx: number) => map.get(sym) ?? makeEmptyRow(sym, idx));
+    // Normalize symbols by removing leading slash for comparison
+    const normalizeSymbol = (s: string) => s.replace(/^\//, '');
+    const map = new Map(effective.map(r => [normalizeSymbol(r.instrument.symbol), r]));
+    return FUTURES_11.map((sym: string, idx: number) => {
+      const normalized = normalizeSymbol(sym);
+      return map.get(normalized) ?? makeEmptyRow(sym, idx);
+    });
   }, [effective]);
 
   // Always display 11 cards in the configured order
