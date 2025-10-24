@@ -190,7 +190,7 @@ function TotalCard({totalData, theme}:{totalData: TotalData | null; theme: Theme
   const weightedAvg = totalData?.avg_weighted ? Number(totalData.avg_weighted) : null;
   const count = totalData?.count ?? 0;
   const asOf = totalData?.as_of ? new Date(totalData.as_of) : new Date();
-  
+
   return (
     <motion.div layout initial={{opacity:0, y:8}} animate={{opacity:1, y:0}}>
       <Paper 
@@ -313,11 +313,12 @@ function TotalCard({totalData, theme}:{totalData: TotalData | null; theme: Theme
 }
 
 function L1Card({row, onSample, hist, theme}:{row: MarketData; onSample:(value:number)=>void; hist:number[]; theme: Theme}){
-  const pct = row.change_percent ? Number(row.change_percent) : null;
+  const pct = row.change_percent ? Number(row.change_percent) : ((row as any).last_prev_pct != null ? Number((row as any).last_prev_pct) : null);
   const spread = row.bid && row.ask ? Number(row.ask) - Number(row.bid) : null;
   const sig = row.extended_data?.signal as SignalKey | undefined;
   const statValue = row.extended_data?.stat_value;
   const signalWeight = row.extended_data?.signal_weight;
+  const netChange = row.change != null ? Number(row.change) : ((row as any).last_prev_diff != null ? Number((row as any).last_prev_diff) : null);
 
   useEffect(() => { onSample(Number(row.price)); }, [row.price, onSample]);
   const data = useMemo(() => hist.map((y,i)=>({x:i, y})), [hist]);
@@ -387,16 +388,34 @@ function L1Card({row, onSample, hist, theme}:{row: MarketData; onSample:(value:n
           </Box>
         </Box>
 
-        {/* Body */}
-        <Box p={2}>
+        {/* Body (scrollable area) */}
+        <Box p={2} className="l1-body">
           <Box display="flex" gap={2}>
             <Box flex={1}>
-              <Typography variant="h6" fontWeight="bold" sx={{ lineHeight: 1.2 }}>
-                {fmt(row.price, row.instrument.display_precision)}
-              </Typography>
-              <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
-                Last
-              </Typography>
+              {/* Last on the left, Net Change on the right */}
+              <Box display="flex" alignItems="flex-start" justifyContent="space-between" gap={2}>
+                <Box>
+                  <Typography variant="h6" fontWeight="bold" sx={{ lineHeight: 1.2 }}>
+                    {fmt(row.price, row.instrument.display_precision)}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
+                    Last
+                  </Typography>
+                </Box>
+                <Box textAlign="right">
+                  <Box display="flex" alignItems="flex-start" justifyContent="flex-end" gap={1}>
+                    <Typography variant="h6" fontWeight="bold" sx={{ color: pctColor(pct, theme), lineHeight: 1 }}>
+                      {netChange === null ? '—' : fmt(netChange, 2)}
+                    </Typography>
+                    <Typography variant="subtitle2" fontWeight="bold" sx={{ color: pctColor(pct, theme), lineHeight: 1, mt: '2px' }}>
+                      {pct === null ? '—' : `${fmt(pct, 2)}%`}
+                    </Typography>
+                  </Box>
+                  <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
+                    Change
+                  </Typography>
+                </Box>
+              </Box>
 
               {/* Four boxes: Bid, Ask, VWAP (Weighted), Stat Value */}
               <Box display="flex" gap={1} sx={{ mt: 1 }}>
@@ -444,17 +463,33 @@ function L1Card({row, onSample, hist, theme}:{row: MarketData; onSample:(value:n
 
           {/* Stats rows */}
           <Box mt={2}>
+            {/* Group 1: Close (prev) vs Open - two columns, two rows */}
             <Box display="flex" gap={2}>
               <Box flex={1}>
-                <StatRow label="Open" value={row.open_price} />
                 <StatRow label="Close (prev)" value={row.previous_close} />
-                <StatRow label="Difference" value={row.change} />
+                <StatRow label="Diff (Open vs Prev)" value={(row as any).open_prev_diff as any} />
+              </Box>
+              <Box flex={1}>
+                <StatRow label="Open" value={row.open_price} />
+                <StatRow label="Diff % (Open vs Prev)" value={(row as any).open_prev_pct as any} />
+              </Box>
+            </Box>
+
+            {/* Group 2: World Low vs World High, then Range number/% */}
+            <Box display="flex" gap={2} mt={1}>
+              <Box flex={1}>
+                <StatRow label="World Low (24h)" value={row.low_price} />
+                <StatRow label="Range (High - Low)" value={(row as any).range_diff as any} />
               </Box>
               <Box flex={1}>
                 <StatRow label="World High (24h)" value={row.high_price} />
-                <StatRow label="World Low (24h)" value={row.low_price} />
-                <StatRow label="Volume" value={row.volume} dp={0} />
+                <StatRow label="Range % (vs Prev)" value={(row as any).range_pct as any} />
               </Box>
+            </Box>
+
+            {/* Extras */}
+            <Box mt={1}>
+              <StatRow label="Volume" value={row.volume} dp={0} />
             </Box>
             <Box display="flex" justifyContent="space-between" mt={1}>
               <Typography variant="caption" color="text.disabled">

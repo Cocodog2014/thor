@@ -1,3 +1,13 @@
+/* Scrollable body for each L1 card */
+.l1-body {
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+@media (min-width: 1600px) {
+  .l1-body { max-height: 280px; }
+}
+
 /* FutureTrading.css - Custom styles for the futures trading dashboard */
 
 /* Animation support for motion components */

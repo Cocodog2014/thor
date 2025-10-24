@@ -10,6 +10,7 @@ import requests
 
 from .models import TradingInstrument, MarketData, TradingSignal, SignalStatValue, ContractWeight
 from .services.classification import enrich_quote_row, compute_composite
+from .services.metrics import compute_row_metrics
 from .config import TOS_EXCEL_FILE, TOS_EXCEL_SHEET, TOS_EXCEL_RANGE
 
 logger = logging.getLogger(__name__)
@@ -115,6 +116,15 @@ class LatestQuotesView(APIView):
             for row in transformed_rows:
                 # Apply signal classification logic to each quote
                 enrich_quote_row(row)
+                # Compute derived numeric metrics and attach
+                try:
+                    metrics = compute_row_metrics(row)
+                    row.update(metrics)
+                    # If change_percent is not provided, align it with last vs prev close
+                    if row.get('change_percent') in (None, '', '—'):
+                        row['change_percent'] = metrics.get('last_prev_pct')
+                except Exception as e:
+                    logger.warning(f"Metric computation failed for {row.get('instrument',{}).get('symbol','?')}: {e}")
                 enriched_rows.append(row)
             
             # Step 4: Compute composite total with all classification logic
