@@ -4,7 +4,6 @@ import { Container } from '@mui/material'
 // GlobalHeader is used inside AppLayout only
 import TimeZone from './pages/TimeZone/TimeZone.tsx'
 import FutureTrading from './pages/FutureTrading'
-import StockTrading from './pages/StockTrading'
 import ActivityPositions from './pages/ActivityPositions'
 import AccountStatement from './pages/AccountStatement/AccountStatement'
 import ProtectedRoute from './components/ProtectedRoute'
@@ -28,8 +27,8 @@ function App() {
   // Routes that should have full-width layout (no Container)
   // Ensure both bare paths and /app/* variants are treated as full width
   const fullWidthRoutes = [
-    '/', '/home', '/futures', '/stock-trading',
-    '/app/home', '/app/futures', '/app/stock-trading'
+    '/', '/home', '/futures',
+    '/app/home', '/app/futures'
   ];
   const isFullWidth = fullWidthRoutes.some((p) => location.pathname.startsWith(p));
 
@@ -98,7 +97,7 @@ function App() {
                 <Routes>
                   <Route path="home" element={<HomeContent />} />
                   <Route path="futures" element={<FutureTrading />} />
-                  <Route path="stock-trading" element={<StockTrading />} />
+                  {/* Stock trading removed */}
                   <Route path="user" element={<User />} />
                   <Route path="*" element={<Navigate to="home" replace />} />
                 </Routes>
@@ -107,7 +106,7 @@ function App() {
                   <Routes>
                     <Route path="home" element={<HomeContent />} />
                     <Route path="futures" element={<FutureTrading />} />
-                    <Route path="stock-trading" element={<StockTrading />} />
+                    {/* Stock trading removed */}
                     <Route path="user" element={<User />} />
                     <Route path="*" element={<Navigate to="home" replace />} />
                   </Routes>

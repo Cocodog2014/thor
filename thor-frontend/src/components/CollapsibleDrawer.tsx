@@ -16,7 +16,6 @@ import {
   Home as HomeIcon,
   ChevronLeft as ChevronLeftIcon,
   ChevronRight as ChevronRightIcon,
-  CandlestickChart as CandlestickChartIcon,
   TrendingUp as TrendingUpIcon,
   AdminPanelSettings as AdminPanelSettingsIcon,
   AccountBalance as TradingActivityIcon,
@@ -42,7 +41,6 @@ export const DEFAULT_WIDTH_CLOSED = 72;
 const navigationItems = [
   { text: 'Home', icon: <HomeIcon />, path: '/app/home' },
   { text: 'Futures', icon: <TrendingUpIcon />, path: '/app/futures' },
-  { text: 'Stock Trading', icon: <CandlestickChartIcon />, path: '/app/stock-trading' },
   { text: 'Django Admin', icon: <AdminPanelSettingsIcon />, path: 'http://127.0.0.1:8000/admin/', external: true },
 ];
 
