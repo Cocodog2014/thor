@@ -172,6 +172,8 @@ function StatRow({label, value, dp=2}:{label:string; value:string|number|null|un
   );
 }
 
+//
+
 function SignalBox({sig}:{sig?: SignalKey}){
   return (
     <Chip
@@ -229,7 +231,6 @@ function TotalCard({totalData, theme}:{totalData: TotalData | null; theme: Theme
             </Typography>
           </Box>
         </Box>
-
         {/* Body */}
         <Box p={2}>
           <Box display="flex" gap={2}>
@@ -461,17 +462,28 @@ function L1Card({row, onSample, hist, theme}:{row: MarketData; onSample:(value:n
             </Box>
           </Box>
 
-          {/* Stats rows */}
+          {/* Stats rows (reverted) */}
           <Box mt={2}>
             {/* Group 1: Close (prev) vs Open - two columns, two rows */}
             <Box display="flex" gap={2}>
               <Box flex={1}>
-                <StatRow label="Close (prev)" value={row.previous_close} />
-                <StatRow label="Diff (Open vs Prev)" value={(row as any).open_prev_diff as any} />
+                <StatRow label="Close" value={row.previous_close} />
+                <Box>
+                  {/* Headers row: clearly label number vs percentage */}
+                  <Box display="flex" justifyContent="space-between" alignItems="baseline">
+                    <Typography variant="caption" color="text.secondary">Open vs Prev (Number)</Typography>
+                    <Typography variant="caption" color="text.secondary">Open vs Prev (%)</Typography>
+                  </Box>
+                  {/* Values row: actual number and percent beneath headers */}
+                  <Box display="flex" justifyContent="space-between" alignItems="center" mt={0.5}>
+                    <Typography variant="caption" fontWeight="medium">{fmt((row as any).open_prev_diff as any, 2)}</Typography>
+                    <Typography variant="caption" fontWeight="medium">{`${fmt((row as any).open_prev_pct as any, 2)}%`}</Typography>
+                  </Box>
+                </Box>
               </Box>
               <Box flex={1}>
                 <StatRow label="Open" value={row.open_price} />
-                <StatRow label="Diff % (Open vs Prev)" value={(row as any).open_prev_pct as any} />
+                {/* Percent moved under Open vs Prev in the left column */}
               </Box>
             </Box>
 

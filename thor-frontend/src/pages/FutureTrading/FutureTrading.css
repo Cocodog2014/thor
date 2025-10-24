@@ -8,6 +8,8 @@
   .l1-body { max-height: 280px; }
 }
 
+/* removed pair-row alignment helpers (reverted to StatRow layout) */
+
 /* FutureTrading.css - Custom styles for the futures trading dashboard */
 
 /* Animation support for motion components */
@@ -62,38 +64,18 @@
 
 /* Loading states */
 .loading-shimmer {
-  background: linear-gradient(
-    90deg,
-    rgba(255, 255, 255, 0.1) 25%,
-    rgba(255, 255, 255, 0.2) 50%,
-    rgba(255, 255, 255, 0.1) 75%
+  background: linear-gradient(90deg,
+    rgba(255,255,255,0.05) 25%,
+    rgba(255,255,255,0.12) 50%,
+    rgba(255,255,255,0.05) 75%
   );
   background-size: 200% 100%;
-  animation: shimmer 1.5s infinite;
+  animation: shimmer 1.2s linear infinite;
 }
 
 @keyframes shimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
-}
-
-/* Responsive grid adjustments */
-@media (max-width: 1200px) {
-  .futures-grid {
-    grid-template-columns: repeat(4, 1fr);
-  }
-}
-
-@media (max-width: 900px) {
-  .futures-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-@media (max-width: 600px) {
-  .futures-grid {
-    grid-template-columns: 1fr;
-  }
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
 }
 
 /* Market status indicators */
