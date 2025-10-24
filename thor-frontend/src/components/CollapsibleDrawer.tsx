@@ -20,6 +20,7 @@ import {
   AdminPanelSettings as AdminPanelSettingsIcon,
   AccountBalance as TradingActivityIcon,
   Logout as LogoutIcon,
+  Public as PublicIcon,
 } from '@mui/icons-material';
 import ReceiptLongIcon from '@mui/icons-material/ReceiptLong';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -33,6 +34,8 @@ export interface CollapsibleDrawerProps {
   showTradingActivity?: boolean;
   onAccountStatementToggle?: () => void;
   showAccountStatement?: boolean;
+  onGlobalMarketToggle?: () => void;
+  showGlobalMarket?: boolean;
 }
 
 export const DEFAULT_WIDTH_OPEN = 240;
@@ -53,6 +56,8 @@ const CollapsibleDrawer: React.FC<CollapsibleDrawerProps> = ({
   showTradingActivity = false,
   onAccountStatementToggle,
   showAccountStatement = false,
+  onGlobalMarketToggle,
+  showGlobalMarket = false,
 }) => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -161,6 +166,31 @@ const CollapsibleDrawer: React.FC<CollapsibleDrawerProps> = ({
             </ListItemButton>
           </ListItem>
         ))}
+
+        {/* Global Market (TimeZone) Toggle */}
+        <ListItem disablePadding sx={{ display: 'block' }}>
+          <ListItemButton
+            selected={showGlobalMarket}
+            onClick={onGlobalMarketToggle}
+            sx={{
+              minHeight: 48,
+              justifyContent: open ? 'initial' : 'center',
+              px: 2.5,
+              '&.Mui-selected': {
+                backgroundColor: 'rgba(25, 118, 210, 0.2)',
+                borderRight: '3px solid #1976d2',
+              },
+              '&:hover': {
+                backgroundColor: 'rgba(25, 118, 210, 0.1)',
+              },
+            }}
+          >
+            <ListItemIcon sx={{ minWidth: 0, mr: open ? 3 : 'auto', justifyContent: 'center', color: '#1976d2' }}>
+              <PublicIcon />
+            </ListItemIcon>
+            <ListItemText primary="Global Market" sx={{ opacity: open ? 1 : 0, color: '#fff' }} />
+          </ListItemButton>
+        </ListItem>
 
         {/* Accounts & Statements Toggle (appears high in the list) */}
         <ListItem disablePadding sx={{ display: 'block' }}>

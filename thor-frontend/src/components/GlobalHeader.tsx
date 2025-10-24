@@ -9,9 +9,11 @@ interface LayoutProps {
   showTradingActivity?: boolean;
   onAccountStatementToggle?: () => void;
   showAccountStatement?: boolean;
+  onGlobalMarketToggle?: () => void;
+  showGlobalMarket?: boolean;
 }
 
-const GlobalHeader: React.FC<LayoutProps> = ({ children, onTradingActivityToggle, showTradingActivity, onAccountStatementToggle, showAccountStatement }) => {
+const GlobalHeader: React.FC<LayoutProps> = ({ children, onTradingActivityToggle, showTradingActivity, onAccountStatementToggle, showAccountStatement, onGlobalMarketToggle, showGlobalMarket }) => {
   const [open, setOpen] = React.useState(false);
   const { mode } = useTradingMode();
 
@@ -77,6 +79,8 @@ const GlobalHeader: React.FC<LayoutProps> = ({ children, onTradingActivityToggle
     showTradingActivity={showTradingActivity}
     onAccountStatementToggle={onAccountStatementToggle}
     showAccountStatement={showAccountStatement}
+    onGlobalMarketToggle={onGlobalMarketToggle}
+    showGlobalMarket={showGlobalMarket}
   />
 
       {/* Main Content */}

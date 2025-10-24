@@ -23,6 +23,7 @@ function App() {
   const location = useLocation();
   const [showTradingActivity, setShowTradingActivity] = useState(false);
   const [showAccountStatement, setShowAccountStatement] = useState(false);
+  const [showGlobalMarket, setShowGlobalMarket] = useState(false);
   
   // Routes that should have full-width layout (no Container)
   // Ensure both bare paths and /app/* variants are treated as full width
@@ -40,13 +41,19 @@ function App() {
     setShowAccountStatement(!showAccountStatement);
   };
 
+  const toggleGlobalMarket = () => {
+    setShowGlobalMarket(!showGlobalMarket);
+  };
+
   // Inline Home component - just the TimeZone display
   const HomeContent = () => (
     <div className="home-screen">
       <div className="dashboard-grid">
-        <section className="dashboard-card global-markets" aria-label="Global Markets">
-          <TimeZone />
-        </section>
+        {showGlobalMarket && (
+          <section className="dashboard-card global-markets" aria-label="Global Markets">
+            <TimeZone />
+          </section>
+        )}
         {showAccountStatement && (
           <section className="dashboard-card account-statement" aria-label="Account Statement">
             <AccountStatement />
@@ -92,6 +99,8 @@ function App() {
                 showTradingActivity={showTradingActivity}
                 onAccountStatementToggle={toggleAccountStatement}
                 showAccountStatement={showAccountStatement}
+                onGlobalMarketToggle={toggleGlobalMarket}
+                showGlobalMarket={showGlobalMarket}
               >
               {isFullWidth ? (
                 <Routes>
