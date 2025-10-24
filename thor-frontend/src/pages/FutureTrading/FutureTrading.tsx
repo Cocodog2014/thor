@@ -462,40 +462,55 @@ function L1Card({row, onSample, hist, theme}:{row: MarketData; onSample:(value:n
             </Box>
           </Box>
 
-          {/* Stats rows (reverted) */}
+          {/* Stats rows - reformatted to header rows with values underneath */}
           <Box mt={2}>
-            {/* Group 1: Close (prev) vs Open - two columns, two rows */}
-            <Box display="flex" gap={2}>
-              <Box flex={1}>
-                <StatRow label="Close" value={row.previous_close} />
-                <Box>
-                  {/* Headers row: clearly label number vs percentage */}
-                  <Box display="flex" justifyContent="space-between" alignItems="baseline">
-                    <Typography variant="caption" color="text.secondary">Open vs Prev (Number)</Typography>
-                    <Typography variant="caption" color="text.secondary">Open vs Prev (%)</Typography>
-                  </Box>
-                  {/* Values row: actual number and percent beneath headers */}
-                  <Box display="flex" justifyContent="space-between" alignItems="center" mt={0.5}>
-                    <Typography variant="caption" fontWeight="medium">{fmt((row as any).open_prev_diff as any, 2)}</Typography>
-                    <Typography variant="caption" fontWeight="medium">{`${fmt((row as any).open_prev_pct as any, 2)}%`}</Typography>
-                  </Box>
-                </Box>
+            {/* Row group: Close (prev) and Open */}
+            <Box>
+              {/* Headers */}
+              <Box display="flex" justifyContent="space-between" alignItems="baseline">
+                <Typography variant="caption" color="text.secondary">Close</Typography>
+                <Typography variant="caption" color="text.secondary">Open</Typography>
               </Box>
-              <Box flex={1}>
-                <StatRow label="Open" value={row.open_price} />
-                {/* Percent moved under Open vs Prev in the left column */}
+              {/* Values */}
+              <Box display="flex" justifyContent="space-between" alignItems="center" mt={0.5}>
+                <Typography variant="caption" fontWeight="medium">{fmt(row.previous_close)}</Typography>
+                <Typography variant="caption" fontWeight="medium">{fmt(row.open_price)}</Typography>
               </Box>
             </Box>
 
-            {/* Group 2: World Low vs World High, then Range number/% */}
-            <Box display="flex" gap={2} mt={1}>
-              <Box flex={1}>
-                <StatRow label="World Low (24h)" value={row.low_price} />
-                <StatRow label="Range (High - Low)" value={(row as any).range_diff as any} />
+            {/* Row group: Open vs Previous — number and percent */}
+            <Box mt={1}>
+              <Box display="flex" justifyContent="space-between" alignItems="baseline">
+                <Typography variant="caption" color="text.secondary">Open vs Prev (Number)</Typography>
+                <Typography variant="caption" color="text.secondary">Open vs Prev (%)</Typography>
               </Box>
-              <Box flex={1}>
-                <StatRow label="World High (24h)" value={row.high_price} />
-                <StatRow label="Range % (vs Prev)" value={(row as any).range_pct as any} />
+              <Box display="flex" justifyContent="space-between" alignItems="center" mt={0.5}>
+                <Typography variant="caption" fontWeight="medium">{fmt((row as any).open_prev_diff as any, 2)}</Typography>
+                <Typography variant="caption" fontWeight="medium">{`${fmt((row as any).open_prev_pct as any, 2)}%`}</Typography>
+              </Box>
+            </Box>
+
+            {/* Row group: World Low/High (24h) */}
+            <Box mt={1}>
+              <Box display="flex" justifyContent="space-between" alignItems="baseline">
+                <Typography variant="caption" color="text.secondary">World Low (24h)</Typography>
+                <Typography variant="caption" color="text.secondary">World High (24h)</Typography>
+              </Box>
+              <Box display="flex" justifyContent="space-between" alignItems="center" mt={0.5}>
+                <Typography variant="caption" fontWeight="medium">{fmt(row.low_price)}</Typography>
+                <Typography variant="caption" fontWeight="medium">{fmt(row.high_price)}</Typography>
+              </Box>
+            </Box>
+
+            {/* Row group: Range number and percent */}
+            <Box mt={1}>
+              <Box display="flex" justifyContent="space-between" alignItems="baseline">
+                <Typography variant="caption" color="text.secondary">Range (High - Low)</Typography>
+                <Typography variant="caption" color="text.secondary">Range % (vs Prev)</Typography>
+              </Box>
+              <Box display="flex" justifyContent="space-between" alignItems="center" mt={0.5}>
+                <Typography variant="caption" fontWeight="medium">{fmt((row as any).range_diff as any)}</Typography>
+                <Typography variant="caption" fontWeight="medium">{fmt((row as any).range_pct as any)}</Typography>
               </Box>
             </Box>
 
