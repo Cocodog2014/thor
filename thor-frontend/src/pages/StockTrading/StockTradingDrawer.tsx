@@ -101,7 +101,7 @@ const StockTradingDrawer: React.FC<StockTradingDrawerProps> = ({
               color: 'var(--thor-blue-light)',
             }}
           >
-            Stock Desk
+            Trading Desk
           </Typography>
         )}
         <IconButton onClick={onToggle} sx={{ color: 'var(--thor-blue-light)' }} aria-label={open ? 'Collapse stock drawer' : 'Expand stock drawer'}>

@@ -62,7 +62,10 @@ const CollapsibleDrawer: React.FC<CollapsibleDrawerProps> = ({
   const drawerWidth = open ? widthOpen : widthClosed;
 
   const signOut = () => {
-    try { localStorage.removeItem('thor_token'); } catch {}
+    try {
+      localStorage.removeItem('thor_access_token');
+      localStorage.removeItem('thor_refresh_token');
+    } catch {}
     navigate('/auth/login');
   };
 

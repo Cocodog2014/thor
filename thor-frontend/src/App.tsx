@@ -12,6 +12,7 @@ import AuthLayout from './layouts/AuthLayout'
 import AppLayout from './layouts/AppLayout'
 import Register from './pages/User/Register'
 import User, { Login as UserLogin } from './pages/User'
+import { TradingModeProvider } from './context/TradingModeContext'
 
 // NOTE: This App.tsx also serves as the home page component
 // The HomeContent inline component below handles the home page display
@@ -86,12 +87,13 @@ function App() {
         path="/app/*"
         element={
           <ProtectedRoute>
-            <AppLayout 
-              onTradingActivityToggle={toggleTradingActivity}
-              showTradingActivity={showTradingActivity}
-              onAccountStatementToggle={toggleAccountStatement}
-              showAccountStatement={showAccountStatement}
-            >
+            <TradingModeProvider>
+              <AppLayout 
+                onTradingActivityToggle={toggleTradingActivity}
+                showTradingActivity={showTradingActivity}
+                onAccountStatementToggle={toggleAccountStatement}
+                showAccountStatement={showAccountStatement}
+              >
               {isFullWidth ? (
                 <Routes>
                   <Route path="home" element={<HomeContent />} />
@@ -111,7 +113,8 @@ function App() {
                   </Routes>
                 </Container>
               )}
-            </AppLayout>
+              </AppLayout>
+            </TradingModeProvider>
           </ProtectedRoute>
         }
       />

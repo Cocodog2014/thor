@@ -7,10 +7,11 @@ import WatchList from './WatchList/WatchList';
 import MarketOverview from './MarketOverview/MarketOverview.tsx';
 import NewsHeatmap from './NewsHeatmap/NewsHeatmap.tsx';
 import { type TradingModeKey } from './Account/accountData';
+import { useTradingMode } from '../../context/TradingModeContext';
 
 const StockTrading = () => {
   const [drawerOpen, setDrawerOpen] = useState(true);
-  const [mode, setMode] = useState<TradingModeKey>('live');
+  const { mode, setMode } = useTradingMode();
 
   const handleModeChange = (value: TradingModeKey) => {
     setMode(value);

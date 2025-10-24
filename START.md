@@ -57,6 +57,40 @@ npm run dev
 
 ---
 
+## 5️⃣ Start Frontend in Production (Preview)
+
+Use this when serving the frontend through Cloudflare to avoid dev-module 404s.
+
+```powershell
+# In case the dev server is running on 5173, stop it first (close the terminal)
+
+cd A:\Thor\thor-frontend
+
+# 1) Build the production bundle
+npm run build
+
+# 2) Serve the built app on the SAME port Cloudflare expects (5173)
+# Bind to IPv4 loopback to ensure Cloudflared can reach it
+npx vite preview --host 127.0.0.1 --port 5173 --strictPort
+```
+
+Notes:
+- Keep Django running on 8000 at the same time.
+- Cloudflared is already configured so:
+  - /, all other paths → http://127.0.0.1:5173 (this preview server)
+  - /admin, /api, /static, /media → http://127.0.0.1:8000 (Django)
+- Start order recommendation: Backend (8000) → Frontend preview (5173) → Cloudflared.
+
+### Quick verify (optional)
+
+```powershell
+Invoke-WebRequest https://thor.360edu.org/ -UseBasicParsing
+Invoke-WebRequest https://thor.360edu.org/api/ -UseBasicParsing
+Invoke-WebRequest https://thor.360edu.org/admin/ -UseBasicParsing
+```
+
+---
+
 ## 📌 Important URLs
 
 ### Local Access
@@ -73,7 +107,8 @@ npm run dev
 
 ### Schwab OAuth
 - **Start OAuth**: https://thor.360edu.org/api/schwab/oauth/start/
-- **Callback URL**: https://thor.360edu.org/api/schwab/oauth/callback/
+- **Callback URL**: https://thor.360edu.org/schwab/callback
+
 
 ## 🔧 Troubleshooting
 - ModuleNotFoundError: redis
@@ -128,3 +163,8 @@ cd A:\Thor
 
 # Start the tunnel (this will run in the foreground)
 cloudflared tunnel run thor
+
+> If you see a white screen at https://thor.360edu.org:
+> - Make sure Vite dev is running on port 5173 (`npm run dev`) and Django on 8000.
+> - Confirm both cloudflared configs point to 5173 for the frontend (`C:\ProgramData\cloudflared\config.yml` and `%USERPROFILE%\.cloudflared\config.yml`).
+> - Hard refresh the browser (Ctrl+F5) to clear cached dev assets.

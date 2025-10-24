@@ -9,17 +9,32 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
+// Use the same key as the rest of the app ('thor_access_token') to stay consistent
+const ACCESS_KEY = 'thor_access_token';
+const REFRESH_KEY = 'thor_refresh_token';
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [token, setToken] = useState<string | null>(() => localStorage.getItem('thor_token'));
+  const [token, setToken] = useState<string | null>(() => {
+    try {
+      return localStorage.getItem(ACCESS_KEY);
+    } catch {
+      return null;
+    }
+  });
 
   const login = (newToken: string) => {
     setToken(newToken);
-    localStorage.setItem('thor_token', newToken);
+    try {
+      localStorage.setItem(ACCESS_KEY, newToken);
+    } catch {}
   };
 
   const logout = () => {
     setToken(null);
-    localStorage.removeItem('thor_token');
+    try {
+      localStorage.removeItem(ACCESS_KEY);
+      localStorage.removeItem(REFRESH_KEY);
+    } catch {}
   };
 
   // Keep a boolean for convenience
