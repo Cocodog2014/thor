@@ -411,3 +411,5 @@ If migrating from existing Django User model:
 - Account recovery processes
 
 This Users app provides a solid foundation for identity and access management that can scale with the Thor trading platform's growing security and user management needs.
+
+http://localhost:5173/auth/login
