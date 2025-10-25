@@ -126,7 +126,7 @@ function fmt(n: string | number | null | undefined, dp = 2) {
   if (n === null || n === undefined) return "—";
   const num = typeof n === "string" ? Number(n) : n;
   if (Number.isNaN(num)) return "—";
-  return num.toLocaleString(undefined, { minimumFractionDigits: dp, maximumFractionDigits: dp });
+  return num.toLocaleString('en-US', { minimumFractionDigits: dp, maximumFractionDigits: dp });
 }
 
 function pctColor(pct: number | null, theme: Theme) {
