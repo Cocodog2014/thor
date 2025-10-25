@@ -1,203 +1,187 @@
-# LiveData Architecture
+# LiveData — single guide
 
-**Simple, flexible, multi-broker live market data pipeline for Thor.**
+Simple, provider-agnostic live data pipeline for Thor. LiveData fetches from brokers (TOS, Schwab, etc.), publishes to Redis, and exposes a uniform HTTP snapshot for any app to consume. Business apps never talk to brokers directly.
 
----
+This README replaces ARCHITECTURE.md and MIGRATION.md.
 
-## Overview
+## Architecture diagram
 
-`LiveData/` is a Django package that fetches and streams live market data from multiple brokers (Schwab, TOS, IBKR, etc.) and publishes it to Redis. Other Thor apps subscribe to Redis channels to receive real-time updates.
+```
+┌──────────────────────────────────────────────────────────────────────┐
+│                         External data sources                        │
+├──────────────────────────────────────────────────────────────────────┤
+│  TOS Excel / Stream      Schwab Trading API        (Future) IBKR     │
+└───────────────┬────────────────────┬───────────────────────┬─────────┘
+                │                    │                       │
+                ▼                    ▼                       ▼
+┌──────────────────────────────────────────────────────────────────────┐
+│                             LiveData                                 │
+├──────────────────────────────────────────────────────────────────────┤
+│  tos/ (excel_reader, views)      schwab/ (oauth, services)           │
+│                                  shared/ (redis_client, channels)    │
+│                                  → publish_quote(symbol, payload)    │
+└───────────────┬──────────────────────────────────────────────────────┘
+                │
+                │ publish JSON + cache latest
+                ▼
+┌──────────────────────────────────────────────────────────────────────┐
+│                               Redis                                  │
+├──────────────────────────────────────────────────────────────────────┤
+│ Pub/Sub channels:                                                    │
+│   live_data:quotes:{SYMBOL}  (streaming)                             │
+│   … positions/balances/orders/transactions                           │
+│ Snapshot cache (hash):                                               │
+│   live_data:latest:quotes  → field: SYMBOL → JSON payload            │
+└───────────────┬──────────────────────────────────────────────────────┘
+                │                           │
+                │ HTTP (seed page)          │ Redis (live updates)
+                ▼                           ▼
+┌──────────────────────────────────────────────────────────────────────┐
+│                         Business / UI apps                           │
+├──────────────────────────────────────────────────────────────────────┤
+│  FutureTrading (backend)  account_statement  thor-frontend (UI)      │
+│  - GET /api/feed/quotes/snapshot?symbols=…                           │
+│  - Subscribe live_data:quotes:{SYMBOL}                                │
+└──────────────────────────────────────────────────────────────────────┘
+```
 
-**Key Principle:** LiveData is a "dumb pipe" - it just fetches and publishes data. Your business logic apps (FutureTrading, account_statement, etc.) decide what to do with it.
+## What it does
 
----
+- Ingests from providers (TOS Excel/stream, Schwab API, …)
+- Publishes to Redis pub/sub channels
+- Stores the latest value per symbol as a snapshot in Redis
+- Serves a thin HTTP endpoint to retrieve the latest snapshot for multiple symbols at once
 
-## Structure
+## Folder map
 
 ```
 LiveData/
-  shared/                  # Shared Redis client used by all brokers
-    redis_client.py        # live_data_redis singleton
-    channels.py            # Channel naming conventions
-  
-  schwab/                  # Schwab OAuth + Trading API
-    models.py              # SchwabToken (OAuth storage only)
-    tokens.py              # OAuth helpers
-    services.py            # API client (fetch positions/balances/orders)
-    urls.py, views.py      # OAuth endpoints
-  
-  tos/                     # Thinkorswim real-time streaming
-    services.py            # WebSocket streamer (publishes quotes)
-    urls.py, views.py      # Stream control endpoints
+  shared/
+    channels.py        # Channel naming helpers
+    redis_client.py    # Publisher + snapshot cache (live_data_redis)
+    urls.py, views.py  # Provider-agnostic endpoints (quotes/snapshot)
+  tos/
+    excel_reader.py    # Generic Excel reader (TOS RTD ranges)
+    services.py        # Streamer (future), helpers
+    urls.py, views.py  # TOS-specific endpoints
+  schwab/
+    models.py, tokens.py, services.py, urls.py, views.py
 ```
 
----
+## Data flow
 
-## How It Works
+1) Provider receives/reads a quote (e.g., TOS Excel row or WebSocket event)
+2) Provider calls `live_data_redis.publish_quote(symbol, payload)`
+   - Publishes JSON to `live_data:quotes:{SYMBOL}`
+   - Caches the latest payload in hash `live_data:latest:quotes`
+3) Apps get data by either:
+   - Subscribing to Redis channel(s) for streaming; or
+   - Calling the snapshot HTTP endpoint for quick page loads.
 
-### 1. Brokers Publish to Redis
+## Contracts
 
-**TOS publishes quotes:**
-```python
-from LiveData.shared.redis_client import live_data_redis
+### Redis channels
+- Quotes: `live_data:quotes:{symbol}`
+- Positions: `live_data:positions:{account_id}`
+- Balances: `live_data:balances:{account_id}`
+- Orders: `live_data:orders:{account_id}`
+- Transactions: `live_data:transactions:{account_id}`
 
-# TOS receives quote from WebSocket
-live_data_redis.publish_quote("AAPL", {
-    "bid": 175.50,
-    "ask": 175.51,
-    "last": 175.50,
-    "volume": 1000000
-})
+Payloads are JSON (numbers/decimals serialized via `default=str`). Quote payload includes at minimum:
+
+```
+{
+  "type": "quote",
+  "symbol": "ES",
+  "bid": 4712.25,
+  "ask": 4712.50,
+  "last": 4712.25,
+  "volume": 123456,
+  "timestamp": "2025-10-24T14:33:12Z"
+}
 ```
 
-**Schwab publishes positions:**
+### Snapshot cache (Redis)
+- Key: `live_data:latest:quotes` (hash)
+- Field: SYMBOL → JSON payload (same shape as above)
+- Writers: any provider calling `publish_quote()`
+- Readers: snapshot endpoint (or direct Redis reads if you prefer)
+
+## HTTP endpoints
+
+- Provider-agnostic snapshot:
+  - `GET /api/feed/quotes/snapshot/?symbols=YM,ES,NQ,RTY,CL,SI,HG,GC,VX,DX,ZB`
+  - Response:
+    ```
+    {
+      "quotes": [ { ...payload... }, ... ],
+      "count": 11,
+      "source": "redis_snapshot"
+    }
+    ```
+
+- TOS Excel reader (optional bootstrap/testing):
+  - `GET /api/feed/tos/quotes/latest/?consumer=futures_trading&file_path=A:\\Thor\\CleanData.xlsm&sheet_name=Futures&data_range=A1:M12`
+  - Returns raw rows and also publishes each row to Redis (which updates the snapshot).
+
+## Integrating another app (consumer)
+
+Two options—use both if you want fast initial load + live updates:
+
+1) Initial load (HTTP):
+   - Call `/api/feed/quotes/snapshot/?symbols=...`
+   - Render UI immediately with latest values.
+
+2) Live updates (Redis):
+   - Subscribe to `live_data:quotes:{symbol}` for each symbol you care about.
+   - Apply updates as messages arrive.
+
+Minimal Python example:
+
 ```python
-from LiveData.shared.redis_client import live_data_redis
+import json, redis, requests
 
-# Schwab API returns position data
-live_data_redis.publish_position(account_id, {
-    "symbol": "AAPL",
-    "quantity": 100,
-    "market_value": 17550.00
-})
-```
+symbols = ["YM","ES","NQ"]
+# a) Snapshot
+resp = requests.get("http://localhost:8000/api/feed/quotes/snapshot/", params={"symbols": ",".join(symbols)})
+print(resp.json()["quotes"])  # Seed your UI
 
-### 2. Your Apps Subscribe to Redis
-
-**FutureTrading subscribes to quotes:**
-```python
-import redis
-
+# b) Streaming
 r = redis.Redis()
-pubsub = r.pubsub()
-pubsub.subscribe("live_data:quotes:AAPL")
-
-for message in pubsub.listen():
-    quote = json.loads(message['data'])
-    # Update your UI, save to DB, etc.
+ps = r.pubsub()
+ps.subscribe(*[f"live_data:quotes:{s}" for s in symbols])
+for msg in ps.listen():
+    if msg["type"] == "message":
+        data = json.loads(msg["data"])  # apply to UI/state
 ```
 
-**account_statement subscribes to positions:**
-```python
-pubsub.subscribe("live_data:positions:12345")
+## Adding a new provider (publisher)
 
-for message in pubsub.listen():
-    position = json.loads(message['data'])
-    Position.objects.update_or_create(...)
-```
-
----
-
-## Redis Channels
-
-All channels follow this pattern: `live_data:<type>:<identifier>`
-
-| Channel | Published By | Data |
-|---------|--------------|------|
-| `live_data:quotes:{symbol}` | TOS | Real-time quotes (bid/ask/last/volume) |
-| `live_data:positions:{account_id}` | Schwab | Holdings (symbol, quantity, value) |
-| `live_data:balances:{account_id}` | Schwab | Cash, buying power, account value |
-| `live_data:orders:{account_id}` | Schwab | Order fills and status updates |
-| `live_data:transactions:{account_id}` | Schwab | Buy/sell history |
-
----
-
-## Database Models
-
-**Only ONE model exists:** `SchwabToken`
+Create a new app or extend an existing provider and, when you have a quote payload, call:
 
 ```python
-# LiveData/schwab/models.py
-class SchwabToken(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE)
-    access_token = models.TextField()
-    refresh_token = models.TextField()
-    access_expires_at = models.BigIntegerField()
+from LiveData.shared.redis_client import live_data_redis
+live_data_redis.publish_quote(symbol, payload)
 ```
 
-**Why just one?** OAuth tokens must be saved. Everything else (quotes, positions, balances) comes from APIs in real-time and goes straight to Redis. Your business logic apps decide what to persist.
+That’s it—your data will stream and snapshot uniformly for all consumers.
 
----
+## Environment
 
-## Adding a New Broker
+Redis settings come from Django settings with defaults:
+- `REDIS_HOST` (default `localhost`)
+- `REDIS_PORT` (default `6379`)
+- `REDIS_DB`   (default `0`)
 
-Want to add Interactive Brokers? Just create a new app:
+## Troubleshooting
 
-```
-LiveData/
-  ibkr/                    # New broker!
-    models.py              # IBKRToken (if OAuth needed)
-    services.py            # IBKR API client
-    urls.py, views.py
-```
+- Snapshot empty? Make sure at least one publisher has called `publish_quote()` recently (or hit the TOS Excel reader endpoint once to seed).
+- Mixed symbol formats? We recommend stripping the leading slash and uppercasing (`/ES` → `ES`).
+- Decimals/Datetime serialization issues? We use `json.dumps(..., default=str)` in the publisher.
 
-Update settings:
-```python
-INSTALLED_APPS = [
-    "LiveData.schwab.apps.SchwabConfig",
-    "LiveData.tos.apps.TosConfig",
-    "LiveData.ibkr.apps.IBKRConfig",  # ← Add one line
-]
-```
+## Migration note
 
-Done. No refactoring needed.
-
----
-
-## API Endpoints
-
-### Schwab OAuth
-- `GET /api/schwab/oauth/start/` - Start OAuth flow (redirects to Schwab)
-- `GET /api/schwab/oauth/callback/` - OAuth callback (Schwab redirects here with code)
-- `GET /api/schwab/accounts/` - List connected accounts
-- `GET /api/schwab/accounts/{id}/positions/` - Fetch positions (publishes to Redis)
-- `GET /api/schwab/accounts/{id}/balances/` - Fetch balances (publishes to Redis)
-
-**Important:** Schwab OAuth requires HTTPS for callbacks. In development:
-1. Use Cloudflare Tunnel to expose your local server: `cloudflared tunnel run thor-local`
-2. Set `CLOUDFLARE_TUNNEL_URL=https://thor.360edu.org` in `.env`
-3. Django will automatically use the tunnel URL for OAuth callbacks
-
-See `../CloudFlare.md` for tunnel setup details.
-
-### TOS Streaming
-- `GET /api/feed/tos/status/` - Check streamer status
-- `POST /api/feed/tos/subscribe/` - Subscribe to a symbol
-- `POST /api/feed/tos/unsubscribe/` - Unsubscribe from a symbol
-
----
-
-## Migration from Old SchwabLiveData
-
-### What Changed
-| Old | New |
-|-----|-----|
-| ❌ `SchwabLiveData/` folder | ✅ `LiveData/` folder |
-| ❌ `DataFeed` model (config) | ✅ Redis pub/sub (no config needed) |
-| ❌ `ConsumerApp` model (routing) | ✅ Apps just subscribe to channels |
-| ❌ `provider_factory.py` (complex) | ✅ Direct Redis publishing (simple) |
-
-### What Stayed the Same
-- App label: `label = "SchwabLiveData"` (keeps DB tables intact)
-- Migration history: No data loss
-
----
-
-## Why This Architecture?
-
-✅ **Simple** - No routing config, no provider factory, just publish/subscribe  
-✅ **Flexible** - Add brokers without touching existing code  
-✅ **Scalable** - Redis handles millions of messages/second  
-✅ **Testable** - Each broker app is isolated  
-✅ **Clear** - One job per app (Schwab = OAuth/API, TOS = streaming)  
-
----
-
-## Next Steps (TODO)
-
-1. ✅ Structure created
-2. ✅ Database migrated
-3. ⏳ Implement Schwab OAuth flow (`LiveData/schwab/tokens.py`)
+Older documents (architecture & migration) are now merged here. The high-level design remains: LiveData publishes; business apps consume.
 4. ⏳ Implement TOS WebSocket connection (`LiveData/tos/services.py`)
 5. ⏳ Refactor `FutureTrading/views.py` to subscribe to Redis
 6. ⏳ Add IBKR integration (when needed)

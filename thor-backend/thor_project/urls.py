@@ -51,6 +51,7 @@ urlpatterns = [
     path('api/users/', include('users.urls')),   # User authentication
     # LiveData endpoints (new structure)
     path('api/schwab/', include(('LiveData.schwab.urls', 'schwab'), namespace='schwab')),
+    path('api/feed/', include(('LiveData.shared.urls', 'feed'), namespace='feed')),
     path('api/feed/tos/', include(('LiveData.tos.urls', 'tos'), namespace='tos')),
     path('api/worldclock/', include('timezones.urls')),  # WorldClock APIs
     path('test/', api_test_page, name='api_test'),  # API test page

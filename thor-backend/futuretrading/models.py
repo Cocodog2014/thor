@@ -299,39 +299,3 @@ class HbsThresholds(models.Model):
     
     def __str__(self):
         return f"{self.name} ({'Active' if self.is_active else 'Inactive'})"
-
-
-class DataProviderConfig(models.Model):
-    """Configuration for different market data providers"""
-    name = models.CharField(max_length=50, unique=True)  # 'alpha_vantage', 'iex', 'polygon'
-    display_name = models.CharField(max_length=100)
-    api_key = models.CharField(max_length=200, blank=True)
-    base_url = models.URLField()
-    
-    # Rate limiting
-    requests_per_minute = models.IntegerField(default=60)
-    requests_per_day = models.IntegerField(null=True, blank=True)
-    
-    # Capabilities
-    supports_real_time = models.BooleanField(default=True)
-    supports_historical = models.BooleanField(default=True)
-    supports_crypto = models.BooleanField(default=False)
-    supports_forex = models.BooleanField(default=False)
-    supports_futures = models.BooleanField(default=False)
-    
-    is_active = models.BooleanField(default=True)
-    is_primary = models.BooleanField(default=False)  # Default provider
-    
-    # Configuration JSON for provider-specific settings
-    config = models.JSONField(default=dict, blank=True)
-    
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    
-    class Meta:
-        ordering = ['-is_primary', 'name']
-        verbose_name = 'Data Provider Config'
-        verbose_name_plural = 'Data Provider Configs'
-    
-    def __str__(self):
-        return self.display_name

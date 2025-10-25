@@ -19,6 +19,7 @@ from django.conf import settings
 
 from .services import tos_streamer
 from .excel_reader import get_tos_excel_reader
+from LiveData.shared.redis_client import live_data_redis
 
 logger = logging.getLogger(__name__)
 
@@ -125,6 +126,14 @@ def get_latest_quotes(request):
         
         # Read current data from Excel (include_headers=True since range includes header row)
         quotes = reader.read_data(include_headers=True)
+
+        # Publish to Redis and cache snapshot for each quote
+        for q in quotes:
+            symbol = q.get('symbol')
+            if not symbol:
+                continue
+            # Publish as-is; redis client handles Decimal via default=str
+            live_data_redis.publish_quote(symbol, q)
         
         logger.debug(f"Serving {len(quotes)} quotes to {consumer} from {data_range}")
         

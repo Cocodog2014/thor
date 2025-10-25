@@ -43,13 +43,46 @@ class LiveDataRedis:
             Number of subscribers that received the message
         """
         try:
-            message = json.dumps(data)
+            # Use default=str to handle Decimal and datetime objects
+            message = json.dumps(data, default=str)
             result = self.client.publish(channel, message)
             logger.debug(f"Published to {channel}: {len(message)} bytes to {result} subscribers")
             return result
         except Exception as e:
             logger.error(f"Failed to publish to {channel}: {e}")
             return 0
+
+    # --- Snapshot (latest) helpers ---
+    LATEST_QUOTES_HASH = "live_data:latest:quotes"
+
+    def set_latest_quote(self, symbol: str, data: Dict[str, Any]) -> None:
+        """Cache the latest quote for a symbol in a Redis hash.
+
+        Stored as JSON string to preserve types; use default=str for Decimals.
+        """
+        try:
+            payload = json.dumps({"symbol": symbol.upper(), **data}, default=str)
+            self.client.hset(self.LATEST_QUOTES_HASH, symbol.upper(), payload)
+        except Exception as e:
+            logger.error(f"Failed to cache latest quote for {symbol}: {e}")
+
+    def get_latest_quote(self, symbol: str) -> Dict[str, Any] | None:
+        try:
+            raw = self.client.hget(self.LATEST_QUOTES_HASH, symbol.upper())
+            if not raw:
+                return None
+            return json.loads(raw)
+        except Exception as e:
+            logger.error(f"Failed to read latest quote for {symbol}: {e}")
+            return None
+
+    def get_latest_quotes(self, symbols: list[str]) -> list[Dict[str, Any]]:
+        out = []
+        for s in symbols:
+            q = self.get_latest_quote(s)
+            if q:
+                out.append(q)
+        return out
     
     def publish_quote(self, symbol: str, data: Dict[str, Any]) -> int:
         """
@@ -67,7 +100,11 @@ class LiveDataRedis:
             "symbol": symbol.upper(),
             **data
         }
-        return self.publish(channel, payload)
+        # Publish to subscribers
+        result = self.publish(channel, payload)
+        # Cache snapshot
+        self.set_latest_quote(symbol, payload)
+        return result
     
     def publish_position(self, account_id: str, data: Dict[str, Any]) -> int:
         """

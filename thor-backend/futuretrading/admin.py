@@ -1,7 +1,7 @@
 from django.contrib import admin
 from .models import (
     InstrumentCategory, TradingInstrument, TradingSignal, MarketData,
-    WatchlistGroup, WatchlistItem, DataProviderConfig,
+    WatchlistGroup, WatchlistItem,
     SignalStatValue, ContractWeight, HbsThresholds, SignalWeight
 )
 
@@ -136,11 +136,3 @@ class WatchlistItemAdmin(admin.ModelAdmin):
     list_filter = ['group', 'is_active']
     list_editable = ['sort_order', 'is_active']
     search_fields = ['instrument__symbol', 'group__name']
-
-
-@admin.register(DataProviderConfig)
-class DataProviderConfigAdmin(admin.ModelAdmin):
-    list_display = ['name', 'display_name', 'is_active', 'is_primary']
-    list_filter = ['is_active', 'is_primary', 'supports_real_time', 'supports_futures']
-    list_editable = ['is_active', 'is_primary']
-    search_fields = ['name', 'display_name']

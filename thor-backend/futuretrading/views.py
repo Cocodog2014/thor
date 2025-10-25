@@ -26,27 +26,25 @@ class LatestQuotesView(APIView):
     
     def get(self, request):
         try:
-            # Step 1: Get raw quotes from TOS Excel RTD via LiveData endpoint
-            # Pass our specific configuration to the TOS provider
+            # Step 1: Get raw quotes from LiveData snapshot (provider-agnostic)
             raw_quotes = []
             
             try:
-                # Call internal TOS endpoint with our configuration
+                # Build symbols list for snapshot
+                symbols = ','.join([
+                    'YM','ES','NQ','RTY','CL','SI','HG','GC','VX','DX','ZB'
+                ])
+                # Call generic snapshot endpoint (reads from Redis cache)
                 response = requests.get(
-                    'http://localhost:8000/api/feed/tos/quotes/latest/',
-                    params={
-                        'consumer': 'futures_trading',
-                        'file_path': TOS_EXCEL_FILE,
-                        'sheet_name': TOS_EXCEL_SHEET,
-                        'data_range': TOS_EXCEL_RANGE,
-                    },
+                    'http://localhost:8000/api/feed/quotes/snapshot/',
+                    params={'symbols': symbols, 'consumer': 'futures_trading'},
                     timeout=5
                 )
                 
                 if response.status_code == 200:
                     data = response.json()
                     raw_quotes = data.get('quotes', [])
-                    logger.info(f"Fetched {len(raw_quotes)} quotes from TOS Excel {TOS_EXCEL_RANGE}")
+                    logger.info(f"Fetched {len(raw_quotes)} quotes from Redis snapshot")
                 else:
                     logger.warning(f"TOS endpoint returned {response.status_code}")
                     
