@@ -437,7 +437,7 @@ function L1Card({row, onSample, hist: _hist, theme, getQty, setQty}:{
                   gap: 1
                 }}
               >
-                {/* Bid Button (RED) */}
+                {/* Bid Button (GREEN) */}
                 <Box 
                   component="button"
                   onClick={() => {/* Future: handle bid click */}}
@@ -446,13 +446,13 @@ function L1Card({row, onSample, hist: _hist, theme, getQty, setQty}:{
                     px: 1,
                     py: 1.2,
                     textAlign: 'center',
-                    background: theme.palette.error.dark,
+                    background: theme.palette.success.dark,
                     border: 'none',
                     borderRadius: 1,
                     cursor: 'pointer',
                     transition: 'all 0.2s',
                     '&:hover': {
-                      background: theme.palette.error.main,
+                      background: theme.palette.success.main,
                       transform: 'scale(1.02)',
                     }
                   }}
@@ -468,7 +468,7 @@ function L1Card({row, onSample, hist: _hist, theme, getQty, setQty}:{
                   </Typography>
                 </Box>
 
-                {/* Ask Button (GREEN) */}
+                {/* Ask Button (RED) */}
                 <Box 
                   component="button"
                   onClick={() => {/* Future: handle ask click */}}
@@ -477,13 +477,13 @@ function L1Card({row, onSample, hist: _hist, theme, getQty, setQty}:{
                     px: 1,
                     py: 1.2,
                     textAlign: 'center',
-                    background: theme.palette.success.dark,
+                    background: theme.palette.error.dark,
                     border: 'none',
                     borderRadius: 1,
                     cursor: 'pointer',
                     transition: 'all 0.2s',
                     '&:hover': {
-                      background: theme.palette.success.main,
+                      background: theme.palette.error.main,
                       transform: 'scale(1.02)',
                     }
                   }}
