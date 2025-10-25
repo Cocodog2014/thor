@@ -278,24 +278,3 @@ class ContractWeight(models.Model):
     
     def __str__(self):
         return f"{self.instrument.symbol}: {self.weight}"
-
-
-class HbsThresholds(models.Model):
-    """Thresholds for auto-classifying signals from net change (optional future feature)"""
-    name = models.CharField(max_length=100, unique=True)
-    buy_hi = models.DecimalField(max_digits=10, decimal_places=6)
-    buy_lo = models.DecimalField(max_digits=10, decimal_places=6)
-    sell_lo = models.DecimalField(max_digits=10, decimal_places=6)
-    sell_hi = models.DecimalField(max_digits=10, decimal_places=6)
-    is_active = models.BooleanField(default=True)
-    
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    
-    class Meta:
-        ordering = ['name']
-        verbose_name = 'HBS Threshold'
-        verbose_name_plural = 'HBS Thresholds'
-    
-    def __str__(self):
-        return f"{self.name} ({'Active' if self.is_active else 'Inactive'})"
