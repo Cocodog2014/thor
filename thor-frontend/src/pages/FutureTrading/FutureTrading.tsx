@@ -79,6 +79,8 @@ type MarketData = {
     stat_value?: string;
     contract_weight?: string;
     signal_weight?: number;
+    high_52w?: string | number | null;
+    low_52w?: string | number | null;
   } & Record<string, unknown>;
   timestamp: string; // ISO
 };
@@ -630,11 +632,11 @@ function L1Card({row, onSample, hist: _hist, theme, getQty, setQty}:{
               </Box>
             </Box>
 
-            {/* Row group: World Low/High (24h) */}
+            {/* Row group: 24 hour Low/High */}
             <Box mt={1}>
               <Box display="flex" justifyContent="space-between" alignItems="baseline">
-                <Typography variant="caption" color="text.secondary">World Low (24h)</Typography>
-                <Typography variant="caption" color="text.secondary">World High (24h)</Typography>
+                <Typography variant="caption" color="text.secondary">24 hour Low</Typography>
+                <Typography variant="caption" color="text.secondary">24 hour High</Typography>
               </Box>
               <Box display="flex" justifyContent="space-between" alignItems="center" mt={0.5}>
                 <Typography variant="caption" fontWeight="medium">{fmt(row.low_price, row.instrument.display_precision)}</Typography>
@@ -651,6 +653,18 @@ function L1Card({row, onSample, hist: _hist, theme, getQty, setQty}:{
               <Box display="flex" justifyContent="space-between" alignItems="center" mt={0.5}>
                 <Typography variant="caption" fontWeight="medium">{fmt((row as any).range_diff as any)}</Typography>
                 <Typography variant="caption" fontWeight="medium">{fmt((row as any).range_pct as any)}</Typography>
+              </Box>
+            </Box>
+
+            {/* Row group: 52-week Low/High */}
+            <Box mt={1}>
+              <Box display="flex" justifyContent="space-between" alignItems="baseline">
+                <Typography variant="caption" color="text.secondary">52-week Low</Typography>
+                <Typography variant="caption" color="text.secondary">52-week High</Typography>
+              </Box>
+              <Box display="flex" justifyContent="space-between" alignItems="center" mt={0.5}>
+                <Typography variant="caption" fontWeight="medium">{fmt((row.extended_data as any)?.low_52w as any, row.instrument.display_precision)}</Typography>
+                <Typography variant="caption" fontWeight="medium">{fmt((row.extended_data as any)?.high_52w as any, row.instrument.display_precision)}</Typography>
               </Box>
             </Box>
 

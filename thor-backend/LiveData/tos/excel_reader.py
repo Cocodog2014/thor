@@ -145,9 +145,10 @@ class TOSExcelReader:
         """
         Parse a single row of Excel data into a quote dictionary
         
-        Based on your actual Excel structure:
-        Column A: Symbol (YM, NQ, etc.)
-        Other columns: Close, Open, NetChange, World High, World Low, Volume, Bid, Last, Ask, BidSize, AskSize
+    Based on your actual Excel structure:
+    Column A: Symbol (YM, NQ, etc.)
+    Other columns (new): Close, Open, NetChange, 24High, 24Low, 52WkHigh, 52WkLow, Volume, Bid, Last, Ask, BidSize, AskSize
+    Backward compatible with legacy headers 'World High' / 'World Low'.
         
         Args:
             headers: List of column headers
@@ -167,6 +168,26 @@ class TOSExcelReader:
                 data[header] = row[i]
         
         # Extract fields (handle None/empty values)
+        # Support both new and legacy header names
+        high_24h_val = data.get('24High') if headers else None
+        low_24h_val = data.get('24Low') if headers else None
+        if high_24h_val is None:
+            high_24h_val = data.get('World High')
+        if low_24h_val is None:
+            low_24h_val = data.get('World Low')
+
+        high_52w_val = (
+            data.get('52WkHigh')
+            or data.get('52wkHigh')
+            or data.get('52 Week High')
+            or data.get('52WeekHigh')
+        )
+        low_52w_val = (
+            data.get('52WkLow')
+            or data.get('52wkLow')
+            or data.get('52 Week Low')
+            or data.get('52WeekLow')
+        )
         quote = {
             'symbol': str(symbol).strip() if symbol else f"FUTURE_{row_idx}",
             'last': self._to_decimal(data.get('Last')),
@@ -175,8 +196,12 @@ class TOSExcelReader:
             'volume': self._to_int(data.get('Volume')),
             'close': self._to_decimal(data.get('Close')),
             'open': self._to_decimal(data.get('Open')),
-            'high': self._to_decimal(data.get('World High')),
-            'low': self._to_decimal(data.get('World Low')),
+            # 24h session high/low
+            'high': self._to_decimal(high_24h_val),
+            'low': self._to_decimal(low_24h_val),
+            # 52-week high/low (optional columns)
+            'high_52w': self._to_decimal(high_52w_val),
+            'low_52w': self._to_decimal(low_52w_val),
             'change': self._to_decimal(data.get('NetChange')),
             'bid_size': self._to_int(data.get('BidSize')),
             'ask_size': self._to_int(data.get('AskSize')),

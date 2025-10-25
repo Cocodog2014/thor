@@ -112,7 +112,11 @@ class LatestQuotesView(APIView):
                     'is_real_time': True,
                     'delay_minutes': 0,
                     'timestamp': quote.get('timestamp'),
-                    'extended_data': {}  # Will be filled by enrich_quote_row
+                    'extended_data': {
+                        # Pass through 52-week data if available
+                        'high_52w': to_str(quote.get('high_52w')),
+                        'low_52w': to_str(quote.get('low_52w')),
+                    }  # Will be further filled by enrich_quote_row
                 }
                 transformed_rows.append(row)
             

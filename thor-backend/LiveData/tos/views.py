@@ -110,7 +110,8 @@ def get_latest_quotes(request):
     # Allow consumer to specify configuration
     file_path = request.GET.get('file_path', r'A:\Thor\CleanData.xlsm')
     sheet_name = request.GET.get('sheet_name', 'Futures')
-    data_range = request.GET.get('data_range', 'A1:M12')  # Default to futures range
+    # Include new 52-week columns (adds one more column: AskSize at N)
+    data_range = request.GET.get('data_range', 'A1:N12')  # Default to futures range
     
     try:
         # Get Excel reader instance with consumer-provided config
