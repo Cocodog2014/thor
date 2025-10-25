@@ -163,15 +163,6 @@ function signalColor(sig?: SignalKey): ChipProps["color"] {
 
 // ----------------------------- UI Pieces -------------------------
 
-function StatRow({label, value, dp=2}:{label:string; value:string|number|null|undefined; dp?:number}){
-  return (
-    <Box display="flex" justifyContent="space-between" alignItems="center" py={0.5}>
-      <Typography variant="caption" color="text.secondary">{label}</Typography>
-      <Typography variant="caption" fontWeight="medium">{fmt(value, dp)}</Typography>
-    </Box>
-  );
-}
-
 //
 
 function SignalBox({sig}:{sig?: SignalKey}){
@@ -462,6 +453,14 @@ function L1Card({row, onSample, hist, theme}:{row: MarketData; onSample:(value:n
             </Box>
           </Box>
 
+          {/* Volume placed directly under Bid/Ask/VWAP, above Close */}
+          <Box sx={{ mt: 1 }}>
+            <Paper variant="outlined" sx={{ p: 1, textAlign: 'center' }}>
+              <Typography variant="caption" color="text.secondary">Volume</Typography>
+              <Typography variant="body2" fontWeight="medium">{fmt(row.volume, 0)}</Typography>
+            </Paper>
+          </Box>
+
           {/* Stats rows - reformatted to header rows with values underneath */}
           <Box mt={2}>
             {/* Row group: Close (prev) and Open */}
@@ -514,10 +513,6 @@ function L1Card({row, onSample, hist, theme}:{row: MarketData; onSample:(value:n
               </Box>
             </Box>
 
-            {/* Extras */}
-            <Box mt={1}>
-              <StatRow label="Volume" value={row.volume} dp={0} />
-            </Box>
             <Box display="flex" justifyContent="space-between" mt={1}>
               <Typography variant="caption" color="text.disabled">
                 {new Date(row.timestamp).toLocaleTimeString()}
