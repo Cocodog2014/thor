@@ -47,6 +47,8 @@ type Instrument = {
   exchange: string;
   currency: string;
   display_precision: number;
+  tick_value: string | null;
+  margin_requirement: string | null;
   is_active: boolean;
   sort_order: number;
 };
@@ -304,7 +306,14 @@ function TotalCard({totalData, theme}:{totalData: TotalData | null; theme: Theme
   );
 }
 
-function L1Card({row, onSample, hist: _hist, theme}:{row: MarketData; onSample:(value:number)=>void; hist:number[]; theme: Theme}){
+function L1Card({row, onSample, hist: _hist, theme, getQty, setQty}:{
+  row: MarketData; 
+  onSample:(value:number)=>void; 
+  hist:number[]; 
+  theme: Theme;
+  getQty: (symbol: string) => number;
+  setQty: (symbol: string, qty: number) => void;
+}){
   const pct = row.change_percent ? Number(row.change_percent) : ((row as any).last_prev_pct != null ? Number((row as any).last_prev_pct) : null);
   const spread = row.bid && row.ask ? Number(row.ask) - Number(row.bid) : null;
   const sig = row.extended_data?.signal as SignalKey | undefined;
@@ -409,43 +418,172 @@ function L1Card({row, onSample, hist: _hist, theme}:{row: MarketData; onSample:(
                 </Box>
               </Box>
 
-              {/* Bid/Ask/VWAP grid with Volume under Bid+Ask spanning two columns */}
+              {/* Bid/Ask Buttons - Red/Green with clickable styling */}
               <Box 
                 sx={{ 
                   mt: 1,
                   display: 'grid',
-                  gridTemplateColumns: 'repeat(3, 1fr)',
+                  gridTemplateColumns: 'repeat(2, 1fr)',
                   gap: 1
                 }}
               >
-                {/* Row 1 */}
+                {/* Bid Button (RED) */}
+                <Box 
+                  component="button"
+                  onClick={() => {/* Future: handle bid click */}}
+                  sx={{ 
+                    gridColumn: '1',
+                    p: 1.5,
+                    textAlign: 'center',
+                    background: theme.palette.error.dark,
+                    border: 'none',
+                    borderRadius: 1,
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    '&:hover': {
+                      background: theme.palette.error.main,
+                      transform: 'scale(1.02)',
+                    }
+                  }}
+                >
+                  <Typography variant="caption" fontWeight="bold" sx={{ color: 'white', display: 'block', mb: 0.5 }}>
+                    BID
+                  </Typography>
+                  <Typography variant="h6" fontWeight="bold" sx={{ color: 'white', lineHeight: 1 }}>
+                    {fmt(row.bid, row.instrument.display_precision)}
+                  </Typography>
+                  <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.8)', display: 'block', mt: 0.5 }}>
+                    Size {row.bid_size ?? "—"}
+                  </Typography>
+                </Box>
+
+                {/* Ask Button (GREEN) */}
+                <Box 
+                  component="button"
+                  onClick={() => {/* Future: handle ask click */}}
+                  sx={{ 
+                    gridColumn: '2',
+                    p: 1.5,
+                    textAlign: 'center',
+                    background: theme.palette.success.dark,
+                    border: 'none',
+                    borderRadius: 1,
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    '&:hover': {
+                      background: theme.palette.success.main,
+                      transform: 'scale(1.02)',
+                    }
+                  }}
+                >
+                  <Typography variant="caption" fontWeight="bold" sx={{ color: 'white', display: 'block', mb: 0.5 }}>
+                    ASK
+                  </Typography>
+                  <Typography variant="h6" fontWeight="bold" sx={{ color: 'white', lineHeight: 1 }}>
+                    {fmt(row.ask, row.instrument.display_precision)}
+                  </Typography>
+                  <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.8)', display: 'block', mt: 0.5 }}>
+                    Size {row.ask_size ?? "—"}
+                  </Typography>
+                </Box>
+              </Box>
+
+              {/* Trading Calculator - Always Visible */}
+              <Paper 
+                variant="outlined" 
+                sx={{ 
+                  mt: 1, 
+                  p: 1.5, 
+                  bgcolor: 'rgba(255, 255, 255, 0.02)',
+                  borderColor: 'rgba(255, 255, 255, 0.1)'
+                }}
+              >
+                {/* Quantity Selector */}
+                <Box display="flex" alignItems="center" justifyContent="space-between" mb={1}>
+                  <Typography variant="caption" fontWeight="medium" color="text.secondary">
+                    Qty:
+                  </Typography>
+                  <Box display="flex" alignItems="center" gap={0.5}>
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      onClick={() => setQty(row.instrument.symbol, getQty(row.instrument.symbol) - 1)}
+                      sx={{ minWidth: '30px', p: 0.5, fontSize: '0.75rem' }}
+                    >
+                      −
+                    </Button>
+                    <Box 
+                      sx={{ 
+                        px: 2, 
+                        py: 0.5, 
+                        bgcolor: 'rgba(255,255,255,0.05)', 
+                        borderRadius: 1,
+                        minWidth: '40px',
+                        textAlign: 'center'
+                      }}
+                    >
+                      <Typography variant="body2" fontWeight="bold">
+                        {getQty(row.instrument.symbol)}
+                      </Typography>
+                    </Box>
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      onClick={() => setQty(row.instrument.symbol, getQty(row.instrument.symbol) + 1)}
+                      sx={{ minWidth: '30px', p: 0.5, fontSize: '0.75rem' }}
+                    >
+                      +
+                    </Button>
+                  </Box>
+                </Box>
+
+                {/* Calculations */}
+                <Box>
+                  <Box display="flex" justifyContent="space-between" alignItems="center" mb={0.5}>
+                    <Typography variant="caption" color="text.secondary">
+                      Qty × Tick 1 =
+                    </Typography>
+                    <Typography variant="caption" fontWeight="bold" color="primary.main">
+                      {row.instrument.tick_value 
+                        ? `$${fmt(parseFloat(row.instrument.tick_value) * getQty(row.instrument.symbol), 2)}`
+                        : '—'
+                      }
+                    </Typography>
+                  </Box>
+                  <Box display="flex" justifyContent="space-between" alignItems="center">
+                    <Typography variant="caption" color="text.secondary">
+                      Qty × Margin Req =
+                    </Typography>
+                    <Typography variant="caption" fontWeight="bold" color="warning.main">
+                      {row.instrument.margin_requirement 
+                        ? `$${fmt(parseFloat(row.instrument.margin_requirement) * getQty(row.instrument.symbol), 2)}`
+                        : '—'
+                      }
+                    </Typography>
+                  </Box>
+                </Box>
+              </Paper>
+
+              {/* Volume and VWAP Row */}
+              <Box 
+                sx={{ 
+                  mt: 1,
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(2, 1fr)',
+                  gap: 1
+                }}
+              >
                 <Box sx={{ gridColumn: '1' }}>
-                  <Paper variant="outlined" sx={{ p: 1, textAlign: 'center' }}>
-                    <Typography variant="caption" color="text.secondary">Bid</Typography>
-                    <Typography variant="body2" fontWeight="medium">{fmt(row.bid, row.instrument.display_precision)}</Typography>
-                    <Typography variant="caption" color="text.disabled">Size {row.bid_size ?? "—"}</Typography>
+                  <Paper variant="outlined" sx={{ p: 1, textAlign: 'center', minHeight: '70px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                    <Typography variant="caption" color="text.secondary">Volume</Typography>
+                    <Typography variant="body2" fontWeight="medium">{fmt(row.volume, 0)}</Typography>
                   </Paper>
                 </Box>
                 <Box sx={{ gridColumn: '2' }}>
-                  <Paper variant="outlined" sx={{ p: 1, textAlign: 'center' }}>
-                    <Typography variant="caption" color="text.secondary">Ask</Typography>
-                    <Typography variant="body2" fontWeight="medium">{fmt(row.ask, row.instrument.display_precision)}</Typography>
-                    <Typography variant="caption" color="text.disabled">Size {row.ask_size ?? "—"}</Typography>
-                  </Paper>
-                </Box>
-                <Box sx={{ gridColumn: '3' }}>
-                  <Paper variant="outlined" sx={{ p: 1, textAlign: 'center' }}>
-                    <Typography variant="caption" color="text.secondary">VWAP</Typography>
-                    <Typography variant="body2" fontWeight="medium">{fmt(row.vwap, row.instrument.display_precision)}</Typography>
-                    <Typography variant="caption" color="text.disabled">Spread {fmt(spread, row.instrument.display_precision)}</Typography>
-                  </Paper>
-                </Box>
-
-                {/* Row 2: Volume spanning columns 1-2 */}
-                <Box sx={{ gridColumn: '1 / span 2' }}>
-                  <Paper variant="outlined" sx={{ p: 1, textAlign: 'center' }}>
-                    <Typography variant="caption" color="text.secondary">Volume</Typography>
-                    <Typography variant="body2" fontWeight="medium">{fmt(row.volume, 0)}</Typography>
+                  <Paper variant="outlined" sx={{ p: 0.5, textAlign: 'center', minHeight: '70px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                    <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.7rem', lineHeight: 1.2 }}>VWAP</Typography>
+                    <Typography variant="body2" fontWeight="medium" sx={{ my: 0.25 }}>{fmt(row.vwap, row.instrument.display_precision)}</Typography>
+                    <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.65rem', lineHeight: 1 }}>Spread {fmt(spread, row.instrument.display_precision)}</Typography>
                   </Paper>
                 </Box>
               </Box>
@@ -529,6 +667,15 @@ export default function FutureTrading(){
   const [routingPlan, setRoutingPlan] = useState<RoutingPlanResponse | null>(null);
   const [routingError, setRoutingError] = useState<string | null>(null);
   const [routingLoading, setRoutingLoading] = useState(true);
+  
+  // Quantity state for each instrument (symbol -> quantity)
+  const [quantities, setQuantities] = useState<Record<string, number>>({});
+  
+  // Helper to get/set quantity for an instrument
+  const getQty = (symbol: string) => quantities[symbol] || 1;
+  const setQty = (symbol: string, qty: number) => {
+    setQuantities(prev => ({ ...prev, [symbol]: Math.max(1, qty) }));
+  };
 
   // sparkline buffers
   const seriesRef = useRef<Record<string, number[]>>({});
@@ -586,6 +733,8 @@ export default function FutureTrading(){
             exchange: "—",
             currency: "USD",
             display_precision: 2,
+            tick_value: null,
+            margin_requirement: null,
             is_active: true,
             sort_order: index
           },
@@ -635,6 +784,8 @@ export default function FutureTrading(){
         exchange: "—",
         currency: "USD",
         display_precision: 2,
+        tick_value: null,
+        margin_requirement: null,
         is_active: true,
         sort_order: index,
       },
@@ -750,6 +901,8 @@ export default function FutureTrading(){
               onSample={onSample(row.instrument.symbol)}
               hist={getSeries(row.instrument.symbol)}
               theme={theme}
+              getQty={getQty}
+              setQty={setQty}
             />
           </Box>
         ))}

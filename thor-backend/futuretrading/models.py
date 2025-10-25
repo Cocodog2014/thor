@@ -53,6 +53,12 @@ class TradingInstrument(models.Model):
     tick_size = models.DecimalField(max_digits=10, decimal_places=6, null=True, blank=True)
     contract_size = models.DecimalField(max_digits=15, decimal_places=2, null=True, blank=True)
     
+    # Trading calculations
+    tick_value = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, 
+                                     help_text="Dollar value per tick/point movement")
+    margin_requirement = models.DecimalField(max_digits=15, decimal_places=2, null=True, blank=True,
+                                            help_text="Margin required per contract in USD")
+    
     # API configuration
     api_provider = models.CharField(max_length=50, blank=True)  # 'alpha_vantage', 'iex', 'polygon'
     api_symbol = models.CharField(max_length=100, blank=True)  # Symbol as used by API provider

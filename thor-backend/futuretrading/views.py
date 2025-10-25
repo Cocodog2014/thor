@@ -69,6 +69,8 @@ class LatestQuotesView(APIView):
                 # Get display_precision from database
                 db_inst = instruments_db.get(symbol) or instruments_db.get(f'/{symbol}')
                 display_precision = db_inst.display_precision if db_inst else 2
+                tick_value = str(db_inst.tick_value) if db_inst and db_inst.tick_value else None
+                margin_requirement = str(db_inst.margin_requirement) if db_inst and db_inst.margin_requirement else None
                 
                 # Convert Decimal/float to string for JSON serialization
                 def to_str(val):
@@ -83,6 +85,8 @@ class LatestQuotesView(APIView):
                         'exchange': 'TOS',
                         'currency': 'USD',
                         'display_precision': display_precision,
+                        'tick_value': tick_value,
+                        'margin_requirement': margin_requirement,
                         'is_active': True,
                         'sort_order': idx
                     },
