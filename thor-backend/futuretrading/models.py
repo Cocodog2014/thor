@@ -84,50 +84,6 @@ SIGNAL_CHOICES = [
 ]
 
 
-class WatchlistGroup(models.Model):
-    """User-defined groups for organizing instruments"""
-    name = models.CharField(max_length=100)
-    description = models.TextField(blank=True)
-    color = models.CharField(max_length=7, default='#2196F3')  # Hex color
-    sort_order = models.IntegerField(default=0)
-    is_active = models.BooleanField(default=True)
-    
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    
-    class Meta:
-        ordering = ['sort_order', 'name']
-        verbose_name = 'Watchlist Group'
-        verbose_name_plural = 'Watchlist Groups'
-    
-    def __str__(self):
-        return self.name
-
-
-class WatchlistItem(models.Model):
-    """Many-to-many relationship between watchlist groups and instruments"""
-    group = models.ForeignKey(WatchlistGroup, on_delete=models.CASCADE, related_name='items')
-    instrument = models.ForeignKey(TradingInstrument, on_delete=models.CASCADE, related_name='watchlist_items')
-    sort_order = models.IntegerField(default=0)
-    is_active = models.BooleanField(default=True)
-    
-    # Display customization per item
-    show_extended_hours = models.BooleanField(default=False)
-    alert_price_above = models.DecimalField(max_digits=15, decimal_places=6, null=True, blank=True)
-    alert_price_below = models.DecimalField(max_digits=15, decimal_places=6, null=True, blank=True)
-    
-    created_at = models.DateTimeField(auto_now_add=True)
-    
-    class Meta:
-        ordering = ['sort_order', 'instrument__symbol']
-        unique_together = ['group', 'instrument']
-        verbose_name = 'Watchlist Item'
-        verbose_name_plural = 'Watchlist Items'
-    
-    def __str__(self):
-        return f"{self.group.name} - {self.instrument.symbol}"
-
-
 class SignalStatValue(models.Model):
     """Statistical values mapped from trading signals per instrument"""
     instrument = models.ForeignKey(TradingInstrument, on_delete=models.CASCADE, related_name='signal_stat_values')

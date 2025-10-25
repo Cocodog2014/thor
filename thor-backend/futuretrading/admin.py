@@ -1,7 +1,6 @@
 from django.contrib import admin
 from .models import (
     InstrumentCategory, TradingInstrument,
-    WatchlistGroup, WatchlistItem,
     SignalStatValue, ContractWeight, SignalWeight
 )
 
@@ -75,18 +74,3 @@ class SignalWeightAdmin(admin.ModelAdmin):
     list_filter = ['signal']
     list_editable = ['weight']
     ordering = ['-weight']
-
-
-@admin.register(WatchlistGroup)
-class WatchlistGroupAdmin(admin.ModelAdmin):
-    list_display = ['name', 'sort_order', 'is_active']
-    list_editable = ['sort_order', 'is_active']
-    search_fields = ['name']
-
-
-@admin.register(WatchlistItem)
-class WatchlistItemAdmin(admin.ModelAdmin):
-    list_display = ['group', 'instrument', 'sort_order', 'is_active']
-    list_filter = ['group', 'is_active']
-    list_editable = ['sort_order', 'is_active']
-    search_fields = ['instrument__symbol', 'group__name']
