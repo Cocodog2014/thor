@@ -1,4 +1,8 @@
-# Generated manually to drop unused tables
+#!/usr/bin/env python
+"""Create migration file to drop unused tables"""
+import os
+
+migration_content = """# Generated manually to drop unused tables
 from django.db import migrations
 
 
@@ -26,3 +30,10 @@ class Migration(migrations.Migration):
             reverse_sql="",
         ),
     ]
+"""
+
+filepath = r"a:\Thor\thor-backend\FutureTrading\migrations\0004_remove_unused_models.py"
+with open(filepath, 'w', encoding='utf-8') as f:
+    f.write(migration_content)
+
+print(f"Created migration file: {filepath}")
