@@ -37,13 +37,15 @@ def compute_row_metrics(row: Dict[str, Any]) -> Dict[str, Optional[float]]:
     Expected row fields (string/number/None):
       - price (aka last), open_price, previous_close, high_price, low_price, bid, ask
 
-    Returns numeric fields (or None):
+        Returns numeric fields (or None):
       - last_prev_diff, last_prev_pct
       - open_prev_diff, open_prev_pct
       - high_prev_diff, high_prev_pct
       - low_prev_diff, low_prev_pct
       - range_diff, range_pct
       - spread
+            - last_52w_above_low_diff, last_52w_above_low_pct
+            - last_52w_below_high_diff, last_52w_below_high_pct
     """
     last = _to_float(row.get("price") or row.get("last"))
     open_price = _to_float(row.get("open_price"))
@@ -60,6 +62,17 @@ def compute_row_metrics(row: Dict[str, Any]) -> Dict[str, Optional[float]]:
     range_diff = _diff(high, low)
     spread = _diff(ask, bid)
 
+    # 52-week metrics (if provided via extended_data or top-level)
+    ext = row.get("extended_data", {}) or {}
+    high_52w = _to_float(ext.get("high_52w") or row.get("high_52w"))
+    low_52w = _to_float(ext.get("low_52w") or row.get("low_52w"))
+
+    last_above_low_52w_diff = _diff(last, low_52w)
+    last_above_low_52w_pct = _pct(last_above_low_52w_diff, low_52w)
+
+    last_below_high_52w_diff = _diff(high_52w, last)
+    last_below_high_52w_pct = _pct(last_below_high_52w_diff, high_52w)
+
     return {
         "last_prev_diff": last_prev_diff,
         "last_prev_pct": _pct(last_prev_diff, prev_close),
@@ -72,4 +85,9 @@ def compute_row_metrics(row: Dict[str, Any]) -> Dict[str, Optional[float]]:
         "range_diff": range_diff,
         "range_pct": _pct(range_diff, prev_close),
         "spread": spread,
+        # 52-week metrics
+        "last_52w_above_low_diff": last_above_low_52w_diff,
+        "last_52w_above_low_pct": last_above_low_52w_pct,
+        "last_52w_below_high_diff": last_below_high_52w_diff,
+        "last_52w_below_high_pct": last_below_high_52w_pct,
     }

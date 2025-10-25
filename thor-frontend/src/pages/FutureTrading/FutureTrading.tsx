@@ -323,6 +323,12 @@ function L1Card({row, onSample, hist: _hist, theme, getQty, setQty}:{
   const signalWeight = row.extended_data?.signal_weight;
   const netChange = row.change != null ? Number(row.change) : ((row as any).last_prev_diff != null ? Number((row as any).last_prev_diff) : null);
 
+  // 52-week derived metrics now computed on backend (from metrics service)
+  const aboveLow = (row as any).last_52w_above_low_diff as number | null | undefined;
+  const aboveLowPct = (row as any).last_52w_above_low_pct as number | null | undefined;
+  const belowHigh = (row as any).last_52w_below_high_diff as number | null | undefined;
+  const belowHighPct = (row as any).last_52w_below_high_pct as number | null | undefined;
+
   useEffect(() => { onSample(Number(row.price)); }, [row.price, onSample]);
   // Sparkline data removed
 
@@ -665,6 +671,15 @@ function L1Card({row, onSample, hist: _hist, theme, getQty, setQty}:{
               <Box display="flex" justifyContent="space-between" alignItems="center" mt={0.5}>
                 <Typography variant="caption" fontWeight="medium">{fmt((row.extended_data as any)?.low_52w as any, row.instrument.display_precision)}</Typography>
                 <Typography variant="caption" fontWeight="medium">{fmt((row.extended_data as any)?.high_52w as any, row.instrument.display_precision)}</Typography>
+              </Box>
+              {/* Distances from 52w bounds using Last */}
+              <Box display="flex" justifyContent="space-between" alignItems="center" mt={0.25}>
+                <Typography variant="caption" color="text.disabled">
+                  {aboveLow == null ? '—' : `${fmt(aboveLow, row.instrument.display_precision)} (${fmt(aboveLowPct, 2)}%)`}
+                </Typography>
+                <Typography variant="caption" color="text.disabled" textAlign="right">
+                  {belowHigh == null ? '—' : `${fmt(belowHigh, row.instrument.display_precision)} (${fmt(belowHighPct, 2)}%)`}
+                </Typography>
               </Box>
             </Box>
 
