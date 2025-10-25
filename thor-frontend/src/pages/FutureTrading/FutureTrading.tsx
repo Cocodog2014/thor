@@ -329,8 +329,9 @@ function L1Card({row, onSample, hist: _hist, theme, getQty, setQty}:{
       <Paper 
         elevation={3} 
         sx={{ 
-          height: '100%', 
-          overflow: 'hidden',
+          height: '389px',
+          display: 'flex',
+          flexDirection: 'column',
           borderRadius: 2,
           background: theme.palette.background.paper,
           border: `1px solid ${theme.palette.divider}`
@@ -390,7 +391,16 @@ function L1Card({row, onSample, hist: _hist, theme, getQty, setQty}:{
         </Box>
 
         {/* Body (scrollable area) */}
-        <Box p={2} className="l1-body">
+        <Box 
+          p={2} 
+          className="l1-body"
+          sx={{
+            flex: 1,
+            minHeight: 0,
+            overflowY: 'auto',
+            overflowX: 'hidden'
+          }}
+        >
           <Box display="flex" gap={2}>
             <Box flex={1}>
               {/* Last on the left, Net Change on the right */}
@@ -421,7 +431,7 @@ function L1Card({row, onSample, hist: _hist, theme, getQty, setQty}:{
               {/* Bid/Ask Buttons - Red/Green with clickable styling */}
               <Box 
                 sx={{ 
-                  mt: 1,
+                  mt: 0.75,
                   display: 'grid',
                   gridTemplateColumns: 'repeat(2, 1fr)',
                   gap: 1
@@ -433,7 +443,8 @@ function L1Card({row, onSample, hist: _hist, theme, getQty, setQty}:{
                   onClick={() => {/* Future: handle bid click */}}
                   sx={{ 
                     gridColumn: '1',
-                    p: 1.5,
+                    px: 1,
+                    py: 1.2,
                     textAlign: 'center',
                     background: theme.palette.error.dark,
                     border: 'none',
@@ -449,10 +460,10 @@ function L1Card({row, onSample, hist: _hist, theme, getQty, setQty}:{
                   <Typography variant="caption" fontWeight="bold" sx={{ color: 'white', display: 'block', mb: 0.5 }}>
                     BID
                   </Typography>
-                  <Typography variant="h6" fontWeight="bold" sx={{ color: 'white', lineHeight: 1 }}>
+                  <Typography variant="h6" fontWeight="bold" sx={{ color: 'white', lineHeight: 1, fontSize: '1.05rem' }}>
                     {fmt(row.bid, row.instrument.display_precision)}
                   </Typography>
-                  <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.8)', display: 'block', mt: 0.5 }}>
+                  <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.8)', display: 'block', mt: 0.35 }}>
                     Size {row.bid_size ?? "—"}
                   </Typography>
                 </Box>
@@ -463,7 +474,8 @@ function L1Card({row, onSample, hist: _hist, theme, getQty, setQty}:{
                   onClick={() => {/* Future: handle ask click */}}
                   sx={{ 
                     gridColumn: '2',
-                    p: 1.5,
+                    px: 1,
+                    py: 1.2,
                     textAlign: 'center',
                     background: theme.palette.success.dark,
                     border: 'none',
@@ -479,10 +491,10 @@ function L1Card({row, onSample, hist: _hist, theme, getQty, setQty}:{
                   <Typography variant="caption" fontWeight="bold" sx={{ color: 'white', display: 'block', mb: 0.5 }}>
                     ASK
                   </Typography>
-                  <Typography variant="h6" fontWeight="bold" sx={{ color: 'white', lineHeight: 1 }}>
+                  <Typography variant="h6" fontWeight="bold" sx={{ color: 'white', lineHeight: 1, fontSize: '1.05rem' }}>
                     {fmt(row.ask, row.instrument.display_precision)}
                   </Typography>
-                  <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.8)', display: 'block', mt: 0.5 }}>
+                  <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.8)', display: 'block', mt: 0.35 }}>
                     Size {row.ask_size ?? "—"}
                   </Typography>
                 </Box>
@@ -642,7 +654,7 @@ function L1Card({row, onSample, hist: _hist, theme, getQty, setQty}:{
               </Box>
             </Box>
 
-            <Box display="flex" justifyContent="space-between" mt={1}>
+            <Box display="flex" justifyContent="space-between" mt={1} mb={2}>
               <Typography variant="caption" color="text.disabled">
                 {new Date(row.timestamp).toLocaleTimeString()}
               </Typography>

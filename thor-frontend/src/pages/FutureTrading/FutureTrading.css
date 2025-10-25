@@ -1,11 +1,28 @@
 /* Scrollable body for each L1 card (restore internal scrollbar) */
 .l1-body {
-  max-height: 240px;
+  max-height: 300px;
   overflow-y: auto;
 }
 
 @media (min-width: 1600px) {
-  .l1-body { max-height: 280px; }
+  .l1-body { max-height: 360px; }
+}
+
+.l1-body::-webkit-scrollbar {
+  width: 12px;
+}
+
+.l1-body::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.l1-body::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.25);
+  border-radius: 6px;
+}
+
+.l1-body::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.4);
 }
 
 /* removed pair-row alignment helpers (reverted to StatRow layout) */
@@ -19,7 +36,7 @@
 
 /* Custom scrollbar for containers if needed */
 .futures-container::-webkit-scrollbar {
-  width: 8px;
+  width: 12px;
 }
 
 .futures-container::-webkit-scrollbar-track {
