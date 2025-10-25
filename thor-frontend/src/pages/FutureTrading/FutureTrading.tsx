@@ -397,7 +397,7 @@ function L1Card({row, onSample, hist: _hist, theme}:{row: MarketData; onSample:(
                 <Box textAlign="right">
                   <Box display="flex" alignItems="flex-start" justifyContent="flex-end" gap={1}>
                     <Typography variant="h6" fontWeight="bold" sx={{ color: pctColor(pct, theme), lineHeight: 1 }}>
-                      {netChange === null ? '—' : fmt(netChange, 2)}
+                      {netChange === null ? '—' : fmt(netChange, row.instrument.display_precision)}
                     </Typography>
                     <Typography variant="subtitle2" fontWeight="bold" sx={{ color: pctColor(pct, theme), lineHeight: 1, mt: '2px' }}>
                       {pct === null ? '—' : `${fmt(pct, 2)}%`}
@@ -422,22 +422,22 @@ function L1Card({row, onSample, hist: _hist, theme}:{row: MarketData; onSample:(
                 <Box sx={{ gridColumn: '1' }}>
                   <Paper variant="outlined" sx={{ p: 1, textAlign: 'center' }}>
                     <Typography variant="caption" color="text.secondary">Bid</Typography>
-                    <Typography variant="body2" fontWeight="medium">{fmt(row.bid)}</Typography>
+                    <Typography variant="body2" fontWeight="medium">{fmt(row.bid, row.instrument.display_precision)}</Typography>
                     <Typography variant="caption" color="text.disabled">Size {row.bid_size ?? "—"}</Typography>
                   </Paper>
                 </Box>
                 <Box sx={{ gridColumn: '2' }}>
                   <Paper variant="outlined" sx={{ p: 1, textAlign: 'center' }}>
                     <Typography variant="caption" color="text.secondary">Ask</Typography>
-                    <Typography variant="body2" fontWeight="medium">{fmt(row.ask)}</Typography>
+                    <Typography variant="body2" fontWeight="medium">{fmt(row.ask, row.instrument.display_precision)}</Typography>
                     <Typography variant="caption" color="text.disabled">Size {row.ask_size ?? "—"}</Typography>
                   </Paper>
                 </Box>
                 <Box sx={{ gridColumn: '3' }}>
                   <Paper variant="outlined" sx={{ p: 1, textAlign: 'center' }}>
                     <Typography variant="caption" color="text.secondary">VWAP</Typography>
-                    <Typography variant="body2" fontWeight="medium">{fmt(row.vwap)}</Typography>
-                    <Typography variant="caption" color="text.disabled">Spread {fmt(spread)}</Typography>
+                    <Typography variant="body2" fontWeight="medium">{fmt(row.vwap, row.instrument.display_precision)}</Typography>
+                    <Typography variant="caption" color="text.disabled">Spread {fmt(spread, row.instrument.display_precision)}</Typography>
                   </Paper>
                 </Box>
 
@@ -463,8 +463,8 @@ function L1Card({row, onSample, hist: _hist, theme}:{row: MarketData; onSample:(
               </Box>
               {/* Values */}
               <Box display="flex" justifyContent="space-between" alignItems="center" mt={0.5}>
-                <Typography variant="caption" fontWeight="medium">{fmt(row.previous_close)}</Typography>
-                <Typography variant="caption" fontWeight="medium">{fmt(row.open_price)}</Typography>
+                <Typography variant="caption" fontWeight="medium">{fmt(row.previous_close, row.instrument.display_precision)}</Typography>
+                <Typography variant="caption" fontWeight="medium">{fmt(row.open_price, row.instrument.display_precision)}</Typography>
               </Box>
             </Box>
 
@@ -475,7 +475,7 @@ function L1Card({row, onSample, hist: _hist, theme}:{row: MarketData; onSample:(
                 <Typography variant="caption" color="text.secondary">Open vs Prev (%)</Typography>
               </Box>
               <Box display="flex" justifyContent="space-between" alignItems="center" mt={0.5}>
-                <Typography variant="caption" fontWeight="medium">{fmt((row as any).open_prev_diff as any, 2)}</Typography>
+                <Typography variant="caption" fontWeight="medium">{fmt((row as any).open_prev_diff as any, row.instrument.display_precision)}</Typography>
                 <Typography variant="caption" fontWeight="medium">{`${fmt((row as any).open_prev_pct as any, 2)}%`}</Typography>
               </Box>
             </Box>
@@ -487,8 +487,8 @@ function L1Card({row, onSample, hist: _hist, theme}:{row: MarketData; onSample:(
                 <Typography variant="caption" color="text.secondary">World High (24h)</Typography>
               </Box>
               <Box display="flex" justifyContent="space-between" alignItems="center" mt={0.5}>
-                <Typography variant="caption" fontWeight="medium">{fmt(row.low_price)}</Typography>
-                <Typography variant="caption" fontWeight="medium">{fmt(row.high_price)}</Typography>
+                <Typography variant="caption" fontWeight="medium">{fmt(row.low_price, row.instrument.display_precision)}</Typography>
+                <Typography variant="caption" fontWeight="medium">{fmt(row.high_price, row.instrument.display_precision)}</Typography>
               </Box>
             </Box>
 

@@ -48,6 +48,9 @@ class LatestQuotesView(APIView):
                 logger.error(f"Failed to fetch TOS data: {e}")
             
             # Step 2: Transform TOS quotes into FutureTrading structure (instrument + fields)
+            # First, fetch all TradingInstrument records to get display_precision
+            instruments_db = {inst.symbol: inst for inst in TradingInstrument.objects.all()}
+            
             transformed_rows = []
             for idx, quote in enumerate(raw_quotes):
                 raw_symbol = quote.get('symbol', '')
@@ -63,6 +66,10 @@ class LatestQuotesView(APIView):
                 }
                 symbol = symbol_map.get(raw_symbol, raw_symbol)
                 
+                # Get display_precision from database
+                db_inst = instruments_db.get(symbol) or instruments_db.get(f'/{symbol}')
+                display_precision = db_inst.display_precision if db_inst else 2
+                
                 # Convert Decimal/float to string for JSON serialization
                 def to_str(val):
                     return str(val) if val is not None else None
@@ -75,7 +82,7 @@ class LatestQuotesView(APIView):
                         'name': symbol,
                         'exchange': 'TOS',
                         'currency': 'USD',
-                        'display_precision': 2,
+                        'display_precision': display_precision,
                         'is_active': True,
                         'sort_order': idx
                     },
