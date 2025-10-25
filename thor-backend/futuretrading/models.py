@@ -74,113 +74,14 @@ class TradingInstrument(models.Model):
         return f"{self.symbol} - {self.name}"
 
 
-class TradingSignal(models.Model):
-    """Trading signals and analytics for instruments"""
-    
-    SIGNAL_CHOICES = [
-        ('STRONG_BUY', 'Strong Buy'),
-        ('BUY', 'Buy'),
-        ('HOLD', 'Hold'),
-        ('SELL', 'Sell'),
-        ('STRONG_SELL', 'Strong Sell'),
-    ]
-    
-    instrument = models.ForeignKey(TradingInstrument, on_delete=models.CASCADE, related_name='signals')
-    signal = models.CharField(max_length=20, choices=SIGNAL_CHOICES, default='HOLD')
-    
-    # Signal metadata
-    confidence = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)  # 0-100%
-    strength = models.IntegerField(validators=[MinValueValidator(1), MaxValueValidator(10)], null=True, blank=True)
-    
-    # Source information
-    signal_source = models.CharField(max_length=100, blank=True)  # 'technical', 'fundamental', 'combined'
-    algorithm_version = models.CharField(max_length=50, blank=True)
-    
-    # Timing
-    valid_until = models.DateTimeField(null=True, blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    
-    class Meta:
-        ordering = ['-created_at']
-        indexes = [
-            models.Index(fields=['instrument', '-created_at']),
-            models.Index(fields=['signal']),
-        ]
-        verbose_name = 'Trading Signal'
-        verbose_name_plural = 'Trading Signals'
-    
-    def __str__(self):
-        return f"{self.instrument.symbol} - {self.get_signal_display()}"
-
-
-class MarketData(models.Model):
-    """Real-time and historical market data for any instrument"""
-    
-    instrument = models.ForeignKey(TradingInstrument, on_delete=models.CASCADE, related_name='market_data')
-    
-    # Core price data (Level 1)
-    price = models.DecimalField(max_digits=15, decimal_places=6)  # Last traded price
-    bid = models.DecimalField(max_digits=15, decimal_places=6, null=True, blank=True)
-    ask = models.DecimalField(max_digits=15, decimal_places=6, null=True, blank=True)
-    
-    # Size data (Level 1 order book)
-    last_size = models.IntegerField(null=True, blank=True)  # Size of last trade
-    bid_size = models.IntegerField(null=True, blank=True)   # Size at bid
-    ask_size = models.IntegerField(null=True, blank=True)   # Size at ask
-    
-    # Session statistics
-    open_price = models.DecimalField(max_digits=15, decimal_places=6, null=True, blank=True)
-    high_price = models.DecimalField(max_digits=15, decimal_places=6, null=True, blank=True)  # 24h/session high
-    low_price = models.DecimalField(max_digits=15, decimal_places=6, null=True, blank=True)   # 24h/session low
-    close_price = models.DecimalField(max_digits=15, decimal_places=6, null=True, blank=True) # Official close
-    previous_close = models.DecimalField(max_digits=15, decimal_places=6, null=True, blank=True)
-    
-    # Change calculations
-    change = models.DecimalField(max_digits=15, decimal_places=6, null=True, blank=True)
-    change_percent = models.DecimalField(max_digits=8, decimal_places=4, null=True, blank=True)
-    
-    # VWAP and advanced metrics
-    vwap = models.IntegerField(null=True, blank=True)  # Volume Weighted Average Price (as integer)
-    
-    # Volume and activity
-    volume = models.BigIntegerField(null=True, blank=True)
-    average_volume = models.BigIntegerField(null=True, blank=True)
-    
-    # Market status
-    market_status = models.CharField(
-        max_length=20,
-        choices=[
-            ('OPEN', 'Market Open'),
-            ('CLOSED', 'Market Closed'),
-            ('PREMARKET', 'Pre-Market'),
-            ('AFTERHOURS', 'After Hours'),
-            ('HALT', 'Trading Halt'),
-        ],
-        default='CLOSED'
-    )
-    
-    # Data source and quality
-    data_source = models.CharField(max_length=50, blank=True)  # Which API provided this data
-    is_real_time = models.BooleanField(default=True)
-    delay_minutes = models.IntegerField(default=0)  # Data delay in minutes
-    
-    # Extended data (for flexibility)
-    extended_data = models.JSONField(default=dict, blank=True)  # Additional fields as needed
-    
-    timestamp = models.DateTimeField(auto_now_add=True)
-    
-    class Meta:
-        ordering = ['-timestamp']
-        indexes = [
-            models.Index(fields=['instrument', '-timestamp']),
-            models.Index(fields=['market_status']),
-            models.Index(fields=['timestamp']),
-        ]
-        verbose_name = 'Market Data'
-        verbose_name_plural = 'Market Data'
-    
-    def __str__(self):
-        return f"{self.instrument.symbol} - {self.price} @ {self.timestamp.strftime('%H:%M:%S')}"
+# Signal choices used by SignalStatValue and SignalWeight
+SIGNAL_CHOICES = [
+    ('STRONG_BUY', 'Strong Buy'),
+    ('BUY', 'Buy'),
+    ('HOLD', 'Hold'),
+    ('SELL', 'Sell'),
+    ('STRONG_SELL', 'Strong Sell'),
+]
 
 
 class WatchlistGroup(models.Model):
@@ -230,7 +131,7 @@ class WatchlistItem(models.Model):
 class SignalStatValue(models.Model):
     """Statistical values mapped from trading signals per instrument"""
     instrument = models.ForeignKey(TradingInstrument, on_delete=models.CASCADE, related_name='signal_stat_values')
-    signal = models.CharField(max_length=20, choices=TradingSignal.SIGNAL_CHOICES)
+    signal = models.CharField(max_length=20, choices=SIGNAL_CHOICES)
     value = models.DecimalField(max_digits=10, decimal_places=6)
     
     created_at = models.DateTimeField(auto_now_add=True)
@@ -248,7 +149,7 @@ class SignalStatValue(models.Model):
 
 class SignalWeight(models.Model):
     """Weight values for signals (e.g., Strong Buy=2, Buy=1, Hold=0, Sell=-1, Strong Sell=-2)"""
-    signal = models.CharField(max_length=20, choices=TradingSignal.SIGNAL_CHOICES, unique=True)
+    signal = models.CharField(max_length=20, choices=SIGNAL_CHOICES, unique=True)
     weight = models.IntegerField(help_text="Weight value for this signal type (e.g., 2, 1, 0, -1, -2)")
     
     created_at = models.DateTimeField(auto_now_add=True)

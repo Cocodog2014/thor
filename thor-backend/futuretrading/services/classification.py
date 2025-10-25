@@ -41,7 +41,7 @@ Edge cases:
   * Missing stat values in DB => falls back to default map below
 
 The function returns a tuple (signal_key, stat_value, weight) where:
-  * signal_key is one of TradingSignal.SIGNAL_CHOICES keys (or None)
+  * signal_key is one of SIGNAL_CHOICES keys (or None)
   * stat_value is Decimal or None
   * weight is Decimal (defaults to 1)
 """
@@ -52,7 +52,7 @@ from decimal import Decimal
 from functools import lru_cache
 from typing import Optional, Tuple
 
-from ..models import SignalStatValue, ContractWeight, TradingInstrument, SignalWeight
+from ..models import SignalStatValue, ContractWeight, TradingInstrument, SignalWeight, SIGNAL_CHOICES
 
 # Fallback static defaults (only used if DB rows missing) – mirrors management command
 FALLBACK_STAT_MAP = {

@@ -1,6 +1,6 @@
 from django.contrib import admin
 from .models import (
-    InstrumentCategory, TradingInstrument, TradingSignal, MarketData,
+    InstrumentCategory, TradingInstrument,
     WatchlistGroup, WatchlistItem,
     SignalStatValue, ContractWeight, SignalWeight
 )
@@ -49,44 +49,6 @@ class TradingInstrumentAdmin(admin.ModelAdmin):
         }),
         ('API Configuration', {
             'fields': ('api_provider', 'api_symbol', 'update_frequency')
-        }),
-    )
-
-
-@admin.register(TradingSignal)
-class TradingSignalAdmin(admin.ModelAdmin):
-    list_display = ['instrument', 'signal', 'confidence', 'strength', 'created_at']
-    list_filter = ['signal', 'signal_source', 'created_at']
-    search_fields = ['instrument__symbol', 'instrument__name']
-    readonly_fields = ['created_at']
-
-
-@admin.register(MarketData)
-class MarketDataAdmin(admin.ModelAdmin):
-    list_display = ['instrument', 'price', 'change_percent', 'volume', 'market_status', 'timestamp']
-    list_filter = ['market_status', 'is_real_time', 'data_source']
-    search_fields = ['instrument__symbol', 'instrument__name']
-    readonly_fields = ['timestamp']
-    
-    fieldsets = (
-        ('Basic Information', {
-            'fields': ('instrument', 'timestamp', 'market_status')
-        }),
-        ('Price Data', {
-            'fields': ('price', 'bid', 'ask', 'last_size', 'bid_size', 'ask_size')
-        }),
-        ('Session Statistics', {
-            'fields': ('open_price', 'high_price', 'low_price', 'close_price', 'previous_close')
-        }),
-        ('Change & Volume', {
-            'fields': ('change', 'change_percent', 'volume', 'average_volume', 'vwap')
-        }),
-        ('Data Source', {
-            'fields': ('data_source', 'is_real_time', 'delay_minutes')
-        }),
-        ('Extended Data', {
-            'fields': ('extended_data',),
-            'classes': ('collapse',)
         }),
     )
 

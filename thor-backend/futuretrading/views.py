@@ -8,7 +8,7 @@ from decimal import Decimal
 import logging
 import requests
 
-from .models import TradingInstrument, MarketData, TradingSignal, SignalStatValue, ContractWeight
+from .models import TradingInstrument, SignalStatValue, ContractWeight
 from .services.classification import enrich_quote_row, compute_composite
 from .services.metrics import compute_row_metrics
 from .config import TOS_EXCEL_FILE, TOS_EXCEL_SHEET, TOS_EXCEL_RANGE
