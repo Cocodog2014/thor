@@ -33,6 +33,11 @@ Thumbs.db
 *.log
 logs/
 
+# Redis persistence files (if Redis writes to root)
+*.rdb
+*.aof
+appendonly*.aof
+
 # Bytecode
 __pycache__/
 *.py[cod]
