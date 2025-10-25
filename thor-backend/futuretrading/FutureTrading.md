@@ -424,16 +424,29 @@ Return Enriched JSON Response
 **Function:**
 
 - `compute_row_metrics(row)`: Calculates derived numeric fields
+
+**Session & Previous Close Metrics:**
   - `last_prev_diff`: Last price - Previous close
-  - `last_prev_pct`: Percentage change
-  - `open_prev_diff`, `open_prev_pct`: Open vs previous close
-  - `high_prev_diff`, `high_prev_pct`: High vs previous close
-  - `low_prev_diff`, `low_prev_pct`: Low vs previous close
+  - `last_prev_pct`: (Last - Previous close) / Previous close × 100
+  - `open_prev_diff`: Open - Previous close
+  - `open_prev_pct`: (Open - Previous close) / Previous close × 100
+  - `high_prev_diff`: High - Previous close
+  - `high_prev_pct`: (High - Previous close) / Previous close × 100
+  - `low_prev_diff`: Low - Previous close
+  - `low_prev_pct`: (Low - Previous close) / Previous close × 100
+
+**Intraday Range Metrics:**
   - `range_diff`: High - Low
-  - `range_pct`: Range as % of previous close
+  - `range_pct`: (High - Low) / Previous close × 100
   - `spread`: Ask - Bid
 
-**Null Handling:** Returns None for missing/invalid data
+**52-Week Metrics:** (requires `extended_data.high_52w` and `extended_data.low_52w`)
+  - `last_52w_above_low_diff`: Last - 52-week Low
+  - `last_52w_above_low_pct`: (Last - 52-week Low) / 52-week Low × 100
+  - `last_52w_below_high_diff`: 52-week High - Last
+  - `last_52w_below_high_pct`: (52-week High - Last) / 52-week High × 100
+
+**Null Handling:** Returns None for missing/invalid data or zero denominators
 
 ---
 
