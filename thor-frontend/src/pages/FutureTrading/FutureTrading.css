@@ -1,4 +1,4 @@
-/* Scrollable body for each L1 card */
+/* Scrollable body for each L1 card (restore internal scrollbar) */
 .l1-body {
   max-height: 240px;
   overflow-y: auto;

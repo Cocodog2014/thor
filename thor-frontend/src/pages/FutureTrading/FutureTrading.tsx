@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
-import { LineChart, Line, ResponsiveContainer } from "recharts";
+// Sparkline removed
 import { RefreshCw } from "lucide-react";
 import {
   Box,
@@ -304,7 +304,7 @@ function TotalCard({totalData, theme}:{totalData: TotalData | null; theme: Theme
   );
 }
 
-function L1Card({row, onSample, hist, theme}:{row: MarketData; onSample:(value:number)=>void; hist:number[]; theme: Theme}){
+function L1Card({row, onSample, hist: _hist, theme}:{row: MarketData; onSample:(value:number)=>void; hist:number[]; theme: Theme}){
   const pct = row.change_percent ? Number(row.change_percent) : ((row as any).last_prev_pct != null ? Number((row as any).last_prev_pct) : null);
   const spread = row.bid && row.ask ? Number(row.ask) - Number(row.bid) : null;
   const sig = row.extended_data?.signal as SignalKey | undefined;
@@ -313,7 +313,7 @@ function L1Card({row, onSample, hist, theme}:{row: MarketData; onSample:(value:n
   const netChange = row.change != null ? Number(row.change) : ((row as any).last_prev_diff != null ? Number((row as any).last_prev_diff) : null);
 
   useEffect(() => { onSample(Number(row.price)); }, [row.price, onSample]);
-  const data = useMemo(() => hist.map((y,i)=>({x:i, y})), [hist]);
+  // Sparkline data removed
 
   return (
     <motion.div layout initial={{opacity:0, y:8}} animate={{opacity:1, y:0}}>
@@ -409,56 +409,47 @@ function L1Card({row, onSample, hist, theme}:{row: MarketData; onSample:(value:n
                 </Box>
               </Box>
 
-              {/* Four boxes: Bid, Ask, VWAP (Weighted), Stat Value */}
-              <Box display="flex" gap={1} sx={{ mt: 1 }}>
-                <Box flex={1}>
+              {/* Bid/Ask/VWAP grid with Volume under Bid+Ask spanning two columns */}
+              <Box 
+                sx={{ 
+                  mt: 1,
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(3, 1fr)',
+                  gap: 1
+                }}
+              >
+                {/* Row 1 */}
+                <Box sx={{ gridColumn: '1' }}>
                   <Paper variant="outlined" sx={{ p: 1, textAlign: 'center' }}>
                     <Typography variant="caption" color="text.secondary">Bid</Typography>
                     <Typography variant="body2" fontWeight="medium">{fmt(row.bid)}</Typography>
                     <Typography variant="caption" color="text.disabled">Size {row.bid_size ?? "—"}</Typography>
                   </Paper>
                 </Box>
-                <Box flex={1}>
+                <Box sx={{ gridColumn: '2' }}>
                   <Paper variant="outlined" sx={{ p: 1, textAlign: 'center' }}>
                     <Typography variant="caption" color="text.secondary">Ask</Typography>
                     <Typography variant="body2" fontWeight="medium">{fmt(row.ask)}</Typography>
                     <Typography variant="caption" color="text.disabled">Size {row.ask_size ?? "—"}</Typography>
                   </Paper>
                 </Box>
-                <Box flex={1}>
+                <Box sx={{ gridColumn: '3' }}>
                   <Paper variant="outlined" sx={{ p: 1, textAlign: 'center' }}>
                     <Typography variant="caption" color="text.secondary">VWAP</Typography>
                     <Typography variant="body2" fontWeight="medium">{fmt(row.vwap)}</Typography>
                     <Typography variant="caption" color="text.disabled">Spread {fmt(spread)}</Typography>
                   </Paper>
                 </Box>
+
+                {/* Row 2: Volume spanning columns 1-2 */}
+                <Box sx={{ gridColumn: '1 / span 2' }}>
+                  <Paper variant="outlined" sx={{ p: 1, textAlign: 'center' }}>
+                    <Typography variant="caption" color="text.secondary">Volume</Typography>
+                    <Typography variant="body2" fontWeight="medium">{fmt(row.volume, 0)}</Typography>
+                  </Paper>
+                </Box>
               </Box>
             </Box>
-
-            <Box flex={1}>
-              <Box height={64}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={data} margin={{ top: 6, right: 6, left: 6, bottom: 6 }}>
-                    <Line 
-                      type="monotone" 
-                      dataKey="y" 
-                      dot={false} 
-                      strokeWidth={2} 
-                      isAnimationActive={false}
-                      stroke={theme.palette.primary.main}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              </Box>
-            </Box>
-          </Box>
-
-          {/* Volume placed directly under Bid/Ask/VWAP, above Close */}
-          <Box sx={{ mt: 1 }}>
-            <Paper variant="outlined" sx={{ p: 1, textAlign: 'center' }}>
-              <Typography variant="caption" color="text.secondary">Volume</Typography>
-              <Typography variant="body2" fontWeight="medium">{fmt(row.volume, 0)}</Typography>
-            </Paper>
           </Box>
 
           {/* Stats rows - reformatted to header rows with values underneath */}
