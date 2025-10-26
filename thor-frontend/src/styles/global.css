@@ -3,7 +3,7 @@
 /* Import all component and page CSS files */
 @import '../App.css';
 @import '../components/GlobalHeader.css';
-@import '../pages/TimeZone/TimeZone.css';
+@import '../pages/GlobalMarkets/GlobalMarkets.css';
 @import '../pages/FutureTrading/FutureTrading.css';
 @import '../pages/ActivityPositions/ActivityPositions.css';
 @import '../pages/AccountStatement/AccountStatement.css';

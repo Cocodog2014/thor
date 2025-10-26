@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Routes, Route, useLocation, Navigate } from 'react-router-dom'
 import { Container } from '@mui/material'
 // GlobalHeader is used inside AppLayout only
-import TimeZone from './pages/TimeZone/TimeZone.tsx'
+import GlobalMarkets from './pages/GlobalMarkets/GlobalMarkets'
 import FutureTrading from './pages/FutureTrading'
 import ActivityPositions from './pages/ActivityPositions'
 import AccountStatement from './pages/AccountStatement/AccountStatement'
@@ -51,7 +51,7 @@ function App() {
       <div className="dashboard-grid">
         {showGlobalMarket && (
           <section className="dashboard-card global-markets" aria-label="Global Markets">
-            <TimeZone />
+            <GlobalMarkets />
           </section>
         )}
         {showAccountStatement && (
