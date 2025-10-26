@@ -60,18 +60,20 @@ function App() {
   const HomeContent = () => (
     <div className="home-screen">
       <div className="dashboard-grid">
-        {/* Global Markets Section */}
-        {showGlobalMarket && (
-          <section className="dashboard-card global-markets" aria-label="Global Markets">
-            <GlobalMarkets />
-          </section>
-        )}
-        
-        {/* Market Open Dashboard below Global Markets */}
-        {showMarketOpenDashboard && (
-          <section className="dashboard-card market-open-dashboard" aria-label="Market Open Dashboard">
-            <MarketOpenDashboard />
-          </section>
+        {/* Left column stack: Global Markets + Market Open Dashboard */}
+        {(showGlobalMarket || showMarketOpenDashboard) && (
+          <div className="left-stack">
+            {showGlobalMarket && (
+              <section className="dashboard-card global-markets" aria-label="Global Markets">
+                <GlobalMarkets />
+              </section>
+            )}
+            {showMarketOpenDashboard && (
+              <section className="dashboard-card market-open-dashboard" aria-label="Market Open Dashboard">
+                <MarketOpenDashboard />
+              </section>
+            )}
+          </div>
         )}
         
         {/* Futures Trading Section */}

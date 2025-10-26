@@ -6,6 +6,61 @@
   margin: 0;
 }
 
+.market-open-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  margin-bottom: 16px;
+  /* Blue header like futures cards */
+  background: var(--thor-header-gradient);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 8px;
+  color: #ffffff;
+}
+
+.market-open-header-title {
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.market-open-header-filters {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.mo-filter {
+  min-width: 140px;
+}
+
+/* Make MUI selects readable on blue header */
+.market-open-header .MuiInputLabel-root {
+  color: rgba(255, 255, 255, 0.9) !important;
+}
+
+.market-open-header .MuiOutlinedInput-notchedOutline {
+  border-color: rgba(255, 255, 255, 0.45) !important;
+}
+
+.market-open-header .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline {
+  border-color: #ffffff !important;
+}
+
+.market-open-header .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline {
+  border-color: #ffffff !important;
+}
+
+.market-open-header .MuiSelect-select, 
+.market-open-header .MuiInputBase-input {
+  color: #ffffff !important;
+}
+
+.market-open-header .MuiSelect-icon {
+  color: #ffffff !important;
+}
+
 .market-open-title {
   margin-bottom: 24px;
   font-weight: 600;

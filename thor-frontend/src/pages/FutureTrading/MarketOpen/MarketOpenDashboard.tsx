@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Box, Typography, Paper, Chip, Grid, CircularProgress, Alert } from '@mui/material';
+import { Box, Typography, Paper, Chip, Grid, CircularProgress, Alert, FormControl, InputLabel, Select, MenuItem } from '@mui/material';
 import axios from 'axios';
 import './MarketOpenDashboard.css';
 
@@ -26,6 +26,10 @@ const MarketOpenDashboard = () => {
   const [sessions, setSessions] = useState<MarketOpenSession[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Placeholder filter state (not wired yet)
+  const [marketFilter, setMarketFilter] = useState<string>('all');
+  const [outcomeFilter, setOutcomeFilter] = useState<string>('all');
+  const [dateFilter, setDateFilter] = useState<string>('today');
 
   useEffect(() => {
     const fetchTodaySessions = async () => {
@@ -54,6 +58,60 @@ const MarketOpenDashboard = () => {
     const interval = setInterval(fetchTodaySessions, 5000);
     return () => clearInterval(interval);
   }, []);
+
+  // Dedicated header with future filter controls
+  const Header = () => (
+    <div className="market-open-header">
+      <Typography variant="h6" className="market-open-header-title">
+        📊 Market Open Sessions
+      </Typography>
+      <div className="market-open-header-filters">
+        <FormControl size="small" className="mo-filter">
+          <InputLabel id="mo-market-label">Market</InputLabel>
+          <Select
+            labelId="mo-market-label"
+            label="Market"
+            value={marketFilter}
+            onChange={(e) => setMarketFilter(String(e.target.value))}
+          >
+            <MenuItem value="all">All</MenuItem>
+            <MenuItem value="asia">Asia</MenuItem>
+            <MenuItem value="europe">Europe</MenuItem>
+            <MenuItem value="americas">Americas</MenuItem>
+          </Select>
+        </FormControl>
+
+        <FormControl size="small" className="mo-filter">
+          <InputLabel id="mo-outcome-label">Outcome</InputLabel>
+          <Select
+            labelId="mo-outcome-label"
+            label="Outcome"
+            value={outcomeFilter}
+            onChange={(e) => setOutcomeFilter(String(e.target.value))}
+          >
+            <MenuItem value="all">All</MenuItem>
+            <MenuItem value="worked">Worked</MenuItem>
+            <MenuItem value="didnt_work">Didn't Work</MenuItem>
+            <MenuItem value="pending">Pending</MenuItem>
+          </Select>
+        </FormControl>
+
+        <FormControl size="small" className="mo-filter">
+          <InputLabel id="mo-date-label">Date</InputLabel>
+          <Select
+            labelId="mo-date-label"
+            label="Date"
+            value={dateFilter}
+            onChange={(e) => setDateFilter(String(e.target.value))}
+          >
+            <MenuItem value="today">Today</MenuItem>
+            <MenuItem value="yesterday">Yesterday</MenuItem>
+            <MenuItem value="last7">Last 7 days</MenuItem>
+          </Select>
+        </FormControl>
+      </div>
+    </div>
+  );
 
   const getStatusColor = (status: string): "success" | "error" | "warning" | "default" => {
     switch (status) {
@@ -102,9 +160,7 @@ const MarketOpenDashboard = () => {
   if (loading) {
     return (
       <div className="market-open-dashboard">
-        <Typography variant="h5" gutterBottom className="market-open-title">
-          📊 Market Open Sessions - Today
-        </Typography>
+        <Header />
         <Box display="flex" justifyContent="center" alignItems="center" p={4}>
           <CircularProgress />
         </Box>
@@ -115,9 +171,7 @@ const MarketOpenDashboard = () => {
   if (error) {
     return (
       <div className="market-open-dashboard">
-        <Typography variant="h5" gutterBottom className="market-open-title">
-          📊 Market Open Sessions - Today
-        </Typography>
+        <Header />
         <Alert severity="error" sx={{ m: 2 }}>
           {error}
         </Alert>
@@ -128,9 +182,7 @@ const MarketOpenDashboard = () => {
   if (sessions.length === 0) {
     return (
       <div className="market-open-dashboard">
-        <Typography variant="h5" gutterBottom className="market-open-title">
-          📊 Market Open Sessions - Today
-        </Typography>
+        <Header />
         <Box p={3} textAlign="center">
           <Typography variant="body1" color="text.secondary" gutterBottom>
             No market open sessions captured today
@@ -145,9 +197,7 @@ const MarketOpenDashboard = () => {
 
   return (
     <div className="market-open-dashboard">
-      <Typography variant="h5" gutterBottom className="market-open-title">
-        📊 Market Open Sessions - Today
-      </Typography>
+      <Header />
       
       <Grid container spacing={2}>
         {sessions.map((session) => (
