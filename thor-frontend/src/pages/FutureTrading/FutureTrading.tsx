@@ -914,17 +914,16 @@ export default function FutureTrading(){
         </Button>
       </Box>
 
-      {/* Responsive grid layout - TOTAL card + 11 futures cards */}
+      {/* Horizontal scrolling layout with fixed card sizes - 6x2 grid */}
       <Box 
-        display="grid" 
-        gridTemplateColumns={{
-          xs: 'repeat(1, 1fr)',
-          sm: 'repeat(2, 1fr)', 
-          md: 'repeat(3, 1fr)',
-          lg: 'repeat(4, 1fr)',
-          xl: 'repeat(6, 1fr)'
+        sx={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(6, 320px)', // Fixed 6 columns, 320px each
+          gridTemplateRows: 'repeat(2, auto)', // 2 rows
+          gap: 2,
+          width: 'fit-content', // Grid only as wide as needed
+          minWidth: '100%' // Ensure it fills container when smaller
         }}
-        gap={2}
       >
         {/* Total Composite Card - appears first */}
         <Box>

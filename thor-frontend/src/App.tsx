@@ -23,7 +23,8 @@ function App() {
   const location = useLocation();
   const [showTradingActivity, setShowTradingActivity] = useState(false);
   const [showAccountStatement, setShowAccountStatement] = useState(false);
-  const [showGlobalMarket, setShowGlobalMarket] = useState(false);
+  const [showGlobalMarket, setShowGlobalMarket] = useState(true); // Show by default
+  const [showFuturesOnHome, setShowFuturesOnHome] = useState(false); // Toggle for split view
   
   // Routes that should have full-width layout (no Container)
   // Ensure both bare paths and /app/* variants are treated as full width
@@ -45,15 +46,49 @@ function App() {
     setShowGlobalMarket(!showGlobalMarket);
   };
 
-  // Inline Home component - just the GlobalMarkets display
+  const toggleFuturesOnHome = () => {
+    setShowFuturesOnHome(!showFuturesOnHome);
+  };
+
+  // Inline Home component - split layout with Global Markets + Futures
   const HomeContent = () => (
     <div className="home-screen">
-      <div className="dashboard-grid">
+      <div style={{
+        display: 'flex',
+        gap: '16px',
+        alignItems: 'flex-start',
+        width: '100%'
+      }}>
+        {/* Left: Global Markets (fixed width) */}
         {showGlobalMarket && (
-          <section className="dashboard-card global-markets" aria-label="Global Markets">
+          <section className="dashboard-card global-markets" aria-label="Global Markets" style={{
+            flexShrink: 0,
+            minWidth: '830px', // Ensure table doesn't condense
+            width: showFuturesOnHome ? 'auto' : '100%' // Full width when alone, auto when split
+          }}>
             <GlobalMarkets />
           </section>
         )}
+        
+        {/* Right: Futures cards with horizontal scroll */}
+        {showFuturesOnHome && (
+          <section 
+            className="dashboard-card future-trading" 
+            aria-label="Futures Trading"
+            style={{
+              flex: 1,
+              overflowX: 'auto',
+              overflowY: 'hidden',
+              minWidth: 0
+            }}
+          >
+            <FutureTrading />
+          </section>
+        )}
+      </div>
+
+      {/* Additional sections below */}
+      <div className="dashboard-grid" style={{ marginTop: showGlobalMarket || showFuturesOnHome ? '16px' : 0 }}>
         {showAccountStatement && (
           <section className="dashboard-card account-statement" aria-label="Account Statement">
             <AccountStatement />
@@ -101,6 +136,8 @@ function App() {
                 showAccountStatement={showAccountStatement}
                 onGlobalMarketToggle={toggleGlobalMarket}
                 showGlobalMarket={showGlobalMarket}
+                onFuturesOnHomeToggle={toggleFuturesOnHome}
+                showFuturesOnHome={showFuturesOnHome}
               >
               {isFullWidth ? (
                 <Routes>

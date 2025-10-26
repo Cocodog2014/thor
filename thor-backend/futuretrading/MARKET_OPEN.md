@@ -39,65 +39,37 @@
 
 ### **Integration with Global Markets (Split View)**
 
+**Simple Layout Change (Frontend Only - No Backend Changes):**
+
+Existing futures cards just need to be repositioned on the home page:
+
 **Default State:**
 - Home page shows Global Markets table (full width)
-- Displays all markets with open/close status
 
 **When User Clicks "Future Trading" Icon:**
-- Page splits into two-column layout:
-  - **Left Side (40%)**: Global Markets table (narrower)
-  - **Right Side (60%)**: Live Futures Trading data cards
+- Apply CSS grid layout: `grid-template-columns: 40% 60%`
+- Left column: Global Markets table
+- Right column: Existing futures cards component
 
-**Layout:**
-```
-┌────────────────────────────────────────────────────────┐
-│  [☰]  THOR'S WAR ROOM  🔨⚡                [PAPER TRADING] │
-├──┬─────────────────────────────┬──────────────────────┤
-│☰ │  Global Markets             │  Future Trading      │
-│  │  (Left Side - 40%)          │  (Right Side - 60%)  │
-│📊│                             │                      │
-│  │  Tokyo      CLOSED          │  ┌─────────────────┐ │
-│📈│  Shanghai   CLOSED          │  │ TOTAL Composite │ │
-│  │  Hong Kong  CLOSED          │  │ -0.109 (Hold)   │ │
-│🌍│  Europe     OPEN            │  └─────────────────┘ │
-│  │  London     OPEN            │  [YM] [ES] [NQ]     │
-│📊│  Pre-USA    OPEN            │  [RTY] [CL] [SI]    │
-│  │  USA        CLOSED          │  [HG] [GC] [VX]     │
-│  │                             │  [DX] [ZB]          │
-│  │                             │                      │
-│  │  CAPTURED SESSIONS          │  [Filter Drawer]    │
-│  │  ━━━━━━━━━━━━━━━━━━━━━━   │  - Date Range       │
-│  │  [Session cards below]      │  - Market Filter    │
-│  │                             │  - Signal Filter    │
-│  │                             │  - Outcome Filter   │
-└──┴─────────────────────────────┴──────────────────────┘
-```
+**Implementation Notes:**
+- ~50-100 lines of frontend code
+- Just repositioning existing working components
+- No API changes needed
+- No backend changes needed
 
-**Captured Sessions Display:**
-Below the Global Markets table, show expandable cards for each captured market open:
-- Session time and market
-- Signal (BUY/SELL/HOLD)
-- Outcome (WORKED/DIDN'T WORK/PENDING)
-- Entry/Exit prices
-- Click to expand: Shows all 11 futures outcomes for that session
-
-**Filter Drawer (Right Side Panel):**
-Slide-out drawer with filters:
-- **Date Range**: Today, This Week, This Month, Custom
-- **Markets**: Multi-select (Japan, China, Europe, etc.)
-- **Signal Type**: BUY, SELL, HOLD, Strong Buy, Strong Sell
-- **Outcome**: Worked, Didn't Work, Pending, Neutral
-- **Futures**: Show specific futures only
+**Below Global Markets Table:**
+Add section for captured market open sessions:
+- Cards showing each session (time, market, signal, outcome)
+- Expandable to show all 11 futures for that session
+- Filters in slide-out drawer (date, market, signal, outcome)
 
 **Real-Time Features:**
-- Live price updates every 0.5 seconds
-- Auto-refresh when grading completes
 - Color-coded status badges:
   - 🟢 Green = WORKED
   - 🔴 Red = DIDN'T WORK
   - 🟡 Yellow = PENDING
-  - ⚪ Gray = NEUTRAL (Hold)
-- Desktop notifications when trades complete
+  - ⚪ Gray = NEUTRAL
+- Auto-refresh when outcomes change
 
 ---
 
