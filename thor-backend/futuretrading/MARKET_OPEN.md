@@ -28,11 +28,76 @@
 - [ ] Build market open capture service (triggered by GlobalMarkets)
 
 ### 📋 To Do
-- [ ] Build capture service (fetch live data from Schwab/TOS)
-- [ ] Build grading loop (monitor price until target/stop/expire)
-- [ ] Create API endpoints
-- [ ] Build frontend display
-- [ ] Add analytics/reporting
+- [ ] Build API endpoints for market open data
+- [ ] Create frontend UI integration
+- [ ] Add real-time updates via WebSocket/polling
+- [ ] Build analytics/reporting views
+
+---
+
+## Frontend UI Plan
+
+### **Integration with Global Markets (Split View)**
+
+**Default State:**
+- Home page shows Global Markets table (full width)
+- Displays all markets with open/close status
+
+**When User Clicks "Future Trading" Icon:**
+- Page splits into two-column layout:
+  - **Left Side (40%)**: Global Markets table (narrower)
+  - **Right Side (60%)**: Live Futures Trading data cards
+
+**Layout:**
+```
+┌────────────────────────────────────────────────────────┐
+│  [☰]  THOR'S WAR ROOM  🔨⚡                [PAPER TRADING] │
+├──┬─────────────────────────────┬──────────────────────┤
+│☰ │  Global Markets             │  Future Trading      │
+│  │  (Left Side - 40%)          │  (Right Side - 60%)  │
+│📊│                             │                      │
+│  │  Tokyo      CLOSED          │  ┌─────────────────┐ │
+│📈│  Shanghai   CLOSED          │  │ TOTAL Composite │ │
+│  │  Hong Kong  CLOSED          │  │ -0.109 (Hold)   │ │
+│🌍│  Europe     OPEN            │  └─────────────────┘ │
+│  │  London     OPEN            │  [YM] [ES] [NQ]     │
+│📊│  Pre-USA    OPEN            │  [RTY] [CL] [SI]    │
+│  │  USA        CLOSED          │  [HG] [GC] [VX]     │
+│  │                             │  [DX] [ZB]          │
+│  │                             │                      │
+│  │  CAPTURED SESSIONS          │  [Filter Drawer]    │
+│  │  ━━━━━━━━━━━━━━━━━━━━━━   │  - Date Range       │
+│  │  [Session cards below]      │  - Market Filter    │
+│  │                             │  - Signal Filter    │
+│  │                             │  - Outcome Filter   │
+└──┴─────────────────────────────┴──────────────────────┘
+```
+
+**Captured Sessions Display:**
+Below the Global Markets table, show expandable cards for each captured market open:
+- Session time and market
+- Signal (BUY/SELL/HOLD)
+- Outcome (WORKED/DIDN'T WORK/PENDING)
+- Entry/Exit prices
+- Click to expand: Shows all 11 futures outcomes for that session
+
+**Filter Drawer (Right Side Panel):**
+Slide-out drawer with filters:
+- **Date Range**: Today, This Week, This Month, Custom
+- **Markets**: Multi-select (Japan, China, Europe, etc.)
+- **Signal Type**: BUY, SELL, HOLD, Strong Buy, Strong Sell
+- **Outcome**: Worked, Didn't Work, Pending, Neutral
+- **Futures**: Show specific futures only
+
+**Real-Time Features:**
+- Live price updates every 0.5 seconds
+- Auto-refresh when grading completes
+- Color-coded status badges:
+  - 🟢 Green = WORKED
+  - 🔴 Red = DIDN'T WORK
+  - 🟡 Yellow = PENDING
+  - ⚪ Gray = NEUTRAL (Hold)
+- Desktop notifications when trades complete
 
 ---
 
@@ -95,6 +160,44 @@ Stores snapshot data for each of the 11 futures + TOTAL composite.
 ---
 
 ## PHASE 2: Capture Service (Next Up)
+
+### Service Requirements:
+1. Listen to GlobalMarkets for market open events
+2. Fetch data from LiveData/Redis snapshot API
+3. Calculate TOTAL composite signal
+4. Create MarketOpenSession + 12 FutureSnapshots
+5. Auto-calculate entry/target prices
+6. Start grading service for monitoring
+
+### API Endpoints Needed:
+- `GET /api/futures/market-opens/` - List all sessions (with filters)
+- `GET /api/futures/market-opens/{id}/` - Detail view with all 11 futures
+- `GET /api/futures/market-opens/pending/` - Active/pending sessions
+- `GET /api/futures/market-opens/stats/` - Analytics (win rates, etc.)
+- `POST /api/futures/market-opens/capture/` - Manual trigger (testing)
+
+### Frontend Routes:
+- `/` - Home (Global Markets + Future Trading split view)
+- `/futures/sessions` - Historical sessions table
+- `/futures/analytics` - Analytics dashboard
+
+---
+
+## Technical Notes
+
+### Data Flow:
+```
+TOS Excel RTD → LiveData → Redis → 
+Market Open Capture → Database → 
+Grading Service (0.5s loop) → 
+Frontend (live updates)
+```
+
+### Key Files:
+- Models: `FutureTrading/models/MarketOpen.py`
+- Grading: `FutureTrading/services/market_open_grader.py`
+- Admin: `FutureTrading/admin.py`
+- Management: `FutureTrading/management/commands/grade_market_opens.py`
 
 ---
 
