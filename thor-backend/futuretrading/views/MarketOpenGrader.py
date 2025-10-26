@@ -1,5 +1,5 @@
 """
-Market Open Grading Service
+Market Open Grading Logic
 
 Monitors pending MarketOpenSession trades and grades them in real-time.
 Runs every 0.5 seconds to check if all 11 futures hit target or stop.
@@ -43,7 +43,6 @@ class MarketOpenGrader:
             Decimal: Current price to compare against targets
         """
         try:
-            # Get latest quote from Redis snapshot
             data = live_data_redis.get_latest_quote(symbol)
             
             if not data:
@@ -133,7 +132,6 @@ class MarketOpenGrader:
     def grade_session(self, session):
         """
         Check if a session's YM trade has hit target or stop.
-        Also updates the session based on YM snapshot outcome.
         
         Args:
             session: MarketOpenSession instance
@@ -256,3 +254,6 @@ def start_grading_service():
 def stop_grading_service():
     """Stop the grading service"""
     grader.stop()
+
+
+__all__ = ['start_grading_service', 'stop_grading_service', 'MarketOpenGrader']

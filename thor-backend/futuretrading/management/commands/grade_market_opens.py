@@ -8,7 +8,7 @@ This will start a background loop that checks pending trades every 0.5 seconds.
 """
 
 from django.core.management.base import BaseCommand
-from FutureTrading.services.market_open_grader import start_grading_service
+from FutureTrading.views.MarketOpenGrader import start_grading_service
 
 
 class Command(BaseCommand):
