@@ -162,10 +162,13 @@ class TOSExcelReader:
         symbol = row[0] if row and row[0] else f"FUTURE_{row_idx}"
         
         # Create dict from headers and values (skip first column which is symbol)
+        # Strip whitespace from header names to handle formatting inconsistencies
         data = {}
         for i, header in enumerate(headers):
             if header and i < len(row):  # Skip None headers
-                data[header] = row[i]
+                clean_header = str(header).strip() if header else None
+                if clean_header:
+                    data[clean_header] = row[i]
         
         # Extract fields (handle None/empty values)
         # Support both new and legacy header names

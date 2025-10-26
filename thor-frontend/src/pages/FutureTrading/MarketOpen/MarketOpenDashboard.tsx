@@ -3,6 +3,46 @@ import { Alert, Box, CircularProgress, FormControl, InputLabel, MenuItem, Select
 import axios from 'axios';
 import './MarketOpenDashboard.css';
 
+interface FutureSnapshot {
+  id: number;
+  symbol: string;
+  last_price: string | null;
+  change: string | null;
+  change_percent: string | null;
+  bid: string | null;
+  bid_size: number | null;
+  ask: string | null;
+  ask_size: number | null;
+  volume: number | null;
+  vwap: string | null;
+  spread: string | null;
+  open: string | null;
+  close: string | null;
+  open_vs_prev_number: string | null;
+  open_vs_prev_percent: string | null;
+  day_24h_low: string | null;
+  day_24h_high: string | null;
+  range_high_low: string | null;
+  range_percent: string | null;
+  week_52_low: string | null;
+  week_52_high: string | null;
+  week_52_range_high_low: string | null;
+  week_52_range_percent: string | null;
+  entry_price: string | null;
+  high_dynamic: string | null;
+  low_dynamic: string | null;
+  weighted_average: string | null;
+  signal: string | null;
+  weight: number | null;
+  sum_weighted: string | null;
+  instrument_count: number | null;
+  status: string | null;
+  outcome: string;
+  exit_price: string | null;
+  exit_time: string | null;
+  created_at: string;
+}
+
 interface MarketOpenSession {
   id: number;
   session_number: number;
@@ -20,6 +60,7 @@ interface MarketOpenSession {
   fw_exit_value: string | null;
   fw_exit_percent: string | null;
   created_at: string;
+  futures?: FutureSnapshot[];
 }
 
 const MarketOpenDashboard = () => {
