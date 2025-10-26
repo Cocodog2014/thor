@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Box, Typography, Paper, Chip, Grid, CircularProgress, Alert, FormControl, InputLabel, Select, MenuItem } from '@mui/material';
+import { Alert, Box, CircularProgress, FormControl, InputLabel, MenuItem, Select, Typography } from '@mui/material';
 import axios from 'axios';
 import './MarketOpenDashboard.css';
 
@@ -26,7 +26,6 @@ const MarketOpenDashboard = () => {
   const [sessions, setSessions] = useState<MarketOpenSession[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  // Placeholder filter state (not wired yet)
   const [marketFilter, setMarketFilter] = useState<string>('all');
   const [outcomeFilter, setOutcomeFilter] = useState<string>('all');
   const [dateFilter, setDateFilter] = useState<string>('today');
@@ -35,16 +34,12 @@ const MarketOpenDashboard = () => {
     const fetchTodaySessions = async () => {
       try {
         setLoading(true);
-        const response = await axios.get(
-          'http://127.0.0.1:8000/api/futures/market-opens/today/'
-        );
-        // Backend returns array directly, not wrapped in {sessions: [...]}
+        const response = await axios.get('http://127.0.0.1:8000/api/futures/market-opens/today/');
         const data = Array.isArray(response.data) ? response.data : [];
         setSessions(data);
         setError(null);
       } catch (err) {
         console.error('Error fetching market open sessions:', err);
-        // Don't show error for empty data - just show empty state
         setSessions([]);
         setError(null);
       } finally {
@@ -53,13 +48,53 @@ const MarketOpenDashboard = () => {
     };
 
     fetchTodaySessions();
-    
-    // Refresh every 5 seconds
     const interval = setInterval(fetchTodaySessions, 5000);
     return () => clearInterval(interval);
   }, []);
 
-  // Dedicated header with future filter controls
+  const getStatusColor = (status: string): 'success' | 'error' | 'warning' | 'default' => {
+    switch (status) {
+      case 'WORKED':
+        return 'success';
+      case 'DIDNT_WORK':
+        return 'error';
+      case 'PENDING':
+        return 'warning';
+      default:
+        return 'default';
+    }
+  };
+
+  const getSignalColor = (signal: string): 'success' | 'error' | 'warning' | 'default' => {
+    switch (signal) {
+      case 'BUY':
+      case 'STRONG_BUY':
+        return 'success';
+      case 'SELL':
+      case 'STRONG_SELL':
+        return 'error';
+      case 'HOLD':
+        return 'warning';
+      default:
+        return 'default';
+    }
+  };
+
+  const formatPrice = (price: string | null) => {
+    if (!price) return '—';
+    return parseFloat(price).toLocaleString('en-US', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+  };
+
+  const formatTime = (timestamp: string) =>
+    new Date(timestamp).toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    });
+
   const Header = () => (
     <div className="market-open-header">
       <Typography variant="h6" className="market-open-header-title">
@@ -113,50 +148,6 @@ const MarketOpenDashboard = () => {
     </div>
   );
 
-  const getStatusColor = (status: string): "success" | "error" | "warning" | "default" => {
-    switch (status) {
-      case 'WORKED':
-        return 'success';
-      case 'DIDNT_WORK':
-        return 'error';
-      case 'PENDING':
-        return 'warning';
-      default:
-        return 'default';
-    }
-  };
-
-  const getSignalColor = (signal: string): "success" | "error" | "warning" | "default" => {
-    switch (signal) {
-      case 'BUY':
-      case 'STRONG_BUY':
-        return 'success';
-      case 'SELL':
-      case 'STRONG_SELL':
-        return 'error';
-      case 'HOLD':
-        return 'warning';
-      default:
-        return 'default';
-    }
-  };
-
-  const formatPrice = (price: string | null) => {
-    if (!price) return '—';
-    return parseFloat(price).toLocaleString('en-US', { 
-      minimumFractionDigits: 2, 
-      maximumFractionDigits: 2 
-    });
-  };
-
-  const formatTime = (timestamp: string) => {
-    return new Date(timestamp).toLocaleTimeString('en-US', {
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit'
-    });
-  };
-
   if (loading) {
     return (
       <div className="market-open-dashboard">
@@ -180,17 +171,53 @@ const MarketOpenDashboard = () => {
   }
 
   if (sessions.length === 0) {
+    // Show placeholder raw containers to match real-time cards layout
+    const placeholders = Array.from({ length: 3 }, (_, i) => i);
     return (
       <div className="market-open-dashboard">
         <Header />
-        <Box p={3} textAlign="center">
-          <Typography variant="body1" color="text.secondary" gutterBottom>
-            No market open sessions captured today
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Sessions will appear here when a market opens and data is captured
-          </Typography>
-        </Box>
+        <div className="mo-cards">
+          {placeholders.map((i) => (
+            <div key={`placeholder-${i}`} className="mo-session-card">
+              <div className="mo-card-header">
+                <div className="mo-card-title">Session</div>
+                <div className="mo-card-badges">
+                  <span className={`mo-chip default`}>—</span>
+                  <span className={`mo-chip default`}>—</span>
+                  <span className={`mo-chip default`}>—</span>
+                  <span className="mo-time">—</span>
+                </div>
+              </div>
+              <div className="mo-card-body">
+                <div className="mo-field">
+                  <label>Entry</label>
+                  <span>—</span>
+                </div>
+                <div className="mo-field success">
+                  <label>Target</label>
+                  <span>—</span>
+                </div>
+                <div className="mo-field danger">
+                  <label>Stop</label>
+                  <span>—</span>
+                </div>
+                <div className="mo-divider" />
+                <div className="mo-field">
+                  <label>Exit</label>
+                  <span>—</span>
+                </div>
+                <div className="mo-field">
+                  <label>Exit %</label>
+                  <span>—</span>
+                </div>
+                <div className="mo-field">
+                  <label>Status</label>
+                  <span>—</span>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     );
   }
@@ -198,65 +225,66 @@ const MarketOpenDashboard = () => {
   return (
     <div className="market-open-dashboard">
       <Header />
-      
-      <Grid container spacing={2}>
-        {sessions.map((session) => (
-          <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3 }} key={session.id}>
-            <Paper className="market-open-card">
-              {/* Header: Market & Time */}
-              <div className="market-open-card-header">
-                <Typography variant="h6" className="market-open-market-name">
-                  {session.country}
-                </Typography>
-                <Typography variant="caption" className="market-open-time">
-                  {formatTime(session.captured_at)}
-                </Typography>
-              </div>
+      <div className="mo-cards">
+        {sessions.map((s) => (
+          <div key={s.id} className="mo-rt-card">
+            {/* Header chips row similar to futures real-time */}
+            <div className="mo-rt-header">
+              <span className="mo-rt-chip sym">{s.country || '—'}</span>
+              <span className={`mo-rt-chip ${getSignalColor(s.total_signal)}`}>{s.total_signal || '—'}</span>
+              <span className={`mo-rt-chip ${getStatusColor(s.fw_nwdw)}`}>{s.fw_nwdw || '—'}</span>
+              <span className="mo-rt-chip">Wgt: —</span>
+              <span className="mo-rt-chip">Δ —</span>
+              <span className="mo-rt-chip">—%</span>
+              <span className="mo-rt-time">{formatTime(s.captured_at)}</span>
+            </div>
 
-              {/* Signal Badge */}
-              <div className="market-open-signal-badge">
-                <Chip
-                  label={session.total_signal}
-                  color={getSignalColor(session.total_signal)}
-                  size="small"
-                  className="signal-chip"
-                />
-              </div>
-
-              {/* YM Trade Details */}
-              <div className="market-open-trade-details">
-                <div className="trade-detail-row">
-                  <span className="trade-label">Entry:</span>
-                  <span className="trade-value">{formatPrice(session.ym_entry_price)}</span>
+            <div className="mo-rt-body">
+              {/* Top row: Last + Change */}
+              <div className="mo-rt-top">
+                <div className="mo-rt-last">
+                  <div className="val">{formatPrice(s.ym_entry_price)}</div>
+                  <div className="label">Last</div>
                 </div>
-                <div className="trade-detail-row">
-                  <span className="trade-label">Target:</span>
-                  <span className="trade-value trade-target">{formatPrice(session.ym_high_dynamic)}</span>
-                </div>
-                <div className="trade-detail-row">
-                  <span className="trade-label">Stop:</span>
-                  <span className="trade-value trade-stop">{formatPrice(session.ym_low_dynamic)}</span>
+                <div className="mo-rt-change">
+                  <div className="val">—</div>
+                  <div className="pct">—%</div>
+                  <div className="label">Change</div>
                 </div>
               </div>
 
-              {/* Outcome Status */}
-              <div className="market-open-outcome">
-                <Chip
-                  label={session.fw_nwdw}
-                  color={getStatusColor(session.fw_nwdw)}
-                  size="small"
-                  className="outcome-chip"
-                />
-                {session.fw_exit_value && (
-                  <Typography variant="caption" className="exit-value">
-                    Exit: {formatPrice(session.fw_exit_value)}
-                  </Typography>
-                )}
+              {/* BID / ASK tiles */}
+              <div className="mo-rt-bbo">
+                <div className="tile bid">
+                  <div className="t-head">BID</div>
+                  <div className="t-main">—</div>
+                  <div className="t-sub">Size —</div>
+                </div>
+                <div className="tile ask">
+                  <div className="t-head">ASK</div>
+                  <div className="t-main">—</div>
+                  <div className="t-sub">Size —</div>
+                </div>
               </div>
-            </Paper>
-          </Grid>
+
+              {/* Stats grid */}
+              <div className="mo-rt-stats">
+                <div className="stat"><div className="label">Volume</div><div className="value">—</div></div>
+                <div className="stat"><div className="label">VWAP</div><div className="value">—</div></div>
+                <div className="stat"><div className="label">Close</div><div className="value">—</div></div>
+                <div className="stat"><div className="label">Open</div><div className="value">—</div></div>
+                <div className="stat"><div className="label">Open vs Prev</div><div className="value">— <span className="sub">—%</span></div></div>
+                <div className="stat"><div className="label">24h Low</div><div className="value">—</div></div>
+                <div className="stat"><div className="label">24h High</div><div className="value">—</div></div>
+                <div className="stat"><div className="label">24h Range</div><div className="value">— <span className="sub">—%</span></div></div>
+                <div className="stat"><div className="label">52W Low</div><div className="value">—</div></div>
+                <div className="stat"><div className="label">52W High</div><div className="value">—</div></div>
+                <div className="stat"><div className="label">From 52W High</div><div className="value">— <span className="sub">—%</span></div></div>
+              </div>
+            </div>
+          </div>
         ))}
-      </Grid>
+      </div>
     </div>
   );
 };
