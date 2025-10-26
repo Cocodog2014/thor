@@ -45,7 +45,7 @@ function App() {
     setShowGlobalMarket(!showGlobalMarket);
   };
 
-  // Inline Home component - just the TimeZone display
+  // Inline Home component - just the GlobalMarkets display
   const HomeContent = () => (
     <div className="home-screen">
       <div className="dashboard-grid">
