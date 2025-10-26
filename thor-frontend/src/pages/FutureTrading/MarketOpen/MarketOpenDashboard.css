@@ -1,0 +1,96 @@
+/* Market Open Dashboard Styles */
+
+.market-open-dashboard {
+  width: 100%;
+  padding: 0;
+  margin: 0;
+}
+
+.market-open-title {
+  margin-bottom: 24px;
+  font-weight: 600;
+  color: white;
+}
+
+.market-open-card {
+  padding: 16px;
+  background-color: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  transition: all 0.2s ease;
+}
+
+.market-open-card:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+
+.market-open-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.market-open-market-name {
+  color: white;
+  font-weight: bold;
+}
+
+.market-open-time {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.market-open-signal-badge {
+  margin-bottom: 12px;
+}
+
+.signal-chip {
+  font-weight: bold;
+  font-size: 0.75rem;
+}
+
+.market-open-trade-details {
+  font-size: 0.875rem;
+  color: white;
+  margin-bottom: 12px;
+}
+
+.trade-detail-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.trade-label {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.875rem;
+}
+
+.trade-value {
+  font-weight: bold;
+  font-size: 0.875rem;
+}
+
+.trade-target {
+  color: #4caf50;
+}
+
+.trade-stop {
+  color: #f44336;
+}
+
+.market-open-outcome {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.outcome-chip {
+  font-weight: bold;
+  font-size: 0.7rem;
+}
+
+.exit-value {
+  color: rgba(255, 255, 255, 0.6);
+}
