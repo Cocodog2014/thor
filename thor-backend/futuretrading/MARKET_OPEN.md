@@ -19,9 +19,10 @@
 - [x] Outcome tracking fields added
 - [x] Register models in admin.py
 - [x] Create and run migrations
+- [x] Test models (all tests passed)
 
 ### 🔄 In Progress
-- [ ] Test models in Django shell
+- [ ] Build capture service (fetch live data from Schwab/TOS)
 
 ### 📋 To Do
 - [ ] Build capture service (fetch live data from Schwab/TOS)
