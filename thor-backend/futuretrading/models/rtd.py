@@ -1,7 +1,14 @@
+"""
+Real-Time Data (RTD) models
+
+These are the existing core models used by the FutureTrading app to
+describe instruments and their classification/weighting. They remain
+unchanged—moved here only for clearer organization.
+"""
+
 from django.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator
 from decimal import Decimal
-import uuid
 
 
 class InstrumentCategory(models.Model):
@@ -141,3 +148,13 @@ class ContractWeight(models.Model):
     
     def __str__(self):
         return f"{self.instrument.symbol}: {self.weight}"
+
+
+__all__ = [
+    'InstrumentCategory',
+    'TradingInstrument',
+    'SIGNAL_CHOICES',
+    'SignalStatValue',
+    'SignalWeight',
+    'ContractWeight',
+]

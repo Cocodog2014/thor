@@ -1,7 +1,5 @@
 from django.urls import path
-from .views import LatestQuotesView
-
-from . import views
+from .views.RTD import LatestQuotesView
 
 app_name = 'FutureTrading'
 

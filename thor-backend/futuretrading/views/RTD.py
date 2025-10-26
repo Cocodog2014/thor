@@ -1,17 +1,20 @@
-from django.shortcuts import render
+"""
+Real-Time Data (RTD) views
+
+Moved from FutureTrading/views.py for clearer organization. The class
+name stays the same so urls don't change.
+"""
+
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from django.db.models import Q, Subquery, OuterRef
 from django.utils import timezone
-from decimal import Decimal
 import logging
 import requests
 
-from .models import TradingInstrument, SignalStatValue, ContractWeight
-from .services.classification import enrich_quote_row, compute_composite
-from .services.metrics import compute_row_metrics
-from .config import TOS_EXCEL_FILE, TOS_EXCEL_SHEET, TOS_EXCEL_RANGE
+from ..models import TradingInstrument
+from ..services.classification import enrich_quote_row, compute_composite
+from ..services.metrics import compute_row_metrics
 
 logger = logging.getLogger(__name__)
 
@@ -21,14 +24,14 @@ class LatestQuotesView(APIView):
     API view that returns latest market data and signals for all active futures instruments
     with statistical values and weighted total composite score.
     
-    Now uses LiveData/tos endpoint to get TOS RTD Excel data.
+    Uses LiveData/tos endpoint to get TOS RTD Excel data.
     """
-    
+
     def get(self, request):
         try:
             # Step 1: Get raw quotes from TOS Excel reader (reads Excel and populates Redis)
             raw_quotes = []
-            
+
             try:
                 # Call TOS Excel endpoint - reads from Excel file and publishes to Redis
                 response = requests.get(
@@ -36,28 +39,25 @@ class LatestQuotesView(APIView):
                     params={'consumer': 'futures_trading'},
                     timeout=5
                 )
-                
+
                 if response.status_code == 200:
                     data = response.json()
                     raw_quotes = data.get('quotes', [])
                     logger.info(f"Fetched {len(raw_quotes)} quotes from TOS Excel")
                 else:
                     logger.warning(f"TOS endpoint returned {response.status_code}")
-                    
+
             except requests.exceptions.RequestException as e:
                 logger.error(f"Failed to fetch TOS data: {e}")
-            
+
             # Step 2: Transform TOS quotes into FutureTrading structure (instrument + fields)
-            # First, fetch all TradingInstrument records to get display_precision
             instruments_db = {inst.symbol: inst for inst in TradingInstrument.objects.all()}
-            
+
             transformed_rows = []
             for idx, quote in enumerate(raw_quotes):
                 raw_symbol = quote.get('symbol', '')
-                
+
                 # Normalize symbol - fix common Excel RTD symbol mismatches
-                # RT -> RTY (Russell 2000 correct symbol)
-                # 30YrBond -> ZB (30-Year Treasury Bond)
                 symbol_map = {
                     'RT': 'RTY',
                     '30YrBond': 'ZB',
@@ -65,22 +65,19 @@ class LatestQuotesView(APIView):
                     'T-BOND': 'ZB',
                 }
                 symbol = symbol_map.get(raw_symbol, raw_symbol)
-                
-                # Get display_precision from database
+
                 db_inst = instruments_db.get(symbol) or instruments_db.get(f'/{symbol}')
                 display_precision = db_inst.display_precision if db_inst else 2
                 tick_value = str(db_inst.tick_value) if db_inst and db_inst.tick_value else None
                 margin_requirement = str(db_inst.margin_requirement) if db_inst and db_inst.margin_requirement else None
-                
-                # Convert Decimal/float to string for JSON serialization
+
                 def to_str(val):
                     return str(val) if val is not None else None
-                
-                # Wrap quote data in expected MarketData structure
+
                 row = {
                     'instrument': {
                         'id': idx + 1,
-                        'symbol': symbol,  # Use normalized symbol
+                        'symbol': symbol,
                         'name': symbol,
                         'exchange': 'TOS',
                         'currency': 'USD',
@@ -90,9 +87,8 @@ class LatestQuotesView(APIView):
                         'is_active': True,
                         'sort_order': idx
                     },
-                    # Frontend expects these field names
-                    'price': to_str(quote.get('last')),  # Frontend calls it 'price', not 'last'
-                    'last': to_str(quote.get('last')),   # Also keep 'last' for compatibility
+                    'price': to_str(quote.get('last')),
+                    'last': to_str(quote.get('last')),
                     'bid': to_str(quote.get('bid')),
                     'ask': to_str(quote.get('ask')),
                     'volume': quote.get('volume'),
@@ -100,53 +96,44 @@ class LatestQuotesView(APIView):
                     'high_price': to_str(quote.get('high')),
                     'low_price': to_str(quote.get('low')),
                     'close_price': to_str(quote.get('close')),
-                    'previous_close': to_str(quote.get('close')),  # Previous close = close
+                    'previous_close': to_str(quote.get('close')),
                     'change': to_str(quote.get('change')),
-                    'change_percent': None,  # Could calculate if needed
-                    'vwap': None,  # Not available in TOS RTD basic data
+                    'change_percent': None,
+                    'vwap': None,
                     'bid_size': quote.get('bid_size'),
                     'ask_size': quote.get('ask_size'),
                     'last_size': None,
-                    'market_status': 'CLOSED',  # Would need market hours logic
+                    'market_status': 'CLOSED',
                     'data_source': 'TOS_RTD',
                     'is_real_time': True,
                     'delay_minutes': 0,
                     'timestamp': quote.get('timestamp'),
                     'extended_data': {
-                        # Pass through 52-week data if available
                         'high_52w': to_str(quote.get('high_52w')),
                         'low_52w': to_str(quote.get('low_52w')),
-                    }  # Will be further filled by enrich_quote_row
+                    }
                 }
                 transformed_rows.append(row)
-            
-            # Step 3: Apply FuturesTrading business logic - enrich with signals and classification
+
+            # Step 3: Apply classification and metrics
             enriched_rows = []
             for row in transformed_rows:
-                # Apply signal classification logic to each quote
                 enrich_quote_row(row)
-                # Compute derived numeric metrics and attach
                 try:
                     metrics = compute_row_metrics(row)
                     row.update(metrics)
-                    # If change_percent is not provided, align it with last vs prev close
                     if row.get('change_percent') in (None, '', '—'):
                         row['change_percent'] = metrics.get('last_prev_pct')
                 except Exception as e:
-                    logger.warning(f"Metric computation failed for {row.get('instrument',{}).get('symbol','?')}: {e}")
+                    logger.warning(
+                        f"Metric computation failed for {row.get('instrument',{}).get('symbol','?')}: {e}")
                 enriched_rows.append(row)
-            
-            # Step 4: Compute composite total with all classification logic
+
+            # Step 4: Composite
             total_data = compute_composite(enriched_rows)
-            
-            return Response({
-                'rows': enriched_rows,
-                'total': total_data
-            }, status=status.HTTP_200_OK)
-            
+
+            return Response({'rows': enriched_rows, 'total': total_data}, status=status.HTTP_200_OK)
+
         except Exception as e:
             logger.error(f"Error in LatestQuotesView: {str(e)}")
-            return Response({
-                'error': 'Internal server error',
-                'detail': str(e)
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({'error': 'Internal server error', 'detail': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
