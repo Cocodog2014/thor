@@ -3,7 +3,7 @@ from rest_framework.decorators import api_view, action, permission_classes
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from django_filters.rest_framework import DjangoFilterBackend
-from django.db import models
+# Note: no direct use of django.db.models in this module; remove unused import
 from django.http import HttpResponse
 from datetime import date, timedelta, datetime
 import os

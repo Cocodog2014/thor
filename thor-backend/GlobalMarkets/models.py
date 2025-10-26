@@ -1,6 +1,5 @@
 from django.db import models
-from django.core.validators import MinValueValidator, MaxValueValidator
-from datetime import datetime, time, timedelta, date as date_cls
+from datetime import datetime, time, timedelta
 import pytz
 
 

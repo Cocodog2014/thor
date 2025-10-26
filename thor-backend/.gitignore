@@ -198,6 +198,9 @@ Temporary Items
 .Trash-*
 .nfs*
 
+# Node (should not exist in backend)
+node_modules/
+
 # Django specific
 *.log
 local_settings.py
