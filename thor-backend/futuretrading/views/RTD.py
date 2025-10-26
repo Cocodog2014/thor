@@ -13,6 +13,7 @@ import logging
 import requests
 
 from ..models import TradingInstrument
+from ..models.extremes import Rolling52WeekStats
 from ..services.classification import enrich_quote_row, compute_composite
 from ..services.metrics import compute_row_metrics
 
@@ -52,6 +53,9 @@ class LatestQuotesView(APIView):
 
             # Step 2: Transform TOS quotes into FutureTrading structure (instrument + fields)
             instruments_db = {inst.symbol: inst for inst in TradingInstrument.objects.all()}
+            
+            # Load 52-week stats from database
+            stats_52w = {s.symbol: s for s in Rolling52WeekStats.objects.all()}
 
             transformed_rows = []
             for idx, quote in enumerate(raw_quotes):
@@ -73,6 +77,11 @@ class LatestQuotesView(APIView):
 
                 def to_str(val):
                     return str(val) if val is not None else None
+                
+                # Get 52w stats for this symbol (if exists)
+                symbol_52w = stats_52w.get(symbol)
+                high_52w = to_str(symbol_52w.high_52w) if symbol_52w else None
+                low_52w = to_str(symbol_52w.low_52w) if symbol_52w else None
 
                 row = {
                     'instrument': {
@@ -109,8 +118,8 @@ class LatestQuotesView(APIView):
                     'delay_minutes': 0,
                     'timestamp': quote.get('timestamp'),
                     'extended_data': {
-                        'high_52w': to_str(quote.get('high_52w')),
-                        'low_52w': to_str(quote.get('low_52w')),
+                        'high_52w': high_52w,  # From database, not Excel
+                        'low_52w': low_52w,    # From database, not Excel
                     }
                 }
                 transformed_rows.append(row)

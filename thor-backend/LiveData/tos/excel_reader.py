@@ -179,17 +179,20 @@ class TOSExcelReader:
         if low_24h_val is None:
             low_24h_val = data.get('World Low')
 
+        # 52-week fields: support multiple header spellings seen across exports
         high_52w_val = (
             data.get('52WkHigh')
             or data.get('52wkHigh')
             or data.get('52 Week High')
             or data.get('52WeekHigh')
+            or data.get('52HIGH')  # TOS Data Export name
         )
         low_52w_val = (
             data.get('52WkLow')
             or data.get('52wkLow')
             or data.get('52 Week Low')
             or data.get('52WeekLow')
+            or data.get('52LOW')   # TOS Data Export name
         )
         quote = {
             'symbol': str(symbol).strip() if symbol else f"FUTURE_{row_idx}",
