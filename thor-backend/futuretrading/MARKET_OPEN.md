@@ -20,9 +20,12 @@
 - [x] Register models in admin.py
 - [x] Create and run migrations
 - [x] Test models (all tests passed)
+- [x] Auto-calculation of entry/target prices in model save()
+- [x] Grading service built (checks every 0.5 seconds)
+- [x] Management command created (grade_market_opens)
 
 ### 🔄 In Progress
-- [ ] Build capture service (fetch live data from Schwab/TOS)
+- [ ] Build market open capture service (triggered by GlobalMarkets)
 
 ### 📋 To Do
 - [ ] Build capture service (fetch live data from Schwab/TOS)

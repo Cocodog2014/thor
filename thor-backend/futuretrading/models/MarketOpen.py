@@ -35,12 +35,12 @@ class MarketOpenSession(models.Model):
     ym_bid = models.DecimalField(max_digits=10, decimal_places=2, help_text="Bid price at capture")
     ym_last = models.DecimalField(max_digits=10, decimal_places=2, help_text="Last traded price")
     
-    # Entry and Target Prices
-    ym_entry_price = models.DecimalField(max_digits=10, decimal_places=2, 
+    # Entry and Target Prices (auto-calculated on save)
+    ym_entry_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
                                          help_text="Actual entry (Ask if buying, Bid if selling)")
-    ym_high_dynamic = models.DecimalField(max_digits=10, decimal_places=2, 
+    ym_high_dynamic = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
                                           help_text="Entry + 20 points ($100 profit target)")
-    ym_low_dynamic = models.DecimalField(max_digits=10, decimal_places=2, 
+    ym_low_dynamic = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
                                          help_text="Entry - 20 points ($100 stop loss)")
     
     # Signal & Composite
@@ -94,6 +94,24 @@ class MarketOpenSession(models.Model):
     
     def __str__(self):
         return f"{self.country} - {self.year}/{self.month}/{self.date} - {self.total_signal}"
+    
+    def save(self, *args, **kwargs):
+        """Auto-calculate entry and target prices based on signal"""
+        # Only calculate if we have the required data and haven't set entry price manually
+        if self.ym_bid and self.ym_ask and self.total_signal and not self.ym_entry_price:
+            # Determine entry price based on signal
+            if self.total_signal in ['BUY', 'STRONG_BUY']:
+                self.ym_entry_price = self.ym_ask  # Buy at ask
+            elif self.total_signal in ['SELL', 'STRONG_SELL']:
+                self.ym_entry_price = self.ym_bid  # Sell at bid
+            # HOLD doesn't get an entry price
+            
+            # Calculate high and low dynamic targets if we have an entry price
+            if self.ym_entry_price:
+                self.ym_high_dynamic = self.ym_entry_price + 20  # +20 points for $100 profit
+                self.ym_low_dynamic = self.ym_entry_price - 20   # -20 points for $100 stop
+        
+        super().save(*args, **kwargs)
 
 
 class FutureSnapshot(models.Model):
@@ -195,13 +213,28 @@ class FutureSnapshot(models.Model):
                                  ('STRONG_SELL', 'Strong Sell'),
                                  ('HOLD', 'Hold'),
                              ],
-                             help_text="TOTAL signal")
-    weight = models.IntegerField(null=True, blank=True, help_text="TOTAL weight (e.g., -3)")
+                             help_text="TOTAL signal or individual future HBS")
+    weight = models.IntegerField(null=True, blank=True, help_text="Weight value")
     sum_weighted = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
                                        help_text="Sum weighted (e.g., 13.02)")
     instrument_count = models.IntegerField(null=True, blank=True, default=11,
                                            help_text="Count of instruments (typically 11)")
     status = models.CharField(max_length=20, blank=True, help_text="Status (e.g., LIVE TOTAL)")
+    
+    # Grading Outcome (for all futures to track theoretical performance)
+    outcome = models.CharField(max_length=20, 
+                              choices=[
+                                  ('WORKED', 'Worked'),
+                                  ('DIDNT_WORK', "Didn't Work"),
+                                  ('NEUTRAL', 'Neutral'),
+                                  ('PENDING', 'Pending'),
+                              ],
+                              default='PENDING',
+                              help_text="Trade outcome for this future")
+    exit_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
+                                     help_text="Price when target or stop was hit")
+    exit_time = models.DateTimeField(null=True, blank=True,
+                                     help_text="Timestamp when outcome was determined")
     
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
