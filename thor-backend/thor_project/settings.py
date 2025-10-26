@@ -59,7 +59,7 @@ INSTALLED_APPS = [
     'account_statement',  # Paper and real trading account management
     'core',
     'api',
-    'timezones',  # WorldClock and Market data
+    'GlobalMarkets',  # WorldClock and Market data (renamed from 'timezones')
     'thordata',   # Large Excel import app
     'FutureTrading',  # Modern real-time market data system
     # LiveData - Multi-broker live data pipeline

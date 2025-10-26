@@ -20,7 +20,7 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.http import JsonResponse
 from django.views.generic import RedirectView
-from timezones.views import api_test_page, debug_market_times, sync_markets
+from GlobalMarkets.views import api_test_page, debug_market_times, sync_markets
 # Legacy import (can be removed after testing)
 # from SchwabLiveData.views import schwab_auth_callback
 # from SchwabLiveData.admin_views import cloudflared_control
@@ -53,7 +53,7 @@ urlpatterns = [
     path('api/schwab/', include(('LiveData.schwab.urls', 'schwab'), namespace='schwab')),
     path('api/feed/', include(('LiveData.shared.urls', 'feed'), namespace='feed')),
     path('api/feed/tos/', include(('LiveData.tos.urls', 'tos'), namespace='tos')),
-    path('api/worldclock/', include('timezones.urls')),  # WorldClock APIs
+    path('api/worldclock/', include('GlobalMarkets.urls')),  # WorldClock APIs
     path('test/', api_test_page, name='api_test'),  # API test page
     path('debug/', debug_market_times, name='debug_market_times'),  # Debug endpoint
     path('sync/', sync_markets, name='sync_markets'),  # Sync markets endpoint
