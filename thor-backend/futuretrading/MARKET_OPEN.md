@@ -2,102 +2,95 @@
 
 **Project:** Thor Futures Trading  
 **Goal:** Capture market snapshots at regional opens, trade YM based on TOTAL composite, grade $100 target outcomes  
-**Date:** October 25, 2025  
-**Status:** Brainstorm Complete - Ready to Build
+**Date:** October 26, 2025  
+**Status:** Phase 1 - Models Built
+
+---
+
+## Progress Tracker
+
+### ✅ Completed
+- [x] Database schema design
+- [x] MarketOpenSession model created
+- [x] FutureSnapshot model created (replaces SymbolSnapshot)
+- [x] Fields defined for all 11 futures + TOTAL composite
+- [x] Entry price logic defined (Ask for BUY, Bid for SELL)
+- [x] High/Low dynamic thresholds (±20 points = $100 target/stop)
+- [x] Outcome tracking fields added
+- [x] Register models in admin.py
+- [x] Create and run migrations
+
+### 🔄 In Progress
+- [ ] Test models in Django shell
+
+### 📋 To Do
+- [ ] Build capture service (fetch live data from Schwab/TOS)
+- [ ] Build grading loop (monitor price until target/stop/expire)
+- [ ] Create API endpoints
+- [ ] Build frontend display
+- [ ] Add analytics/reporting
 
 ---
 
 ## The Big Picture (What We're Building)
 
 **When a market opens** (Japan, China, India, Europe, London, Pre-USA, USA):
-1. **Capture** → Snapshot all 11 futures (YM, ES, NQ, RTY, CL, SI, HG, GC, VX, DX, ZB)
+1. **Capture** → Snapshot all 11 futures (YM, ES, NQ, RTY, CL, SI, HG, GC, VX, DX, ZB) + TOTAL
 2. **Decide** → Use TOTAL weighted average composite (BUY/SELL/HOLD)
 3. **Trade YM Only** → Enter at Ask (BUY) or Bid (SELL), calculate $100 target/stop
 4. **Grade** → Monitor price until target hit, stop hit, or window expires
 5. **Store** → Record outcome for analytics (hit rates, EV, patterns by region/day)
 
-**We track all 11 futures but only trade YM** — this builds data to discover which symbols' patterns predict YM success.
+**We track all 11 futures + TOTAL but only trade YM** — this builds data to discover which symbols' patterns predict YM success.
 
 ---
 
+## Data Collection Summary
+
+### MarketOpenSession (1 record per market open)
+**Core Fields:**
+- session_number, year, month, date, day, captured_at, country
+- YM prices: open, close, ask, bid, last
+- Entry prices: entry_price, high_dynamic (+20), low_dynamic (-20)
+- Signal: total_signal (BUY/SELL/HOLD/STRONG_BUY/STRONG_SELL)
+- Outcome: fw_nwdw (WORKED/DIDNT_WORK/NEUTRAL/PENDING), exit values
+
+### FutureSnapshot (12 records per session: 11 futures + TOTAL)
+
+**For Individual Futures (YM, ES, NQ, RTY, CL, SI, HG, GC, VX, DX, ZB):**
+1. Live price: last_price, change, change_percent
+2. Bid/Ask: bid, bid_size, ask, ask_size
+3. Market data: volume, vwap, spread
+4. Session: open, close, open_vs_prev (number & percent)
+5. 24h range: day_24h_low, day_24h_high, range_high_low, range_percent
+6. 52-week range: week_52_low, week_52_high, week_52_range_high_low, week_52_range_percent
+7. Entry/targets: entry_price, high_dynamic (+20), low_dynamic (-20)
+
+**For TOTAL Composite:**
+1. weighted_average (e.g., -0.109)
+2. signal (BUY/SELL/HOLD/STRONG_BUY/STRONG_SELL)
+3. weight (e.g., -3)
+4. sum_weighted (e.g., 13.02)
+5. instrument_count (11)
+6. status (e.g., "LIVE TOTAL")
+
 ---
 
-## PHASE 1: Backend Foundation (Models + Capture Logic)
+## PHASE 1: Backend Foundation (Models) ✅
 
-**What We're Building:** Database tables, capture service, basic grading loop
+### 1.1 Database Models - COMPLETED
 
-### 1.1 Database Tables (Django Models)
+#### **MarketOpenSession** ✅
+Main session record with YM trade tracking and outcome grading.
 
-#### **MarketOpenSession** (Main record - one per region per day)
-```
-Fields:
-- region (Japan, China, USA, etc.)
-- opened_at (timestamp when captured)
-- date (for uniqueness: one capture per region per day)
-- day_of_week (Monday, Tuesday, etc.)
+#### **FutureSnapshot** ✅
+Stores snapshot data for each of the 11 futures + TOTAL composite.
+- Uses optional fields approach: TOTAL skips futures-specific fields, futures skip TOTAL-specific fields
+- Enables flexible querying for back testing without data confusion
 
-TOTAL Composite:
-- composite_signal (BUY/SELL/HOLD)
-- signal_weight_sum (numeric score like +5, -3, +12)
+---
 
-YM Entry:
-- entry_side (BUY/SELL/None)
-- entry_price (47,388 if BUY at Ask, 47,380 if SELL at Bid)
-- bid_at_open, ask_at_open, spread_at_open
-- target_price (entry + 20 ticks if BUY)
-- stop_price (entry - 20 ticks if BUY)
-
-Outcome:
-- outcome (Pending → Worked/Didn't Work/Expired)
-- pnl_usd (+100, -100, or 0)
-- resolved_at (timestamp when graded)
-- evaluation_window_sec (default 1800 = 30 min)
-```
-
-#### **SymbolSnapshot** (11 records per session - all futures at open)
-```
-Fields:
-- session_id (FK to MarketOpenSession)
-- symbol (YM, ES, NQ, etc.)
-- captured_at (same as session opened_at)
-
-Prices:
-- bid, ask, last, spread, volume
-- open, high, low, close, change
-
-HBS:
-- classification (Strong Buy, Buy, Hold, Sell, Strong Sell)
-- weight (-2, -1, 0, 1, 2)
-
-Config:
-- tick_size (1.0 for YM)
-- tick_value_usd (5.00 for YM)
-
-Theoretical (for analytics):
-- theoretical_entry_side (what if we traded this symbol?)
-- theoretical_entry_price
-- theoretical_target_price
-- theoretical_stop_price
-```
-
-#### **SymbolConfig** (Reference table - one row per symbol)
-```
-Fields:
-- symbol (YM, ES, NQ, etc.) [unique]
-- tick_size (1.0 for YM)
-- tick_value_usd (5.00 for YM)
-- take_profit_usd (100.00 default)
-- stop_loss_usd (100.00 default)
-- display_precision (2 for YM)
-
-Methods:
-- get_target_ticks() → 100 / 5.00 = 20 ticks for YM
-```
-
-**Why these tables?**
-- MarketOpenSession = one trading day event per region
-- SymbolSnapshot = historical data for pattern analysis later
-- SymbolConfig = reference data (tick values, $100 offsets)
+## PHASE 2: Capture Service (Next Up)
 
 ---
 
