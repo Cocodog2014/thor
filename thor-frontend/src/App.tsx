@@ -3,6 +3,7 @@ import { Routes, Route, useLocation, Navigate } from 'react-router-dom'
 import { Container } from '@mui/material'
 // GlobalHeader is used inside AppLayout only
 import GlobalMarkets from './pages/GlobalMarkets/GlobalMarkets'
+import MarketOpenDashboard from './pages/FutureTrading/MarketOpen/MarketOpenDashboard'
 import FutureTrading from './pages/FutureTrading'
 import ActivityPositions from './pages/ActivityPositions'
 import AccountStatement from './pages/AccountStatement/AccountStatement'
@@ -25,6 +26,7 @@ function App() {
   const [showAccountStatement, setShowAccountStatement] = useState(false);
   const [showGlobalMarket, setShowGlobalMarket] = useState(true); // Show by default
   const [showFuturesOnHome, setShowFuturesOnHome] = useState(false); // Toggle for split view
+  const [showMarketOpenDashboard, setShowMarketOpenDashboard] = useState(false); // Market Open Dashboard toggle
   
   // Routes that should have full-width layout (no Container)
   // Ensure both bare paths and /app/* variants are treated as full width
@@ -50,50 +52,46 @@ function App() {
     setShowFuturesOnHome(!showFuturesOnHome);
   };
 
+  const toggleMarketOpenDashboard = () => {
+    setShowMarketOpenDashboard(!showMarketOpenDashboard);
+  };
+
   // Inline Home component - split layout with Global Markets + Futures
   const HomeContent = () => (
     <div className="home-screen">
-      <div style={{
-        display: 'flex',
-        gap: '16px',
-        alignItems: 'flex-start',
-        width: '100%'
-      }}>
-        {/* Left: Global Markets (fixed width) */}
+      <div className="dashboard-grid">
+        {/* Global Markets Section */}
         {showGlobalMarket && (
-          <section className="dashboard-card global-markets" aria-label="Global Markets" style={{
-            flexShrink: 0,
-            minWidth: '830px', // Ensure table doesn't condense
-            width: showFuturesOnHome ? 'auto' : '100%' // Full width when alone, auto when split
-          }}>
+          <section className="dashboard-card global-markets" aria-label="Global Markets">
             <GlobalMarkets />
           </section>
         )}
         
-        {/* Right: Futures cards with horizontal scroll */}
-        {showFuturesOnHome && (
-          <section 
-            className="dashboard-card future-trading" 
-            aria-label="Futures Trading"
-            style={{
-              flex: 1,
-              overflowX: 'auto',
-              overflowY: 'hidden',
-              minWidth: 0
-            }}
-          >
-            <FutureTrading />
+        {/* Market Open Dashboard below Global Markets */}
+        {showMarketOpenDashboard && (
+          <section className="dashboard-card market-open-dashboard" aria-label="Market Open Dashboard">
+            <MarketOpenDashboard />
           </section>
         )}
-      </div>
-
-      {/* Additional sections below */}
-      <div className="dashboard-grid" style={{ marginTop: showGlobalMarket || showFuturesOnHome ? '16px' : 0 }}>
+        
+        {/* Futures Trading Section */}
+        {showFuturesOnHome && (
+          <section className="dashboard-card future-trading" aria-label="Futures Trading">
+            <FutureTrading 
+              onToggleMarketOpen={toggleMarketOpenDashboard}
+              showMarketOpen={showMarketOpenDashboard}
+            />
+          </section>
+        )}
+        
+        {/* Account Statement Section */}
         {showAccountStatement && (
           <section className="dashboard-card account-statement" aria-label="Account Statement">
             <AccountStatement />
           </section>
         )}
+        
+        {/* Activity & Positions Section */}
         {showTradingActivity && (
           <section className="dashboard-card activity-positions" aria-label="Activity & Positions">
             <ActivityPositions />

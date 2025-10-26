@@ -13,9 +13,9 @@
 
 .home-screen div.dashboard-grid {
   display: grid !important;
-  grid-template-columns: 1fr !important; /* Single stacked column */
+  grid-template-columns: 1fr 1fr !important; /* Two columns for side-by-side layout */
   grid-auto-rows: auto !important; /* Rows size to content */
-  row-gap: 18px !important; /* Space between sections */
+  gap: 18px !important; /* Space between sections */
   width: 100% !important;
   /* Let the layout width be controlled by the main content area next to the drawer */
   max-width: none !important;
@@ -26,32 +26,47 @@
   align-items: start !important;
 }
 
-/* Global Markets Section - Positioned at top left touching header */
+/* Global Markets Section - Column 1, Row 1 */
 .home-screen section.dashboard-card.global-markets {
-  width: 50% !important;
   grid-column: 1 !important;
-  align-self: start !important;
-  justify-self: stretch !important; /* Fill grid width */
+  grid-row: 1 !important;
+  width: 100% !important;
   margin: 0 !important;
   padding: 0 !important;
 }
 
-/* Activity Positions Section - Positioned below Global Markets */
+/* Market Open Dashboard - Column 1, Row 2 (below Global Markets) */
+.home-screen section.dashboard-card.market-open-dashboard {
+  grid-column: 1 !important;
+  grid-row: 2 !important;
+  width: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* Futures Trading - Column 2, Row 1 (spans multiple rows if needed) */
+.home-screen section.dashboard-card.future-trading {
+  grid-column: 2 !important;
+  grid-row: 1 / span 2 !important; /* Span rows 1-2 */
+  width: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* Activity Positions Section - Column 1, Row 3 */
 .home-screen .dashboard-card.activity-positions {
-  width: 50% !important;
-  grid-column: 0 !important;
-  align-self: start !important;
-  justify-self: stretch !important;
+  grid-column: 1 !important;
+  grid-row: 3 !important;
+  width: 100% !important;
   margin: 0 !important;
   padding: 0 !important;
 }
 
-/* Account Statement Section - Positioned below Global Markets (same column) */
+/* Account Statement Section - Column 2, Row 3 */
 .home-screen .dashboard-card.account-statement {
-  width: 50% !important;
-  grid-column: 1 !important;
-  align-self: start !important;
-  justify-self: stretch !important;
+  grid-column: 2 !important;
+  grid-row: 3 !important;
+  width: 100% !important;
   margin: 0 !important;
   padding: 0 !important;
 }

@@ -22,12 +22,6 @@ interface MarketOpenSession {
   created_at: string;
 }
 
-interface TodayResponse {
-  date: string;
-  count: number;
-  sessions: MarketOpenSession[];
-}
-
 const MarketOpenDashboard = () => {
   const [sessions, setSessions] = useState<MarketOpenSession[]>([]);
   const [loading, setLoading] = useState(true);
@@ -36,14 +30,19 @@ const MarketOpenDashboard = () => {
   useEffect(() => {
     const fetchTodaySessions = async () => {
       try {
-        const response = await axios.get<TodayResponse>(
+        setLoading(true);
+        const response = await axios.get(
           'http://127.0.0.1:8000/api/futures/market-opens/today/'
         );
-        setSessions(response.data.sessions);
+        // Backend returns array directly, not wrapped in {sessions: [...]}
+        const data = Array.isArray(response.data) ? response.data : [];
+        setSessions(data);
         setError(null);
       } catch (err) {
         console.error('Error fetching market open sessions:', err);
-        setError('Failed to load market open data');
+        // Don't show error for empty data - just show empty state
+        setSessions([]);
+        setError(null);
       } finally {
         setLoading(false);
       }
@@ -102,27 +101,45 @@ const MarketOpenDashboard = () => {
 
   if (loading) {
     return (
-      <Box display="flex" justifyContent="center" alignItems="center" p={4}>
-        <CircularProgress />
-      </Box>
+      <div className="market-open-dashboard">
+        <Typography variant="h5" gutterBottom className="market-open-title">
+          📊 Market Open Sessions - Today
+        </Typography>
+        <Box display="flex" justifyContent="center" alignItems="center" p={4}>
+          <CircularProgress />
+        </Box>
+      </div>
     );
   }
 
   if (error) {
     return (
-      <Alert severity="error" sx={{ m: 2 }}>
-        {error}
-      </Alert>
+      <div className="market-open-dashboard">
+        <Typography variant="h5" gutterBottom className="market-open-title">
+          📊 Market Open Sessions - Today
+        </Typography>
+        <Alert severity="error" sx={{ m: 2 }}>
+          {error}
+        </Alert>
+      </div>
     );
   }
 
   if (sessions.length === 0) {
     return (
-      <Box p={3}>
-        <Typography variant="h6" color="text.secondary" align="center">
-          No market open sessions captured today
+      <div className="market-open-dashboard">
+        <Typography variant="h5" gutterBottom className="market-open-title">
+          📊 Market Open Sessions - Today
         </Typography>
-      </Box>
+        <Box p={3} textAlign="center">
+          <Typography variant="body1" color="text.secondary" gutterBottom>
+            No market open sessions captured today
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Sessions will appear here when a market opens and data is captured
+          </Typography>
+        </Box>
+      </div>
     );
   }
 

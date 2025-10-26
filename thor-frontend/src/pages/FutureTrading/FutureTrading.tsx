@@ -30,6 +30,11 @@ import type { ChipProps } from "@mui/material";
  * with one of: STRONG_BUY | BUY | HOLD | SELL | STRONG_SELL.
  */
 
+interface FutureTradingProps {
+  onToggleMarketOpen?: () => void;
+  showMarketOpen?: boolean;
+}
+
 // ----------------------------- Config ----------------------------
 
 const FUTURES_11 = [
@@ -700,7 +705,7 @@ function L1Card({row, onSample, hist: _hist, theme, getQty, setQty}:{
 
 // -------------------------- Main Component -----------------------
 
-export default function FutureTrading(){
+export default function FutureTrading({ onToggleMarketOpen, showMarketOpen }: FutureTradingProps = {}){
   const theme = useTheme();
   const [pollMs, setPollMs] = useState(2000);
   const [rows, setRows] = useState<MarketData[]>([]);
@@ -888,10 +893,25 @@ export default function FutureTrading(){
       )}
 
       {routingPlan && (
-        <Box mb={2}>
+        <Box mb={2} display="flex" justifyContent="space-between" alignItems="center">
           <Typography variant="caption" color="text.secondary">
             Feed: {routingPlan.primary_feed?.display_name ?? "Not configured"}
           </Typography>
+          {onToggleMarketOpen && (
+            <Button
+              variant="text"
+              size="small"
+              onClick={onToggleMarketOpen}
+              sx={{ 
+                color: 'white',
+                '&:hover': {
+                  backgroundColor: 'rgba(255, 255, 255, 0.1)'
+                }
+              }}
+            >
+              {showMarketOpen ? '📊 Hide' : '📊 Show'} Market Open Sessions
+            </Button>
+          )}
         </Box>
       )}
 
