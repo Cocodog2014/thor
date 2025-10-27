@@ -67,6 +67,10 @@ class LatestQuotesView(APIView):
                     '30YrBond': 'ZB',
                     '30Yr T-BOND': 'ZB',
                     'T-BOND': 'ZB',
+                    # Dollar Index varieties from Excel/feeds
+                    '$DXY': 'DX',
+                    'DXY': 'DX',
+                    'USDX': 'DX',
                 }
                 symbol = symbol_map.get(raw_symbol, raw_symbol)
 

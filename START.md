@@ -36,9 +36,9 @@ conda activate Thor_inv
 
 # Set environment variables for Excel Live data
 $env:DATA_PROVIDER = 'excel_live'
-$env:EXCEL_DATA_FILE = 'A:\Thor\CleanData.xlsm'
-$env:EXCEL_SHEET_NAME = 'Futures'
-$env:EXCEL_LIVE_RANGE = 'A1:M20'
+$env:EXCEL_DATA_FILE = 'A:\Thor\RTD_TOS.xlsm'
+$env:EXCEL_SHEET_NAME = 'LiveData'
+$env:EXCEL_LIVE_RANGE = 'A1:N12'
 $env:REDIS_URL = 'redis://localhost:6379/0'
 
 # Start Django
