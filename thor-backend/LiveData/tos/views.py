@@ -107,11 +107,11 @@ def get_latest_quotes(request):
     """
     consumer = request.GET.get('consumer', 'unknown')
     
-    # Allow consumer to specify configuration
-    file_path = request.GET.get('file_path', r'A:\Thor\CleanData.xlsm')
-    sheet_name = request.GET.get('sheet_name', 'Futures')
+    # Allow consumer to specify configuration, default to RTD_TOS.xlsm
+    file_path = request.GET.get('file_path', r'A:\Thor\RTD_TOS.xlsm')
+    sheet_name = request.GET.get('sheet_name', 'LiveData')
     # Include new 52-week columns (adds one more column: AskSize at N)
-    data_range = request.GET.get('data_range', 'A1:N12')  # Default to futures range
+    data_range = request.GET.get('data_range', 'A1:N13')  # Default to futures range (1 header + 12 data rows)
     
     try:
         # Get Excel reader instance with consumer-provided config
@@ -125,30 +125,36 @@ def get_latest_quotes(request):
                 'error': 'TOS Excel reader not configured'
             }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
         
-        # Read current data from Excel (include_headers=True since range includes header row)
-        quotes = reader.read_data(include_headers=True)
+        try:
+            # Read current data from Excel (include_headers=True since range includes header row)
+            quotes = reader.read_data(include_headers=True)
 
-        # Publish to Redis and cache snapshot for each quote
-        for q in quotes:
-            symbol = q.get('symbol')
-            if not symbol:
-                continue
-            # Publish as-is; redis client handles Decimal via default=str
-            live_data_redis.publish_quote(symbol, q)
+            # Publish to Redis and cache snapshot for each quote
+            for q in quotes:
+                symbol = q.get('symbol')
+                if not symbol:
+                    continue
+                # Publish as-is; redis client handles Decimal via default=str
+                live_data_redis.publish_quote(symbol, q)
+            
+            logger.debug(f"Serving {len(quotes)} quotes to {consumer} from {data_range}")
+            
+            # Return raw quotes - FutureTrading will enrich with signals and compute total
+            return Response({
+                'quotes': quotes,
+                'count': len(quotes),
+                'source': 'TOS_RTD_Excel',
+                'config': {
+                    'file': file_path,
+                    'sheet': sheet_name,
+                    'range': data_range
+                }
+            }, status=status.HTTP_200_OK)
         
-        logger.debug(f"Serving {len(quotes)} quotes to {consumer} from {data_range}")
-        
-        # Return raw quotes - FutureTrading will enrich with signals and compute total
-        return Response({
-            'quotes': quotes,
-            'count': len(quotes),
-            'source': 'TOS_RTD_Excel',
-            'config': {
-                'file': file_path,
-                'sheet': sheet_name,
-                'range': data_range
-            }
-        }, status=status.HTTP_200_OK)
+        finally:
+            # CRITICAL: Always disconnect to release Excel COM connection
+            # This prevents Excel from freezing when polled frequently
+            reader.disconnect()
         
     except Exception as e:
         logger.error(f"Error reading TOS Excel data: {e}")

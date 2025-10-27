@@ -9,10 +9,14 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from django.utils import timezone
+import threading
 import logging
 import requests
 
 from ..models import TradingInstrument
+from ..config import EXPECTED_FUTURES
+from LiveData.shared.redis_client import live_data_redis
+from ..models.extremes import Rolling52WeekStats
 from ..services.classification import enrich_quote_row, compute_composite
 from ..services.metrics import compute_row_metrics
 
@@ -29,29 +33,57 @@ class LatestQuotesView(APIView):
 
     def get(self, request):
         try:
-            # Step 1: Get raw quotes from TOS Excel reader (reads Excel and populates Redis)
+            # Step 1: Nudge LiveData/TOS to refresh in the background so the next poll is fresh
+            def _kick_refresh():
+                try:
+                    requests.get(
+                        'http://localhost:8000/api/feed/tos/quotes/latest/',
+                        params={'consumer': 'futures_trading'},
+                        timeout=3
+                    )
+                except requests.exceptions.RequestException:
+                    # Non-fatal: we still serve from current Redis snapshot
+                    pass
+
+            threading.Thread(target=_kick_refresh, daemon=True).start()
+
+            # Step 2: Source of truth = Redis snapshot populated by LiveData app
+            # Read the latest quotes for our expected instruments.
+            # If Redis is empty/stale, trigger a refresh from the TOS endpoint once and retry.
             raw_quotes = []
 
-            try:
-                # Call TOS Excel endpoint - reads from Excel file and publishes to Redis
-                response = requests.get(
-                    'http://localhost:8000/api/feed/tos/quotes/latest/',
-                    params={'consumer': 'futures_trading'},
-                    timeout=5
-                )
+            # Symbols as stored by the producer (Excel). Some require mapping from our canonical names.
+            redis_symbol_map = {
+                # Canonical -> Redis key symbol
+                'DX': '$DXY',
+            }
+            fetch_symbols = [redis_symbol_map.get(sym, sym) for sym in EXPECTED_FUTURES]
 
-                if response.status_code == 200:
-                    data = response.json()
-                    raw_quotes = data.get('quotes', [])
-                    logger.info(f"Fetched {len(raw_quotes)} quotes from TOS Excel")
-                else:
-                    logger.warning(f"TOS endpoint returned {response.status_code}")
+            def read_from_redis():
+                quotes = live_data_redis.get_latest_quotes(fetch_symbols)
+                return quotes or []
 
-            except requests.exceptions.RequestException as e:
-                logger.error(f"Failed to fetch TOS data: {e}")
+            # First attempt: read what's already in Redis
+            raw_quotes = read_from_redis()
+
+            # If Redis has too few items, trigger a refresh (fallback) and try once more
+            if len(raw_quotes) < max(1, int(len(fetch_symbols) * 0.7)):
+                try:
+                    requests.get(
+                        'http://localhost:8000/api/feed/tos/quotes/latest/',
+                        params={'consumer': 'futures_trading'},
+                        timeout=5
+                    )
+                except requests.exceptions.RequestException as e:
+                    logger.warning(f"TOS refresh failed: {e}")
+                # Retry read
+                raw_quotes = read_from_redis()
 
             # Step 2: Transform TOS quotes into FutureTrading structure (instrument + fields)
             instruments_db = {inst.symbol: inst for inst in TradingInstrument.objects.all()}
+            
+            # Load 52-week stats from database
+            stats_52w = {s.symbol: s for s in Rolling52WeekStats.objects.all()}
 
             transformed_rows = []
             for idx, quote in enumerate(raw_quotes):
@@ -63,6 +95,10 @@ class LatestQuotesView(APIView):
                     '30YrBond': 'ZB',
                     '30Yr T-BOND': 'ZB',
                     'T-BOND': 'ZB',
+                    # Dollar Index varieties from Excel/feeds
+                    '$DXY': 'DX',
+                    'DXY': 'DX',
+                    'USDX': 'DX',
                 }
                 symbol = symbol_map.get(raw_symbol, raw_symbol)
 
@@ -73,6 +109,11 @@ class LatestQuotesView(APIView):
 
                 def to_str(val):
                     return str(val) if val is not None else None
+                
+                # Get 52w stats for this symbol (if exists)
+                symbol_52w = stats_52w.get(symbol)
+                high_52w = to_str(symbol_52w.high_52w) if symbol_52w else None
+                low_52w = to_str(symbol_52w.low_52w) if symbol_52w else None
 
                 row = {
                     'instrument': {
@@ -109,8 +150,8 @@ class LatestQuotesView(APIView):
                     'delay_minutes': 0,
                     'timestamp': quote.get('timestamp'),
                     'extended_data': {
-                        'high_52w': to_str(quote.get('high_52w')),
-                        'low_52w': to_str(quote.get('low_52w')),
+                        'high_52w': high_52w,  # From database, not Excel
+                        'low_52w': low_52w,    # From database, not Excel
                     }
                 }
                 transformed_rows.append(row)

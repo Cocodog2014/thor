@@ -17,4 +17,10 @@ except Exception:
     # During initial scaffold there may be no MarketOpen models yet
     pass
 
+# 52-week tracking models
+try:
+    from .extremes import *  # noqa: F401,F403
+except Exception:
+    pass
+
 __all__ = [name for name in globals().keys() if not name.startswith('_')]

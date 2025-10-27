@@ -71,9 +71,19 @@ class TOSExcelReader:
             return False
     
     def disconnect(self):
-        """Close Excel connection (but don't close the workbook itself)"""
-        self._workbook = None
-        self._sheet = None
+        """
+        Close Excel connection and release COM objects.
+        Important: This prevents Excel from freezing when polled frequently.
+        """
+        # Release references in reverse order
+        if self._sheet:
+            self._sheet = None
+        if self._workbook:
+            self._workbook = None
+        
+        # Force Python garbage collection to release COM objects immediately
+        import gc
+        gc.collect()
     
     def read_data(self, include_headers: bool = False) -> List[Dict[str, Any]]:
         """
@@ -158,14 +168,76 @@ class TOSExcelReader:
         Returns:
             Quote dictionary or None if invalid
         """
-        # First column is the symbol
-        symbol = row[0] if row and row[0] else f"FUTURE_{row_idx}"
-        
-        # Create dict from headers and values (skip first column which is symbol)
+        # Build a dict of header->value for this row (when headers provided)
+        # Strip whitespace from header names to handle formatting inconsistencies
         data = {}
-        for i, header in enumerate(headers):
-            if header and i < len(row):  # Skip None headers
-                data[header] = row[i]
+        if headers:
+            for i, header in enumerate(headers):
+                if header and i < len(row):  # Skip None headers
+                    clean_header = str(header).strip() if header else None
+                    if clean_header:
+                        data[clean_header] = row[i]
+        
+        # Determine symbol and type robustly
+        symbol = None
+        instrument_type = None
+        
+        # Helper to fetch by case-insensitive header name aliases
+        def get_by_alias(d: Dict[str, Any], aliases: List[str]) -> Optional[Any]:
+            if not d:
+                return None
+            lower_map = {str(k).strip().lower(): v for k, v in d.items() if k}
+            for a in aliases:
+                v = lower_map.get(a.lower())
+                if v not in (None, ""):
+                    return v
+            return None
+        
+        # If headers exist, prefer header-driven extraction
+        if data:
+            # Common header names for type and symbol columns
+            instrument_type = get_by_alias(data, [
+                'type', 'asset type', 'category', 'class'
+            ])
+            symbol = get_by_alias(data, [
+                'symbol', 'ticker', 'ticker symbol', 'contract', 'underlying', 'root'
+            ])
+            
+            # If no symbol found but first column is a type and second column looks like symbol, use column B
+            if symbol in (None, "") and headers and len(row) >= 2:
+                first_header = str(headers[0]).strip().lower() if headers[0] else ''
+                second_header = str(headers[1]).strip().lower() if headers[1] else ''
+                # Treat first column as type when header says so
+                if first_header in ('type', 'asset type', 'category'):
+                    # Column B should be the symbol
+                    symbol = row[1]
+                # If second header explicitly says symbol
+                if (symbol in (None, "")) and second_header in ('symbol', 'ticker', 'ticker symbol'):
+                    symbol = row[1]
+        
+        # Fallbacks when no headers were provided or symbol still not found
+        if symbol in (None, ""):
+            # If there are at least two columns and the first value looks like a type,
+            # prefer column B as symbol; else default to column A
+            type_like_values = {'futures', 'future', 'index', 'indexes', 'stock', 'stocks', 'equity', 'forex', 'crypto', 'bond'}
+            if len(row) >= 2:
+                first_val = str(row[0]).strip().lower() if row[0] is not None else ''
+                if first_val in type_like_values:
+                    symbol = row[1]
+            if symbol in (None, ""):
+                symbol = row[0] if row and row[0] else f"FUTURE_{row_idx}"
+        
+        # Normalize symbol
+        symbol = str(symbol).strip() if symbol is not None else f"FUTURE_{row_idx}"
+        
+        # Extract fields (handle None/empty values)
+        # Support both new and legacy header names
+        high_24h_val = data.get('24High') if headers else None
+        low_24h_val = data.get('24Low') if headers else None
+        if high_24h_val is None:
+            high_24h_val = data.get('World High')
+        if low_24h_val is None:
+            low_24h_val = data.get('World Low')
         
         # Extract fields (handle None/empty values)
         # Support both new and legacy header names
@@ -176,20 +248,24 @@ class TOSExcelReader:
         if low_24h_val is None:
             low_24h_val = data.get('World Low')
 
+        # 52-week fields: support multiple header spellings seen across exports
         high_52w_val = (
             data.get('52WkHigh')
             or data.get('52wkHigh')
             or data.get('52 Week High')
             or data.get('52WeekHigh')
+            or data.get('52HIGH')  # TOS Data Export name
         )
         low_52w_val = (
             data.get('52WkLow')
             or data.get('52wkLow')
             or data.get('52 Week Low')
             or data.get('52WeekLow')
+            or data.get('52LOW')   # TOS Data Export name
         )
         quote = {
-            'symbol': str(symbol).strip() if symbol else f"FUTURE_{row_idx}",
+            'symbol': symbol if symbol else f"FUTURE_{row_idx}",
+            'type': instrument_type if instrument_type else None,
             'last': self._to_decimal(data.get('Last')),
             'bid': self._to_decimal(data.get('Bid')),
             'ask': self._to_decimal(data.get('Ask')),
