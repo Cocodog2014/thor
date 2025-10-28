@@ -43,6 +43,13 @@ class MarketMonitor:
 
         logger.info(f"🌍 Market Scheduler started – timers scheduled for {count} markets")
 
+        # Immediate reconciliation so we don't wait for the next timer if a market
+        # is already OPEN/CLOSED right now but DB status is stale (first-run fix).
+        try:
+            self._reconcile_now()
+        except Exception as e:
+            logger.error(f"❌ Initial reconciliation failed: {e}", exc_info=True)
+
     def stop(self):
         """Cancel all timers and stop scheduling."""
         with self._lock:
@@ -144,6 +151,50 @@ class MarketMonitor:
                     logger.warning(f"⚠️ {market.country} capture returned no session")
             except Exception as e:
                 logger.error(f"❌ Failed to capture {market.country}: {e}", exc_info=True)
+
+    def _reconcile_now(self):
+        """On startup, immediately correct any status mismatches and capture opens.
+
+        This ensures that if Django starts while a market is already OPEN but the
+        DB still says CLOSED, we flip it now and perform the open capture without
+        waiting hours for the next close timer.
+        """
+        from GlobalMarkets.models import Market, USMarketStatus
+        from FutureTrading.views.MarketOpenCapture import capture_market_open
+
+        markets = Market.objects.filter(is_active=True, is_control_market=True)
+        fixed = 0
+        for m in markets:
+            try:
+                is_open_now = m.is_market_open_now()
+                target = 'OPEN' if is_open_now else 'CLOSED'
+                if m.status != target:
+                    prev = m.status
+                    m.status = target
+                    m.save()
+                    fixed += 1
+                    logger.info(f"🧭 Reconciled {m.country}: {prev} → {target}")
+
+                    if target == 'OPEN' and USMarketStatus.is_us_market_open_today():
+                        logger.info(f"📸 Startup capture for {m.country} (already open)")
+                        try:
+                            session = capture_market_open(m)
+                            if session:
+                                logger.info(
+                                    f"✅ {m.country} captured – Session #{session.session_number} "
+                                    f"with {session.futures.count()} futures"
+                                )
+                            else:
+                                logger.warning(f"⚠️ {m.country} capture returned no session")
+                        except Exception as e:
+                            logger.error(f"❌ Failed startup capture for {m.country}: {e}", exc_info=True)
+            except Exception as e:
+                logger.error(f"❌ Reconcile error for {m.country}: {e}")
+
+        if fixed:
+            logger.info(f"🔧 Reconciliation completed – corrected {fixed} market(s)")
+        else:
+            logger.info("🔧 Reconciliation completed – no changes needed")
 
 
 # Global singleton instance
