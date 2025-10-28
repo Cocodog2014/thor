@@ -32,7 +32,7 @@ cloudflared tunnel run thor
 
 ```powershell
 cd A:\Thor\thor-backend
-conda activate Thor_inv
+#conda activate Thor_inv
 
 # Set environment variables for Excel Live data
 $env:DATA_PROVIDER = 'excel_live'
