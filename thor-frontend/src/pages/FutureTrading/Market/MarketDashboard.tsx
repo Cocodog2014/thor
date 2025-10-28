@@ -199,48 +199,62 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl = "http://127.0
         <div className="text-xs" style={{ opacity: 0.9 }}>Always shows all 9 control markets</div>
       </div>
 
-      {/* TOTAL Composite Card - spans 3 columns */}
-      {totalSession && (
-        <div className="total-composite-card">
-          <div className="total-header">
-            <span className="total-title">TOTAL</span>
-            <span className="total-badge composite">Composite</span>
-            <span className="total-badge futures">11 Futures</span>
-            <span className={chipClass("signal", totalSession.session.total_signal)}>
-              {totalSession.session.total_signal || "—"}
-            </span>
-            <span className="total-time">
-              {totalSession.session.captured_at ? new Date(totalSession.session.captured_at).toLocaleTimeString() : "—"}
-            </span>
-          </div>
-          <div className="total-body">
-            <div className="total-main">
-              <div className="total-weighted">
-                <div className="total-val">{formatNum(String(totalSession.snap.weighted_average), 4) ?? '—'}</div>
-                <div className="total-label">Weighted Average</div>
-              </div>
-              <div className="total-signal-box">
-                <div className="total-signal-label">Signal</div>
-                <div className="total-signal-val">{totalSession.snap.signal || "—"}</div>
-              </div>
-            </div>
-            <div className="total-stats">
-              <div className="total-stat">
-                <div className="label">Sum Weighted</div>
-                <div className="value">{formatNum(totalSession.snap.sum_weighted) ?? '—'}</div>
-              </div>
-              <div className="total-stat">
-                <div className="label">Instrument Count</div>
-                <div className="value">{totalSession.snap.instrument_count ?? '—'}</div>
-              </div>
-              <div className="total-stat">
-                <div className="label">Status</div>
-                <div className="value">{totalSession.snap.status || "—"}</div>
-              </div>
-            </div>
-          </div>
+      {/* TOTAL Composite Card - always show, spans 3 columns */}
+      <div className="total-composite-card">
+        <div className="total-header">
+          <span className="total-title">TOTAL</span>
+          <span className="total-badge composite">Composite</span>
+          <span className="total-badge futures">11 Futures</span>
+          {totalSession && (
+            <>
+              <span className={chipClass("signal", totalSession.session.total_signal)}>
+                {totalSession.session.total_signal || "—"}
+              </span>
+              <span className="total-time">
+                {totalSession.session.captured_at ? new Date(totalSession.session.captured_at).toLocaleTimeString() : "—"}
+              </span>
+            </>
+          )}
+          {!totalSession && (
+            <span className="total-time" style={{ opacity: 0.7 }}>Waiting for market open capture...</span>
+          )}
         </div>
-      )}
+        <div className="total-body">
+          {totalSession ? (
+            <>
+              <div className="total-main">
+                <div className="total-weighted">
+                  <div className="total-val">{formatNum(String(totalSession.snap.weighted_average), 4) || '—'}</div>
+                  <div className="total-label">Weighted Average</div>
+                </div>
+                <div className="total-signal-box">
+                  <div className="total-signal-label">Signal</div>
+                  <div className="total-signal-val">{totalSession.snap.signal || "—"}</div>
+                </div>
+              </div>
+              <div className="total-stats">
+                <div className="total-stat">
+                  <div className="label">Sum Weighted</div>
+                  <div className="value">{formatNum(totalSession.snap.sum_weighted) || '—'}</div>
+                </div>
+                <div className="total-stat">
+                  <div className="label">Instrument Count</div>
+                  <div className="value">{totalSession.snap.instrument_count ?? '—'}</div>
+                </div>
+                <div className="total-stat">
+                  <div className="label">Status</div>
+                  <div className="value">{totalSession.snap.status || "—"}</div>
+                </div>
+              </div>
+            </>
+          ) : (
+            <div style={{ padding: '20px', textAlign: 'center', opacity: 0.7, gridColumn: '1 / -1' }}>
+              <div style={{ fontSize: '14px', marginBottom: '8px' }}>⏳ No TOTAL data captured yet</div>
+              <div style={{ fontSize: '12px' }}>Data will appear when the next market opens</div>
+            </div>
+          )}
+        </div>
+      </div>
 
       <div className="market-grid">
         {CONTROL_MARKETS.map(m => {
