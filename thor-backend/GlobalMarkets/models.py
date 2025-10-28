@@ -3,6 +3,21 @@ from datetime import datetime, time, timedelta
 import pytz
 
 
+# Control Markets Configuration - The 9 markets that drive global sentiment
+CONTROL_MARKET_WEIGHTS = {
+    # East → West, session order
+    'Japan': 0.25,           # Tokyo (Nikkei) - Primary Asian session driver
+    'China': 0.10,           # Shanghai (SSE) - Mainland sentiment
+    'India': 0.05,           # Bombay (Sensex) - Emerging market proxy
+    'Germany': 0.20,         # Frankfurt (DAX) - Core Eurozone
+    'United Kingdom': 0.05,  # London (FTSE) - Early Europe sentiment
+    'Pre_USA': 0.05,         # CME Globex Futures - Bridge between sessions
+    'USA': 0.25,             # New York (S&P/Dow/NASDAQ) - Global leader
+    'Canada': 0.03,          # Toronto (TSX) - Commodity confirmation
+    'Mexico': 0.02,          # BMV IPC - Regional follow-through
+}
+
+
 class Market(models.Model):
     """
     Represents stock markets around the world for monitoring while trading US markets
@@ -27,6 +42,15 @@ class Market(models.Model):
         default='CLOSED'
     )
     
+    # Control market configuration
+    is_control_market = models.BooleanField(default=False, help_text="Is this one of the 9 global control markets?")
+    weight = models.DecimalField(
+        max_digits=4, 
+        decimal_places=2, 
+        default=0.00,
+        help_text="Weight in global composite index (0.00 - 1.00)"
+    )
+    
     # Market configuration
     is_active = models.BooleanField(default=True)
     
@@ -49,14 +73,9 @@ class Market(models.Model):
         """Get the display name for the frontend based on user requirements"""
         display_names = {
             'Japan': 'Tokyo',
-            'Shenzhen': 'Shenzhen', 
-            'Hong Kong': 'Hong Kong',
             'China': 'Shanghai',
             'India': 'Bombay',
-            'Netherlands': 'Amsterdam',
-            'France': 'France',
             'Germany': 'Frankfurt',
-            'Spain': 'Spain',
             'United Kingdom': 'London',
             'Pre_USA': 'Pre_USA',
             'USA': 'USA',
@@ -69,19 +88,14 @@ class Market(models.Model):
         """Get sort order based on user's requested market sequence"""
         order_map = {
             'Japan': 1,      # Tokyo
-            'Shenzhen': 2,   # Shenzhen
-            'Hong Kong': 3,  # Hong Kong
-            'China': 4,      # Shanghai
-            'India': 5,      # Bombay
-            'Netherlands': 6, # Amsterdam
-            'France': 7,     # France
-            'Germany': 8,    # Frankfurt
-            'Spain': 9,      # Spain
-            'United Kingdom': 10, # London
-            'Pre_USA': 11,   # Pre_USA
-            'USA': 12,       # USA
-            'Canada': 13,    # Toronto
-            'Mexico': 14     # Mexican
+                'China': 2,      # Shanghai
+                'India': 3,      # Bombay
+                'Germany': 4,    # Frankfurt
+                'United Kingdom': 5, # London
+                'Pre_USA': 6,    # Pre_USA
+                'USA': 7,        # USA
+                'Canada': 8,     # Toronto
+                'Mexico': 9      # Mexican
         }
         return order_map.get(self.country, 999)
     
@@ -271,6 +285,69 @@ class Market(models.Model):
             'seconds_to_next_event': seconds_to_next_event,
             'is_holiday_today': holiday_today,
         }
+
+
+        @classmethod
+        def calculate_global_composite(cls):
+            """
+            Calculate weighted global market composite index based on control markets
+            Returns 0-100 score based on which control markets are currently OPEN
+            """
+            composite_score = 0.0
+            active_count = 0
+            contributions = {}
+        
+            for market in cls.objects.filter(is_control_market=True, is_active=True):
+                weight = float(market.weight)
+                market_name = market.get_display_name()
+            
+                if market.is_market_open_now():
+                    # Market is OPEN - add weighted contribution
+                    contribution = weight * 100
+                    composite_score += contribution
+                    active_count += 1
+                    contributions[market_name] = {
+                        'weight': weight * 100,
+                        'active': True,
+                        'contribution': contribution
+                    }
+                else:
+                    # Market CLOSED - no contribution
+                    contributions[market_name] = {
+                        'weight': weight * 100,
+                        'active': False,
+                        'contribution': 0
+                    }
+        
+            return {
+                'composite_score': round(composite_score, 2),
+                'active_markets': active_count,
+                'total_control_markets': 9,
+                'max_possible': 100.0,
+                'session_phase': cls._determine_session_phase(),
+                'contributions': contributions,
+                'timestamp': datetime.now(pytz.UTC).isoformat()
+            }
+    
+        @classmethod
+        def _determine_session_phase(cls):
+            """Determine which trading session is dominant"""
+            now_utc = datetime.now(pytz.UTC)
+            hour = now_utc.hour
+        
+            # Trading session phases based on UTC time
+            # Asian: 0:00-8:00 UTC (Tokyo 9am = 0:00 UTC)
+            # European: 8:00-14:00 UTC (Frankfurt 9am = 8:00 UTC)
+            # American: 14:00-21:00 UTC (NY 9:30am = 14:30 UTC)
+            # Overlap/After-hours: 21:00-24:00 UTC
+            if 0 <= hour < 8:
+                return 'ASIAN'
+            elif 8 <= hour < 14:
+                return 'EUROPEAN'
+            elif 14 <= hour < 21:
+                return 'AMERICAN'
+            else:
+                return 'OVERLAP'
 
 
 class USMarketStatus(models.Model):
@@ -469,6 +546,61 @@ class MarketHoliday(models.Model):
 
     def __str__(self):
         return f"{self.market.country} holiday on {self.date} ({'Full' if self.full_day else 'Partial'})"
+
+
+    class GlobalMarketIndex(models.Model):
+        """
+        Real-time weighted global sentiment composite index
+        Tracks the combined influence of all control markets
+        """
+        timestamp = models.DateTimeField(auto_now_add=True)
+    
+        # Composite scores
+        global_composite_score = models.DecimalField(
+            max_digits=6, 
+            decimal_places=2, 
+            default=0,
+            help_text="Weighted global influence score (0-100)"
+        )
+        active_markets_count = models.IntegerField(default=0, help_text="How many control markets are OPEN")
+        session_phase = models.CharField(
+            max_length=20,
+            choices=[
+                ('ASIAN', 'Asian Session'),
+                ('EUROPEAN', 'European Session'),
+                ('AMERICAN', 'American Session'),
+                ('OVERLAP', 'Overlap/After-hours'),
+            ],
+            help_text="Current dominant trading session"
+        )
+    
+        # Individual market contributions (stored as JSON for flexibility)
+        # Format: {"Tokyo": {"weight": 25, "active": true, "contribution": 25}, ...}
+        contributions_json = models.JSONField(default=dict, blank=True)
+    
+        class Meta:
+            ordering = ['-timestamp']
+            verbose_name = 'Global Market Index'
+            verbose_name_plural = 'Global Market Indices'
+            indexes = [
+                models.Index(fields=['-timestamp']),
+                models.Index(fields=['session_phase']),
+            ]
+    
+        def __str__(self):
+            return f"Global Composite: {self.global_composite_score}% at {self.timestamp} ({self.session_phase})"
+    
+        @classmethod
+        def create_snapshot(cls):
+            """Create a new snapshot of the global composite index"""
+            composite_data = Market.calculate_global_composite()
+        
+            return cls.objects.create(
+                global_composite_score=composite_data['composite_score'],
+                active_markets_count=composite_data['active_markets'],
+                session_phase=composite_data['session_phase'],
+                contributions_json=composite_data['contributions']
+            )
 
 
 class UserMarketWatchlist(models.Model):
