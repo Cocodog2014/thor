@@ -36,19 +36,45 @@ conda activate Thor_inv
 
 # Set environment variables for Excel Live data
 $env:DATA_PROVIDER = 'excel_live'
-$env:EXCEL_DATA_FILE = 'A:\Thor\RTD_TOS.xlsm'
+$env:EXCEL_DATA_FILE = 'A:\\Thor\\RTD_TOS.xlsm'
 $env:EXCEL_SHEET_NAME = 'LiveData'
 $env:EXCEL_LIVE_RANGE = 'A1:N13'
 $env:REDIS_URL = 'redis://localhost:6379/0'
 
 # Start Django
-cd A:\Thor\thor-backend
 python manage.py runserver
 ```
 
 ---
 
-## 4️⃣ Start Frontend (Optional)
+## 4️⃣ Start Excel Data Poller
+
+Run this in a separate terminal to stream live TOS RTD data into Redis:
+
+```powershell
+cd A:\Thor\thor-backend
+conda activate Thor_inv
+
+# Poll Excel every 3 seconds and publish to Redis
+python manage.py poll_tos_excel
+
+# Or customize the interval (in seconds)
+python manage.py poll_tos_excel --interval 5
+```
+
+Notes:
+- Runs until you press Ctrl+C
+- Uses a Redis lock so only one Excel instance opens
+- Frontend reads from Redis (no Excel opens from the UI)
+
+### Data Flow (new)
+- poll_tos_excel (producer) → reads Excel RTD and publishes quotes to Redis
+- Backend API → serves quotes from Redis to the frontend
+- Frontend → displays whatever is in Redis; no longer triggers Excel reads
+
+---
+
+## 5️⃣ Start Frontend
 
 ```powershell
 cd A:\Thor\thor-frontend
@@ -57,7 +83,7 @@ npm run dev
 
 ---
 
-## 5️⃣ Start Frontend in Production (Preview)
+## 6️⃣ (Optional) Start Frontend in Production (Preview)
 
 Use this when serving the frontend through Cloudflare to avoid dev-module 404s.
 

@@ -33,23 +33,8 @@ class LatestQuotesView(APIView):
 
     def get(self, request):
         try:
-            # Step 1: Nudge LiveData/TOS to refresh in the background so the next poll is fresh
-            def _kick_refresh():
-                try:
-                    requests.get(
-                        'http://localhost:8000/api/feed/tos/quotes/latest/',
-                        params={'consumer': 'futures_trading'},
-                        timeout=3
-                    )
-                except requests.exceptions.RequestException:
-                    # Non-fatal: we still serve from current Redis snapshot
-                    pass
-
-            threading.Thread(target=_kick_refresh, daemon=True).start()
-
-            # Step 2: Source of truth = Redis snapshot populated by LiveData app
-            # Read the latest quotes for our expected instruments.
-            # If Redis is empty/stale, trigger a refresh from the TOS endpoint once and retry.
+            # Read the latest quotes snapshot from Redis (source of truth)
+            # The Excel poller command (or manual trigger) keeps Redis fresh.
             raw_quotes = []
 
             # Symbols as stored by the producer (Excel). Some require mapping from our canonical names.
@@ -59,25 +44,11 @@ class LatestQuotesView(APIView):
             }
             fetch_symbols = [redis_symbol_map.get(sym, sym) for sym in EXPECTED_FUTURES]
 
-            def read_from_redis():
-                quotes = live_data_redis.get_latest_quotes(fetch_symbols)
-                return quotes or []
-
-            # First attempt: read what's already in Redis
-            raw_quotes = read_from_redis()
-
-            # If Redis has too few items, trigger a refresh (fallback) and try once more
-            if len(raw_quotes) < max(1, int(len(fetch_symbols) * 0.7)):
-                try:
-                    requests.get(
-                        'http://localhost:8000/api/feed/tos/quotes/latest/',
-                        params={'consumer': 'futures_trading'},
-                        timeout=5
-                    )
-                except requests.exceptions.RequestException as e:
-                    logger.warning(f"TOS refresh failed: {e}")
-                # Retry read
-                raw_quotes = read_from_redis()
+            # Read from Redis snapshot (populated by Excel poller)
+            raw_quotes = live_data_redis.get_latest_quotes(fetch_symbols) or []
+            
+            if not raw_quotes:
+                logger.warning("No quotes found in Redis. Is the Excel poller running?")
 
             # Step 2: Transform TOS quotes into FutureTrading structure (instrument + fields)
             instruments_db = {inst.symbol: inst for inst in TradingInstrument.objects.all()}

@@ -99,10 +99,13 @@ def get_latest_quotes(request):
     Returns raw quote data from Excel for FutureTrading app to process.
     FutureTrading will apply signal classification and compute composites.
     
+    Uses a Redis lock to ensure only one Excel reader runs at a time,
+    preventing double-open and COM stalls.
+    
     Query params:
         consumer: Consumer app name (for logging)
         file_path: Excel file path (optional, uses default if not provided)
-        sheet_name: Sheet name (optional, default: "Futures")
+        sheet_name: Sheet name (optional, default: "LiveData")
         data_range: Data range (optional, default passed by consumer)
     """
     consumer = request.GET.get('consumer', 'unknown')
@@ -112,6 +115,21 @@ def get_latest_quotes(request):
     sheet_name = request.GET.get('sheet_name', 'LiveData')
     # Include new 52-week columns (adds one more column: AskSize at N)
     data_range = request.GET.get('data_range', 'A1:N13')  # Default to futures range (1 header + 12 data rows)
+    
+    # Try to acquire lock (non-blocking)
+    if not live_data_redis.acquire_excel_lock(timeout=10):
+        logger.warning(f"Excel read already in progress, skipping (consumer: {consumer})")
+        return Response({
+            'quotes': [],
+            'count': 0,
+            'source': 'TOS_RTD_Excel',
+            'message': 'Excel read in progress by another process',
+            'config': {
+                'file': file_path,
+                'sheet': sheet_name,
+                'range': data_range
+            }
+        }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
     
     try:
         # Get Excel reader instance with consumer-provided config
@@ -155,10 +173,14 @@ def get_latest_quotes(request):
             # CRITICAL: Always disconnect to release Excel COM connection
             # This prevents Excel from freezing when polled frequently
             reader.disconnect()
-        
+    
     except Exception as e:
         logger.error(f"Error reading TOS Excel data: {e}")
         return Response({
             'error': 'Failed to read TOS data',
             'detail': str(e)
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    finally:
+        # Always release lock, even if read failed
+        live_data_redis.release_excel_lock()
