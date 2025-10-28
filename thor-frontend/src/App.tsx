@@ -3,7 +3,7 @@ import { Routes, Route, useLocation, Navigate } from 'react-router-dom'
 import { Container } from '@mui/material'
 // GlobalHeader is used inside AppLayout only
 import GlobalMarkets from './pages/GlobalMarkets/GlobalMarkets'
-import MarketOpenDashboard from './pages/FutureTrading/MarketOpen/MarketOpenDashboard'
+import MarketDashboard from './pages/FutureTrading/Market/MarketDashboard'
 import FutureTrading from './pages/FutureTrading'
 import ActivityPositions from './pages/ActivityPositions'
 import AccountStatement from './pages/AccountStatement/AccountStatement'
@@ -70,7 +70,7 @@ function App() {
             )}
             {showMarketOpenDashboard && (
               <section className="dashboard-card market-open-dashboard" aria-label="Market Open Dashboard">
-                <MarketOpenDashboard />
+                <MarketDashboard />
               </section>
             )}
           </div>

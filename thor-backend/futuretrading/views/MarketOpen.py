@@ -200,6 +200,35 @@ class FutureSnapshotListView(APIView):
         return Response(serializer.data)
 
 
+class LatestPerMarketOpensView(APIView):
+    """
+    GET /api/futures/market-opens/latest/
+
+    Returns the latest captured session per control market (today if present,
+    otherwise the most recent prior session). Useful for UI that should always
+    show something for each market.
+    """
+
+    CONTROL_COUNTRIES = [
+        'Japan', 'China', 'India', 'Germany', 'United Kingdom',
+        'Pre_USA', 'USA', 'Canada', 'Mexico'
+    ]
+
+    def get(self, request):
+        sessions = []
+        for country in self.CONTROL_COUNTRIES:
+            latest = (MarketOpenSession.objects
+                      .filter(country=country)
+                      .order_by('-captured_at')
+                      .first())
+            if latest:
+                sessions.append(latest)
+
+        # Return detailed serializer because UI may need futures array
+        serializer = MarketOpenSessionDetailSerializer(sessions, many=True)
+        return Response(serializer.data)
+
+
 __all__ = [
     'MarketOpenSessionListView',
     'MarketOpenSessionDetailView',
