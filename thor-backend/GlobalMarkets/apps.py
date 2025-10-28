@@ -7,5 +7,10 @@ class GlobalMarketsConfig(AppConfig):
     verbose_name = 'Global Markets'
     
     def ready(self):
-        """Import signals when app is ready"""
+        """Import signals and start market monitor when app is ready"""
         import GlobalMarkets.signals
+        
+        # Start the automated market monitor in background
+        # This monitors markets and triggers captures automatically
+        from GlobalMarkets.monitor import start_monitor
+        start_monitor()

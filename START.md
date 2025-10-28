@@ -53,7 +53,7 @@ Run this in a separate terminal to stream live TOS RTD data into Redis:
 
 ```powershell
 cd A:\Thor\thor-backend
-conda activate Thor_inv
+#conda activate Thor_inv
 
 # Poll Excel every 3 seconds and publish to Redis
 python manage.py poll_tos_excel
