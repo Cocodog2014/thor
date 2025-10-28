@@ -47,3 +47,10 @@ __pycache__/
 *.swp
 *.swo
 *.bak
+# Excel files with live RTD data
+*.xlsm
+RTD_TOS.xlsm
+Copy of CleanData.xlsm
+CleanData.xlsm
+~$*.xlsm
+~$*.xlsx
