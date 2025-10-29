@@ -91,7 +91,7 @@ const formatNum = (n?: string | null, maxFrac = 2) => {
   return p.toLocaleString("en-US", { maximumFractionDigits: maxFrac });
 };
 
-const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl = "http://127.0.0.1:8000/api/futures/market-opens/latest/" }) => {
+const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl = "http://127.0.0.1:8000/api/market-opens/latest/" }) => {
   const [sessions, setSessions] = useState<MarketOpenSession[] | null>(null);
   const [liveStatus, setLiveStatus] = useState<Record<string, { next_event?: string; seconds_to_next_event?: number }>>({});
   const [selected, setSelected] = useState<Record<string, string>>(() => {
