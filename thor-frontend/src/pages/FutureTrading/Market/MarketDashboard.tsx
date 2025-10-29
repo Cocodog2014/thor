@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import "./MarketDashboard.css";
+// Styles are imported globally via src/styles/global.css
 
 // ---- Types ----
 interface FutureSnapshot {
@@ -102,6 +102,7 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl = "http://127.0
 
   useEffect(() => {
     let cancelled = false;
+    let running = false; // prevent overlapping fetches when interval is < network latency
     async function loadSessions() {
       try {
         const res = await fetch(apiUrl);
@@ -131,9 +132,17 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl = "http://127.0
         if (!cancelled) setLiveStatus({});
       }
     }
-    loadSessions();
-    loadLiveStatus();
-    const id = setInterval(() => { loadSessions(); loadLiveStatus(); }, 5000);
+    async function tick() {
+      if (running) return;
+      running = true;
+      try {
+        await Promise.all([loadSessions(), loadLiveStatus()]);
+      } finally {
+        running = false;
+      }
+    }
+    tick();
+    const id = setInterval(tick, 1000); // update every second
     return () => { cancelled = true; clearInterval(id); };
   }, [apiUrl]);
 
