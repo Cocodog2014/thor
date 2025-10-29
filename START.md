@@ -42,6 +42,7 @@ $env:EXCEL_LIVE_RANGE = 'A1:N13'
 $env:REDIS_URL = 'redis://localhost:6379/0'
 
 # Start Django
+#cd A:\Thor\thor-backend
 python manage.py runserver
 ```
 
@@ -194,3 +195,7 @@ cloudflared tunnel run thor
 > - Make sure Vite dev is running on port 5173 (`npm run dev`) and Django on 8000.
 > - Confirm both cloudflared configs point to 5173 for the frontend (`C:\ProgramData\cloudflared\config.yml` and `%USERPROFILE%\.cloudflared\config.yml`).
 > - Hard refresh the browser (Ctrl+F5) to clear cached dev assets.
+
+MarketDashboard now fetches:
+Latest sessions: http://127.0.0.1:8000/api/futures/market-opens/latest/
+Live status: http://127.0.0.1:8000/api/global-markets/markets/live_status/
