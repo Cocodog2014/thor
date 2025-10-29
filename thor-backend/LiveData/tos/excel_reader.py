@@ -281,6 +281,9 @@ class TOSExcelReader:
             'change': self._to_decimal(data.get('NetChange')),
             'bid_size': self._to_int(data.get('BidSize')),
             'ask_size': self._to_int(data.get('AskSize')),
+            # Weight and Signal from RTD Excel
+            'weight': self._to_int(data.get('Weight') or data.get('Wgt') or data.get('weight')),
+            'signal': data.get('Signal') or data.get('signal') or data.get('HBS'),
             'timestamp': None,  # Excel RTD updates in real-time
         }
         

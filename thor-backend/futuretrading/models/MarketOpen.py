@@ -249,4 +249,76 @@ class FutureSnapshot(models.Model):
         return f"{self.symbol} - {self.session.country} - {self.session.captured_at.strftime('%Y-%m-%d')}"
 
 
-__all__ = ['MarketOpenSession', 'FutureSnapshot']
+class FutureCloseSnapshot(models.Model):
+    """
+    Snapshot of a single future's data at market close.
+    One record per future per session (11 futures × sessions) plus TOTAL.
+    Kept separate from open snapshots to avoid schema churn and allow independent timing.
+    """
+
+    # Foreign Key to Session (the session created at open for the same country/day)
+    session = models.ForeignKey(MarketOpenSession, on_delete=models.CASCADE, related_name='futures_close')
+
+    # Symbol Info
+    symbol = models.CharField(max_length=10,
+                              choices=[
+                                  ('YM', 'Dow Jones (YM)'),
+                                  ('ES', 'S&P 500 (ES)'),
+                                  ('NQ', 'NASDAQ (NQ)'),
+                                  ('RTY', 'Russell 2000 (RTY)'),
+                                  ('CL', 'Crude Oil (CL)'),
+                                  ('SI', 'Silver (SI)'),
+                                  ('HG', 'Copper (HG)'),
+                                  ('GC', 'Gold (GC)'),
+                                  ('VX', 'Volatility (VX)'),
+                                  ('DX', 'Dollar Index (DX)'),
+                                  ('ZB', 'Bonds (ZB)'),
+                                  ('TOTAL', 'TOTAL Composite'),
+                              ],
+                              help_text="Future symbol")
+
+    # Close-time price data (not used for TOTAL except where noted)
+    last_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    change = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    change_percent = models.DecimalField(max_digits=10, decimal_places=4, null=True, blank=True)
+
+    bid = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    bid_size = models.IntegerField(null=True, blank=True)
+    ask = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    ask_size = models.IntegerField(null=True, blank=True)
+    volume = models.BigIntegerField(null=True, blank=True)
+    vwap = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    spread = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+
+    # Keep a copy of session ref prices if needed for comparisons
+    close = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    open = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+
+    # TOTAL-specific fields when symbol='TOTAL'
+    weighted_average = models.DecimalField(max_digits=10, decimal_places=4, null=True, blank=True)
+    signal = models.CharField(max_length=20, blank=True,
+                              choices=[
+                                  ('BUY', 'Buy'),
+                                  ('STRONG_BUY', 'Strong Buy'),
+                                  ('SELL', 'Sell'),
+                                  ('STRONG_SELL', 'Strong Sell'),
+                                  ('HOLD', 'Hold'),
+                              ])
+    weight = models.IntegerField(null=True, blank=True)
+    sum_weighted = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    instrument_count = models.IntegerField(null=True, blank=True, default=11)
+    status = models.CharField(max_length=20, blank=True, help_text="Status (e.g., CLOSE TOTAL)")
+
+    captured_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['session', 'symbol']
+        unique_together = ['session', 'symbol']
+        verbose_name = 'Future Close Snapshot'
+        verbose_name_plural = 'Future Close Snapshots'
+
+    def __str__(self):
+        return f"[CLOSE] {self.symbol} - {self.session.country} - {self.session.captured_at.strftime('%Y-%m-%d')}"
+
+
+__all__ = ['MarketOpenSession', 'FutureSnapshot', 'FutureCloseSnapshot']

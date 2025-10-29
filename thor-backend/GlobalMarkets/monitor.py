@@ -115,7 +115,7 @@ class MarketMonitor:
         timer.start()
 
     def _handle_event(self, market_id: int):
-        """Execute the status transition and trigger capture on OPEN."""
+        """Execute the status transition and trigger capture on OPEN only (simplified)."""
         from GlobalMarkets.models import Market, USMarketStatus
         from FutureTrading.views.MarketOpenCapture import capture_market_open
 
@@ -137,7 +137,7 @@ class MarketMonitor:
         market.save()
         logger.info(f"🔄 {market.country}: {prev} → {target_status}")
 
-        # Only capture on transitions to OPEN, and only on US trading days
+        # Capture on OPEN transitions (US trading days guard)
         if target_status == 'OPEN' and USMarketStatus.is_us_market_open_today():
             logger.info(f"📸 Capturing market open for {market.country}...")
             try:
