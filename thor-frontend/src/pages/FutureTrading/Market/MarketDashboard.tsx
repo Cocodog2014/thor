@@ -211,7 +211,7 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl = "http://127.0
     <div className="market-dashboard">
       <div className="market-dashboard-header">
         <h3 className="market-open-header-title">📊 Market Open Sessions</h3>
-        <div className="text-xs" style={{ opacity: 0.9 }}>Always shows all 9 control markets</div>
+        <div className="text-xs subtitle-text">Always shows all 9 control markets</div>
       </div>
 
       {/* TOTAL Composite Card - always show, spans 3 columns */}
@@ -309,13 +309,14 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl = "http://127.0
 
               <div className="mo-rt-body">
                 {/* Chips + Future Dropdown */}
-                <div className="flex" style={{ display:'flex', alignItems:'center', gap:8, marginBottom:12 }}>
-                  <div style={{ marginLeft: 'auto' }}>
+                <div className="flex-controls">
+                  <div className="ml-auto">
                     <label className="future-select-label">Future</label>
                     <select
                       className="future-select"
                       value={selected[m.key]}
                       onChange={(e) => setSelected(prev => ({ ...prev, [m.key]: e.target.value }))}
+                      aria-label="Select future contract"
                     >
                       {FUTURE_OPTIONS.map(o => (
                         <option key={o.key} value={o.key}>{o.label}</option>
