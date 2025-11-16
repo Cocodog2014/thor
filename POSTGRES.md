@@ -342,3 +342,32 @@ WHERE tablename LIKE 'thordata_%';
 ---
 
 **Note**: This system is designed to scale to millions of records and integrate with the larger 30+ app trading platform ecosystem.
+
+**gets to the postgres terminal**
+docker exec -it thor_postgres psql -U thor_user -d thor_db
+
+**List all tables**
+\dt
+
+-- See the market open sessions table structure
+\d+ "FutureTrading_marketopensession"
+
+**View recent market open sessions**
+SELECT id, session_number, country, total_signal, captured_at 
+FROM "FutureTrading_marketopensession" 
+ORDER BY captured_at DESC 
+LIMIT 10;
+
+**See all snapshots for the most recent Japan session**
+SELECT symbol, last_price, change, change_percent, signal, weight
+FROM "FutureTrading_futuresnapshot" 
+WHERE session_id = (
+    SELECT id FROM "FutureTrading_marketopensession" 
+    WHERE country = 'Japan' 
+    ORDER BY captured_at DESC 
+    LIMIT 1
+)
+ORDER BY symbol;
+
+-- Exit when done
+\q

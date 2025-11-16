@@ -82,8 +82,6 @@ cd A:\Thor\thor-frontend
 npm run dev
 ```
 
----
-
 ## 6️⃣ (Optional) Start Frontend in Production (Preview)
 
 Use this when serving the frontend through Cloudflare to avoid dev-module 404s.
