@@ -4,6 +4,10 @@ import React, { useEffect, useMemo, useState } from "react";
 // ---- Types ----
 interface FutureSnapshot {
   symbol?: string | null;
+  // Top-of-card pricing
+  last_price?: string | null;
+  change?: string | null;
+  change_percent?: string | null;
   bid?: string | null;
   bid_size?: number | null;
   ask?: string | null;
@@ -18,9 +22,11 @@ interface FutureSnapshot {
   range_percent?: string | null;
   week_52_low?: string | null;
   week_52_high?: string | null;
+  // Signal/weight are present for individual futures and TOTAL
+  signal?: string | null;
+  weight?: number | null;
   // TOTAL-specific fields
   weighted_average?: string | null;
-  signal?: string | null;
   sum_weighted?: string | null;
   instrument_count?: number | null;
   status?: string | null;
@@ -281,7 +287,6 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl = "http://127.0
             );
           }
           const time = s?.captured_at ? new Date(s.captured_at).toLocaleTimeString() : "—";
-          const signal = s?.total_signal;
           const outcomeStatus = s?.fw_nwdw;
 
           const selectedSymbol = selected[m.key];
@@ -289,13 +294,16 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl = "http://127.0
             (f.symbol || "").toUpperCase() === (selectedSymbol || "").toUpperCase()
           ) || (s?.futures || [])[0];
 
+          // Prefer selected future's signal; fall back to session composite
+          const signal = (snap?.signal && snap.signal !== '') ? snap.signal : s?.total_signal;
+
           return (
             <div key={m.key} className="mo-rt-card">
               <div className="mo-rt-header">
                 <span className="mo-rt-chip sym">{m.label}</span>
                 <span className={chipClass("signal", signal)}>{signal || "—"}</span>
                 <span className={chipClass("status", outcomeStatus)}>{outcomeStatus || "—"}</span>
-                <span className="mo-rt-chip">Wgt: —</span>
+                <span className="mo-rt-chip">Wgt: {snap?.weight ?? '—'}</span>
                 <span className="mo-rt-time">{time}</span>
               </div>
 
@@ -319,12 +327,12 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl = "http://127.0
                 {/* Top: Last & Change */}
                 <div className="mo-rt-top">
                   <div className="mo-rt-last">
-                    <div className="val">{formatNum(s?.ym_entry_price) ?? '—'}</div>
+                    <div className="val">{formatNum(snap?.last_price) ?? '—'}</div>
                     <div className="label">Last</div>
                   </div>
                   <div className="mo-rt-change">
-                    <div className="val">—</div>
-                    <div className="pct">—%</div>
+                    <div className="val">{formatNum(snap?.change) ?? '—'}</div>
+                    <div className="pct">{formatNum(snap?.change_percent, 4) ?? '—'}%</div>
                     <div className="label">Change</div>
                   </div>
                 </div>
