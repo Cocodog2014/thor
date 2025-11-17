@@ -44,7 +44,7 @@ FROM "GlobalMarkets_globalmarketindex"
 ORDER BY timestamp DESC
 LIMIT 50;
 
-/* 7) Latest session snapshots in custom order (ZB, DX, VX, GC, HG, SI, CL, RTY, NQ, ES, YM, TOTAL) */
+/* 7) Latest session snapshots in custom order (TOTAL, YM, ES, NQ, RTY, CL, SI, HG, GC, VX, DX, ZB) */
 WITH latest AS (
   SELECT id FROM "FutureTrading_marketopensession" ORDER BY captured_at DESC LIMIT 1
 )
@@ -55,20 +55,20 @@ SELECT s.symbol,
 FROM "FutureTrading_futuresnapshot" s
 JOIN latest l ON s.session_id = l.id
 ORDER BY CASE UPPER(s.symbol)
-  WHEN 'ZB' THEN 1
-  WHEN 'DX' THEN 2
-  WHEN 'VX' THEN 3
-  WHEN 'GC' THEN 4
-  WHEN 'HG' THEN 5
-  WHEN 'SI' THEN 6
-  WHEN 'CL' THEN 7
-  WHEN 'RTY' THEN 8
-  WHEN 'NQ' THEN 9
-  WHEN 'ES' THEN 10
-  WHEN 'YM' THEN 11
-  WHEN 'TOTAL' THEN 12
+  WHEN 'TOTAL' THEN 1
+  WHEN 'YM' THEN 2
+  WHEN 'ES' THEN 3
+  WHEN 'NQ' THEN 4
+  WHEN 'RTY' THEN 5
+  WHEN 'CL' THEN 6
+  WHEN 'SI' THEN 7
+  WHEN 'HG' THEN 8
+  WHEN 'GC' THEN 9
+  WHEN 'VX' THEN 10
+  WHEN 'DX' THEN 11
+  WHEN 'ZB' THEN 12
   ELSE 999
-END, UPPER(s.symbol);
+END;
 
 /* 8) Sessions newest first (explicit ordering: latest on top) */
 SELECT id, session_number, year, month, date, day, captured_at
