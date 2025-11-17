@@ -4,6 +4,7 @@ Market Open Serializers for API responses
 
 from rest_framework import serializers
 from FutureTrading.models.MarketOpen import MarketOpenSession, FutureSnapshot
+from django.db.models import Case, When, Value, IntegerField
 
 
 class FutureSnapshotSerializer(serializers.ModelSerializer):
@@ -41,8 +42,12 @@ class MarketOpenSessionListSerializer(serializers.ModelSerializer):
 
 
 class MarketOpenSessionDetailSerializer(serializers.ModelSerializer):
-    """Serializer for detailed view with all futures data"""
-    futures = FutureSnapshotSerializer(many=True, read_only=True)
+    """Serializer for detailed view with all futures data
+
+    Ensures futures are ordered for UI expectations:
+    TOTAL first, then YM, ES, NQ, RTY, CL, SI, HG, GC, VX, DX, ZB.
+    """
+    futures = serializers.SerializerMethodField()
     
     class Meta:
         model = MarketOpenSession
@@ -58,6 +63,17 @@ class MarketOpenSessionDetailSerializer(serializers.ModelSerializer):
             'futures',
             'created_at', 'updated_at'
         ]
+
+    SYMBOL_ORDER = [
+        'TOTAL', 'YM', 'ES', 'NQ', 'RTY', 'CL', 'SI', 'HG', 'GC', 'VX', 'DX', 'ZB'
+    ]
+
+    def get_futures(self, obj):
+        # Build CASE expression for custom ordering
+        whens = [When(symbol=sym, then=Value(idx)) for idx, sym in enumerate(self.SYMBOL_ORDER, start=1)]
+        ordering = Case(*whens, default=Value(999), output_field=IntegerField())
+        qs = obj.futures.all().order_by(ordering)
+        return FutureSnapshotSerializer(qs, many=True).data
 
 
 __all__ = [
