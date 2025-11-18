@@ -185,17 +185,25 @@ class LatestPerMarketOpensView(APIView):
     ]
 
     def get(self, request):
-        sessions = []
+        full_sessions = []
         for country in self.CONTROL_COUNTRIES:
             latest = (MarketSession.objects
                       .filter(country=country)
                       .order_by('-captured_at')
                       .first())
-            if latest:
-                sessions.append(latest)
+            if not latest:
+                continue
 
-        # Return detailed serializer
-        serializer = MarketOpenSessionDetailSerializer(sessions, many=True)
+            session_rows = MarketSession.objects.filter(
+                country=country,
+                year=latest.year,
+                month=latest.month,
+                date=latest.date,
+                session_number=latest.session_number,
+            ).order_by('future')
+            full_sessions.extend(session_rows)
+
+        serializer = MarketOpenSessionDetailSerializer(full_sessions, many=True)
         return Response(serializer.data)
 
 

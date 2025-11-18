@@ -92,15 +92,31 @@ const chipClass = (kind: "signal" | "status", value?: string) => {
   return `${base} default`;
 };
 
-const formatNum = (n?: string | null, maxFrac = 2) => {
-  if (!n) return undefined;
+const formatNum = (n?: string | number | null, maxFrac = 2) => {
+  if (n === null || n === undefined || n === "") return undefined;
+  if (typeof n === "number") {
+    return n.toLocaleString("en-US", { maximumFractionDigits: maxFrac });
+  }
   const s = String(n);
   const p = Number(s.replace(/,/g, ""));
   if (Number.isNaN(p)) return s;
   return p.toLocaleString("en-US", { maximumFractionDigits: maxFrac });
 };
 
-const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl = "http://127.0.0.1:8000/api/market-opens/latest/" }) => {
+// Helper to check if a value is zero (number or string)
+const isZero = (v: any) => v === 0 || v === "0";
+
+
+// Allow API URL to be set via environment variable or prop, fallback to relative path
+const getApiUrl = () => {
+  // Vite env vars must start with VITE_
+  // Example: VITE_MARKET_OPENS_API_URL=https://thor.360edu.org/api/market-opens/latest/
+  // Default to local Django server on port 8000 for dev
+  return import.meta.env.VITE_MARKET_OPENS_API_URL || 'http://127.0.0.1:8000/api/market-opens/latest/';
+};
+
+const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl }) => {
+  const resolvedApiUrl = apiUrl || getApiUrl();
   const [sessions, setSessions] = useState<MarketOpenSession[] | null>(null);
   const [liveStatus, setLiveStatus] = useState<Record<string, { next_event?: string; seconds_to_next_event?: number }>>({});
   const [selected, setSelected] = useState<Record<string, string>>(() => {
@@ -114,10 +130,16 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl = "http://127.0
     let running = false; // prevent overlapping fetches when interval is < network latency
     async function loadSessions() {
       try {
-        const res = await fetch(apiUrl);
+        const res = await fetch(resolvedApiUrl);
+        if (!res.ok) {
+          console.error('MarketDashboard: API error', res.status, res.statusText);
+          if (!cancelled) setSessions([]);
+          return;
+        }
         const data = await res.json();
         if (!cancelled) setSessions(Array.isArray(data) ? data : []);
       } catch (e) {
+        console.error('MarketDashboard: fetch failed', e);
         if (!cancelled) setSessions([]);
       }
     }
@@ -153,20 +175,21 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl = "http://127.0
     tick();
     const id = setInterval(tick, 1000); // update every second
     return () => { cancelled = true; clearInterval(id); };
-  }, [apiUrl]);
+  }, [resolvedApiUrl]);
 
-  // Map backend sessions by canonical country (Japan, Germany, etc.)
-  const byCountry = useMemo(() => {
-    // Group session rows by country
-    // Each country has 12 rows (one per future including TOTAL)
-    const map = new Map<string, MarketOpenSession[]>();
-    (sessions || []).forEach(s => {
-      const country = (s.country || "").trim();
-      if (!map.has(country)) map.set(country, []);
-      map.get(country)!.push(s);
-    });
-    return map;
-  }, [sessions]);
+  // Helper to normalize country names for robust matching
+    const normalizeCountry = (c?: string) => (c || "").trim().toLowerCase();
+
+    // Map backend sessions by normalized country
+    const byCountry = useMemo(() => {
+      const map = new Map<string, MarketOpenSession[]>();
+      (sessions || []).forEach(s => {
+        const countryKey = normalizeCountry(s.country);
+        if (!map.has(countryKey)) map.set(countryKey, []);
+        map.get(countryKey)!.push(s);
+      });
+      return map;
+    }, [sessions]);
 
   const isToday = (iso?: string) => {
     if (!iso) return false;
@@ -242,12 +265,13 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl = "http://127.0
 
       <div className="market-grid">
         {CONTROL_MARKETS.map(m => {
-          const rows = byCountry.get(m.country) || [];
+          const countryKey = normalizeCountry(m.country);
+          const rows = byCountry.get(countryKey) || [];
           // Find the latest captured_at across all futures for this market
           const latestRow = rows.length > 0 ? rows.reduce((latest, r) => 
             new Date(r.captured_at) > new Date(latest.captured_at) ? r : latest
           ) : null;
-          
+
           const status = liveStatus[m.country];
           const seconds = status?.seconds_to_next_event ?? undefined;
           const nextEvent = status?.next_event;
@@ -312,12 +336,12 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl = "http://127.0
                 {/* Top: Last & Change */}
                 <div className="mo-rt-top">
                   <div className="mo-rt-last">
-                    <div className="val">{formatNum(snap?.last_price) ?? '—'}</div>
+                    <div className="val">{formatNum(snap?.last_price) ?? (isZero(snap?.last_price) ? 0 : '—')}</div>
                     <div className="label">Last</div>
                   </div>
                   <div className="mo-rt-change">
-                    <div className="val">{formatNum(snap?.change) ?? '—'}</div>
-                    <div className="pct">{formatNum(snap?.change_percent, 2) ?? '—'}%</div>
+                    <div className="val">{formatNum(snap?.change) ?? (isZero(snap?.change) ? 0 : '—')}</div>
+                    <div className="pct">{formatNum(snap?.change_percent, 2) ?? (isZero(snap?.change_percent) ? 0 : '—')}%</div>
                     <div className="label">Change</div>
                   </div>
                 </div>
@@ -326,27 +350,27 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl = "http://127.0
                 <div className="mo-rt-bbo">
                   <div className="tile bid">
                     <div className="t-head">BID</div>
-                    <div className="t-main">{snap?.reference_bid ?? '—'}</div>
-                    <div className="t-sub">Size {snap?.bid_size ?? '—'}</div>
+                    <div className="t-main">{formatNum(snap?.reference_bid) ?? (isZero(snap?.reference_bid) ? 0 : '—')}</div>
+                    <div className="t-sub">Size {formatNum(snap?.bid_size, 0) ?? (isZero(snap?.bid_size) ? 0 : '—')}</div>
                   </div>
                   <div className="tile ask">
                     <div className="t-head">ASK</div>
-                    <div className="t-main">{snap?.reference_ask ?? '—'}</div>
-                    <div className="t-sub">Size {snap?.ask_size ?? '—'}</div>
+                    <div className="t-main">{formatNum(snap?.reference_ask) ?? (isZero(snap?.reference_ask) ? 0 : '—')}</div>
+                    <div className="t-sub">Size {formatNum(snap?.ask_size, 0) ?? (isZero(snap?.ask_size) ? 0 : '—')}</div>
                   </div>
                 </div>
 
                 {/* Stats grid */}
                 <div className="mo-rt-stats">
-                  <div className="stat"><div className="label">Volume</div><div className="value">{snap?.volume?.toLocaleString() ?? '—'}</div></div>
-                  <div className="stat"><div className="label">VWAP</div><div className="value">{snap?.vwap ?? '—'}</div></div>
-                  <div className="stat"><div className="label">Close</div><div className="value">{snap?.reference_close ?? '—'}</div></div>
-                  <div className="stat"><div className="label">Open</div><div className="value">{snap?.reference_open ?? '—'}</div></div>
-                  <div className="stat"><div className="label">24h Low</div><div className="value">{snap?.day_24h_low ?? '—'}</div></div>
-                  <div className="stat"><div className="label">24h High</div><div className="value">{snap?.day_24h_high ?? '—'}</div></div>
-                  <div className="stat"><div className="label">24h Range</div><div className="value">{snap?.range_high_low ? <>{snap?.range_high_low} <span className="sub">{snap?.range_percent}</span></> : '—'}</div></div>
-                  <div className="stat"><div className="label">52W Low</div><div className="value">{snap?.week_52_low ?? '—'}</div></div>
-                  <div className="stat"><div className="label">52W High</div><div className="value">{snap?.week_52_high ?? '—'}</div></div>
+                  <div className="stat"><div className="label">Volume</div><div className="value">{snap?.volume !== undefined && snap?.volume !== null ? formatNum(snap?.volume, 0) : '—'}</div></div>
+                  <div className="stat"><div className="label">VWAP</div><div className="value">{formatNum(snap?.vwap) ?? (isZero(snap?.vwap) ? 0 : '—')}</div></div>
+                  <div className="stat"><div className="label">Close</div><div className="value">{formatNum(snap?.reference_close) ?? (isZero(snap?.reference_close) ? 0 : '—')}</div></div>
+                  <div className="stat"><div className="label">Open</div><div className="value">{formatNum(snap?.reference_open) ?? (isZero(snap?.reference_open) ? 0 : '—')}</div></div>
+                  <div className="stat"><div className="label">24h Low</div><div className="value">{formatNum(snap?.day_24h_low) ?? (isZero(snap?.day_24h_low) ? 0 : '—')}</div></div>
+                  <div className="stat"><div className="label">24h High</div><div className="value">{formatNum(snap?.day_24h_high) ?? (isZero(snap?.day_24h_high) ? 0 : '—')}</div></div>
+                  <div className="stat"><div className="label">24h Range</div><div className="value">{snap?.range_high_low ? <>{formatNum(snap?.range_high_low)} <span className="sub">{formatNum(snap?.range_percent)}</span></> : '—'}</div></div>
+                  <div className="stat"><div className="label">52W Low</div><div className="value">{formatNum(snap?.week_52_low) ?? (isZero(snap?.week_52_low) ? 0 : '—')}</div></div>
+                  <div className="stat"><div className="label">52W High</div><div className="value">{formatNum(snap?.week_52_high) ?? (isZero(snap?.week_52_high) ? 0 : '—')}</div></div>
                 </div>
               </div>
             </div>
