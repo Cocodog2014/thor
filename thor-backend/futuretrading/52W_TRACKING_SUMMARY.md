@@ -19,12 +19,15 @@ The system now tracks 52-week high/low extremes internally within Thor, automati
 - System automatically updates when new extremes occur
 - View history of when highs/lows were set
 
-### 3. Real-Time Background Monitor
-- Auto-starts as a daemon thread from `FutureTrading.apps.FuturetradingConfig.ready()`.
-- Polls Redis every second (configurable) for latest LAST prices.
+### 3. Real-Time Background Monitor (Market-Aware)
+- Auto-start supervisor (`Week52ExtremesSupervisor`) starts from `FutureTrading.apps.FuturetradingConfig.ready()`.
+- Supervisor checks global control market statuses (Tokyo, Shanghai, Bombay, Frankfurt, London, Pre_USA, USA, Toronto, Mexico) every 60s (configurable).
+- If ANY control market is OPEN → starts (or keeps) the 52-week monitor thread.
+- If ALL control markets are CLOSED → stops the 52-week monitor thread (resource friendly during full global downtime).
+- Monitor polls Redis every second (configurable) for latest LAST prices only while active.
 - Updates database only when a new 52-week high or low occurs.
 - Handles symbol mapping (RT→RTY, 30YRBOND→ZB) internally.
-- No manual or scheduled runs required.
+- Fully automatic – no manual or cron runs required.
 
 ### 4. API Integration
 - RTD API (`/api/quotes/latest`) now includes 52w data
@@ -87,8 +90,13 @@ The `update_from_price()` method on the model:
 5. Save
 
 ### Ongoing Operation
-No operations required. The monitor runs continuously once Django starts.
-You can view current stats in the admin or via the API.
+The supervisor governs runtime:
+1. Django + GlobalMarkets scheduler start.
+2. Supervisor immediately evaluates control markets.
+3. If global trading is active anywhere → monitor runs; otherwise it remains off.
+4. Example: Sunday US evening when Tokyo opens – supervisor detects OPEN and auto-starts the monitor.
+
+You can view current stats in the admin or via the API. During full global closure the stats stay static (thread paused) until the next market opens.
 
 ### Monitoring
 - Check Django admin to see last_updated timestamps
@@ -170,6 +178,7 @@ All systems operational! 🎉
 ## 🎯 Next Steps (Optional)
 
 1. **Backfill historical data** - Import past prices if you have them
-2. **Add breakout alerts** - Notify when price breaks 52w high/low
-3. **Track multiple timeframes** - 13w, 26w, 104w, etc.
-4. **Add to Market Open capture** - Store 52w extremes in session records
+2. **Breakout alerts** - Notify when price breaks 52w high/low
+3. **Multiple timeframes** - 13w, 26w, 104w, etc.
+4. **Session integration** - Store 52w extremes in market session capture
+5. **Dynamic intervals** - Slow polling further in thin overnight periods

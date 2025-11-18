@@ -33,9 +33,9 @@ class FuturetradingConfig(AppConfig):
         - If startup fails, logs the exception but does not block Django.
         """
         try:
-            from FutureTrading.services.Week52Monitor import start_52w_monitor
-            start_52w_monitor()
+            from FutureTrading.services.Week52Monitor import start_52w_monitor_supervisor
+            start_52w_monitor_supervisor()
         except Exception:
             # Avoid breaking Django startup if optional service fails
             import logging
-            logging.getLogger(__name__).exception("Failed to start 52w monitor")
+            logging.getLogger(__name__).exception("Failed to start 52w supervisor")

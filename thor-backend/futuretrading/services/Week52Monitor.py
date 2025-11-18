@@ -18,7 +18,7 @@ import logging
 import threading
 import time
 from decimal import Decimal
-from typing import Dict, List
+from typing import Dict, List, Callable
 import os
 
 from django.conf import settings
@@ -179,3 +179,109 @@ def start_52w_monitor() -> None:
 def stop_52w_monitor() -> None:
     mon = get_52w_monitor()
     mon.stop()
+
+
+# ------------------------------
+# Market-Aware Supervisor Thread
+# ------------------------------
+_supervisor_thread: threading.Thread | None = None
+_supervisor_running = False
+_supervisor_lock = threading.RLock()
+
+
+def _get_supervisor_interval() -> float:
+    setting = getattr(settings, 'FUTURETRADING_52W_SUPERVISOR_INTERVAL', None)
+    if setting is not None:
+        return float(setting)
+    env = os.getenv('FUTURETRADING_52W_SUPERVISOR_INTERVAL')
+    return float(env) if env else 60.0
+
+
+def _any_control_markets_open() -> bool:
+    """Return True if ANY control market is currently OPEN per status field.
+
+    Uses the persisted `status` field (maintained by GlobalMarkets.monitor) to avoid
+    recomputing trading-hour logic here. Falls back to real-time evaluation if
+    status records are stale or empty.
+    """
+    try:
+        from GlobalMarkets.models import Market
+        # Fast path: check status field
+        if Market.objects.filter(is_control_market=True, is_active=True, status='OPEN').exists():
+            return True
+        # Fallback: compute dynamically in case scheduler hasn't reconciled yet
+        for m in Market.objects.filter(is_control_market=True, is_active=True):
+            try:
+                if m.is_market_open_now():
+                    return True
+            except Exception:
+                continue
+    except Exception:
+        logger.exception("[52w supervisor] Failed checking market statuses")
+    return False
+
+
+def _supervisor_loop(interval: float, is_market_open_fn: Callable[[], bool]):
+    global _supervisor_running
+    logger.info("🛰️ 52w supervisor started (interval=%.1fs)", interval)
+    # Initial immediate evaluation so we don't wait a full cycle
+    _evaluate_and_toggle(is_market_open_fn)
+    while True:
+        with _supervisor_lock:
+            if not _supervisor_running:
+                break
+        try:
+            _evaluate_and_toggle(is_market_open_fn)
+        except Exception:
+            logger.exception("[52w supervisor] Evaluation failed")
+        time.sleep(interval)
+    logger.info("🛑 52w supervisor stopped")
+
+
+def _evaluate_and_toggle(is_market_open_fn: Callable[[], bool]):
+    open_any = is_market_open_fn()
+    mon = get_52w_monitor()
+    if not _is_enabled():
+        # Hard disabled; ensure stopped regardless of market state
+        if mon._running:
+            mon.stop()
+        logger.debug("[52w supervisor] monitor disabled by config; forced stopped")
+        return
+    if open_any:
+        mon.start()  # idempotent
+    else:
+        mon.stop()
+    logger.debug("[52w supervisor] markets_open=%s monitor_running=%s", open_any, mon._running)
+
+
+def start_52w_monitor_supervisor() -> None:
+    """Start the supervisor that auto-starts/stops the 52w monitor based on global markets.
+
+    Logic:
+    - If ANY control market (Tokyo, Shanghai, Bombay, Frankfurt, London, Pre_USA, USA, Toronto, Mexico) is OPEN -> monitor runs.
+    - If ALL are CLOSED -> monitor is stopped to conserve resources.
+    - Evaluated on an interval (default 60s) and immediately on startup.
+    """
+    global _supervisor_thread, _supervisor_running
+    with _supervisor_lock:
+        if _supervisor_running:
+            logger.debug("[52w supervisor] Already running; skip start")
+            return
+        _supervisor_running = True
+        interval = _get_supervisor_interval()
+        t = threading.Thread(
+            target=_supervisor_loop,
+            name="Week52ExtremesSupervisor",
+            daemon=True,
+            args=(interval, _any_control_markets_open),
+        )
+        _supervisor_thread = t
+        t.start()
+
+
+def stop_52w_monitor_supervisor() -> None:
+    global _supervisor_running
+    with _supervisor_lock:
+        _supervisor_running = False
+    # Thread will exit on next loop iteration
+    logger.info("🛑 52w supervisor stop requested")
