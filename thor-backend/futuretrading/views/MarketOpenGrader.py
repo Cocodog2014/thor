@@ -10,7 +10,7 @@ import time
 import logging
 from decimal import Decimal
 from django.utils import timezone
-from FutureTrading.models.MarketOpen import MarketOpenSession
+from FutureTrading.models.MarketSession import MarketOpenSession
 from LiveData.shared.redis_client import live_data_redis
 
 logger = logging.getLogger(__name__)

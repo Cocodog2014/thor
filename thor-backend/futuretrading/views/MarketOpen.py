@@ -11,7 +11,7 @@ from django.utils import timezone
 from datetime import datetime, timedelta
 from django.db.models import Count, Q
 
-from FutureTrading.models.MarketOpen import MarketOpenSession
+from FutureTrading.models.MarketSession import MarketOpenSession
 from FutureTrading.serializers.MarketOpen import (
     MarketOpenSessionListSerializer,
     MarketOpenSessionDetailSerializer

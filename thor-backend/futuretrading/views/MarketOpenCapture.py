@@ -10,7 +10,7 @@ from decimal import Decimal
 from django.utils import timezone
 from django.db import transaction
 
-from FutureTrading.models.MarketOpen import MarketOpenSession
+from FutureTrading.models.MarketSession import MarketOpenSession
 from FutureTrading.models.extremes import Rolling52WeekStats
 from LiveData.shared.redis_client import live_data_redis
 from FutureTrading.services.classification import enrich_quote_row, compute_composite

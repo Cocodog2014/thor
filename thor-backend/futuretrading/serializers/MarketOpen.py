@@ -4,7 +4,7 @@ Single-table design: each session row represents one future
 """
 
 from rest_framework import serializers
-from FutureTrading.models.MarketOpen import MarketOpenSession
+from FutureTrading.models.MarketSession import MarketOpenSession
 
 
 class MarketOpenSessionListSerializer(serializers.ModelSerializer):

@@ -8,7 +8,7 @@ import sys
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'thor_project.settings')
 django.setup()
 
-from FutureTrading.models.MarketOpen import MarketOpenSession
+from FutureTrading.models.MarketSession import MarketOpenSession
 from django.utils import timezone
 
 today = timezone.now()

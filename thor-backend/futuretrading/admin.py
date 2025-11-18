@@ -3,7 +3,7 @@ from .models import (
     InstrumentCategory, TradingInstrument,
     SignalStatValue, ContractWeight, SignalWeight
 )
-from .models.MarketOpen import MarketOpenSession
+from .models.MarketSession import MarketOpenSession
 from .models.extremes import Rolling52WeekStats
 
 
