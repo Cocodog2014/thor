@@ -10,7 +10,7 @@ from decimal import Decimal
 from django.utils import timezone
 from django.db import transaction
 
-from FutureTrading.models.MarketSession import MarketOpenSession
+from FutureTrading.models.MarketSession import MarketSession
 from FutureTrading.models.extremes import Rolling52WeekStats
 from LiveData.shared.redis_client import live_data_redis
 from FutureTrading.services.classification import enrich_quote_row, compute_composite
@@ -30,7 +30,7 @@ class MarketOpenCaptureService:
     }
     
     def get_next_session_number(self):
-        last = MarketOpenSession.objects.order_by('-session_number').first()
+        last = MarketSession.objects.order_by('-session_number').first()
         return (last.session_number + 1) if last else 1
     
     def fetch_redis_quotes(self):
@@ -174,7 +174,7 @@ class MarketOpenCaptureService:
                 data['target_low'] = data['entry_price'] - 20
         
         try:
-            session = MarketOpenSession.objects.create(**data)
+            session = MarketSession.objects.create(**data)
             logger.debug(f"Created {symbol} session: {session.last_price}")
             return session
         except Exception as e:
@@ -206,7 +206,7 @@ class MarketOpenCaptureService:
         }
         
         try:
-            session = MarketOpenSession.objects.create(**data)
+            session = MarketSession.objects.create(**data)
             logger.info(f"TOTAL session: {data['weighted_average']:.4f} -> {composite_signal}" if data['weighted_average'] else f"TOTAL: {composite_signal}")
             return session
         except Exception as e:

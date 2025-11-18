@@ -2,46 +2,49 @@ import React, { useEffect, useMemo, useState } from "react";
 // Styles are imported globally via src/styles/global.css
 
 // ---- Types ----
-interface FutureSnapshot {
-  symbol?: string | null;
-  // Top-of-card pricing
+// Single-table design: each row represents one future at one market open
+interface MarketOpenSession {
+  id: number;
+  session_number: number;
+  year: number;
+  month: number;
+  date: number;
+  day: string;
+  captured_at: string;
+  country: string;
+  future: string; // YM, ES, NQ, RTY, CL, SI, HG, GC, VX, DX, ZB, TOTAL
   last_price?: string | null;
   change?: string | null;
   change_percent?: string | null;
-  bid?: string | null;
-  bid_size?: number | null;
-  ask?: string | null;
+  reference_ask?: string | null;
   ask_size?: number | null;
+  reference_bid?: string | null;
+  bid_size?: number | null;
   volume?: number | null;
   vwap?: string | null;
-  open?: string | null;
-  close?: string | null;
+  spread?: string | null;
+  reference_close?: string | null;
+  reference_open?: string | null;
   day_24h_low?: string | null;
   day_24h_high?: string | null;
   range_high_low?: string | null;
   range_percent?: string | null;
   week_52_low?: string | null;
   week_52_high?: string | null;
-  // Signal/weight are present for individual futures and TOTAL
-  signal?: string | null;
-  weight?: number | null;
-  // TOTAL-specific fields
+  entry_price?: string | null;
+  target_high?: string | null;
+  target_low?: string | null;
   weighted_average?: string | null;
+  total_signal?: string | null;
+  weight?: number | null;
   sum_weighted?: string | null;
   instrument_count?: number | null;
   status?: string | null;
-}
-
-interface MarketOpenSession {
-  id: number;
-  captured_at: string; // ISO time
-  country: string;     // backend uses canonical market country (e.g., "Japan")
-  total_signal: string; // BUY / SELL / STRONG_BUY / STRONG_SELL / HOLD
-  fw_nwdw: string;      // WORKED / DIDNT_WORK / PENDING
-  ym_entry_price?: string | null;
+  outcome?: string | null;
+  fw_nwdw?: string | null;
+  exit_price?: string | null;
   fw_exit_value?: string | null;
   fw_exit_percent?: string | null;
-  futures?: FutureSnapshot[];
 }
 
 // ---- Fixed control markets in display order (UI labels) ----
@@ -154,8 +157,14 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl = "http://127.0
 
   // Map backend sessions by canonical country (Japan, Germany, etc.)
   const byCountry = useMemo(() => {
-    const map = new Map<string, MarketOpenSession>();
-    (sessions || []).forEach(s => map.set((s.country || "").trim(), s));
+    // Group session rows by country
+    // Each country has 12 rows (one per future including TOTAL)
+    const map = new Map<string, MarketOpenSession[]>();
+    (sessions || []).forEach(s => {
+      const country = (s.country || "").trim();
+      if (!map.has(country)) map.set(country, []);
+      map.get(country)!.push(s);
+    });
     return map;
   }, [sessions]);
 
@@ -168,41 +177,13 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl = "http://127.0
 
   // Find the most recent session with a TOTAL snapshot
   const totalSession = useMemo(() => {
-    const allSessions = Array.from(byCountry.values()).sort((a, b) => 
-      new Date(b.captured_at).getTime() - new Date(a.captured_at).getTime()
+    // Find TOTAL row from any country (most recent)
+    const allRows = (sessions || []).filter(s => s.future === 'TOTAL').sort((a, b) =>
+      new Date(b.captured_at).getTime() - new Date(a.captured_at).getTime()  
     );
     
-    // Debug: log what we have
-    console.log('🔍 Total sessions found:', allSessions.length);
-    if (allSessions.length > 0) {
-      console.log('🔍 First session futures:', allSessions[0].futures?.length || 0);
-      if (allSessions[0].futures) {
-        console.log('🔍 Symbols:', allSessions[0].futures.map(f => f.symbol));
-      }
-    }
-    
-    for (const s of allSessions) {
-      const totalSnap = (s.futures || []).find(f => (f.symbol || "").toUpperCase() === "TOTAL");
-      if (totalSnap) {
-        console.log('✅ Found TOTAL snapshot in session:', s.country);
-        return { session: s, snap: totalSnap };
-      }
-    }
-    console.log('❌ No TOTAL snapshot found');
-    
-    // Fallback: use any session and show placeholder
-    if (allSessions.length > 0) {
-      return { 
-        session: allSessions[0], 
-        snap: { 
-          symbol: 'TOTAL',
-          weighted_average: null, 
-          signal: null, 
-          sum_weighted: null, 
-          instrument_count: null, 
-          status: 'No data yet' 
-        } 
-      };
+    if (allRows.length > 0) {
+      return allRows[0]; // Return the TOTAL row directly
     }
     return null;
   }, [byCountry]);
@@ -222,35 +203,35 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl = "http://127.0
           <span className="total-badge futures">11 Futures</span>
           {totalSession && (
             <span
-              className={`total-pill ${String(totalSession.session.total_signal || '').toLowerCase().replace('_','-')}`}
+              className={`total-pill ${String(totalSession.total_signal || '').toLowerCase().replace('_','-')}`}
             >
-              {(totalSession.session.total_signal || '—').replace('_',' ')}
+              {(totalSession.total_signal || '—').replace('_',' ')}
             </span>
           )}
           <span className="total-time">
-            {totalSession?.session.captured_at ? new Date(totalSession.session.captured_at).toLocaleTimeString() : "—"}
+            {totalSession?.captured_at ? new Date(totalSession.captured_at).toLocaleTimeString() : "—"}
           </span>
         </div>
         {totalSession ? (
           <div className="total-body">
             <div className="total-left">
-              <div className="total-val">{formatNum(String(totalSession.snap.weighted_average), 3) || '—'}</div>
+              <div className="total-val">{formatNum(String(totalSession.weighted_average), 3) || '—'}</div>
               <div className="total-label">Weighted Average</div>
               <div className="total-left-metrics">
                 <div className="total-mini-card">
                   <div className="mini-title">Sum</div>
-                  <div className="mini-value">{formatNum(totalSession.snap.sum_weighted) || '—'}</div>
+                  <div className="mini-value">{formatNum(totalSession.sum_weighted) || '—'}</div>
                   <div className="mini-sub">Weighted</div>
                 </div>
                 <div className="total-mini-card">
                   <div className="mini-title">Count</div>
-                  <div className="mini-value">{totalSession.snap.instrument_count ?? '—'}</div>
+                  <div className="mini-value">{totalSession.instrument_count ?? '—'}</div>
                   <div className="mini-sub">Instruments</div>
                 </div>
               </div>
             </div>
             <div className="total-right">
-              <div className="wgt">Wgt: {String((totalSession.snap as any).weight ?? '—')}</div>
+              <div className="wgt">Wgt: {String(totalSession.weight ?? '—')}</div>
               <div className="live-label">LIVE TOTAL</div>
             </div>
           </div>
@@ -261,13 +242,18 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl = "http://127.0
 
       <div className="market-grid">
         {CONTROL_MARKETS.map(m => {
-          const s = byCountry.get(m.country);
+          const rows = byCountry.get(m.country) || [];
+          // Find the latest captured_at across all futures for this market
+          const latestRow = rows.length > 0 ? rows.reduce((latest, r) => 
+            new Date(r.captured_at) > new Date(latest.captured_at) ? r : latest
+          ) : null;
+          
           const status = liveStatus[m.country];
           const seconds = status?.seconds_to_next_event ?? undefined;
           const nextEvent = status?.next_event;
 
           // Keep prior day's card visible until 5 minutes (300s) before today's open
-          const isPriorDay = s?.captured_at ? !isToday(s.captured_at) : false;
+          const isPriorDay = latestRow?.captured_at ? !isToday(latestRow.captured_at) : false;
           const hidePriorNow = isPriorDay && nextEvent === 'open' && typeof seconds === 'number' && seconds <= 300;
           if (hidePriorNow) {
             return (
@@ -286,23 +272,21 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl = "http://127.0
               </div>
             );
           }
-          const time = s?.captured_at ? new Date(s.captured_at).toLocaleTimeString() : "—";
-          const outcomeStatus = s?.fw_nwdw;
+          const time = latestRow?.captured_at ? new Date(latestRow.captured_at).toLocaleTimeString() : "—";
 
           const selectedSymbol = selected[m.key];
-          const snap: FutureSnapshot | undefined = (s?.futures || []).find(f =>
-            (f.symbol || "").toUpperCase() === (selectedSymbol || "").toUpperCase()
-          ) || (s?.futures || [])[0];
+          // Find the row for the selected future
+          const snap = rows.find(r => r.future?.toUpperCase() === selectedSymbol?.toUpperCase()) || rows[0];
 
-          // Prefer selected future's signal; fall back to session composite
-          const signal = (snap?.signal && snap.signal !== '') ? snap.signal : s?.total_signal;
+          const signal = snap?.total_signal;
+          const outcomeStatus = snap?.fw_nwdw;
 
           return (
             <div key={m.key} className="mo-rt-card">
               <div className="mo-rt-header">
                 <span className="mo-rt-chip sym">{m.label}</span>
-                <span className={chipClass("signal", signal)}>{signal || "—"}</span>
-                <span className={chipClass("status", outcomeStatus)}>{outcomeStatus || "—"}</span>
+                <span className={chipClass("signal", signal || undefined)}>{signal || "—"}</span>
+                <span className={chipClass("status", outcomeStatus || undefined)}>{outcomeStatus || "—"}</span>
                 <span className="mo-rt-chip">Wgt: {snap?.weight ?? '—'}</span>
                 <span className="mo-rt-time">{time}</span>
               </div>
@@ -333,7 +317,7 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl = "http://127.0
                   </div>
                   <div className="mo-rt-change">
                     <div className="val">{formatNum(snap?.change) ?? '—'}</div>
-                    <div className="pct">{formatNum(snap?.change_percent, 4) ?? '—'}%</div>
+                    <div className="pct">{formatNum(snap?.change_percent, 2) ?? '—'}%</div>
                     <div className="label">Change</div>
                   </div>
                 </div>
@@ -342,12 +326,12 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl = "http://127.0
                 <div className="mo-rt-bbo">
                   <div className="tile bid">
                     <div className="t-head">BID</div>
-                    <div className="t-main">{snap?.bid ?? '—'}</div>
+                    <div className="t-main">{snap?.reference_bid ?? '—'}</div>
                     <div className="t-sub">Size {snap?.bid_size ?? '—'}</div>
                   </div>
                   <div className="tile ask">
                     <div className="t-head">ASK</div>
-                    <div className="t-main">{snap?.ask ?? '—'}</div>
+                    <div className="t-main">{snap?.reference_ask ?? '—'}</div>
                     <div className="t-sub">Size {snap?.ask_size ?? '—'}</div>
                   </div>
                 </div>
@@ -356,8 +340,8 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl = "http://127.0
                 <div className="mo-rt-stats">
                   <div className="stat"><div className="label">Volume</div><div className="value">{snap?.volume?.toLocaleString() ?? '—'}</div></div>
                   <div className="stat"><div className="label">VWAP</div><div className="value">{snap?.vwap ?? '—'}</div></div>
-                  <div className="stat"><div className="label">Close</div><div className="value">{snap?.close ?? '—'}</div></div>
-                  <div className="stat"><div className="label">Open</div><div className="value">{snap?.open ?? '—'}</div></div>
+                  <div className="stat"><div className="label">Close</div><div className="value">{snap?.reference_close ?? '—'}</div></div>
+                  <div className="stat"><div className="label">Open</div><div className="value">{snap?.reference_open ?? '—'}</div></div>
                   <div className="stat"><div className="label">24h Low</div><div className="value">{snap?.day_24h_low ?? '—'}</div></div>
                   <div className="stat"><div className="label">24h High</div><div className="value">{snap?.day_24h_high ?? '—'}</div></div>
                   <div className="stat"><div className="label">24h Range</div><div className="value">{snap?.range_high_low ? <>{snap?.range_high_low} <span className="sub">{snap?.range_percent}</span></> : '—'}</div></div>

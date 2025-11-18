@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Quick script to check today's MarketOpenSession records in the database."""
+"""Quick script to check today's MarketSession records in the database."""
 import django
 import os
 import sys
@@ -8,7 +8,7 @@ import sys
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'thor_project.settings')
 django.setup()
 
-from FutureTrading.models.MarketSession import MarketOpenSession
+from FutureTrading.models.MarketSession import MarketSession
 from django.utils import timezone
 
 today = timezone.now()
@@ -16,7 +16,7 @@ print(f"Today: {today.year}/{today.month}/{today.day}")
 print(f"Current time: {today.strftime('%Y-%m-%d %H:%M:%S %Z')}")
 print("-" * 60)
 
-sessions = MarketOpenSession.objects.filter(
+sessions = MarketSession.objects.filter(
     year=today.year, 
     month=today.month, 
     date=today.day
@@ -40,6 +40,6 @@ else:
     print("❌ No sessions captured today!")
     print()
     print("Recent sessions:")
-    recent = MarketOpenSession.objects.all().order_by('-captured_at')[:5]
+    recent = MarketSession.objects.all().order_by('-captured_at')[:5]
     for s in recent:
         print(f"  - {s.country}: {s.captured_at.strftime('%Y-%m-%d %H:%M:%S')}")

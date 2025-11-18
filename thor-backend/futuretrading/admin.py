@@ -3,7 +3,7 @@ from .models import (
     InstrumentCategory, TradingInstrument,
     SignalStatValue, ContractWeight, SignalWeight
 )
-from .models.MarketSession import MarketOpenSession
+from .models.MarketSession import MarketSession
 from .models.extremes import Rolling52WeekStats
 
 
@@ -81,8 +81,8 @@ class SignalWeightAdmin(admin.ModelAdmin):
 # Market Open Capture Admin
 
 
-@admin.register(MarketOpenSession)
-class MarketOpenSessionAdmin(admin.ModelAdmin):
+@admin.register(MarketSession)
+class MarketSessionAdmin(admin.ModelAdmin):
     list_display = [
         'session_number', 'country', 'future', 'date_display', 'day', 
         'total_signal', 'fw_nwdw', 'entry_price', 'last_price'

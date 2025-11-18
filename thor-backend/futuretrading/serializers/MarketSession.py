@@ -4,14 +4,14 @@ Single-table design: each session row represents one future
 """
 
 from rest_framework import serializers
-from FutureTrading.models.MarketSession import MarketOpenSession
+from FutureTrading.models.MarketSession import MarketSession
 
 
 class MarketOpenSessionListSerializer(serializers.ModelSerializer):
     """Serializer for list view of market open sessions"""
     
     class Meta:
-        model = MarketOpenSession
+        model = MarketSession
         fields = [
             'id', 'session_number', 'year', 'month', 'date', 'day', 
             'captured_at', 'country', 'future', 'total_signal', 
@@ -26,7 +26,7 @@ class MarketOpenSessionDetailSerializer(serializers.ModelSerializer):
     """Serializer for detailed view of a single future at market open"""
     
     class Meta:
-        model = MarketOpenSession
+        model = MarketSession
         fields = [
             'id', 'session_number', 'year', 'month', 'date', 'day', 
             'captured_at', 'country', 'future',

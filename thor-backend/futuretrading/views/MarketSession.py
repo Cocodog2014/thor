@@ -11,7 +11,7 @@ from django.utils import timezone
 from datetime import datetime, timedelta
 from django.db.models import Count, Q
 
-from FutureTrading.models.MarketSession import MarketOpenSession
+from FutureTrading.models.MarketSession import MarketSession
 from FutureTrading.serializers.MarketSession import (
     MarketOpenSessionListSerializer,
     MarketOpenSessionDetailSerializer
@@ -29,7 +29,7 @@ class MarketOpenSessionListView(APIView):
     """
     
     def get(self, request):
-        queryset = MarketOpenSession.objects.all()
+        queryset = MarketSession.objects.all()
         
         # Apply filters
         country = request.query_params.get('country')
@@ -68,10 +68,10 @@ class MarketOpenSessionDetailView(APIView):
     
     def get(self, request, pk):
         try:
-            session = MarketOpenSession.objects.get(pk=pk)
+            session = MarketSession.objects.get(pk=pk)
             serializer = MarketOpenSessionDetailSerializer(session)
             return Response(serializer.data)
-        except MarketOpenSession.DoesNotExist:
+        except MarketSession.DoesNotExist:
             return Response(
                 {'error': 'Session not found'},
                 status=status.HTTP_404_NOT_FOUND
@@ -87,7 +87,7 @@ class TodayMarketOpensView(APIView):
     
     def get(self, request):
         today = timezone.now()
-        sessions = MarketOpenSession.objects.filter(
+        sessions = MarketSession.objects.filter(
             year=today.year,
             month=today.month,
             date=today.day
@@ -104,7 +104,7 @@ class PendingMarketOpensView(APIView):
     """
     
     def get(self, request):
-        sessions = MarketOpenSession.objects.filter(fw_nwdw='PENDING')
+        sessions = MarketSession.objects.filter(fw_nwdw='PENDING')
         serializer = MarketOpenSessionDetailSerializer(sessions, many=True)
         return Response(serializer.data)
 
@@ -121,20 +121,20 @@ class MarketOpenStatsView(APIView):
     """
     
     def get(self, request):
-        total_sessions = MarketOpenSession.objects.count()
+        total_sessions = MarketSession.objects.count()
         
         # Overall stats
-        worked = MarketOpenSession.objects.filter(fw_nwdw='WORKED').count()
-        didnt_work = MarketOpenSession.objects.filter(fw_nwdw='DIDNT_WORK').count()
-        pending = MarketOpenSession.objects.filter(fw_nwdw='PENDING').count()
-        neutral = MarketOpenSession.objects.filter(fw_nwdw='NEUTRAL').count()
+        worked = MarketSession.objects.filter(fw_nwdw='WORKED').count()
+        didnt_work = MarketSession.objects.filter(fw_nwdw='DIDNT_WORK').count()
+        pending = MarketSession.objects.filter(fw_nwdw='PENDING').count()
+        neutral = MarketSession.objects.filter(fw_nwdw='NEUTRAL').count()
         
         # Calculate win rate (exclude pending and neutral)
         graded_sessions = worked + didnt_work
         win_rate = (worked / graded_sessions * 100) if graded_sessions > 0 else 0
         
         # Stats by market
-        market_stats = MarketOpenSession.objects.values('country').annotate(
+        market_stats = MarketSession.objects.values('country').annotate(
             total=Count('id'),
             worked=Count('id', filter=Q(fw_nwdw='WORKED')),
             didnt_work=Count('id', filter=Q(fw_nwdw='DIDNT_WORK')),
@@ -143,7 +143,7 @@ class MarketOpenStatsView(APIView):
         
         # Recent performance (last 7 days)
         seven_days_ago = timezone.now() - timedelta(days=7)
-        recent_sessions = MarketOpenSession.objects.filter(
+        recent_sessions = MarketSession.objects.filter(
             captured_at__gte=seven_days_ago
         )
         recent_worked = recent_sessions.filter(fw_nwdw='WORKED').count()
@@ -187,7 +187,7 @@ class LatestPerMarketOpensView(APIView):
     def get(self, request):
         sessions = []
         for country in self.CONTROL_COUNTRIES:
-            latest = (MarketOpenSession.objects
+            latest = (MarketSession.objects
                       .filter(country=country)
                       .order_by('-captured_at')
                       .first())

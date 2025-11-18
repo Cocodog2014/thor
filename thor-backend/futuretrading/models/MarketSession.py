@@ -10,7 +10,7 @@ from django.db import models
 from django.utils import timezone
 
 
-class MarketOpenSession(models.Model):
+class MarketSession(models.Model):
     """
     Captures one future at one market open event.
     Single-table design: 12 rows per market open (one for each future + TOTAL).
@@ -218,8 +218,8 @@ class MarketOpenSession(models.Model):
     class Meta:
         ordering = ['-captured_at', 'future']
         unique_together = ['country', 'year', 'month', 'date', 'future']
-        verbose_name = 'Market Open Session'
-        verbose_name_plural = 'Market Open Sessions'
+        verbose_name = 'Market Session'
+        verbose_name_plural = 'Market Sessions'
     
     def __str__(self):
         return f"{self.country} - {self.future} - {self.year}/{self.month}/{self.date} - {self.total_signal}"
@@ -243,4 +243,4 @@ class MarketOpenSession(models.Model):
         super().save(*args, **kwargs)
 
 
-__all__ = ['MarketOpenSession']
+__all__ = ['MarketSession']

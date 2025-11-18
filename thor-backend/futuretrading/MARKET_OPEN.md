@@ -1539,7 +1539,7 @@ thor-backend/
 from django.db import models
 from django.utils import timezone
 
-class MarketOpenSession(models.Model):
+class MarketSession(models.Model):
     """One record per region per day when market opens."""
     
     # Identification

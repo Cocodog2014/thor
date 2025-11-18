@@ -10,7 +10,7 @@ import time
 import logging
 from decimal import Decimal
 from django.utils import timezone
-from FutureTrading.models.MarketSession import MarketOpenSession
+from FutureTrading.models.MarketSession import MarketSession
 from LiveData.shared.redis_client import live_data_redis
 
 logger = logging.getLogger(__name__)
@@ -169,7 +169,7 @@ class MarketGrader:
         while self.running:
             try:
                 # Get all pending sessions (includes all futures except TOTAL which auto-marks neutral)
-                pending_sessions = MarketOpenSession.objects.filter(outcome='PENDING')
+                pending_sessions = MarketSession.objects.filter(outcome='PENDING')
                 
                 if pending_sessions.exists():
                     logger.debug(f"Grading {pending_sessions.count()} pending sessions...")
