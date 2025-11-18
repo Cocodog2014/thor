@@ -3,7 +3,7 @@ from .models import (
     InstrumentCategory, TradingInstrument,
     SignalStatValue, ContractWeight, SignalWeight
 )
-from .models.MarketOpen import MarketOpenSession, FutureSnapshot
+from .models.MarketOpen import MarketOpenSession
 from .models.extremes import Rolling52WeekStats
 
 
@@ -81,47 +81,53 @@ class SignalWeightAdmin(admin.ModelAdmin):
 # Market Open Capture Admin
 
 
-class FutureSnapshotInline(admin.TabularInline):
-    """Inline display of all futures snapshots for a session"""
-    model = FutureSnapshot
-    extra = 0
-    fields = ['symbol', 'last_price', 'bid', 'ask', 'weighted_average', 'signal']
-    readonly_fields = ['symbol', 'last_price', 'bid', 'ask', 'weighted_average', 'signal']
-    can_delete = False
-    
-    def has_add_permission(self, request, obj=None):
-        return False
-
-
 @admin.register(MarketOpenSession)
 class MarketOpenSessionAdmin(admin.ModelAdmin):
     list_display = [
-        'session_number', 'country', 'date_display', 'day', 
-        'total_signal', 'future', 'fw_nwdw', 'entry_price'
+        'session_number', 'country', 'future', 'date_display', 'day', 
+        'total_signal', 'fw_nwdw', 'entry_price', 'last_price'
     ]
-    list_filter = ['country', 'day', 'total_signal', 'fw_nwdw', 'year', 'month']
-    search_fields = ['country', 'session_number']
+    list_filter = ['country', 'future', 'day', 'total_signal', 'fw_nwdw', 'year', 'month']
+    search_fields = ['country', 'session_number', 'future']
     readonly_fields = ['captured_at', 'created_at', 'updated_at']
-    inlines = [FutureSnapshotInline]
     
     fieldsets = (
         ('Session Info', {
             'fields': ('session_number', 'country', 'future', 'year', 'month', 'date', 'day', 'captured_at')
         }),
-        ('Reference Price Data', {
-            'fields': ('reference_open', 'reference_close', 'reference_ask', 'reference_bid', 'reference_last')
+        ('Live Price Data (Open)', {
+            'fields': ('last_price', 'change', 'change_percent', 'reference_ask', 'ask_size', 
+                      'reference_bid', 'bid_size', 'volume', 'vwap', 'spread')
+        }),
+        ('Session Price Data', {
+            'fields': ('reference_close', 'reference_open', 'open_vs_prev_number', 'open_vs_prev_percent', 'reference_last')
+        }),
+        ('Range Data', {
+            'fields': ('day_24h_low', 'day_24h_high', 'range_high_low', 'range_percent',
+                      'week_52_low', 'week_52_high', 'week_52_range_high_low', 'week_52_range_percent'),
+            'classes': ('collapse',)
         }),
         ('Entry & Targets', {
             'fields': ('entry_price', 'target_high', 'target_low')
         }),
         ('Signal & Composite', {
-            'fields': ('total_signal', 'strong_sell_flag', 'study_fw', 'fw_weight')
+            'fields': ('total_signal', 'weighted_average', 'weight', 'sum_weighted', 
+                      'instrument_count', 'status', 'strong_sell_flag', 'study_fw', 'fw_weight')
         }),
         ('Outcome Tracking', {
-            'fields': ('fw_nwdw', 'didnt_work', 'fw_exit_value', 'fw_exit_percent')
+            'fields': ('outcome', 'fw_nwdw', 'didnt_work', 'exit_price', 'exit_time',
+                      'fw_exit_value', 'fw_exit_percent')
         }),
         ('Stopped Out', {
             'fields': ('fw_stopped_out_value', 'fw_stopped_out_nwdw'),
+            'classes': ('collapse',)
+        }),
+        ('Close Data', {
+            'fields': ('close_last_price', 'close_change', 'close_change_percent',
+                      'close_bid', 'close_bid_size', 'close_ask', 'close_ask_size',
+                      'close_volume', 'close_vwap', 'close_spread', 'close_captured_at',
+                      'close_weighted_average', 'close_signal', 'close_weight',
+                      'close_sum_weighted', 'close_instrument_count', 'close_status'),
             'classes': ('collapse',)
         }),
         ('Timestamps', {
@@ -134,55 +140,7 @@ class MarketOpenSessionAdmin(admin.ModelAdmin):
         return f"{obj.year}/{obj.month:02d}/{obj.date:02d}"
     date_display.short_description = 'Date'
     
-    ordering = ['-captured_at']
-
-
-@admin.register(FutureSnapshot)
-class FutureSnapshotAdmin(admin.ModelAdmin):
-    list_display = [
-        'session', 'symbol', 'last_price', 'bid', 'ask', 
-        'weighted_average', 'signal', 'change_percent'
-    ]
-    list_filter = ['symbol', 'session__country', 'signal']
-    search_fields = ['symbol', 'session__country']
-    readonly_fields = ['created_at']
-    
-    fieldsets = (
-        ('Session Link', {
-            'fields': ('session', 'symbol')
-        }),
-        ('Live Price Data', {
-            'fields': ('last_price', 'change', 'change_percent', 'bid', 'bid_size', 'ask', 'ask_size')
-        }),
-        ('Market Data', {
-            'fields': ('volume', 'vwap', 'spread')
-        }),
-        ('Session Data', {
-            'fields': ('open', 'close', 'open_vs_prev_number', 'open_vs_prev_percent')
-        }),
-        ('24-Hour Range', {
-            'fields': ('day_24h_low', 'day_24h_high', 'range_high_low', 'range_percent'),
-            'classes': ('collapse',)
-        }),
-        ('52-Week Range', {
-            'fields': ('week_52_low', 'week_52_high', 'week_52_range_high_low', 'week_52_range_percent'),
-            'classes': ('collapse',)
-        }),
-        ('Entry & Targets', {
-            'fields': ('entry_price', 'high_dynamic', 'low_dynamic'),
-            'classes': ('collapse',)
-        }),
-        ('TOTAL Composite Fields', {
-            'fields': ('weighted_average', 'signal', 'weight', 'sum_weighted', 'instrument_count', 'status'),
-            'classes': ('collapse',)
-        }),
-        ('Timestamps', {
-            'fields': ('created_at',),
-            'classes': ('collapse',)
-        }),
-    )
-    
-    ordering = ['session', 'symbol']
+    ordering = ['-captured_at', 'future']
 
 
 # 52-Week High/Low Tracking Admin

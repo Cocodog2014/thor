@@ -11,11 +11,10 @@ from django.utils import timezone
 from datetime import datetime, timedelta
 from django.db.models import Count, Q
 
-from FutureTrading.models.MarketOpen import MarketOpenSession, FutureSnapshot
+from FutureTrading.models.MarketOpen import MarketOpenSession
 from FutureTrading.serializers.MarketOpen import (
     MarketOpenSessionListSerializer,
-    MarketOpenSessionDetailSerializer,
-    FutureSnapshotSerializer
+    MarketOpenSessionDetailSerializer
 )
 
 
@@ -171,35 +170,6 @@ class MarketOpenStatsView(APIView):
         })
 
 
-class FutureSnapshotListView(APIView):
-    """
-    GET /api/futures/snapshots/
-    
-    Get all future snapshots with optional filters:
-    - session: Filter by session ID
-    - symbol: Filter by future symbol
-    - outcome: Filter by outcome status
-    """
-    
-    def get(self, request):
-        queryset = FutureSnapshot.objects.all()
-        
-        session_id = request.query_params.get('session')
-        if session_id:
-            queryset = queryset.filter(session_id=session_id)
-        
-        symbol = request.query_params.get('symbol')
-        if symbol:
-            queryset = queryset.filter(symbol=symbol.upper())
-        
-        outcome = request.query_params.get('outcome')
-        if outcome:
-            queryset = queryset.filter(outcome=outcome.upper())
-        
-        serializer = FutureSnapshotSerializer(queryset, many=True)
-        return Response(serializer.data)
-
-
 class LatestPerMarketOpensView(APIView):
     """
     GET /api/futures/market-opens/latest/
@@ -224,7 +194,7 @@ class LatestPerMarketOpensView(APIView):
             if latest:
                 sessions.append(latest)
 
-        # Return detailed serializer because UI may need futures array
+        # Return detailed serializer
         serializer = MarketOpenSessionDetailSerializer(sessions, many=True)
         return Response(serializer.data)
 
@@ -235,5 +205,5 @@ __all__ = [
     'TodayMarketOpensView',
     'PendingMarketOpensView',
     'MarketOpenStatsView',
-    'FutureSnapshotListView',
+    'LatestPerMarketOpensView',
 ]

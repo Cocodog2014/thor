@@ -371,3 +371,13 @@ ORDER BY symbol;
 
 -- Exit when done
 \q
+
+Connect inside the container
+
+docker exec -it thor_postgres psql -U thor_user -d thor_db
+
+\conninfo
+\dn
+\dt *.*
+\dv *.*
+\d "FutureTrading_marketopensession"

@@ -6,7 +6,6 @@ from .views.MarketOpen import (
     TodayMarketOpensView,
     PendingMarketOpensView,
     MarketOpenStatsView,
-    FutureSnapshotListView,
     LatestPerMarketOpensView,
 )
 
@@ -23,7 +22,4 @@ urlpatterns = [
     path('market-opens/latest/', LatestPerMarketOpensView.as_view(), name='market-opens-latest'),
     path('market-opens/pending/', PendingMarketOpensView.as_view(), name='market-opens-pending'),
     path('market-opens/stats/', MarketOpenStatsView.as_view(), name='market-opens-stats'),
-    
-    # Future Snapshots
-    path('snapshots/', FutureSnapshotListView.as_view(), name='snapshots-list'),
 ]

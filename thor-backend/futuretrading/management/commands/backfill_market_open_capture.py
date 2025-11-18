@@ -4,7 +4,7 @@ from decimal import Decimal, InvalidOperation
 from typing import Optional, Dict, Any
 import logging
 
-from FutureTrading.models import MarketOpenSession, FutureSnapshot, TradingInstrument
+from FutureTrading.models import MarketOpenSession, TradingInstrument
 from FutureTrading.config import EXPECTED_FUTURES
 from LiveData.shared.redis_client import live_data_redis
 from FutureTrading.services.classification import enrich_quote_row, compute_composite

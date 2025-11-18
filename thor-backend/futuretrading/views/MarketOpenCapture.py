@@ -1,8 +1,8 @@
 ﻿"""
-Market Open Capture - Clean Implementation
+Market Open Capture - Single-Table Design
 
 Captures futures data at market open using the same enrichment pipeline as the live RTD endpoint.
-Single path, no legacy code, fully traceable.
+Creates 12 MarketOpenSession rows per market open (one per future + TOTAL).
 """
 
 import logging
@@ -10,7 +10,7 @@ from decimal import Decimal
 from django.utils import timezone
 from django.db import transaction
 
-from FutureTrading.models.MarketOpen import MarketOpenSession, FutureSnapshot
+from FutureTrading.models.MarketOpen import MarketOpenSession
 from FutureTrading.models.extremes import Rolling52WeekStats
 from LiveData.shared.redis_client import live_data_redis
 from FutureTrading.services.classification import enrich_quote_row, compute_composite
@@ -114,77 +114,114 @@ class MarketOpenCaptureService:
             except Exception:
                 return None
     
-    def create_future_snapshots(self, session, enriched_rows, total_signal):
-        snapshots = []
-        for row in enriched_rows:
-            symbol = row['instrument']['symbol']
-            ext = row.get('extended_data', {})
-            
-            data = {
-                'session': session,
-                'symbol': symbol,
-                'last_price': self.safe_decimal(row.get('last')),
-                'change': self.safe_decimal(row.get('change')),
-                'change_percent': self.safe_decimal(row.get('change_percent') or row.get('last_prev_pct')),
-                'bid': self.safe_decimal(row.get('bid')),
-                'bid_size': self.safe_int(row.get('bid_size')),
-                'ask': self.safe_decimal(row.get('ask')),
-                'ask_size': self.safe_int(row.get('ask_size')),
-                'volume': self.safe_int(row.get('volume')),
-                'vwap': self.safe_decimal(row.get('vwap')),
-                'spread': self.safe_decimal(row.get('spread')),
-                'open': self.safe_decimal(row.get('open_price')),
-                'close': self.safe_decimal(row.get('close_price') or row.get('previous_close')),
-                'open_vs_prev_number': self.safe_decimal(row.get('open_prev_diff')),
-                'open_vs_prev_percent': self.safe_decimal(row.get('open_prev_pct')),
-                'day_24h_low': self.safe_decimal(row.get('low_price')),
-                'day_24h_high': self.safe_decimal(row.get('high_price')),
-                'range_high_low': self.safe_decimal(row.get('range_diff')),
-                'range_percent': self.safe_decimal(row.get('range_pct')),
-                'week_52_low': self.safe_decimal(ext.get('low_52w')),
-                'week_52_high': self.safe_decimal(ext.get('high_52w')),
-                'signal': (ext.get('signal') or '').upper() if ext.get('signal') else '',
-                'weight': self.safe_int(ext.get('signal_weight'))
-            }
-            
-            if total_signal and total_signal not in ['HOLD', '']:
-                if total_signal in ['BUY', 'STRONG_BUY']:
-                    data['entry_price'] = data.get('ask')
-                elif total_signal in ['SELL', 'STRONG_SELL']:
-                    data['entry_price'] = data.get('bid')
-                if data.get('entry_price'):
-                    data['high_dynamic'] = data['entry_price'] + 20
-                    data['low_dynamic'] = data['entry_price'] - 20
-            
-            try:
-                snap = FutureSnapshot.objects.create(**data)
-                snapshots.append(snap)
-                logger.debug(f"Captured {symbol}: {snap.last_price}")
-            except Exception as e:
-                logger.error(f"Snapshot failed for {symbol}: {e}", exc_info=True)
-        return snapshots
-    
-    def create_total_snapshot(self, session, composite):
+    def create_session_for_future(self, symbol, row, session_number, time_info, country, composite_signal):
+        """Create one MarketOpenSession row for a single future"""
+        ext = row.get('extended_data', {})
+        
+        # Base session data
         data = {
-            'session': session,
-            'symbol': 'TOTAL',
+            'session_number': session_number,
+            'year': time_info['year'],
+            'month': time_info['month'],
+            'date': time_info['date'],
+            'day': time_info['day'],
+            'country': country,
+            'future': symbol,
+            'captured_at': timezone.now(),
+            
+            # Live price data at open
+            'last_price': self.safe_decimal(row.get('last')),
+            'change': self.safe_decimal(row.get('change')),
+            'change_percent': self.safe_decimal(row.get('change_percent') or row.get('last_prev_pct')),
+            'reference_ask': self.safe_decimal(row.get('ask')),
+            'ask_size': self.safe_int(row.get('ask_size')),
+            'reference_bid': self.safe_decimal(row.get('bid')),
+            'bid_size': self.safe_int(row.get('bid_size')),
+            'volume': self.safe_int(row.get('volume')),
+            'vwap': self.safe_decimal(row.get('vwap')),
+            'spread': self.safe_decimal(row.get('spread')),
+            
+            # Session price data
+            'reference_open': self.safe_decimal(row.get('open_price')),
+            'reference_close': self.safe_decimal(row.get('close_price') or row.get('previous_close')),
+            'open_vs_prev_number': self.safe_decimal(row.get('open_prev_diff')),
+            'open_vs_prev_percent': self.safe_decimal(row.get('open_prev_pct')),
+            'reference_last': self.safe_decimal(row.get('last')),
+            
+            # Range data
+            'day_24h_low': self.safe_decimal(row.get('low_price')),
+            'day_24h_high': self.safe_decimal(row.get('high_price')),
+            'range_high_low': self.safe_decimal(row.get('range_diff')),
+            'range_percent': self.safe_decimal(row.get('range_pct')),
+            'week_52_low': self.safe_decimal(ext.get('low_52w')),
+            'week_52_high': self.safe_decimal(ext.get('high_52w')),
+            
+            # Signal (individual future's signal from HBS)
+            'total_signal': (ext.get('signal') or '').upper() if ext.get('signal') else '',
+            'weight': self.safe_int(ext.get('signal_weight')),
+            'study_fw': 'HBS',
+        }
+        
+        # Calculate entry and targets based on composite signal
+        if composite_signal and composite_signal not in ['HOLD', '']:
+            if composite_signal in ['BUY', 'STRONG_BUY']:
+                data['entry_price'] = data.get('reference_ask')
+            elif composite_signal in ['SELL', 'STRONG_SELL']:
+                data['entry_price'] = data.get('reference_bid')
+            
+            if data.get('entry_price'):
+                data['target_high'] = data['entry_price'] + 20
+                data['target_low'] = data['entry_price'] - 20
+        
+        try:
+            session = MarketOpenSession.objects.create(**data)
+            logger.debug(f"Created {symbol} session: {session.last_price}")
+            return session
+        except Exception as e:
+            logger.error(f"Session creation failed for {symbol}: {e}", exc_info=True)
+            return None
+    
+    def create_session_for_total(self, composite, session_number, time_info, country):
+        """Create one MarketOpenSession row for TOTAL composite"""
+        composite_signal = (composite.get('composite_signal') or 'HOLD').upper()
+        
+        data = {
+            'session_number': session_number,
+            'year': time_info['year'],
+            'month': time_info['month'],
+            'date': time_info['date'],
+            'day': time_info['day'],
+            'country': country,
+            'future': 'TOTAL',
+            'captured_at': timezone.now(),
+            
+            # TOTAL-specific composite data
             'weighted_average': self.safe_decimal(composite.get('avg_weighted')),
             'sum_weighted': self.safe_decimal(composite.get('sum_weighted')),
             'instrument_count': composite.get('count') or 11,
-            'signal': (composite.get('composite_signal') or 'HOLD').upper(),
+            'total_signal': composite_signal,
             'weight': composite.get('signal_weight_sum'),
-            'status': 'LIVE TOTAL'
+            'status': 'LIVE TOTAL',
+            'study_fw': 'TOTAL'
         }
+        
         try:
-            snap = FutureSnapshot.objects.create(**data)
-            logger.info(f"TOTAL: {data['weighted_average']:.4f} -> {data['signal']}" if data['weighted_average'] else f"TOTAL: {data['signal']}")
-            return snap
+            session = MarketOpenSession.objects.create(**data)
+            logger.info(f"TOTAL session: {data['weighted_average']:.4f} -> {composite_signal}" if data['weighted_average'] else f"TOTAL: {composite_signal}")
+            return session
         except Exception as e:
-            logger.error(f"TOTAL snapshot failed: {e}", exc_info=True)
+            logger.error(f"TOTAL session creation failed: {e}", exc_info=True)
             return None
     
     @transaction.atomic
     def capture_market_open(self, market):
+        """
+        Captures market open by creating 12 MarketOpenSession rows:
+        - 11 rows for individual futures (YM, ES, NQ, RTY, CL, SI, HG, GC, VX, DX, ZB)
+        - 1 row for TOTAL composite
+        
+        All rows share same session_number, country, date/time info.
+        """
         try:
             logger.info(f"Capturing {market.country} market open...")
             
@@ -199,38 +236,30 @@ class MarketOpenCaptureService:
                 return None
             
             composite = compute_composite(enriched)
-            ym = redis_quotes.get('YM')
-            if not ym:
-                logger.error("No YM data")
-                return None
+            composite_signal = (composite.get('composite_signal') or 'HOLD').upper()
             
             time_info = market.get_current_market_time()
+            session_number = self.get_next_session_number()
             
-            session = MarketOpenSession.objects.create(
-                session_number=self.get_next_session_number(),
-                year=time_info['year'],
-                month=time_info['month'],
-                date=time_info['date'],
-                day=time_info['day'],
-                country=market.country,
-                captured_at=timezone.now(),
-                reference_open=self.safe_decimal(ym.get('open')),
-                reference_close=self.safe_decimal(ym.get('close')),
-                reference_ask=self.safe_decimal(ym.get('ask')),
-                reference_bid=self.safe_decimal(ym.get('bid')),
-                reference_last=self.safe_decimal(ym.get('last')),
-                total_signal=composite.get('composite_signal') or 'HOLD',
-                fw_weight=self.safe_decimal(composite.get('avg_weighted')) or Decimal('0'),
-                study_fw='TOTAL'
+            # Create 11 future sessions
+            sessions_created = []
+            for row in enriched:
+                symbol = row['instrument']['symbol']
+                session = self.create_session_for_future(
+                    symbol, row, session_number, time_info, market.country, composite_signal
+                )
+                if session:
+                    sessions_created.append(session)
+            
+            # Create TOTAL session
+            total_session = self.create_session_for_total(
+                composite, session_number, time_info, market.country
             )
+            if total_session:
+                sessions_created.append(total_session)
             
-            logger.info(f"Session #{session.session_number} created - {session.total_signal}")
-            
-            snaps = self.create_future_snapshots(session, enriched, session.total_signal)
-            total = self.create_total_snapshot(session, composite)
-            
-            logger.info(f"Capture complete: {len(snaps)} futures + TOTAL")
-            return session
+            logger.info(f"Capture complete: Session #{session_number}, {len(sessions_created)} rows created")
+            return sessions_created[0] if sessions_created else None
             
         except Exception as e:
             logger.error(f"Capture failed for {market.country}: {e}", exc_info=True)

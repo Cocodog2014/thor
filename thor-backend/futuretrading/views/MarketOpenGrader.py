@@ -1,15 +1,16 @@
 """
-Market Open Grading Logic
+Market Open Grading Logic - Single-Table Design
 
 Monitors pending MarketOpenSession trades and grades them in real-time.
-Runs every 0.5 seconds to check if all 11 futures hit target or stop.
+Each row represents one future at one market open.
+Runs every 0.5 seconds to check if futures hit target or stop.
 """
 
 import time
 import logging
 from decimal import Decimal
 from django.utils import timezone
-from FutureTrading.models.MarketOpen import MarketOpenSession, FutureSnapshot
+from FutureTrading.models.MarketOpen import MarketOpenSession
 from LiveData.shared.redis_client import live_data_redis
 
 logger = logging.getLogger(__name__)
@@ -17,8 +18,9 @@ logger = logging.getLogger(__name__)
 
 class MarketOpenGrader:
     """
-    Grades pending market open trades by monitoring all 11 futures prices.
-    Checks every 0.5 seconds if target or stop is hit for each future.
+    Grades pending market open trades for each future.
+    Single-table design: one session row per future per market open.
+    Checks every 0.5 seconds if target or stop is hit.
     """
     
     def __init__(self, check_interval=0.5):
@@ -43,7 +45,9 @@ class MarketOpenGrader:
             Decimal: Current price to compare against targets
         """
         try:
-            data = live_data_redis.get_latest_quote(symbol)
+            # Handle DX -> $DXY mapping
+            redis_key = '$DXY' if symbol == 'DX' else symbol
+            data = live_data_redis.get_latest_quote(redis_key)
             
             if not data:
                 logger.warning(f"No {symbol} data in Redis snapshot")
@@ -63,95 +67,43 @@ class MarketOpenGrader:
             logger.error(f"Error getting {symbol} price from Redis: {e}")
             return None
     
-    def grade_future_snapshot(self, snapshot):
+    def grade_session(self, session):
         """
-        Check if a future snapshot's theoretical trade has hit target or stop.
+        Check if a session's trade has hit target or stop.
+        Works for individual futures AND TOTAL row.
         
         Args:
-            snapshot: FutureSnapshot instance
+            session: MarketOpenSession instance (one future)
             
         Returns:
             bool: True if graded (outcome determined), False if still pending
         """
-        # Skip if already graded or TOTAL or no entry/signal
-        if snapshot.outcome != 'PENDING' or snapshot.symbol == 'TOTAL':
+        # Skip if already graded
+        if session.outcome != 'PENDING' and session.fw_nwdw != 'PENDING':
             return True
         
-        if not snapshot.entry_price or not snapshot.signal or not snapshot.high_dynamic or not snapshot.low_dynamic:
+        # Skip TOTAL composite rows (no actual trade)
+        if session.future == 'TOTAL':
+            if session.outcome == 'PENDING':
+                session.outcome = 'NEUTRAL'
+                session.fw_nwdw = 'NEUTRAL'
+                session.save(update_fields=['outcome', 'fw_nwdw', 'updated_at'])
+            return True
+        
+        # Skip if no entry price or targets
+        if not session.entry_price or not session.target_high or not session.target_low:
             return True  # Can't grade without complete data
         
         # Skip HOLD signals
-        if snapshot.signal == 'HOLD':
-            snapshot.outcome = 'NEUTRAL'
-            snapshot.save(update_fields=['outcome'])
+        if session.total_signal == 'HOLD' or not session.total_signal:
+            if session.outcome == 'PENDING':
+                session.outcome = 'NEUTRAL'
+                session.fw_nwdw = 'NEUTRAL'
+                session.save(update_fields=['outcome', 'fw_nwdw', 'updated_at'])
             return True
         
-        # Get current price
-        current_price = self.get_current_price(snapshot.symbol, snapshot.signal)
-        
-        if not current_price:
-            return False  # Can't grade without price data
-        
-        # Check if target or stop is hit
-        worked = False
-        didnt_work = False
-        
-        if snapshot.signal in ['BUY', 'STRONG_BUY']:
-            # For BUY: target = high_dynamic, stop = low_dynamic
-            if current_price >= snapshot.high_dynamic:
-                worked = True
-            elif current_price <= snapshot.low_dynamic:
-                didnt_work = True
-                
-        elif snapshot.signal in ['SELL', 'STRONG_SELL']:
-            # For SELL: target = low_dynamic, stop = high_dynamic
-            if current_price <= snapshot.low_dynamic:
-                worked = True
-            elif current_price >= snapshot.high_dynamic:
-                didnt_work = True
-        
-        # Update outcome if determined
-        if worked:
-            snapshot.outcome = 'WORKED'
-            snapshot.exit_price = current_price
-            snapshot.exit_time = timezone.now()
-            snapshot.save(update_fields=['outcome', 'exit_price', 'exit_time'])
-            logger.info(f"✅ {snapshot.symbol} WORKED - Exit: {current_price}")
-            return True
-            
-        elif didnt_work:
-            snapshot.outcome = 'DIDNT_WORK'
-            snapshot.exit_price = current_price
-            snapshot.exit_time = timezone.now()
-            snapshot.save(update_fields=['outcome', 'exit_price', 'exit_time'])
-            logger.info(f"❌ {snapshot.symbol} DIDN'T WORK - Stop: {current_price}")
-            return True
-        
-        return False  # Still pending
-    
-    def grade_session(self, session):
-        """
-        Check if a session's YM trade has hit target or stop.
-        
-        Args:
-            session: MarketOpenSession instance
-            
-        Returns:
-            bool: True if graded (outcome determined), False if still pending
-        """
-        # Skip if already graded or no entry price
-        if session.fw_nwdw != 'PENDING' or not session.entry_price:
-            return True
-        
-        # Skip HOLD signals (no trade to grade)
-        if session.total_signal == 'HOLD':
-            session.fw_nwdw = 'NEUTRAL'
-            session.save(update_fields=['fw_nwdw', 'updated_at'])
-            logger.info(f"Session {session.id} marked NEUTRAL (HOLD signal)")
-            return True
-        
-        # Get current YM price
-        current_price = self.get_current_price('YM', session.total_signal)
+        # Get current price for this future
+        current_price = self.get_current_price(session.future, session.total_signal)
         
         if not current_price:
             return False  # Can't grade without price data
@@ -161,38 +113,47 @@ class MarketOpenGrader:
         didnt_work = False
         
         if session.total_signal in ['BUY', 'STRONG_BUY']:
-            # For BUY: target = high_dynamic, stop = low_dynamic
-            if current_price >= session.ym_high_dynamic:
+            # For BUY: target = target_high, stop = target_low
+            if current_price >= session.target_high:
                 worked = True
-            elif current_price <= session.ym_low_dynamic:
+            elif current_price <= session.target_low:
                 didnt_work = True
                 
         elif session.total_signal in ['SELL', 'STRONG_SELL']:
-            # For SELL: target = low_dynamic, stop = high_dynamic
-            if current_price <= session.ym_low_dynamic:
+            # For SELL: target = target_low, stop = target_high
+            if current_price <= session.target_low:
                 worked = True
-            elif current_price >= session.ym_high_dynamic:
+            elif current_price >= session.target_high:
                 didnt_work = True
         
         # Update outcome if determined
         if worked:
+            session.outcome = 'WORKED'
             session.fw_nwdw = 'WORKED'
             session.didnt_work = False
+            session.exit_price = current_price
+            session.exit_time = timezone.now()
             session.fw_exit_value = current_price
-            session.save(update_fields=['fw_nwdw', 'didnt_work', 'fw_exit_value', 'updated_at'])
-            logger.info(f"✅ Session {session.id} (YM) WORKED - Exit: {current_price}")
+            session.save(update_fields=[
+                'outcome', 'fw_nwdw', 'didnt_work', 'exit_price', 
+                'exit_time', 'fw_exit_value', 'updated_at'
+            ])
+            logger.info(f"✅ {session.future} (Session #{session.session_number}) WORKED - Exit: {current_price}")
             return True
             
         elif didnt_work:
+            session.outcome = 'DIDNT_WORK'
             session.fw_nwdw = 'DIDNT_WORK'
             session.didnt_work = True
+            session.exit_price = current_price
+            session.exit_time = timezone.now()
             session.fw_stopped_out_value = current_price
             session.fw_stopped_out_nwdw = 'STOPPED_OUT'
             session.save(update_fields=[
-                'fw_nwdw', 'didnt_work', 'fw_stopped_out_value', 
-                'fw_stopped_out_nwdw', 'updated_at'
+                'outcome', 'fw_nwdw', 'didnt_work', 'exit_price', 'exit_time',
+                'fw_stopped_out_value', 'fw_stopped_out_nwdw', 'updated_at'
             ])
-            logger.info(f"❌ Session {session.id} (YM) DIDN'T WORK - Stop: {current_price}")
+            logger.info(f"❌ {session.future} (Session #{session.session_number}) DIDN'T WORK - Stop: {current_price}")
             return True
         
         return False  # Still pending
@@ -200,29 +161,22 @@ class MarketOpenGrader:
     def run_grading_loop(self):
         """
         Main grading loop - runs continuously, checking every 0.5 seconds.
-        Grades all pending sessions and their future snapshots.
+        Grades all pending MarketOpenSession rows (one per future).
         """
         logger.info(f"Starting Market Open Grader (check interval: {self.check_interval}s)")
         self.running = True
         
         while self.running:
             try:
-                # Get all pending sessions
-                pending_sessions = MarketOpenSession.objects.filter(fw_nwdw='PENDING')
+                # Get all pending sessions (includes all futures except TOTAL which auto-marks neutral)
+                pending_sessions = MarketOpenSession.objects.filter(outcome='PENDING')
                 
-                # Get all pending future snapshots
-                pending_snapshots = FutureSnapshot.objects.filter(outcome='PENDING').exclude(symbol='TOTAL')
-                
-                if pending_sessions.exists() or pending_snapshots.exists():
-                    logger.debug(f"Grading {pending_sessions.count()} sessions and {pending_snapshots.count()} futures...")
+                if pending_sessions.exists():
+                    logger.debug(f"Grading {pending_sessions.count()} pending sessions...")
                     
-                    # Grade sessions (YM actual trades)
+                    # Grade each session (one row = one future)
                     for session in pending_sessions:
                         self.grade_session(session)
-                    
-                    # Grade all future snapshots (theoretical trades for analytics)
-                    for snapshot in pending_snapshots:
-                        self.grade_future_snapshot(snapshot)
                 
                 # Wait before next check
                 time.sleep(self.check_interval)

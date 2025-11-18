@@ -51,6 +51,37 @@ Note:
 
 ---
 
+## 🔌 Connect to Postgres (psql)
+
+Use these to open psql inside the running Docker container and list all tables.
+
+```powershell
+# From host, attach a shell into the DB container and run psql
+docker exec -it thor_postgres psql -U thor_user -d thor_db
+
+# In psql
+\conninfo           -- show current connection
+\dn                 -- list schemas
+\dt *.*             -- list tables in all schemas
+\dv *.*             -- list views in all schemas
+\d "FutureTrading_marketopensession"   -- describe a table (quoted name)
+```
+
+Alternative (using host psql without docker exec):
+
+```powershell
+# One‑off command (no interactive prompt)
+$Env:PGPASSWORD = 'thor_password'
+psql -h 127.0.0.1 -p 5432 -U thor_user -d thor_db -c "\dt *.*"
+```
+
+Notes:
+- The default credentials come from `docker-compose.yml`: user `thor_user`, db `thor_db`, password `thor_password`.
+- If you customized them in a `.env`, use those values instead.
+- Seeing only a few tables? Ensure you’re connected to `thor_db` and run `\dt *.*` (across all schemas).
+
+---
+
 ## 4️⃣ Start Excel Data Poller
 
 Run this in a separate terminal to stream live TOS RTD data into Redis:

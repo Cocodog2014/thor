@@ -2,7 +2,7 @@ from django.core.management.base import BaseCommand, CommandError
 from django.utils import timezone
 from typing import Optional
 
-from FutureTrading.models import MarketOpenSession, FutureSnapshot
+from FutureTrading.models import MarketOpenSession
 
 
 class Command(BaseCommand):
