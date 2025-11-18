@@ -19,12 +19,12 @@ The system now tracks 52-week high/low extremes internally within Thor, automati
 - System automatically updates when new extremes occur
 - View history of when highs/lows were set
 
-### 3. Auto-Update Management Command
-- `python manage.py update_52w_extremes`
-- Reads latest LAST prices from Redis
-- Automatically updates database when new highs/lows detected
-- Handles symbol mapping (RT→RTY, 30YRBOND→ZB)
-- Can run on schedule (cron, Celery Beat) or manually
+### 3. Real-Time Background Monitor
+- Auto-starts as a daemon thread from `FutureTrading.apps.FuturetradingConfig.ready()`.
+- Polls Redis every second (configurable) for latest LAST prices.
+- Updates database only when a new 52-week high or low occurs.
+- Handles symbol mapping (RT→RTY, 30YRBOND→ZB) internally.
+- No manual or scheduled runs required.
 
 ### 4. API Integration
 - RTD API (`/api/quotes/latest`) now includes 52w data
@@ -57,7 +57,7 @@ TOS RTD (LAST price only)
     ↓
 Excel → Redis → Thor Backend
     ↓
-update_52w_extremes command checks each price
+Real-time background monitor checks each price
     ↓
 If LAST > current 52w_high → Update high + date
 If LAST < current 52w_low  → Update low + date
@@ -87,22 +87,8 @@ The `update_from_price()` method on the model:
 5. Save
 
 ### Ongoing Operation
-**Option A: Scheduled (Recommended)**
-Add to Windows Task Scheduler or cron:
-```bash
-# Every 5 minutes during market hours
-python manage.py update_52w_extremes
-```
-
-**Option B: Manual**
-Run whenever you want to update:
-```bash
-cd A:\Thor\thor-backend
-python manage.py update_52w_extremes --verbose
-```
-
-**Option C: On-Demand via API** (Future Enhancement)
-Could trigger updates via API endpoint if needed.
+No operations required. The monitor runs continuously once Django starts.
+You can view current stats in the admin or via the API.
 
 ### Monitoring
 - Check Django admin to see last_updated timestamps
@@ -151,7 +137,7 @@ Currently set to "52 weeks" as all-time tracking (grows forever). To enforce tru
 ### Adding New Symbols
 1. Add to `SYMBOLS` list in management command
 2. Add symbol mapping to `SYMBOL_MAP` if needed
-3. Run `update_52w_extremes` to create initial record
+3. The monitor will create an initial record automatically on first tick if Redis has a price.
 4. Enter better initial values in admin if desired
 
 ## ✅ Testing Results
@@ -172,7 +158,6 @@ All systems operational! 🎉
 
 **New Files:**
 - `FutureTrading/models/extremes.py` - Model definition
-- `FutureTrading/management/commands/update_52w_extremes.py` - Auto-update command
 - `FutureTrading/migrations/0009_rolling52weekstats.py` - Database migration
 - `scripts/test_52w_api.py` - Testing utility
 
@@ -184,8 +169,7 @@ All systems operational! 🎉
 
 ## 🎯 Next Steps (Optional)
 
-1. **Schedule the command** - Set up automatic runs every 5 minutes
-2. **Backfill historical data** - Import past prices if you have them
-3. **Add breakout alerts** - Notify when price breaks 52w high/low
-4. **Track multiple timeframes** - 13w, 26w, 104w, etc.
-5. **Add to Market Open capture** - Store 52w extremes in session records
+1. **Backfill historical data** - Import past prices if you have them
+2. **Add breakout alerts** - Notify when price breaks 52w high/low
+3. **Track multiple timeframes** - 13w, 26w, 104w, etc.
+4. **Add to Market Open capture** - Store 52w extremes in session records

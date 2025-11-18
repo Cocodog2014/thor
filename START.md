@@ -46,6 +46,9 @@ $env:REDIS_URL = 'redis://localhost:6379/0'
 python manage.py runserver
 ```
 
+Note:
+- The 52-week extremes monitor now auto-starts with the backend and updates `Rolling52WeekStats` from Redis in real time. To disable it, set `FUTURETRADING_ENABLE_52W_MONITOR=0` in Django settings or environment.
+
 ---
 
 ## 4️⃣ Start Excel Data Poller
