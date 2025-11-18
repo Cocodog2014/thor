@@ -97,7 +97,7 @@ class FutureSnapshotInline(admin.TabularInline):
 class MarketOpenSessionAdmin(admin.ModelAdmin):
     list_display = [
         'session_number', 'country', 'date_display', 'day', 
-        'total_signal', 'fw_nwdw', 'ym_entry_price'
+        'total_signal', 'future', 'fw_nwdw', 'entry_price'
     ]
     list_filter = ['country', 'day', 'total_signal', 'fw_nwdw', 'year', 'month']
     search_fields = ['country', 'session_number']
@@ -106,13 +106,13 @@ class MarketOpenSessionAdmin(admin.ModelAdmin):
     
     fieldsets = (
         ('Session Info', {
-            'fields': ('session_number', 'country', 'year', 'month', 'date', 'day', 'captured_at')
+            'fields': ('session_number', 'country', 'future', 'year', 'month', 'date', 'day', 'captured_at')
         }),
-        ('YM Price Data', {
-            'fields': ('ym_open', 'ym_close', 'ym_ask', 'ym_bid', 'ym_last')
+        ('Reference Price Data', {
+            'fields': ('reference_open', 'reference_close', 'reference_ask', 'reference_bid', 'reference_last')
         }),
         ('Entry & Targets', {
-            'fields': ('ym_entry_price', 'ym_high_dynamic', 'ym_low_dynamic')
+            'fields': ('entry_price', 'target_high', 'target_low')
         }),
         ('Signal & Composite', {
             'fields': ('total_signal', 'strong_sell_flag', 'study_fw', 'fw_weight')

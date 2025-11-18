@@ -34,8 +34,8 @@ class MarketOpenSessionListSerializer(serializers.ModelSerializer):
         model = MarketOpenSession
         fields = [
             'id', 'session_number', 'year', 'month', 'date', 'day', 
-            'captured_at', 'country', 'total_signal', 
-            'ym_entry_price', 'ym_high_dynamic', 'ym_low_dynamic',
+            'captured_at', 'country', 'future', 'total_signal', 
+            'entry_price', 'target_high', 'target_low',
             'fw_nwdw', 'fw_exit_value', 'fw_exit_percent',
             'created_at'
         ]
@@ -53,9 +53,9 @@ class MarketOpenSessionDetailSerializer(serializers.ModelSerializer):
         model = MarketOpenSession
         fields = [
             'id', 'session_number', 'year', 'month', 'date', 'day', 
-            'captured_at', 'country',
-            'ym_open', 'ym_close', 'ym_ask', 'ym_bid', 'ym_last',
-            'ym_entry_price', 'ym_high_dynamic', 'ym_low_dynamic',
+            'captured_at', 'country', 'future',
+            'reference_open', 'reference_close', 'reference_ask', 'reference_bid', 'reference_last',
+            'entry_price', 'target_high', 'target_low',
             'total_signal', 'strong_sell_flag', 'study_fw', 'fw_weight',
             'didnt_work', 'fw_nwdw', 
             'fw_exit_value', 'fw_exit_percent',

@@ -140,7 +140,7 @@ class MarketOpenGrader:
             bool: True if graded (outcome determined), False if still pending
         """
         # Skip if already graded or no entry price
-        if session.fw_nwdw != 'PENDING' or not session.ym_entry_price:
+        if session.fw_nwdw != 'PENDING' or not session.entry_price:
             return True
         
         # Skip HOLD signals (no trade to grade)

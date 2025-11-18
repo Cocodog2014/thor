@@ -27,21 +27,44 @@ class MarketOpenSession(models.Model):
     
     # Market Info
     country = models.CharField(max_length=50, help_text="Market region (Japan, China, Europe, USA, etc.)")
+    future = models.CharField(max_length=10, default='YM', 
+                                       choices=[
+                                           ('TOTAL', 'TOTAL Composite'),
+                                           ('YM', 'Dow Jones (YM)'),
+                                           ('ES', 'S&P 500 (ES)'),
+                                           ('NQ', 'NASDAQ (NQ)'),
+                                           ('RTY', 'Russell 2000 (RTY)'),
+                                           ('CL', 'Crude Oil (CL)'),
+                                           ('SI', 'Silver (SI)'),
+                                           ('HG', 'Copper (HG)'),
+                                           ('GC', 'Gold (GC)'),
+                                           ('VX', 'Volatility (VX)'),
+                                           ('DX', 'Dollar Index (DX)'),
+                                           ('ZB', 'Bonds (ZB)'),
+                                           
+                                       ],
+                                       help_text="Primary future used for reference prices and trading")
     
-    # YM Price Data at Capture
-    ym_open = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
-    ym_close = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
-    ym_ask = models.DecimalField(max_digits=10, decimal_places=2, help_text="Ask price at capture")
-    ym_bid = models.DecimalField(max_digits=10, decimal_places=2, help_text="Bid price at capture")
-    ym_last = models.DecimalField(max_digits=10, decimal_places=2, help_text="Last traded price")
+    # Reference Price Data at Capture (typically from primary index like YM, but stored neutrally)
+    # Note: Individual future prices are in FutureSnapshot; these are summary/reference only
+    reference_open = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
+                                        help_text="Reference open price (e.g., YM open)")
+    reference_close = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
+                                         help_text="Reference close price (e.g., YM previous close)")
+    reference_ask = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
+                                       help_text="Reference ask price at capture")
+    reference_bid = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
+                                       help_text="Reference bid price at capture")
+    reference_last = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
+                                        help_text="Reference last traded price")
     
-    # Entry and Target Prices (auto-calculated on save)
-    ym_entry_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
-                                         help_text="Actual entry (Ask if buying, Bid if selling)")
-    ym_high_dynamic = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
-                                          help_text="Entry + 20 points ($100 profit target)")
-    ym_low_dynamic = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
-                                         help_text="Entry - 20 points ($100 stop loss)")
+    # Entry and Target Prices (auto-calculated on save, based on TOTAL signal)
+    entry_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
+                                     help_text="Actual entry (Ask if buying, Bid if selling)")
+    target_high = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
+                                     help_text="Entry + 20 points ($100 profit target)")
+    target_low = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
+                                    help_text="Entry - 20 points ($100 stop loss)")
     
     # Signal & Composite
     total_signal = models.CharField(max_length=20, 
@@ -96,20 +119,20 @@ class MarketOpenSession(models.Model):
         return f"{self.country} - {self.year}/{self.month}/{self.date} - {self.total_signal}"
     
     def save(self, *args, **kwargs):
-        """Auto-calculate entry and target prices based on signal"""
+        """Auto-calculate entry and target prices based on TOTAL signal"""
         # Only calculate if we have the required data and haven't set entry price manually
-        if self.ym_bid and self.ym_ask and self.total_signal and not self.ym_entry_price:
+        if self.reference_bid and self.reference_ask and self.total_signal and not self.entry_price:
             # Determine entry price based on signal
             if self.total_signal in ['BUY', 'STRONG_BUY']:
-                self.ym_entry_price = self.ym_ask  # Buy at ask
+                self.entry_price = self.reference_ask  # Buy at ask
             elif self.total_signal in ['SELL', 'STRONG_SELL']:
-                self.ym_entry_price = self.ym_bid  # Sell at bid
+                self.entry_price = self.reference_bid  # Sell at bid
             # HOLD doesn't get an entry price
             
-            # Calculate high and low dynamic targets if we have an entry price
-            if self.ym_entry_price:
-                self.ym_high_dynamic = self.ym_entry_price + 20  # +20 points for $100 profit
-                self.ym_low_dynamic = self.ym_entry_price - 20   # -20 points for $100 stop
+            # Calculate high and low targets if we have an entry price
+            if self.entry_price:
+                self.target_high = self.entry_price + 20  # +20 points for $100 profit
+                self.target_low = self.entry_price - 20   # -20 points for $100 stop
         
         super().save(*args, **kwargs)
 
