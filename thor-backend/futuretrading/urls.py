@@ -1,6 +1,6 @@
 from django.urls import path
 from .views.RTD import LatestQuotesView
-from .views.MarketOpen import (
+from .views.MarketSession import (
     MarketOpenSessionListView,
     MarketOpenSessionDetailView,
     TodayMarketOpensView,

@@ -12,7 +12,7 @@ from datetime import datetime, timedelta
 from django.db.models import Count, Q
 
 from FutureTrading.models.MarketSession import MarketOpenSession
-from FutureTrading.serializers.MarketOpen import (
+from FutureTrading.serializers.MarketSession import (
     MarketOpenSessionListSerializer,
     MarketOpenSessionDetailSerializer
 )

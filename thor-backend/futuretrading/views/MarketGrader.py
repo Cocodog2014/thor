@@ -16,7 +16,7 @@ from LiveData.shared.redis_client import live_data_redis
 logger = logging.getLogger(__name__)
 
 
-class MarketOpenGrader:
+class MarketGrader:
     """
     Grades pending market open trades for each future.
     Single-table design: one session row per future per market open.
@@ -197,7 +197,7 @@ class MarketOpenGrader:
 
 
 # Singleton instance
-grader = MarketOpenGrader()
+grader = MarketGrader()
 
 
 def start_grading_service():
@@ -210,4 +210,4 @@ def stop_grading_service():
     grader.stop()
 
 
-__all__ = ['start_grading_service', 'stop_grading_service', 'MarketOpenGrader']
+__all__ = ['start_grading_service', 'stop_grading_service', 'MarketGrader']
