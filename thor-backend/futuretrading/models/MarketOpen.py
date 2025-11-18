@@ -29,7 +29,7 @@ class MarketOpenSession(models.Model):
     
     # Market Info
     country = models.CharField(max_length=50, help_text="Market region (Japan, China, Europe, USA, etc.)")
-    future = models.CharField(max_length=10, default='YM', 
+    future = models.CharField(max_length=10, null=True, blank=True,
                                        choices=[
                                            ('TOTAL', 'TOTAL Composite'),
                                            ('YM', 'Dow Jones (YM)'),
