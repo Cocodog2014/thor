@@ -57,7 +57,7 @@ def simulate_tokyo_open():
     if existing.exists():
         print("   Recent sessions:")
         for s in existing[:3]:
-            print(f"   - Session #{s.session_number}: {s.captured_at.strftime('%H:%M:%S')} - Signal: {s.total_signal}")
+            print(f"   - Session #{s.session_number}: {s.captured_at.strftime('%H:%M:%S')} - Signal: {s.bhs}")
         
         # Ask to delete existing session
         print("\n⚠️  A session already exists for today!")
@@ -93,7 +93,7 @@ def simulate_tokyo_open():
     print(f"   Session Number: #{session.session_number}")
     print(f"   Country: {session.country}")
     print(f"   Captured At: {session.captured_at.strftime('%Y-%m-%d %H:%M:%S')}")
-    print(f"   Total Signal: {session.total_signal}")
+    print(f"   Total Signal: {session.bhs}")
     print(f"   FW Weight: {session.fw_weight}")
     print(f"   YM Last: {session.ym_last}")
     

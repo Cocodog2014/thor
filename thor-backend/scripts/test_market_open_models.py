@@ -37,7 +37,7 @@ try:
         ym_entry_price=Decimal("47388.00"),  # Buying at ask
         ym_high_dynamic=Decimal("47408.00"),  # +20 points
         ym_low_dynamic=Decimal("47368.00"),   # -20 points
-        total_signal="BUY",
+        bhs="BUY",
         fw_weight=Decimal("5.0"),
     )
     print(f"✅ Created session: {session}")

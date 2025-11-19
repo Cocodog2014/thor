@@ -6,38 +6,39 @@ import os
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'thor_project.settings')
 django.setup()
 
-from FutureTrading.models.MarketOpen import MarketOpenSession, FutureSnapshot
+from FutureTrading.models.MarketSession import MarketSession
 
-# Get today's Japan session
-session = MarketOpenSession.objects.filter(country='Japan').order_by('-captured_at').first()
+# Get most recent Japan TOTAL row
+total_row = (MarketSession.objects
+             .filter(country='Japan', future='TOTAL')
+             .order_by('-captured_at')
+             .first())
 
-if not session:
-    print("No Japan session found!")
+if not total_row:
+    print("No Japan TOTAL row found!")
     exit(1)
 
-print(f"Japan Session #{session.session_number}")
-print(f"Captured: {session.captured_at}")
-print(f"Signal: {session.total_signal}")
-print(f"fw_weight: {session.fw_weight}")
+print(f"Japan Session #{total_row.session_number}")
+print(f"Captured: {total_row.captured_at}")
+print(f"Signal (bhs): {total_row.bhs}")
+print(f"Weight: {total_row.weight}")
+print(f"Weighted Avg: {total_row.weighted_average}")
+print(f"Sum Weighted: {total_row.sum_weighted}")
+print(f"Instrument Count: {total_row.instrument_count}")
 print()
 
-# Get the TOTAL snapshot
-total = session.futures.filter(symbol='TOTAL').first()
+# Pull sibling futures for same capture
+siblings = (MarketSession.objects
+            .filter(
+                country=total_row.country,
+                session_number=total_row.session_number,
+                year=total_row.year,
+                month=total_row.month,
+                date=total_row.date,
+            )
+            .exclude(future='TOTAL')
+            .order_by('future'))
 
-if total:
-    print("TOTAL Snapshot:")
-    print(f"  weighted_average: {total.weighted_average}")
-    print(f"  signal: {total.signal}")
-    print(f"  weight: {total.weight}")
-    print(f"  sum_weighted: {total.sum_weighted}")
-    print(f"  instrument_count: {total.instrument_count}")
-    print(f"  status: {total.status}")
-    print()
-else:
-    print("❌ No TOTAL snapshot found!")
-    print()
-
-# Show all futures in this session
-print(f"All futures in session ({session.futures.count()}):")
-for f in session.futures.all():
-    print(f"  {f.symbol}: signal={f.signal}, weight={f.weight}")
+print(f"Futures captured for this session ({siblings.count()} rows):")
+for row in siblings:
+    print(f"  {row.future}: bhs={row.bhs} last={row.last_price} change={row.change} weight={row.weight}")

@@ -35,7 +35,7 @@ interface MarketOpenSession {
   target_high?: string | null;
   target_low?: string | null;
   weighted_average?: string | null;
-  total_signal?: string | null;
+  bhs?: string | null;
   weight?: number | null;
   sum_weighted?: string | null;
   instrument_count?: number | null;
@@ -226,9 +226,9 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl }) => {
           <span className="total-badge futures">11 Futures</span>
           {totalSession && (
             <span
-              className={`total-pill ${String(totalSession.total_signal || '').toLowerCase().replace('_','-')}`}
+              className={`total-pill ${String(totalSession.bhs || '').toLowerCase().replace('_','-')}`}
             >
-              {(totalSession.total_signal || '—').replace('_',' ')}
+              {(totalSession.bhs || '—').replace('_',' ')}
             </span>
           )}
           <span className="total-time">
@@ -302,7 +302,7 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl }) => {
           // Find the row for the selected future
           const snap = rows.find(r => r.future?.toUpperCase() === selectedSymbol?.toUpperCase()) || rows[0];
 
-          const signal = snap?.total_signal;
+          const signal = snap?.bhs;
           const outcomeStatus = snap?.fw_nwdw;
 
           return (

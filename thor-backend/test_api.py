@@ -10,6 +10,6 @@ if resp.status_code == 200:
     data = resp.json()
     print(f"Sessions returned: {len(data)}")
     for s in data[:3]:
-        print(f"  - {s['country']}: captured_at={s['captured_at']}, signal={s.get('total_signal')}, futures={len(s.get('futures', []))}")
+        print(f"  - {s['country']}: captured_at={s['captured_at']}, signal={s.get('bhs')}, futures={len(s.get('futures', []))}")
 else:
     print(f"Error: {resp.text[:200]}")

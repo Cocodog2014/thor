@@ -8,6 +8,7 @@ import sys
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'thor_project.settings')
 django.setup()
 
+from collections import defaultdict
 from FutureTrading.models.MarketSession import MarketSession
 from django.utils import timezone
 
@@ -16,30 +17,37 @@ print(f"Today: {today.year}/{today.month}/{today.day}")
 print(f"Current time: {today.strftime('%Y-%m-%d %H:%M:%S %Z')}")
 print("-" * 60)
 
-sessions = MarketSession.objects.filter(
-    year=today.year, 
-    month=today.month, 
-    date=today.day
-)
+qs = (MarketSession.objects
+       .filter(year=today.year, month=today.month, date=today.day)
+       .order_by('country', 'session_number', 'future'))
 
-print(f"Total sessions today: {sessions.count()}")
+groups = defaultdict(list)
+for row in qs:
+    key = (row.country, row.session_number)
+    groups[key].append(row)
+
+print(f"Total session groups today: {len(groups)}")
 print()
 
-if sessions.count() > 0:
-    for s in sessions:
-        futures_count = s.futures.count()
-        total_snapshot = s.futures.filter(symbol='TOTAL').first()
-        print(f"  - {s.country}: Session #{s.session_number}")
-        print(f"    Captured: {s.captured_at.strftime('%Y-%m-%d %H:%M:%S %Z')}")
-        print(f"    Signal: {s.total_signal}")
-        print(f"    Futures: {futures_count} snapshots")
-        if total_snapshot:
-            print(f"    TOTAL: weighted_avg={total_snapshot.weighted_average}, signal={total_snapshot.signal}")
+if groups:
+    for (country, session_number), rows in groups.items():
+        rows_sorted = sorted(rows, key=lambda r: (r.future or ''))
+        total_row = next((r for r in rows_sorted if (r.future or '').upper() == 'TOTAL'), None)
+        session_signal = (total_row.bhs if total_row and total_row.bhs else rows_sorted[0].bhs)
+        captured_at = max(r.captured_at for r in rows_sorted)
+        print(f"  - {country}: Session #{session_number}")
+        print(f"    Captured: {captured_at.strftime('%Y-%m-%d %H:%M:%S %Z')}")
+        print(f"    Signal (bhs): {session_signal}")
+        print(f"    Rows captured: {len(rows_sorted)} futures")
+        if total_row:
+            print(f"    TOTAL weighted_avg={total_row.weighted_average} weight={total_row.weight}")
         print()
 else:
     print("❌ No sessions captured today!")
     print()
-    print("Recent sessions:")
-    recent = MarketSession.objects.all().order_by('-captured_at')[:5]
-    for s in recent:
-        print(f"  - {s.country}: {s.captured_at.strftime('%Y-%m-%d %H:%M:%S')}")
+    print("Recent captures:")
+    recent = (MarketSession.objects
+              .order_by('-captured_at')
+              [:5])
+    for row in recent:
+        print(f"  - {row.country} #{row.session_number} {row.future}: {row.captured_at.strftime('%Y-%m-%d %H:%M:%S')} bhs={row.bhs}")

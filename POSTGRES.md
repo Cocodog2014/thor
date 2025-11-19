@@ -353,7 +353,7 @@ docker exec -it thor_postgres psql -U thor_user -d thor_db
 \d+ "FutureTrading_marketopensession"
 
 **View recent market open sessions**
-SELECT id, session_number, country, total_signal, captured_at 
+SELECT id, session_number, country, bhs, captured_at 
 FROM "FutureTrading_marketopensession" 
 ORDER BY captured_at DESC 
 LIMIT 10;

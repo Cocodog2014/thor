@@ -93,7 +93,7 @@ Add section for captured market open sessions:
 - session_number, year, month, date, day, captured_at, country
 - YM prices: open, close, ask, bid, last
 - Entry prices: entry_price, high_dynamic (+20), low_dynamic (-20)
-- Signal: total_signal (BUY/SELL/HOLD/STRONG_BUY/STRONG_SELL)
+- Signal: bhs (BUY/SELL/HOLD/STRONG_BUY/STRONG_SELL)
 - Outcome: fw_nwdw (WORKED/DIDNT_WORK/NEUTRAL/PENDING), exit values
 
 ### FutureSnapshot (12 records per session: 11 futures + TOTAL)
@@ -999,9 +999,9 @@ Whichever hits first (target or stop) determines the outcome:
   "opened_at": "2025-10-25T09:00:00+09:00",
   "date": "2025-10-25",
   "day_of_week": "Saturday",
-  "total_composite_signal": "BUY",
-  "total_signal_weight_sum": 5,
-  "total_weighted_avg": 11.409,
+  "bhs": "BUY",
+  "weight": 5,
+  "weighted_average": 11.409,
   "ym_entry_side": "BUY",
   "ym_entry_price": 47388.0,
   "ym_bid_at_open": 47380.0,
@@ -1550,9 +1550,9 @@ class MarketSession(models.Model):
     day_of_week = models.CharField(max_length=10)  # "Monday", etc.
     
     # Composite signal at market open
-    total_composite_signal = models.CharField(max_length=20)  # BUY, SELL, HOLD
-    total_signal_weight_sum = models.IntegerField()  # Numeric score
-    total_weighted_avg = models.DecimalField(max_digits=10, decimal_places=3, null=True)
+    bhs = models.CharField(max_length=20)  # BUY, SELL, HOLD
+    weight = models.IntegerField()  # Numeric score
+    weighted_average = models.DecimalField(max_digits=10, decimal_places=3, null=True)
     
     # YM entry details
     ym_entry_side = models.CharField(max_length=10, null=True)  # BUY, SELL, None

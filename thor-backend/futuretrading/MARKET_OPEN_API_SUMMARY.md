@@ -207,7 +207,7 @@ ym_high_dynamic      # Entry + 20 points ($100 target)
 ym_low_dynamic       # Entry - 20 points ($100 stop)
 
 # Signal
-total_signal         # BUY/SELL/STRONG_BUY/STRONG_SELL/HOLD
+bhs                  # BUY/SELL/STRONG_BUY/STRONG_SELL/HOLD
 fw_weight            # Weighted average value
 
 # Outcome
