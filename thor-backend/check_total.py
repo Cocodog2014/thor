@@ -23,7 +23,6 @@ print(f"Captured: {total_row.captured_at}")
 print(f"Signal (bhs): {total_row.bhs}")
 print(f"Weight: {total_row.weight}")
 print(f"Weighted Avg: {total_row.weighted_average}")
-print(f"Sum Weighted: {total_row.sum_weighted}")
 print(f"Instrument Count: {total_row.instrument_count}")
 print()
 

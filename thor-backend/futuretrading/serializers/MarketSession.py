@@ -59,8 +59,8 @@ class MarketOpenSessionDetailSerializer(serializers.ModelSerializer):
             # Entry and targets
             'entry_price', 'target_high', 'target_low',
             # Signal and composite
-            'weighted_average', 'bhs', 'wndw', 'sum_weighted',
-            'instrument_count', 'status', 'strong_sell_flag', 'study_fw', 'fw_weight',
+            'weighted_average', 'bhs', 'wndw',
+            'instrument_count', 'strong_sell_flag', 'study_fw', 'fw_weight',
             # Outcome tracking
             'outcome', 'didnt_work', 'fw_nwdw', 
             'exit_price', 'exit_time', 'fw_exit_value', 'fw_exit_percent',

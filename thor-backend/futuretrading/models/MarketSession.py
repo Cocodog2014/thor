@@ -282,11 +282,8 @@ class MarketSession(models.Model):
     # For individual futures: their own signal/HBS
     weighted_average = models.DecimalField(max_digits=10, decimal_places=4, null=True, blank=True,
                                            help_text="TOTAL weighted average (e.g., -0.109)")
-    sum_weighted = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
-                                       help_text="Sum weighted (e.g., 13.02, for TOTAL)")
     instrument_count = models.IntegerField(null=True, blank=True, default=11,
                                            help_text="Count of instruments (for TOTAL)")
-    status = models.CharField(max_length=50, blank=True, help_text="Status (e.g., LIVE TOTAL)")
     
     strong_sell_flag = models.BooleanField(default=False, help_text="Flag for strong sell signal")
     study_fw = models.CharField(max_length=50, blank=True, help_text="Study/Framework identifier")

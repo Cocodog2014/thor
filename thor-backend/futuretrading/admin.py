@@ -119,10 +119,10 @@ class MarketSessionAdmin(admin.ModelAdmin):
                 'hold', 'hold_percentage',
                 'strong_sell_worked', 'strong_sell_worked_percentage',
                 'strong_sell_didnt_work', 'strong_sell_didnt_work_percentage',
-                'sell_worked', 'sell_worked_percentage',
-                'sell_didnt_work', 'sell_didnt_work_percentage',
-                'weighted_average', 'weight', 'sum_weighted', 
-                      'instrument_count', 'status', 'strong_sell_flag', 'study_fw', 'fw_weight')
+                    'sell_worked', 'sell_worked_percentage',
+                    'sell_didnt_work', 'sell_didnt_work_percentage',
+                    'weighted_average', 'weight',
+                        'instrument_count', 'strong_sell_flag', 'study_fw', 'fw_weight')
         }),
         ('Outcome Tracking', {
             'fields': ('outcome', 'fw_nwdw', 'didnt_work', 'exit_price', 'exit_time',

@@ -38,9 +38,7 @@ interface MarketOpenSession {
   target_low?: string | null;
   weighted_average?: string | null;
   bhs?: string | null;
-  sum_weighted?: string | null;
   instrument_count?: number | null;
-  status?: string | null;
   outcome?: string | null;
   fw_nwdw?: string | null;
   exit_price?: string | null;
@@ -243,19 +241,18 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl }) => {
               <div className="total-label">Weighted Average</div>
               <div className="total-left-metrics">
                 <div className="total-mini-card">
-                  <div className="mini-title">Sum</div>
-                  <div className="mini-value">{formatNum(totalSession.sum_weighted) || '—'}</div>
-                  <div className="mini-sub">Weighted</div>
-                </div>
-                <div className="total-mini-card">
                   <div className="mini-title">Count</div>
                   <div className="mini-value">{totalSession.instrument_count ?? '—'}</div>
                   <div className="mini-sub">Instruments</div>
                 </div>
+                <div className="total-mini-card">
+                  <div className="mini-title">Weight</div>
+                  <div className="mini-value">{totalSession.weight ?? '—'}</div>
+                  <div className="mini-sub">Composite</div>
+                </div>
               </div>
             </div>
             <div className="total-right">
-              <div className="wgt">Wgt: {String(totalSession.weight ?? '—')}</div>
               <div className="live-label">LIVE TOTAL</div>
             </div>
           </div>
