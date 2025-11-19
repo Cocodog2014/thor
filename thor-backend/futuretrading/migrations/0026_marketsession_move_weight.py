@@ -103,8 +103,6 @@ BEGIN
         range_high_low numeric(10,2),
         range_percent numeric(10,4),
         spread numeric(10,2),
-        status varchar(50) NOT NULL,
-        sum_weighted numeric(10,2),
         volume bigint,
         vwap numeric(10,2),
         week_52_high numeric(10,2),
@@ -128,7 +126,7 @@ BEGIN
         || 'close_captured_at, close_change, close_change_percent, close_instrument_count, close_last_price, close_signal, close_spread, close_status, '
         || 'close_sum_weighted, close_volume, close_vwap, close_weight, close_weighted_average, day_24h_high, day_24h_low, '
         || 'exit_price, exit_time, instrument_count, last_price, open_vs_prev_number, open_vs_prev_percent, outcome, '
-        || 'range_high_low, range_percent, spread, status, sum_weighted, volume, vwap, '
+        || 'range_high_low, range_percent, spread, volume, vwap, '
         || 'week_52_high, week_52_low, week_52_range_high_low, week_52_range_percent, weighted_average';
 
     EXECUTE format(
