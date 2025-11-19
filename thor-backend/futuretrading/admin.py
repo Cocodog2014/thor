@@ -116,6 +116,7 @@ class MarketSessionAdmin(admin.ModelAdmin):
                 'strong_buy_worked', 'strong_buy_worked_percentage',
                 'strong_buy_didnt_work', 'strong_buy_didnt_worked_percentage',
                 'buy_worked', 'buy_worked_percentage', 'buy_didnt_work', 'buy_didnt_work_percentage',
+                'hold', 'hold_percentage',
                 'weighted_average', 'weight', 'sum_weighted', 
                       'instrument_count', 'status', 'strong_sell_flag', 'study_fw', 'fw_weight')
         }),

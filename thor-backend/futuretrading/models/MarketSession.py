@@ -138,6 +138,20 @@ class MarketSession(models.Model):
         blank=True,
         help_text="Percent of buys that failed"
     )
+    hold = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Hold signals count"
+    )
+    hold_percentage = models.DecimalField(
+        max_digits=10,
+        decimal_places=4,
+        null=True,
+        blank=True,
+        help_text="Percent of holds"
+    )
 
     # Live Price Data at Market Open
     last_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
