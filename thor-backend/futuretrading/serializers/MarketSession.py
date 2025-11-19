@@ -17,6 +17,7 @@ class MarketOpenSessionListSerializer(serializers.ModelSerializer):
             'captured_at', 'country', 'future', 'country_future', 'bhs', 'wndw',
             'country_future_wndw_total', 'strong_buy_worked', 'strong_buy_worked_percentage',
             'strong_buy_didnt_work', 'strong_buy_didnt_worked_percentage',
+            'buy_worked', 'buy_worked_percentage', 'buy_didnt_work', 'buy_didnt_work_percentage',
             'last_price', 'change', 'change_percent',
             'entry_price', 'target_high', 'target_low',
             'outcome', 'fw_nwdw', 'exit_price',
@@ -34,6 +35,7 @@ class MarketOpenSessionDetailSerializer(serializers.ModelSerializer):
             'captured_at', 'country', 'future', 'country_future', 'bhs', 'wndw',
             'country_future_wndw_total', 'strong_buy_worked', 'strong_buy_worked_percentage',
             'strong_buy_didnt_work', 'strong_buy_didnt_worked_percentage',
+            'buy_worked', 'buy_worked_percentage', 'buy_didnt_work', 'buy_didnt_work_percentage',
             # Live price data at open
             'last_price', 'change', 'change_percent',
             'reference_ask', 'ask_size', 'reference_bid', 'bid_size',

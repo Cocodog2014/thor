@@ -110,6 +110,34 @@ class MarketSession(models.Model):
         blank=True,
         help_text="Percent of strong buys that failed"
     )
+    buy_worked = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Buy signals that worked"
+    )
+    buy_worked_percentage = models.DecimalField(
+        max_digits=10,
+        decimal_places=4,
+        null=True,
+        blank=True,
+        help_text="Percent of buys that worked"
+    )
+    buy_didnt_work = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Buy signals that did not work"
+    )
+    buy_didnt_work_percentage = models.DecimalField(
+        max_digits=10,
+        decimal_places=4,
+        null=True,
+        blank=True,
+        help_text="Percent of buys that failed"
+    )
 
     # Live Price Data at Market Open
     last_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
