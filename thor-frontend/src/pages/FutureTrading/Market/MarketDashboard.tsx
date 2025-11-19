@@ -13,6 +13,8 @@ interface MarketOpenSession {
   captured_at: string;
   country: string;
   future: string; // YM, ES, NQ, RTY, CL, SI, HG, GC, VX, DX, ZB, TOTAL
+  country_future?: string | null;
+  weight?: number | null;
   last_price?: string | null;
   change?: string | null;
   change_percent?: string | null;
@@ -36,7 +38,6 @@ interface MarketOpenSession {
   target_low?: string | null;
   weighted_average?: string | null;
   bhs?: string | null;
-  weight?: number | null;
   sum_weighted?: string | null;
   instrument_count?: number | null;
   status?: string | null;

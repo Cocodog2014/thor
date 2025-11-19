@@ -14,7 +14,7 @@ class MarketOpenSessionListSerializer(serializers.ModelSerializer):
         model = MarketSession
         fields = [
             'id', 'session_number', 'year', 'month', 'date', 'day', 
-            'captured_at', 'country', 'future', 'country_future', 'bhs', 'wndw',
+            'captured_at', 'country', 'future', 'country_future', 'weight', 'bhs', 'wndw',
             'country_future_wndw_total', 'strong_buy_worked', 'strong_buy_worked_percentage',
             'strong_buy_didnt_work', 'strong_buy_didnt_work_percentage',
             'buy_worked', 'buy_worked_percentage', 'buy_didnt_work', 'buy_didnt_work_percentage',
@@ -37,7 +37,7 @@ class MarketOpenSessionDetailSerializer(serializers.ModelSerializer):
         model = MarketSession
         fields = [
             'id', 'session_number', 'year', 'month', 'date', 'day', 
-            'captured_at', 'country', 'future', 'country_future', 'bhs', 'wndw',
+            'captured_at', 'country', 'future', 'country_future', 'weight', 'bhs', 'wndw',
             'country_future_wndw_total', 'strong_buy_worked', 'strong_buy_worked_percentage',
             'strong_buy_didnt_work', 'strong_buy_didnt_work_percentage',
             'buy_worked', 'buy_worked_percentage', 'buy_didnt_work', 'buy_didnt_work_percentage',
@@ -59,7 +59,7 @@ class MarketOpenSessionDetailSerializer(serializers.ModelSerializer):
             # Entry and targets
             'entry_price', 'target_high', 'target_low',
             # Signal and composite
-            'weighted_average', 'bhs', 'wndw', 'weight', 'sum_weighted',
+            'weighted_average', 'bhs', 'wndw', 'sum_weighted',
             'instrument_count', 'status', 'strong_sell_flag', 'study_fw', 'fw_weight',
             # Outcome tracking
             'outcome', 'didnt_work', 'fw_nwdw', 

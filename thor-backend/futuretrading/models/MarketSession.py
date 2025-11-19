@@ -53,6 +53,11 @@ class MarketSession(models.Model):
         blank=True,
         help_text="Numeric country future metric kept next to future for ordering"
     )
+    weight = models.IntegerField(
+        null=True,
+        blank=True,
+        help_text="Weight value (for TOTAL)"
+    )
     
     # Signal placed immediately after future for desired physical ordering
     bhs = models.CharField(max_length=20,
@@ -277,7 +282,6 @@ class MarketSession(models.Model):
     # For individual futures: their own signal/HBS
     weighted_average = models.DecimalField(max_digits=10, decimal_places=4, null=True, blank=True,
                                            help_text="TOTAL weighted average (e.g., -0.109)")
-    weight = models.IntegerField(null=True, blank=True, help_text="Weight value (for TOTAL)")
     sum_weighted = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
                                        help_text="Sum weighted (e.g., 13.02, for TOTAL)")
     instrument_count = models.IntegerField(null=True, blank=True, default=11,
