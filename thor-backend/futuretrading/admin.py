@@ -114,7 +114,7 @@ class MarketSessionAdmin(admin.ModelAdmin):
             'fields': (
                 'bhs', 'wndw', 'country_future_wndw_total',
                 'strong_buy_worked', 'strong_buy_worked_percentage',
-                'strong_buy_didnt_work', 'strong_buy_didnt_worked_percentage',
+                'strong_buy_didnt_work', 'strong_buy_didnt_work_percentage',
                 'buy_worked', 'buy_worked_percentage', 'buy_didnt_work', 'buy_didnt_work_percentage',
                 'hold', 'hold_percentage',
                 'strong_sell_worked', 'strong_sell_worked_percentage',

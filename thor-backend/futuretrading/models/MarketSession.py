@@ -103,7 +103,7 @@ class MarketSession(models.Model):
         blank=True,
         help_text="Strong buy signals that did not work"
     )
-    strong_buy_didnt_worked_percentage = models.DecimalField(
+    strong_buy_didnt_work_percentage = models.DecimalField(
         max_digits=10,
         decimal_places=4,
         null=True,
