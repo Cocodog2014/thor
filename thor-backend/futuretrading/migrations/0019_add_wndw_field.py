@@ -1,4 +1,7 @@
-from django.db import migrations
+from django.db import migrations, models
+
+COPY_SQL = 'UPDATE "FutureTrading_marketsession" SET wndw = fw_nwdw;'
+COPY_SQL_REVERSE = 'UPDATE "FutureTrading_marketsession" SET wndw = \'PENDING\''
 
 FORWARD_SQL = r"""
 DO $$
@@ -13,8 +16,7 @@ BEGIN
         RAISE EXCEPTION 'Table % does not exist; abort reorder', tbl;
     END IF;
 
-    -- Create new table with reordered columns (bhs directly after future)
-    CREATE TABLE "FutureTrading_marketsession_new" (
+    CREATE TABLE "FutureTrading_marketsession_tmp" (
         id SERIAL PRIMARY KEY,
         session_number integer NOT NULL,
         year integer NOT NULL,
@@ -25,6 +27,7 @@ BEGIN
         country varchar(50) NOT NULL,
         future varchar(10),
         bhs varchar(20) NOT NULL,
+        wndw varchar(20) NOT NULL,
         reference_open numeric(10,2),
         reference_close numeric(10,2),
         reference_ask numeric(10,2),
@@ -87,10 +90,10 @@ BEGIN
         week_52_range_percent numeric(10,4),
         weight integer,
         weighted_average numeric(10,4),
-        CONSTRAINT futuretrading_marketsession_new_uniq UNIQUE (country, year, month, date, future)
+        CONSTRAINT futuretrading_marketsession_tmp_uniq UNIQUE (country, year, month, date, future)
     );
 
-    col_list := 'id, session_number, year, month, date, day, captured_at, country, future, bhs, '
+    col_list := 'id, session_number, year, month, date, day, captured_at, country, future, bhs, wndw, '
         || 'reference_open, reference_close, reference_ask, reference_bid, reference_last, '
         || 'entry_price, target_high, target_low, strong_sell_flag, study_fw, fw_weight, didnt_work, fw_nwdw, '
         || 'fw_exit_value, fw_exit_percent, fw_stopped_out_value, fw_stopped_out_nwdw, created_at, updated_at, '
@@ -102,17 +105,15 @@ BEGIN
         || 'week_52_high, week_52_low, week_52_range_high_low, week_52_range_percent, weight, weighted_average';
 
     EXECUTE format(
-        'INSERT INTO "FutureTrading_marketsession_new" (%s) SELECT %s FROM %I',
+        'INSERT INTO "FutureTrading_marketsession_tmp" (%s) SELECT %s FROM %I',
         col_list,
         col_list,
         tbl
     );
 
-    -- Drop old table and rename new
     EXECUTE format('DROP TABLE %I', tbl);
-    ALTER TABLE "FutureTrading_marketsession_new" RENAME TO "FutureTrading_marketsession";
+    ALTER TABLE "FutureTrading_marketsession_tmp" RENAME TO "FutureTrading_marketsession";
 
-    -- Reset sequence value
     PERFORM setval(
         pg_get_serial_sequence('"FutureTrading_marketsession"','id'),
         (SELECT MAX(id) FROM "FutureTrading_marketsession")
@@ -124,9 +125,25 @@ REVERSE_SQL = """-- Irreversible rebuild."""
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("FutureTrading", "0017_rename_total_signal_to_bhs"),
+        ("FutureTrading", "0018_recreate_marketsession_reorder_bhs"),
     ]
 
     operations = [
+        migrations.AddField(
+            model_name='marketsession',
+            name='wndw',
+            field=models.CharField(
+                choices=[
+                    ('WORKED', 'Worked'),
+                    ('DIDNT_WORK', "Didn't Work"),
+                    ('NEUTRAL', 'Neutral'),
+                    ('PENDING', 'Pending'),
+                ],
+                default='PENDING',
+                max_length=20,
+                help_text='Window result (mirrors fw_nwdw)'
+            ),
+        ),
+        migrations.RunSQL(COPY_SQL, COPY_SQL_REVERSE),
         migrations.RunSQL(FORWARD_SQL, REVERSE_SQL),
     ]

@@ -128,6 +128,7 @@ class MarketOpenCaptureService:
             'country': country,
             'future': symbol,
             'captured_at': timezone.now(),
+            'wndw': 'PENDING',
             
             # Live price data at open
             'last_price': self.safe_decimal(row.get('last')),
@@ -194,6 +195,7 @@ class MarketOpenCaptureService:
             'country': country,
             'future': 'TOTAL',
             'captured_at': timezone.now(),
+            'wndw': 'PENDING',
             
             # TOTAL-specific composite data
             'weighted_average': self.safe_decimal(composite.get('avg_weighted')),

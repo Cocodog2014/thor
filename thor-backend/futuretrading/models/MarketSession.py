@@ -57,6 +57,17 @@ class MarketSession(models.Model):
                                ('HOLD', 'Hold'),
                            ],
                            help_text="Signal from TOTAL or individual future")
+    wndw = models.CharField(
+        max_length=20,
+        choices=[
+            ('WORKED', 'Worked'),
+            ('DIDNT_WORK', "Didn't Work"),
+            ('NEUTRAL', 'Neutral'),
+            ('PENDING', 'Pending'),
+        ],
+        default='PENDING',
+        help_text="Window result (mirrors fw_nwdw)"
+    )
 
     # Live Price Data at Market Open
     last_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
