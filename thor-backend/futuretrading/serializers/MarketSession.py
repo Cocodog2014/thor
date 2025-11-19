@@ -14,7 +14,7 @@ class MarketOpenSessionListSerializer(serializers.ModelSerializer):
         model = MarketSession
         fields = [
             'id', 'session_number', 'year', 'month', 'date', 'day', 
-            'captured_at', 'country', 'future', 'bhs', 'wndw',
+            'captured_at', 'country', 'future', 'country_future', 'bhs', 'wndw',
             'last_price', 'change', 'change_percent',
             'entry_price', 'target_high', 'target_low',
             'outcome', 'fw_nwdw', 'exit_price',
@@ -29,7 +29,7 @@ class MarketOpenSessionDetailSerializer(serializers.ModelSerializer):
         model = MarketSession
         fields = [
             'id', 'session_number', 'year', 'month', 'date', 'day', 
-            'captured_at', 'country', 'future', 'bhs', 'wndw',
+            'captured_at', 'country', 'future', 'country_future', 'bhs', 'wndw',
             # Live price data at open
             'last_price', 'change', 'change_percent',
             'reference_ask', 'ask_size', 'reference_bid', 'bid_size',

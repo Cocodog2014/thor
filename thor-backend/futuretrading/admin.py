@@ -84,7 +84,7 @@ class SignalWeightAdmin(admin.ModelAdmin):
 @admin.register(MarketSession)
 class MarketSessionAdmin(admin.ModelAdmin):
     list_display = [
-        'session_number', 'country', 'future', 'date_display', 'day', 
+        'session_number', 'country', 'future', 'country_future', 'date_display', 'day', 
         'bhs', 'wndw', 'fw_nwdw', 'entry_price', 'last_price'
     ]
     list_filter = ['country', 'future', 'day', 'bhs', 'wndw', 'fw_nwdw', 'year', 'month']
@@ -93,7 +93,7 @@ class MarketSessionAdmin(admin.ModelAdmin):
     
     fieldsets = (
         ('Session Info', {
-            'fields': ('session_number', 'country', 'future', 'year', 'month', 'date', 'day', 'captured_at')
+            'fields': ('session_number', 'country', 'future', 'country_future', 'year', 'month', 'date', 'day', 'captured_at')
         }),
         ('Live Price Data (Open)', {
             'fields': ('last_price', 'change', 'change_percent', 'reference_ask', 'ask_size', 

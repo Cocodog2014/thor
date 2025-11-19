@@ -46,6 +46,13 @@ class MarketSession(models.Model):
                                            
                                        ],
                                        help_text="Future symbol for this capture row")
+    country_future = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Numeric country future metric kept next to future for ordering"
+    )
     
     # Signal placed immediately after future for desired physical ordering
     bhs = models.CharField(max_length=20,
