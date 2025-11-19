@@ -223,11 +223,11 @@ class MarketSession(models.Model):
                                          help_text="Percentage change")
     
     # Bid/Ask Data at Market Open
-    reference_ask = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
-                                       help_text="Ask price at capture")
+    session_ask = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
+                                      help_text="Ask price at capture")
     ask_size = models.IntegerField(null=True, blank=True, help_text="Ask size")
-    reference_bid = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
-                                       help_text="Bid price at capture")
+    session_bid = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
+                                      help_text="Bid price at capture (renamed from reference_bid)")
     bid_size = models.IntegerField(null=True, blank=True, help_text="Bid size")
     
     # Market Data at Open
@@ -238,16 +238,16 @@ class MarketSession(models.Model):
                                 help_text="Bid-Ask spread")
     
     # Session Price Data
-    reference_close = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
-                                         help_text="Previous close price")
-    reference_open = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
-                                        help_text="Open price")
+    session_close = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
+                                        help_text="Previous close price (renamed from reference_close)")
+    session_open = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
+                                       help_text="Open price (renamed from reference_open)")
     open_vs_prev_number = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
                                               help_text="Open vs Prev (Number)")
     open_vs_prev_percent = models.DecimalField(max_digits=10, decimal_places=4, null=True, blank=True,
                                                help_text="Open vs Prev (%)")
-    reference_last = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
-                                        help_text="Reference last traded price (legacy)")
+    session_last = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
+                                       help_text="Last traded price at capture (renamed from reference_last)")
     
     # 24-Hour Range Data
     day_24h_low = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
@@ -381,12 +381,12 @@ class MarketSession(models.Model):
     def save(self, *args, **kwargs):
         """Auto-calculate entry and target prices based on signal"""
         # Only calculate if we have the required data and haven't set entry price manually
-        if self.reference_bid and self.reference_ask and self.bhs and not self.entry_price:
+        if self.session_bid and self.session_ask and self.bhs and not self.entry_price:
             # Determine entry price based on signal
             if self.bhs in ['BUY', 'STRONG_BUY']:
-                self.entry_price = self.reference_ask  # Buy at ask
+                self.entry_price = self.session_ask  # Buy at ask
             elif self.bhs in ['SELL', 'STRONG_SELL']:
-                self.entry_price = self.reference_bid  # Sell at bid
+                self.entry_price = self.session_bid  # Sell at bid
             # HOLD doesn't get an entry price
             
             # Calculate high and low targets if we have an entry price

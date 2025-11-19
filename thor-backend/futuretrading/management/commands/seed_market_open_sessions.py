@@ -83,15 +83,15 @@ class Command(BaseCommand):
                     'last_price': base,
                     'change': chg,
                     'change_percent': (chg / base * 100).quantize(Decimal('0.01')),
-                    'reference_bid': bid,
+                    'session_bid': bid,
                     'bid_size': random.randint(1, 10),
-                    'reference_ask': ask,
+                    'session_ask': ask,
                     'ask_size': random.randint(1, 10),
                     'volume': random.randint(1000, 2_000_000),
                     'vwap': base,
                     'spread': (ask - bid).quantize(Decimal('0.0001')),
-                    'reference_open': (base - chg).quantize(Decimal('0.01')),
-                    'reference_close': (base - chg).quantize(Decimal('0.01')),
+                    'session_open': (base - chg).quantize(Decimal('0.01')),
+                    'session_close': (base - chg).quantize(Decimal('0.01')),
                     'day_24h_low': (base - Decimal('1.00')).quantize(Decimal('0.01')),
                     'day_24h_high': (base + Decimal('1.00')).quantize(Decimal('0.01')),
                     'range_high_low': Decimal('2.00'),
@@ -108,11 +108,11 @@ class Command(BaseCommand):
                 # Entry/targets
                 if sig not in ['HOLD', None, '']:
                     if sig in ['BUY', 'STRONG_BUY']:
-                        data['entry_price'] = data['reference_ask']
+                        data['entry_price'] = data['session_ask']
                         data['target_high'] = data['entry_price'] + Decimal('20')
                         data['target_low'] = data['entry_price'] - Decimal('20')
                     elif sig in ['SELL', 'STRONG_SELL']:
-                        data['entry_price'] = data['reference_bid']
+                        data['entry_price'] = data['session_bid']
                         data['target_high'] = data['entry_price'] + Decimal('20')
                         data['target_low'] = data['entry_price'] - Decimal('20')
 

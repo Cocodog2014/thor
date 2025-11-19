@@ -134,20 +134,20 @@ class MarketOpenCaptureService:
             'last_price': self.safe_decimal(row.get('last')),
             'change': self.safe_decimal(row.get('change')),
             'change_percent': self.safe_decimal(row.get('change_percent') or row.get('last_prev_pct')),
-            'reference_ask': self.safe_decimal(row.get('ask')),
+            'session_ask': self.safe_decimal(row.get('ask')),
             'ask_size': self.safe_int(row.get('ask_size')),
-            'reference_bid': self.safe_decimal(row.get('bid')),
+            'session_bid': self.safe_decimal(row.get('bid')),
             'bid_size': self.safe_int(row.get('bid_size')),
             'volume': self.safe_int(row.get('volume')),
             'vwap': self.safe_decimal(row.get('vwap')),
             'spread': self.safe_decimal(row.get('spread')),
             
             # Session price data
-            'reference_open': self.safe_decimal(row.get('open_price')),
-            'reference_close': self.safe_decimal(row.get('close_price') or row.get('previous_close')),
+            'session_open': self.safe_decimal(row.get('open_price')),
+            'session_close': self.safe_decimal(row.get('close_price') or row.get('previous_close')),
             'open_vs_prev_number': self.safe_decimal(row.get('open_prev_diff')),
             'open_vs_prev_percent': self.safe_decimal(row.get('open_prev_pct')),
-            'reference_last': self.safe_decimal(row.get('last')),
+            'session_last': self.safe_decimal(row.get('last')),
             
             # Range data
             'day_24h_low': self.safe_decimal(row.get('low_price')),
@@ -166,9 +166,9 @@ class MarketOpenCaptureService:
         # Calculate entry and targets based on composite signal
         if composite_signal and composite_signal not in ['HOLD', '']:
             if composite_signal in ['BUY', 'STRONG_BUY']:
-                data['entry_price'] = data.get('reference_ask')
+                data['entry_price'] = data.get('session_ask')
             elif composite_signal in ['SELL', 'STRONG_SELL']:
-                data['entry_price'] = data.get('reference_bid')
+                data['entry_price'] = data.get('session_bid')
             
             if data.get('entry_price'):
                 data['target_high'] = data['entry_price'] + 20

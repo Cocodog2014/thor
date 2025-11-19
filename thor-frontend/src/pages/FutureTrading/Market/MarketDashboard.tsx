@@ -18,15 +18,15 @@ interface MarketOpenSession {
   last_price?: string | null;
   change?: string | null;
   change_percent?: string | null;
-  reference_ask?: string | null;
+  session_ask?: string | null;
   ask_size?: number | null;
-  reference_bid?: string | null;
+  session_bid?: string | null;
   bid_size?: number | null;
   volume?: number | null;
   vwap?: string | null;
   spread?: string | null;
-  reference_close?: string | null;
-  reference_open?: string | null;
+  session_close?: string | null;
+  session_open?: string | null;
   day_24h_low?: string | null;
   day_24h_high?: string | null;
   range_high_low?: string | null;
@@ -348,12 +348,12 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl }) => {
                 <div className="mo-rt-bbo">
                   <div className="tile bid">
                     <div className="t-head">BID</div>
-                    <div className="t-main">{formatNum(snap?.reference_bid) ?? (isZero(snap?.reference_bid) ? 0 : '—')}</div>
+                    <div className="t-main">{formatNum(snap?.session_bid) ?? (isZero(snap?.session_bid) ? 0 : '—')}</div>
                     <div className="t-sub">Size {formatNum(snap?.bid_size, 0) ?? (isZero(snap?.bid_size) ? 0 : '—')}</div>
                   </div>
                   <div className="tile ask">
                     <div className="t-head">ASK</div>
-                    <div className="t-main">{formatNum(snap?.reference_ask) ?? (isZero(snap?.reference_ask) ? 0 : '—')}</div>
+                    <div className="t-main">{formatNum(snap?.session_ask) ?? (isZero(snap?.session_ask) ? 0 : '—')}</div>
                     <div className="t-sub">Size {formatNum(snap?.ask_size, 0) ?? (isZero(snap?.ask_size) ? 0 : '—')}</div>
                   </div>
                 </div>
@@ -362,8 +362,8 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl }) => {
                 <div className="mo-rt-stats">
                   <div className="stat"><div className="label">Volume</div><div className="value">{snap?.volume !== undefined && snap?.volume !== null ? formatNum(snap?.volume, 0) : '—'}</div></div>
                   <div className="stat"><div className="label">VWAP</div><div className="value">{formatNum(snap?.vwap) ?? (isZero(snap?.vwap) ? 0 : '—')}</div></div>
-                  <div className="stat"><div className="label">Close</div><div className="value">{formatNum(snap?.reference_close) ?? (isZero(snap?.reference_close) ? 0 : '—')}</div></div>
-                  <div className="stat"><div className="label">Open</div><div className="value">{formatNum(snap?.reference_open) ?? (isZero(snap?.reference_open) ? 0 : '—')}</div></div>
+                  <div className="stat"><div className="label">Close</div><div className="value">{formatNum(snap?.session_close) ?? (isZero(snap?.session_close) ? 0 : '—')}</div></div>
+                  <div className="stat"><div className="label">Open</div><div className="value">{formatNum(snap?.session_open) ?? (isZero(snap?.session_open) ? 0 : '—')}</div></div>
                   <div className="stat"><div className="label">24h Low</div><div className="value">{formatNum(snap?.day_24h_low) ?? (isZero(snap?.day_24h_low) ? 0 : '—')}</div></div>
                   <div className="stat"><div className="label">24h High</div><div className="value">{formatNum(snap?.day_24h_high) ?? (isZero(snap?.day_24h_high) ? 0 : '—')}</div></div>
                   <div className="stat"><div className="label">24h Range</div><div className="value">{snap?.range_high_low ? <>{formatNum(snap?.range_high_low)} <span className="sub">{formatNum(snap?.range_percent)}</span></> : '—'}</div></div>

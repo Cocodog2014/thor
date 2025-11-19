@@ -96,11 +96,11 @@ class MarketSessionAdmin(admin.ModelAdmin):
             'fields': ('session_number', 'country', 'future', 'country_future', 'year', 'month', 'date', 'day', 'captured_at')
         }),
         ('Live Price Data (Open)', {
-            'fields': ('last_price', 'change', 'change_percent', 'reference_ask', 'ask_size', 
-                      'reference_bid', 'bid_size', 'volume', 'vwap', 'spread')
+            'fields': ('last_price', 'change', 'change_percent', 'session_ask', 'ask_size', 
+                      'session_bid', 'bid_size', 'volume', 'vwap', 'spread')
         }),
         ('Session Price Data', {
-            'fields': ('reference_close', 'reference_open', 'open_vs_prev_number', 'open_vs_prev_percent', 'reference_last')
+            'fields': ('session_close', 'session_open', 'open_vs_prev_number', 'open_vs_prev_percent', 'session_last')
         }),
         ('Range Data', {
             'fields': ('day_24h_low', 'day_24h_high', 'range_high_low', 'range_percent',
