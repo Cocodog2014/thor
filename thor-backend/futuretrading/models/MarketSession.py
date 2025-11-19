@@ -152,6 +152,62 @@ class MarketSession(models.Model):
         blank=True,
         help_text="Percent of holds"
     )
+    strong_sell_worked = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Strong sell signals that worked"
+    )
+    strong_sell_worked_percentage = models.DecimalField(
+        max_digits=10,
+        decimal_places=4,
+        null=True,
+        blank=True,
+        help_text="Percent of strong sells that worked"
+    )
+    strong_sell_didnt_work = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Strong sell signals that failed"
+    )
+    strong_sell_didnt_work_percentage = models.DecimalField(
+        max_digits=10,
+        decimal_places=4,
+        null=True,
+        blank=True,
+        help_text="Percent of strong sells that failed"
+    )
+    sell_worked = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Sell signals that worked"
+    )
+    sell_worked_percentage = models.DecimalField(
+        max_digits=10,
+        decimal_places=4,
+        null=True,
+        blank=True,
+        help_text="Percent of sells that worked"
+    )
+    sell_didnt_work = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Sell signals that failed"
+    )
+    sell_didnt_work_percentage = models.DecimalField(
+        max_digits=10,
+        decimal_places=4,
+        null=True,
+        blank=True,
+        help_text="Percent of sells that failed"
+    )
 
     # Live Price Data at Market Open
     last_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
