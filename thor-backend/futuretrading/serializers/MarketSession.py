@@ -15,6 +15,8 @@ class MarketOpenSessionListSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'session_number', 'year', 'month', 'date', 'day', 
             'captured_at', 'country', 'future', 'country_future', 'bhs', 'wndw',
+            'country_future_wndw_total', 'strong_buy_worked', 'strong_buy_worked_percentage',
+            'strong_buy_didnt_work', 'strong_buy_didnt_worked_percentage',
             'last_price', 'change', 'change_percent',
             'entry_price', 'target_high', 'target_low',
             'outcome', 'fw_nwdw', 'exit_price',
@@ -30,6 +32,8 @@ class MarketOpenSessionDetailSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'session_number', 'year', 'month', 'date', 'day', 
             'captured_at', 'country', 'future', 'country_future', 'bhs', 'wndw',
+            'country_future_wndw_total', 'strong_buy_worked', 'strong_buy_worked_percentage',
+            'strong_buy_didnt_work', 'strong_buy_didnt_worked_percentage',
             # Live price data at open
             'last_price', 'change', 'change_percent',
             'reference_ask', 'ask_size', 'reference_bid', 'bid_size',

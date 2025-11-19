@@ -75,6 +75,41 @@ class MarketSession(models.Model):
         default='PENDING',
         help_text="Window result (mirrors fw_nwdw)"
     )
+    country_future_wndw_total = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Country-level total for wndw aggregation"
+    )
+    strong_buy_worked = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Strong buy signals that worked"
+    )
+    strong_buy_worked_percentage = models.DecimalField(
+        max_digits=10,
+        decimal_places=4,
+        null=True,
+        blank=True,
+        help_text="Percent of strong buys that worked"
+    )
+    strong_buy_didnt_work = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Strong buy signals that did not work"
+    )
+    strong_buy_didnt_worked_percentage = models.DecimalField(
+        max_digits=10,
+        decimal_places=4,
+        null=True,
+        blank=True,
+        help_text="Percent of strong buys that failed"
+    )
 
     # Live Price Data at Market Open
     last_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
