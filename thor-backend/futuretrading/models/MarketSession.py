@@ -115,7 +115,7 @@ class MarketSession(models.Model):
     # For individual futures: their own signal/HBS
     weighted_average = models.DecimalField(max_digits=10, decimal_places=4, null=True, blank=True,
                                            help_text="TOTAL weighted average (e.g., -0.109)")
-    total_signal = models.CharField(max_length=20, 
+    bhs = models.CharField(max_length=20, 
                                     choices=[
                                         ('BUY', 'Buy'),
                                         ('STRONG_BUY', 'Strong Buy'),
@@ -222,16 +222,16 @@ class MarketSession(models.Model):
         verbose_name_plural = 'Market Sessions'
     
     def __str__(self):
-        return f"{self.country} - {self.future} - {self.year}/{self.month}/{self.date} - {self.total_signal}"
+        return f"{self.country} - {self.future} - {self.year}/{self.month}/{self.date} - {self.bhs}"
     
     def save(self, *args, **kwargs):
         """Auto-calculate entry and target prices based on signal"""
         # Only calculate if we have the required data and haven't set entry price manually
-        if self.reference_bid and self.reference_ask and self.total_signal and not self.entry_price:
+        if self.reference_bid and self.reference_ask and self.bhs and not self.entry_price:
             # Determine entry price based on signal
-            if self.total_signal in ['BUY', 'STRONG_BUY']:
+            if self.bhs in ['BUY', 'STRONG_BUY']:
                 self.entry_price = self.reference_ask  # Buy at ask
-            elif self.total_signal in ['SELL', 'STRONG_SELL']:
+            elif self.bhs in ['SELL', 'STRONG_SELL']:
                 self.entry_price = self.reference_bid  # Sell at bid
             # HOLD doesn't get an entry price
             

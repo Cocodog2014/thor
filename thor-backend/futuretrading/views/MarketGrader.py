@@ -95,7 +95,7 @@ class MarketGrader:
             return True  # Can't grade without complete data
         
         # Skip HOLD signals
-        if session.total_signal == 'HOLD' or not session.total_signal:
+        if session.bhs == 'HOLD' or not session.bhs:
             if session.outcome == 'PENDING':
                 session.outcome = 'NEUTRAL'
                 session.fw_nwdw = 'NEUTRAL'
@@ -103,7 +103,7 @@ class MarketGrader:
             return True
         
         # Get current price for this future
-        current_price = self.get_current_price(session.future, session.total_signal)
+        current_price = self.get_current_price(session.future, session.bhs)
         
         if not current_price:
             return False  # Can't grade without price data
@@ -112,14 +112,14 @@ class MarketGrader:
         worked = False
         didnt_work = False
         
-        if session.total_signal in ['BUY', 'STRONG_BUY']:
+        if session.bhs in ['BUY', 'STRONG_BUY']:
             # For BUY: target = target_high, stop = target_low
             if current_price >= session.target_high:
                 worked = True
             elif current_price <= session.target_low:
                 didnt_work = True
                 
-        elif session.total_signal in ['SELL', 'STRONG_SELL']:
+        elif session.bhs in ['SELL', 'STRONG_SELL']:
             # For SELL: target = target_low, stop = target_high
             if current_price <= session.target_low:
                 worked = True

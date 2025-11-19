@@ -157,7 +157,7 @@ class MarketOpenCaptureService:
             'week_52_high': self.safe_decimal(ext.get('high_52w')),
             
             # Signal (individual future's signal from HBS)
-            'total_signal': (ext.get('signal') or '').upper() if ext.get('signal') else '',
+            'bhs': (ext.get('signal') or '').upper() if ext.get('signal') else '',
             'weight': self.safe_int(ext.get('signal_weight')),
             'study_fw': 'HBS',
         }
@@ -199,7 +199,7 @@ class MarketOpenCaptureService:
             'weighted_average': self.safe_decimal(composite.get('avg_weighted')),
             'sum_weighted': self.safe_decimal(composite.get('sum_weighted')),
             'instrument_count': composite.get('count') or 11,
-            'total_signal': composite_signal,
+            'bhs': composite_signal,
             'weight': composite.get('signal_weight_sum'),
             'status': 'LIVE TOTAL',
             'study_fw': 'TOTAL'
