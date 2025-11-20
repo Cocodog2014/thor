@@ -217,18 +217,17 @@ class MarketSession(models.Model):
     # Live Price Data at Market Open
     last_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
                                      help_text="Last traded price at market open")
-    change = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
-                                 help_text="Price change from previous close")
-    change_percent = models.DecimalField(max_digits=10, decimal_places=4, null=True, blank=True,
-                                         help_text="Percentage change")
-    
-    # Bid/Ask Data at Market Open
+    # Keep bid/ask data immediately after last_price for physical column ordering
     session_ask = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
                                       help_text="Ask price at capture")
     ask_size = models.IntegerField(null=True, blank=True, help_text="Ask size")
     session_bid = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
                                       help_text="Bid price at capture (renamed from reference_bid)")
     bid_size = models.IntegerField(null=True, blank=True, help_text="Bid size")
+    change = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
+                                 help_text="Price change from previous close")
+    change_percent = models.DecimalField(max_digits=10, decimal_places=4, null=True, blank=True,
+                                         help_text="Percentage change")
     
     # Market Data at Open
     volume = models.BigIntegerField(null=True, blank=True, help_text="Trading volume")
