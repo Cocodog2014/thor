@@ -41,6 +41,7 @@ $env:EXCEL_SHEET_NAME = 'LiveData'
 $env:EXCEL_LIVE_RANGE = 'A1:N13'
 $env:REDIS_URL = 'redis://localhost:6379/0'
 
+
 # Start Django
 #cd A:\Thor\thor-backend
 python manage.py runserver
