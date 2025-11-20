@@ -65,12 +65,6 @@ class MarketOpenSessionDetailSerializer(serializers.ModelSerializer):
             'outcome', 'didnt_work', 'fw_nwdw', 
             'exit_price', 'exit_time', 'fw_exit_value', 'fw_exit_percent',
             'fw_stopped_out_value', 'fw_stopped_out_nwdw',
-            # Close data
-            'close_last_price', 'close_change', 'close_change_percent',
-            'close_bid', 'close_bid_size', 'close_ask', 'close_ask_size',
-            'close_volume', 'close_vwap', 'close_spread', 'close_captured_at',
-            'close_weighted_average', 'close_signal', 'close_weight',
-            'close_sum_weighted', 'close_instrument_count', 'close_status',
             # Timestamps
             'created_at', 'updated_at'
         ]

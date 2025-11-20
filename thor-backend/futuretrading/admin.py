@@ -132,14 +132,6 @@ class MarketSessionAdmin(admin.ModelAdmin):
             'fields': ('fw_stopped_out_value', 'fw_stopped_out_nwdw'),
             'classes': ('collapse',)
         }),
-        ('Close Data', {
-            'fields': ('close_last_price', 'close_change', 'close_change_percent',
-                      'close_bid', 'close_bid_size', 'close_ask', 'close_ask_size',
-                      'close_volume', 'close_vwap', 'close_spread', 'close_captured_at',
-                      'close_weighted_average', 'close_signal', 'close_weight',
-                      'close_sum_weighted', 'close_instrument_count', 'close_status'),
-            'classes': ('collapse',)
-        }),
         ('Timestamps', {
             'fields': ('created_at', 'updated_at'),
             'classes': ('collapse',)

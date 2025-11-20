@@ -214,16 +214,15 @@ class MarketSession(models.Model):
         help_text="Percent of sells that failed"
     )
 
-    # Live Price Data at Market Open
-    last_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
-                                     help_text="Last traded price at market open")
-    # Keep bid/ask data immediately after last_price for physical column ordering
-    session_ask = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
-                                      help_text="Ask price at capture")
-    ask_size = models.IntegerField(null=True, blank=True, help_text="Ask size")
+    # Live Price Data at Market Open (bid/ask should follow wndw for physical ordering requirements)
     session_bid = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
                                       help_text="Bid price at capture (renamed from reference_bid)")
     bid_size = models.IntegerField(null=True, blank=True, help_text="Bid size")
+    last_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
+                                     help_text="Last traded price at market open")
+    session_ask = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
+                                      help_text="Ask price at capture")
+    ask_size = models.IntegerField(null=True, blank=True, help_text="Ask size")
     change = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
                                  help_text="Price change from previous close")
     change_percent = models.DecimalField(max_digits=10, decimal_places=4, null=True, blank=True,
@@ -323,44 +322,6 @@ class MarketSession(models.Model):
                                                help_text="Stopped out price value")
     fw_stopped_out_nwdw = models.CharField(max_length=20, blank=True,
                                            help_text="Stopped out status")
-    
-    # Market Close Data (captured later in the day)
-    close_last_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
-                                           help_text="Last price at market close")
-    close_change = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
-                                       help_text="Change at close")
-    close_change_percent = models.DecimalField(max_digits=10, decimal_places=4, null=True, blank=True,
-                                               help_text="Change % at close")
-    close_bid = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
-                                    help_text="Bid at close")
-    close_bid_size = models.IntegerField(null=True, blank=True, help_text="Bid size at close")
-    close_ask = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
-                                    help_text="Ask at close")
-    close_ask_size = models.IntegerField(null=True, blank=True, help_text="Ask size at close")
-    close_volume = models.BigIntegerField(null=True, blank=True, help_text="Volume at close")
-    close_vwap = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
-                                     help_text="VWAP at close")
-    close_spread = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
-                                       help_text="Spread at close")
-    close_captured_at = models.DateTimeField(null=True, blank=True,
-                                             help_text="Timestamp of close capture")
-    close_weighted_average = models.DecimalField(max_digits=10, decimal_places=4, null=True, blank=True,
-                                                 help_text="TOTAL weighted average at close")
-    close_signal = models.CharField(max_length=20, blank=True,
-                                    choices=[
-                                        ('BUY', 'Buy'),
-                                        ('STRONG_BUY', 'Strong Buy'),
-                                        ('SELL', 'Sell'),
-                                        ('STRONG_SELL', 'Strong Sell'),
-                                        ('HOLD', 'Hold'),
-                                    ],
-                                    help_text="Signal at close")
-    close_weight = models.IntegerField(null=True, blank=True, help_text="Weight at close (for TOTAL)")
-    close_sum_weighted = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
-                                             help_text="Sum weighted at close (for TOTAL)")
-    close_instrument_count = models.IntegerField(null=True, blank=True,
-                                                 help_text="Instrument count at close (for TOTAL)")
-    close_status = models.CharField(max_length=50, blank=True, help_text="Status at close (e.g., CLOSE TOTAL)")
     
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
