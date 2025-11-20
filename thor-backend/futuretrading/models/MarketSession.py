@@ -335,24 +335,6 @@ class MarketSession(models.Model):
     
     def __str__(self):
         return f"{self.country} - {self.future} - {self.year}/{self.month}/{self.date} - {self.bhs}"
-    
-    def save(self, *args, **kwargs):
-        """Auto-calculate entry and target prices based on signal"""
-        # Only calculate if we have the required data and haven't set entry price manually
-        if self.session_bid and self.session_ask and self.bhs and not self.entry_price:
-            # Determine entry price based on signal
-            if self.bhs in ['BUY', 'STRONG_BUY']:
-                self.entry_price = self.session_ask  # Buy at ask
-            elif self.bhs in ['SELL', 'STRONG_SELL']:
-                self.entry_price = self.session_bid  # Sell at bid
-            # HOLD doesn't get an entry price
-            
-            # Calculate high and low targets if we have an entry price
-            if self.entry_price:
-                self.target_high = self.entry_price + 20  # +20 points for $100 profit
-                self.target_low = self.entry_price - 20   # -20 points for $100 stop
-        
-        super().save(*args, **kwargs)
 
 
 __all__ = ['MarketSession']
