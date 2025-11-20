@@ -223,13 +223,14 @@ class MarketSession(models.Model):
     session_ask = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
                                       help_text="Ask price at capture")
     ask_size = models.IntegerField(null=True, blank=True, help_text="Ask size")
+    # Keep volume adjacent to ask_size so the physical column layout stays intuitive
+    volume = models.BigIntegerField(null=True, blank=True, help_text="Trading volume")
     change = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
                                  help_text="Price change from previous close")
     change_percent = models.DecimalField(max_digits=10, decimal_places=4, null=True, blank=True,
                                          help_text="Percentage change")
     
     # Market Data at Open
-    volume = models.BigIntegerField(null=True, blank=True, help_text="Trading volume")
     vwap = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
                                help_text="Volume Weighted Average Price")
     spread = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
