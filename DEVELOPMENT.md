@@ -86,8 +86,6 @@ flowchart LR
     REDIS["Redis<br/>Live Quote Bus"]
     PG["PostgreSQL<br/>Ticks + Metadata"]
     PARQ["Parquet Files<br/>/data/ticks, /data/bars"]
-    DUCK["DuckDB / Polars<br/>Analytics & ML I/O"]
-  end
 
   subgraph ML["ML & Trading"]
     FEAT["Feature Store"]
@@ -108,8 +106,6 @@ flowchart LR
   TRADER --> DJ
 
 3. Data & ML Infrastructure
-3.1 PostgreSQL (Docker) – Transactional Storage
-
 PostgreSQL is the primary database:
 
 Primary app data: instruments, weights, signals, users, configs
@@ -122,8 +118,22 @@ Relational queries: joins across instruments, signals, sessions
 
 Backups & recovery: WAL, dumps, etc.
 
+thor_pgdata holds persistent data.
 Run Postgres (dev)
 
+Preferred (docker compose):
+
+```powershell
+cd A:\Thor
+docker compose up -d postgres
+```
+
+- Exposes Postgres on `localhost:5432` (expected everywhere else in this guide).
+- Data volume/location is handled by `docker-compose.yml` (no extra flags needed).
+
+Fallback manual container (use only if you cannot rely on docker compose):
+
+```powershell
 docker run --name thor_postgres `
   -e POSTGRES_DB=thor_db `
   -e POSTGRES_USER=thor_user `
@@ -132,10 +142,11 @@ docker run --name thor_postgres `
   -v thor_pgdata:/var/lib/postgresql/data `
   -p 5433:5432 `
   -d postgres:13
+```
 
-Port 5433 avoids conflict with any local Postgres instance.
+Port 5433 in the fallback snippet avoids conflicts with an existing local Postgres install.
 
-thor_pgdata holds persistent data.
+`thor_pgdata` holds persistent data for the manual container.
 
 Core Tick Table
 
@@ -229,7 +240,7 @@ df = con.execute("""
 4.1 Actual Current State
 
 flowchart LR
-  EXCEL["Excel RTD<br/>CleanData.xlsm"] --> COL["Excel Collector<br/>(Excel → Redis)"]
+  EXCEL["Excel RTD<br/>RTD_TOS.xlsm"] --> COL["Excel Collector<br/>poll_tos_excel"]
   COL --> RSTREAM["Redis Stream<br/>quotes:stream:unified"]
   COL --> RLATEST["Redis Hashes<br/>quotes:latest:<symbol>"]
   RSTREAM --> DJ["Django (LiveData)"]
@@ -247,6 +258,8 @@ flowchart LR
     Django /api/quotes and /api/quotes/stream
 
     React SSE subscription and live table/heatmap
+
+  Collector command: `python manage.py poll_tos_excel` against `RTD_TOS.xlsm` → `LiveData!A1:N13`.
 
 ❌ Not yet
 
@@ -422,43 +435,55 @@ Typical SLOs (targets):
 
 8. Cloudflare Tunnel (Dev Only – Important)
 
-We use Cloudflare Tunnel to expose the local Django dev server for:
+Cloudflare Tunnel exposes both Django (`:8000`) and Vite (`:5173`) so remote browsers and Schwab OAuth can reach your dev box over HTTPS.
 
-    Testing Schwab OAuth end-to-end
-
-    Remote access to dev APIs over HTTPS
-
-Host: https://thor.360edu.org → http://localhost:8000
+- Hostname: `https://thor.360edu.org`
+- Used for: Schwab OAuth start/callback, remote admin/API access, UI demos
 
 8.1 Concept Diagram
 
 flowchart LR
   BROWSER["Your browser\n(https://thor.360edu.org)"] --> CF["Cloudflare DNS + Tunnel"]
   CF --> CLOUDFL["cloudflared agent\n(running on dev machine)"]
-  CLOUDFL --> DJANGO["Django dev server\nhttp://localhost:8000"]
+  CLOUDFL --> DJANGO["Django dev server\nhttp://127.0.0.1:8000"]
+  CLOUDFL --> VITE["Vite preview\nhttp://127.0.0.1:5173"]
 
 8.2 Key Dev Facts
 
-    Tunnel name (example): thor-local
+- Tunnel name: `thor`
+- Config file: `%USERPROFILE%\.cloudflared\config.yml`
+- Credentials: `%USERPROFILE%\.cloudflared\<TUNNEL-UUID>.json`
 
-    Dev config (common): %USERPROFILE%\.cloudflared\config.yml
+Sample mapping:
 
-    Mapping:
+```yaml
+tunnel: thor
+credentials-file: C:\Users\<you>\.cloudflared\<TUNNEL-UUID>.json
 
-tunnel: thor-local
-credentials-file: C:\Users\<You>\.cloudflared\<TUNNEL-UUID>.json
 
-ingress:
   - hostname: thor.360edu.org
-    service: http://localhost:8000
+    service: http://127.0.0.1:5173
+  - hostname: thor.360edu.org
+    path: /admin*
+    service: http://127.0.0.1:8000
+  - hostname: thor.360edu.org
+    path: /api*
+    service: http://127.0.0.1:8000
+  - hostname: thor.360edu.org
+    path: /static*
+    service: http://127.0.0.1:8000
+  - hostname: thor.360edu.org
+    path: /media*
+    service: http://127.0.0.1:8000
   - service: http_status:404
+```
 
-Schwab dev redirect URI:
+Schwab dev endpoints:
 
-https://thor.360edu.org/schwab/callback
+- OAuth start: `https://thor.360edu.org/api/schwab/oauth/start/`
+- OAuth callback: `https://thor.360edu.org/schwab/callback`
 
 Keep this dev-only and only run the tunnel when you actually need it.
-
 9. Current Status vs To-Do
 9.1 What’s Working Today
 
@@ -534,29 +559,46 @@ Monitoring hardening
 
 1. Start databases & cache
 
-    docker start thor_postgres   # or docker run ... (see above)
-    docker compose up -d redis   # if using docker-compose.yml
+```powershell
+cd A:\Thor
+docker compose up -d postgres
+docker compose up -d redis
+```
 
-2. Run backend
+2. Run backend (new shell)
 
-    cd A:\Thor\thor-backend
-    conda activate Thor_inv      # if using a conda env
-    python manage.py runserver
+```powershell
+cd A:\Thor\thor-backend
+# conda activate Thor_inv       # if applicable
+$env:DATA_PROVIDER    = 'excel_live'
+$env:EXCEL_DATA_FILE  = 'A:\\Thor\\RTD_TOS.xlsm'
+$env:EXCEL_SHEET_NAME = 'LiveData'
+$env:EXCEL_LIVE_RANGE = 'A1:N13'
+$env:REDIS_URL        = 'redis://localhost:6379/0'
+# optional: disable background 52-week monitor
+# $env:FUTURETRADING_ENABLE_52W_MONITOR = '0'
+python manage.py runserver
+```
 
-3. Run frontend
+3. Run frontend (new shell)
 
-    cd A:\Thor\thor-frontend
-    npm install        # first time only
-    npm run dev
+```powershell
+cd A:\Thor\thor-frontend
+npm install       # first time only
+npm run dev       # http://localhost:5173
+```
 
-4. Start Excel → Redis collector (in another terminal)
+4. Start Excel → Redis poller (new shell)
 
-    cd A:\Thor\thor-backend
-    $env:DATA_PROVIDER = 'excel_live'
-    # plus EXCEL_* env vars as configured
-    python manage.py excel_to_redis
+```powershell
+cd A:\Thor\thor-backend
+python manage.py poll_tos_excel
+```
 
 5. (Optional) Run Cloudflare Tunnel (dev)
 
-    cloudflared tunnel run thor-local
+```powershell
+cd A:\Thor
+cloudflared tunnel run thor
+```
 
