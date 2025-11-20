@@ -223,6 +223,13 @@ class MarketSession(models.Model):
     session_ask = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
                                       help_text="Ask price at capture")
     ask_size = models.IntegerField(null=True, blank=True, help_text="Ask size")
+    # Entry and target prices sit near bid/ask fields for easier manual inspection
+    entry_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
+                                     help_text="Actual entry (Ask if buying, Bid if selling)")
+    target_high = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
+                                     help_text="Entry + 20 points ($100 profit target)")
+    target_low = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
+                                    help_text="Entry - 20 points ($100 stop loss)")
     # Keep volume adjacent to ask_size so the physical column layout stays intuitive
     volume = models.BigIntegerField(null=True, blank=True, help_text="Trading volume")
     change = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
@@ -265,14 +272,6 @@ class MarketSession(models.Model):
                                                   help_text="52-week range (High - Low)")
     week_52_range_percent = models.DecimalField(max_digits=10, decimal_places=4, null=True, blank=True,
                                                 help_text="52-week range as % of current price")
-    
-    # Entry and Target Prices (auto-calculated on save, based on signal)
-    entry_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
-                                     help_text="Actual entry (Ask if buying, Bid if selling)")
-    target_high = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
-                                     help_text="Entry + 20 points ($100 profit target)")
-    target_low = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
-                                    help_text="Entry - 20 points ($100 stop loss)")
     
     # Signal & Composite Data
     # For TOTAL row: weighted_average and composite signal
