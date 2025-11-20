@@ -147,7 +147,6 @@ class MarketOpenCaptureService:
             'session_close': self.safe_decimal(row.get('close_price') or row.get('previous_close')),
             'open_vs_prev_number': self.safe_decimal(row.get('open_prev_diff')),
             'open_vs_prev_percent': self.safe_decimal(row.get('open_prev_pct')),
-            'session_last': self.safe_decimal(row.get('last')),
             
             # Range data
             'day_24h_low': self.safe_decimal(row.get('low_price')),

@@ -52,7 +52,7 @@ class MarketOpenSessionDetailSerializer(serializers.ModelSerializer):
             'volume', 'vwap', 'spread',
             # Session price data
             'session_close', 'session_open', 'open_vs_prev_number', 
-            'open_vs_prev_percent', 'session_last',
+            'open_vs_prev_percent',
             # Range data
             'day_24h_low', 'day_24h_high', 'range_high_low', 'range_percent',
             'week_52_low', 'week_52_high', 'week_52_range_high_low', 'week_52_range_percent',

@@ -246,8 +246,6 @@ class MarketSession(models.Model):
                                               help_text="Open vs Prev (Number)")
     open_vs_prev_percent = models.DecimalField(max_digits=10, decimal_places=4, null=True, blank=True,
                                                help_text="Open vs Prev (%)")
-    session_last = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
-                                       help_text="Last traded price at capture (renamed from reference_last)")
     
     # 24-Hour Range Data
     day_24h_low = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,

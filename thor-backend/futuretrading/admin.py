@@ -100,7 +100,7 @@ class MarketSessionAdmin(admin.ModelAdmin):
                       'session_bid', 'bid_size', 'volume', 'vwap', 'spread')
         }),
         ('Session Price Data', {
-            'fields': ('session_close', 'session_open', 'open_vs_prev_number', 'open_vs_prev_percent', 'session_last')
+            'fields': ('session_close', 'session_open', 'open_vs_prev_number', 'open_vs_prev_percent')
         }),
         ('Range Data', {
             'fields': ('day_24h_low', 'day_24h_high', 'range_high_low', 'range_percent',
