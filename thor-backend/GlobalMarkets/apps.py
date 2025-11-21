@@ -19,8 +19,9 @@ class GlobalMarketsConfig(AppConfig):
         import GlobalMarkets.signals  # noqa: F401 side-effect import
 
         skip_commands = {
-            'makemigrations', 'migrate', 'collectstatic', 'shell', 'test',
-            'createsuperuser', 'check'
+            'makemigrations', 'migrate', 'showmigrations', 'sqlmigrate',
+            'collectstatic', 'shell', 'test', 'createsuperuser', 'check',
+            'diffsettings'
         }
         if any(cmd in sys.argv for cmd in skip_commands):
             return
