@@ -12,6 +12,7 @@ from django.db import transaction
 
 from FutureTrading.models.MarketSession import MarketSession
 from FutureTrading.models.extremes import Rolling52WeekStats
+from FutureTrading.models.target_high_low import TargetHighLowConfig
 from LiveData.shared.redis_client import live_data_redis
 from FutureTrading.services.classification import enrich_quote_row, compute_composite
 from FutureTrading.services.metrics import compute_row_metrics
@@ -162,16 +163,35 @@ class MarketOpenCaptureService:
             'study_fw': 'HBS',
         }
         
-        # Calculate entry and targets based on composite signal
+        # Calculate entry and targets using configurable offsets
         if composite_signal and composite_signal not in ['HOLD', '']:
             if composite_signal in ['BUY', 'STRONG_BUY']:
                 data['entry_price'] = data.get('session_ask')
             elif composite_signal in ['SELL', 'STRONG_SELL']:
                 data['entry_price'] = data.get('session_bid')
-            
-            if data.get('entry_price'):
-                data['target_high'] = data['entry_price'] + 20
-                data['target_low'] = data['entry_price'] - 20
+
+            entry = data.get('entry_price')
+            if entry:
+                # Look up per-symbol target config (prefetched earlier into self._target_cfg_cache)
+                cfg = getattr(self, '_target_cfg_cache', {}).get(symbol.upper())
+                if cfg:
+                    try:
+                        targets = cfg.compute_targets(entry)
+                        if targets:
+                            high, low = targets
+                            data['target_high'] = high
+                            data['target_low'] = low
+                        else:
+                            # Disabled config: do not set targets (leave null)
+                            logger.debug(f"Target config disabled for {symbol}; skipping targets")
+                    except Exception as e:
+                        logger.warning(f"Target config compute failed for {symbol}: {e}; falling back to legacy defaults")
+                        data['target_high'] = entry + 20
+                        data['target_low'] = entry - 20
+                else:
+                    # No config present: legacy fallback
+                    data['target_high'] = entry + 20
+                    data['target_low'] = entry - 20
         
         try:
             session = MarketSession.objects.create(**data)
@@ -224,6 +244,9 @@ class MarketOpenCaptureService:
         try:
             logger.info(f"Capturing {market.country} market open...")
             
+            # Prefetch target high/low configs for all symbols (single query)
+            self._target_cfg_cache = {c.symbol.upper(): c for c in TargetHighLowConfig.objects.filter(is_active=True)}
+
             redis_quotes = self.fetch_redis_quotes()
             if not redis_quotes:
                 logger.error(f"No quotes for {market.country}")

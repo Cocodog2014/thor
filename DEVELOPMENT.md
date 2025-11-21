@@ -299,6 +299,38 @@ flowchart LR
 
 The keystone that unlocks everything else is the Redis→Postgres ingestor.
 
+### 4.3 Market Open Sessions: Entry & Targets Configuration
+
+The market open capture service creates a `MarketSession` row for each future (YM, ES, NQ, RTY, CL, SI, HG, GC, VX, DX, ZB) plus a TOTAL composite when a market opens. For BUY / SELL / STRONG_* signals it stores:
+
+- `entry_price`
+- `target_high`
+- `target_low`
+
+Historically targets were hard‑coded at ±20 points. This is now configurable per symbol via the Django admin under **Target High/Low Configs**. Each symbol can choose one of three modes:
+
+| Mode | Fields | Behavior |
+|------|--------|----------|
+| POINTS | `offset_high`, `offset_low` | `target_high = entry + offset_high`; `target_low = entry − offset_low` |
+| PERCENT | `percent_high`, `percent_low` | Percent values (0.50 = +0.50%) applied multiplicatively |
+| DISABLED | (none) | Targets left null intentionally |
+
+Rules & Notes:
+1. Enter positive magnitudes only (no minus sign). The system adds/subtracts automatically.
+2. For SELL signals the same numeric targets are stored, but grading logic interprets direction (high acts as stop, low as target).
+3. If a config is missing for a symbol, a legacy ±20 fallback is applied to avoid unexpected nulls.
+4. If a config exists with mode=DISABLED, targets remain null (explicit opt‑out).
+5. Validation enforces required fields per mode and that offsets are positive.
+
+Setup after migration:
+```powershell
+python manage.py makemigrations FutureTrading
+python manage.py migrate
+```
+Then create configs (examples): YM POINTS +20 / -20; ES POINTS +8 / -8; NQ POINTS +30 / -30.
+
+Future ideas: volatility‑adaptive offsets, time‑of‑day profiles, separate BUY vs SELL sets.
+
 5. ML Pipeline
 5.1 ML Architecture
 

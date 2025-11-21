@@ -5,6 +5,7 @@ from .models import (
 )
 from .models.MarketSession import MarketSession
 from .models.extremes import Rolling52WeekStats
+from .models.target_high_low import TargetHighLowConfig
 
 
 class SignalStatValueInline(admin.TabularInline):
@@ -203,5 +204,39 @@ class Rolling52WeekStatsAdmin(admin.ModelAdmin):
             if not obj.low_52w_date:
                 obj.low_52w_date = today
         super().save_model(request, obj, form, change)
+
+
+# Target High / Low Configuration Admin
+
+
+@admin.register(TargetHighLowConfig)
+class TargetHighLowConfigAdmin(admin.ModelAdmin):
+    list_display = [
+        'symbol', 'mode', 'offset_high', 'offset_low', 'percent_high', 'percent_low', 'is_active', 'updated_at'
+    ]
+    list_filter = ['mode', 'is_active']
+    search_fields = ['symbol']
+    list_editable = ['mode', 'offset_high', 'offset_low', 'percent_high', 'percent_low', 'is_active']
+    readonly_fields = ['created_at', 'updated_at']
+    ordering = ['symbol']
+
+    fieldsets = (
+        ('Symbol & Mode', {
+            'fields': ('symbol', 'mode', 'is_active'),
+            'description': 'Select POINTS, PERCENT or DISABLED. Disabled skips target computation.'
+        }),
+        ('Point Offsets', {
+            'fields': ('offset_high', 'offset_low'),
+            'description': 'Required when mode=POINTS (absolute values).'
+        }),
+        ('Percent Offsets', {
+            'fields': ('percent_high', 'percent_low'),
+            'description': 'Required when mode=PERCENT (e.g. 0.50 = +0.50%).'
+        }),
+        ('Timestamps', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
 
 
