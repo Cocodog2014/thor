@@ -85,10 +85,10 @@ class SignalWeightAdmin(admin.ModelAdmin):
 @admin.register(MarketSession)
 class MarketSessionAdmin(admin.ModelAdmin):
     list_display = [
-        'session_number', 'country', 'future', 'country_future', 'date_display', 'day', 
-        'bhs', 'wndw', 'entry_price', 'last_price'
+        'session_number', 'country', 'future', 'country_future', 'date_display', 'day',
+        'bhs', 'entry_price', 'last_price'
     ]
-    list_filter = ['country', 'future', 'day', 'bhs', 'wndw', 'year', 'month']
+    list_filter = ['country', 'future', 'day', 'bhs', 'year', 'month']
     search_fields = ['country', 'session_number', 'future']
     readonly_fields = ['captured_at', 'created_at', 'updated_at']
     
@@ -113,7 +113,7 @@ class MarketSessionAdmin(admin.ModelAdmin):
         }),
         ('Signal & Composite', {
             'fields': (
-                'bhs', 'wndw', 'country_future_wndw_total',
+                    'bhs', 'country_future_wndw_total',
                 'strong_buy_worked', 'strong_buy_worked_percentage',
                 'strong_buy_didnt_work', 'strong_buy_didnt_work_percentage',
                 'buy_worked', 'buy_worked_percentage', 'buy_didnt_work', 'buy_didnt_work_percentage',
@@ -122,16 +122,8 @@ class MarketSessionAdmin(admin.ModelAdmin):
                 'strong_sell_didnt_work', 'strong_sell_didnt_work_percentage',
                     'sell_worked', 'sell_worked_percentage',
                     'sell_didnt_work', 'sell_didnt_work_percentage',
-                    'weighted_average', 'weight',
-                        'instrument_count', 'strong_sell_flag', 'study_fw', 'fw_weight')
-        }),
-        ('Outcome Tracking', {
-            'fields': ('outcome', 'wndw', 'didnt_work', 'exit_price', 'exit_time',
-                      'fw_exit_value', 'fw_exit_percent')
-        }),
-        ('Stopped Out', {
-            'fields': ('fw_stopped_out_value', 'fw_stopped_out_nwdw'),
-            'classes': ('collapse',)
+                        'weighted_average', 'weight',
+                            'instrument_count')
         }),
         ('Timestamps', {
             'fields': ('created_at', 'updated_at'),

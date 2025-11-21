@@ -489,3 +489,13 @@ No capture logic in GlobalMarkets
 Signals-only communication
 
 FutureTrading handles its own capture
+
+GlobalMarkets (Publisher)
+    ↓ emits signals
+    ↓ market_opened
+    ↓ market_closed  
+    ↓ market_status_changed
+    ↓
+FutureTrading (Subscriber - to be implemented)
+    → listens for signals
+    → performs capture when needed

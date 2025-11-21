@@ -17,7 +17,7 @@ class MarketSessionListSerializer(MarketSessionBaseSerializer):
     class Meta(MarketSessionBaseSerializer.Meta):
         fields = [
             'id', 'session_number', 'year', 'month', 'date', 'day',
-            'captured_at', 'country', 'future', 'country_future', 'weight', 'bhs', 'wndw',
+            'captured_at', 'country', 'future', 'country_future', 'weight', 'bhs',
             'country_future_wndw_total',
             'strong_buy_worked', 'strong_buy_worked_percentage',
             'strong_buy_didnt_work', 'strong_buy_didnt_work_percentage',
@@ -29,7 +29,6 @@ class MarketSessionListSerializer(MarketSessionBaseSerializer):
             'sell_didnt_work', 'sell_didnt_work_percentage',
             'last_price', 'change', 'change_percent',
             'entry_price', 'target_high', 'target_low',
-            'outcome', 'wndw', 'exit_price',
             'created_at'
         ]
 
@@ -38,7 +37,7 @@ class MarketSessionDetailSerializer(MarketSessionBaseSerializer):
     class Meta(MarketSessionBaseSerializer.Meta):
         fields = [
             'id', 'session_number', 'year', 'month', 'date', 'day',
-            'captured_at', 'country', 'future', 'country_future', 'weight', 'bhs', 'wndw',
+            'captured_at', 'country', 'future', 'country_future', 'weight', 'bhs',
             'country_future_wndw_total', 'strong_buy_worked', 'strong_buy_worked_percentage',
             'strong_buy_didnt_work', 'strong_buy_didnt_work_percentage',
             'buy_worked', 'buy_worked_percentage', 'buy_didnt_work', 'buy_didnt_work_percentage',
@@ -54,9 +53,7 @@ class MarketSessionDetailSerializer(MarketSessionBaseSerializer):
             'day_24h_low', 'day_24h_high', 'range_high_low', 'range_percent',
             'week_52_low', 'week_52_high', 'week_52_range_high_low', 'week_52_range_percent',
             'entry_price', 'target_high', 'target_low',
-            'weighted_average', 'bhs', 'wndw', 'instrument_count', 'strong_sell_flag', 'study_fw', 'fw_weight',
-            'outcome', 'didnt_work', 'wndw', 'exit_price', 'exit_time', 'fw_exit_value', 'fw_exit_percent',
-            'fw_stopped_out_value', 'fw_stopped_out_nwdw',
+            'weighted_average', 'instrument_count',
             'created_at', 'updated_at'
         ]
 

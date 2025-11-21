@@ -69,17 +69,7 @@ class MarketSession(models.Model):
                                ('HOLD', 'Hold'),
                            ],
                            help_text="Signal from TOTAL or individual future")
-    wndw = models.CharField(
-        max_length=20,
-        choices=[
-            ('WORKED', 'Worked'),
-            ('DIDNT_WORK', "Didn't Work"),
-            ('NEUTRAL', 'Neutral'),
-            ('PENDING', 'Pending'),
-        ],
-        default='PENDING',
-        help_text="Outcome status (WORKED/DIDNT_WORK/NEUTRAL/PENDING)"
-    )
+    # Removed window/outcome/status grading fields (wndw/outcome/etc.)
     country_future_wndw_total = models.DecimalField(
         max_digits=10,
         decimal_places=2,
@@ -223,37 +213,31 @@ class MarketSession(models.Model):
     session_ask = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
                                       help_text="Ask price at capture")
     ask_size = models.IntegerField(null=True, blank=True, help_text="Ask size")
-    # Entry and target prices sit near bid/ask fields for easier manual inspection
+    # Entry and targets
     entry_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
-                                     help_text="Actual entry (Ask if buying, Bid if selling)")
+                                      help_text="Actual entry (Ask if buying, Bid if selling)")
     target_high = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
-                                     help_text="Configurable target above entry (per TargetHighLowConfig)")
+                                      help_text="Configurable target above entry (per TargetHighLowConfig)")
     target_low = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
-                                    help_text="Configurable stop below entry (per TargetHighLowConfig)")
-    # Keep volume adjacent to ask_size so the physical column layout stays intuitive
+                                     help_text="Configurable stop below entry (per TargetHighLowConfig)")
+    # Additional market data
     volume = models.BigIntegerField(null=True, blank=True, help_text="Trading volume")
     change = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
                                  help_text="Price change from previous close")
     change_percent = models.DecimalField(max_digits=10, decimal_places=4, null=True, blank=True,
                                          help_text="Percentage change")
-    
-    # Market Data at Open
     vwap = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
                                help_text="Volume Weighted Average Price")
     spread = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
-                                help_text="Bid-Ask spread")
-    
-    # Session Price Data
+                                 help_text="Bid-Ask spread")
     session_close = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
-                                        help_text="Previous close price (renamed from reference_close)")
+                                        help_text="Previous close price")
     session_open = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
-                                       help_text="Open price (renamed from reference_open)")
+                                       help_text="Open price")
     open_vs_prev_number = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
                                               help_text="Open vs Prev (Number)")
     open_vs_prev_percent = models.DecimalField(max_digits=10, decimal_places=4, null=True, blank=True,
                                                help_text="Open vs Prev (%)")
-    
-    # 24-Hour Range Data
     day_24h_low = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
                                       help_text="24 hour low")
     day_24h_high = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
@@ -262,7 +246,7 @@ class MarketSession(models.Model):
                                          help_text="Range (24h High - 24h Low)")
     range_percent = models.DecimalField(max_digits=10, decimal_places=4, null=True, blank=True,
                                         help_text="Range as % of previous close")
-    
+
     # 52-Week Range Data
     week_52_low = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
                                       help_text="52-week low")
@@ -281,38 +265,7 @@ class MarketSession(models.Model):
     instrument_count = models.IntegerField(null=True, blank=True, default=11,
                                            help_text="Count of instruments (for TOTAL)")
     
-    strong_sell_flag = models.BooleanField(default=False, help_text="Flag for strong sell signal")
-    study_fw = models.CharField(max_length=50, blank=True, help_text="Study/Framework identifier")
-    fw_weight = models.DecimalField(max_digits=10, decimal_places=4, null=True, blank=True,
-                                    help_text="Weighted average for composite calculation")
-    
-    # Outcome Tracking at Market Close (filled during grading)
-    outcome = models.CharField(max_length=20, 
-                              choices=[
-                                  ('WORKED', 'Worked'),
-                                  ('DIDNT_WORK', "Didn't Work"),
-                                  ('NEUTRAL', 'Neutral'),
-                                  ('PENDING', 'Pending'),
-                              ],
-                              default='PENDING',
-                              help_text="Trade outcome for this future")
-    didnt_work = models.BooleanField(default=False, help_text="Trade outcome flag (legacy)")
-    
-    # Exit Values at Close
-    exit_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
-                                     help_text="Price when target or stop was hit")
-    exit_time = models.DateTimeField(null=True, blank=True,
-                                     help_text="Timestamp when outcome was determined")
-    fw_exit_value = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
-                                        help_text="Exit price value")
-    fw_exit_percent = models.DecimalField(max_digits=10, decimal_places=4, null=True, blank=True,
-                                          help_text="Exit percentage")
-    
-    # Stopped Out Data
-    fw_stopped_out_value = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
-                                               help_text="Stopped out price value")
-    fw_stopped_out_nwdw = models.CharField(max_length=20, blank=True,
-                                           help_text="Stopped out status")
+    # Removed legacy strong_sell_flag (no longer tracked)
     
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)

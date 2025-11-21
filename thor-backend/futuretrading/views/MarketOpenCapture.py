@@ -128,7 +128,7 @@ class MarketOpenCaptureService:
             'country': country,
             'future': symbol,
             'captured_at': timezone.now(),
-            'wndw': 'PENDING',
+            # Removed legacy wndw/outcome framework fields
             
             # Live price data at open
             'last_price': self.safe_decimal(row.get('last')),
@@ -159,7 +159,7 @@ class MarketOpenCaptureService:
             # Signal (individual future's signal from HBS)
             'bhs': (ext.get('signal') or '').upper() if ext.get('signal') else '',
             'weight': self.safe_int(ext.get('signal_weight')),
-            'study_fw': 'HBS',
+            # Removed legacy study_fw field (framework identifier no longer stored)
         }
         
         # Determine entry price based on composite signal, then compute targets centrally
@@ -195,14 +195,14 @@ class MarketOpenCaptureService:
             'country': country,
             'future': 'TOTAL',
             'captured_at': timezone.now(),
-            'wndw': 'PENDING',
+            # Removed legacy wndw field
             
             # TOTAL-specific composite data
             'weighted_average': self.safe_decimal(composite.get('avg_weighted')),
             'instrument_count': composite.get('count') or 11,
             'bhs': composite_signal,
             'weight': composite.get('signal_weight_sum'),
-            'study_fw': 'TOTAL'
+            # Removed legacy study_fw field
         }
         
         try:
