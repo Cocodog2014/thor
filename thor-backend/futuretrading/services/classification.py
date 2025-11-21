@@ -52,7 +52,7 @@ from decimal import Decimal
 from functools import lru_cache
 from typing import Optional, Tuple
 
-from ..models import SignalStatValue, ContractWeight, TradingInstrument, SignalWeight, SIGNAL_CHOICES
+from ..models import SignalStatValue, ContractWeight, SignalWeight
 from FutureTrading.constants import SYMBOL_NORMALIZE_MAP
 
 # Fallback static defaults (only used if DB rows missing) – mirrors management command

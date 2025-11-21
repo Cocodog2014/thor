@@ -63,10 +63,13 @@ def build_enriched_rows(raw_quotes: Dict[str, Dict]) -> List[Dict]:
                 'name': norm,
                 'exchange': 'TOS',
                 'currency': 'USD',
+                # TODO: Optionally load from TradingInstrument.display_precision
                 'display_precision': 2,
                 'is_active': True,
                 'sort_order': idx,
             },
+            # Ensure downstream composite has a timestamp
+            'timestamp': quote.get('timestamp'),
             'price': _to_str(quote.get('last')),
             'last': _to_str(quote.get('last')),
             'bid': _to_str(quote.get('bid')),
