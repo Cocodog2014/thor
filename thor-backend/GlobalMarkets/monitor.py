@@ -2,6 +2,9 @@
 Automated Market Scheduler – schedules precise open/close events per market.
 Instead of polling every N seconds, we compute each market's next event time
 and schedule a one-shot timer to fire exactly at that moment.
+
+This module ONLY manages Market.status and emits Django signals.
+It does NOT perform any data capture – other apps listen to signals for that.
 """
 import logging
 import threading
@@ -115,9 +118,13 @@ class MarketMonitor:
         timer.start()
 
     def _handle_event(self, market_id: int):
-        """Execute the status transition and trigger capture on OPEN only (simplified)."""
-        from GlobalMarkets.models import Market, USMarketStatus
-        from FutureTrading.views.MarketOpenCapture import capture_market_open
+        """
+        Execute the status transition.
+        
+        This method ONLY updates Market.status and logs the change.
+        The post_save signal will fire and notify any listeners (e.g. FutureTrading).
+        """
+        from GlobalMarkets.models import Market
 
         try:
             market = Market.objects.get(pk=market_id)
@@ -134,33 +141,19 @@ class MarketMonitor:
 
         prev = market.status
         market.status = target_status
-        market.save()
+        market.save()  # This triggers post_save signal → signal handlers can capture
         logger.info(f"🔄 {market.country}: {prev} → {target_status}")
 
-        # Capture on OPEN transitions (US trading days guard)
-        if target_status == 'OPEN' and USMarketStatus.is_us_market_open_today():
-            logger.info(f"📸 Capturing market open for {market.country}...")
-            try:
-                session = capture_market_open(market)
-                if session:
-                    logger.info(
-                        f"✅ {market.country} captured – Session #{session.session_number} "
-                        f"with {session.futures.count()} futures"
-                    )
-                else:
-                    logger.warning(f"⚠️ {market.country} capture returned no session")
-            except Exception as e:
-                logger.error(f"❌ Failed to capture {market.country}: {e}", exc_info=True)
-
     def _reconcile_now(self):
-        """On startup, immediately correct any status mismatches and capture opens.
+        """
+        On startup, immediately correct any status mismatches.
 
         This ensures that if Django starts while a market is already OPEN but the
-        DB still says CLOSED, we flip it now and perform the open capture without
-        waiting hours for the next close timer.
+        DB still says CLOSED, we flip it now without waiting hours for the next timer.
+        
+        The post_save signal will handle any capture logic via listeners.
         """
-        from GlobalMarkets.models import Market, USMarketStatus
-        from FutureTrading.views.MarketOpenCapture import capture_market_open
+        from GlobalMarkets.models import Market
 
         markets = Market.objects.filter(is_active=True, is_control_market=True)
         fixed = 0
@@ -171,23 +164,9 @@ class MarketMonitor:
                 if m.status != target:
                     prev = m.status
                     m.status = target
-                    m.save()
+                    m.save()  # This triggers post_save signal → signal handlers can capture
                     fixed += 1
                     logger.info(f"🧭 Reconciled {m.country}: {prev} → {target}")
-
-                    if target == 'OPEN' and USMarketStatus.is_us_market_open_today():
-                        logger.info(f"📸 Startup capture for {m.country} (already open)")
-                        try:
-                            session = capture_market_open(m)
-                            if session:
-                                logger.info(
-                                    f"✅ {m.country} captured – Session #{session.session_number} "
-                                    f"with {session.futures.count()} futures"
-                                )
-                            else:
-                                logger.warning(f"⚠️ {m.country} capture returned no session")
-                        except Exception as e:
-                            logger.error(f"❌ Failed startup capture for {m.country}: {e}", exc_info=True)
             except Exception as e:
                 logger.error(f"❌ Reconcile error for {m.country}: {e}")
 

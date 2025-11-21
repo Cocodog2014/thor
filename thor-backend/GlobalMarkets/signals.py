@@ -1,43 +1,65 @@
 """
 GlobalMarkets signals
 
-Triggers market open capture when market status changes.
+Emits events when a Market's status changes.
+Other apps (e.g. FutureTrading) can listen to these
+without GlobalMarkets knowing about them.
 """
 
 import logging
 from django.db.models.signals import post_save
-from django.dispatch import receiver
+from django.dispatch import receiver, Signal
 from .models import Market
 
 logger = logging.getLogger(__name__)
 
+# Custom signals other apps can subscribe to
+market_status_changed = Signal()  # args: instance, previous_status, new_status
+market_opened = Signal()          # args: instance
+market_closed = Signal()          # args: instance
+
 
 @receiver(post_save, sender=Market)
-def on_market_status_change(sender, instance, created, **kwargs):
+def on_market_status_change(sender, instance: Market, created: bool, **kwargs):
     """
-    Signal handler for Market status changes.
-    Triggers market open capture when status changes to OPEN.
+    Fire signals when a Market's status actually changes.
+
+    Does NOT trigger any capturing itself – it just broadcasts events.
     """
-    # Don't trigger on initial creation
     if created:
+        # Ignore initial creation; status transitions will be handled on later saves
         return
-    
-    # Only trigger if status is OPEN and market is active
-    if instance.status == 'OPEN' and instance.is_active:
-        # Check if this is an actual status change (not just a save)
-        # We'll import here to avoid circular imports
-        try:
-            from FutureTrading.views.MarketOpenCapture import capture_market_open
-            
-            logger.info(f"🔔 Market {instance.country} opened - triggering capture...")
-            
-            # Trigger the capture
-            session = capture_market_open(instance)
-            
-            if session:
-                logger.info(f"✅ Market open captured for {instance.country} - Session #{session.session_number}")
-            else:
-                logger.warning(f"⚠️ Failed to capture market open for {instance.country}")
-                
-        except Exception as e:
-            logger.error(f"❌ Error triggering market open capture for {instance.country}: {e}", exc_info=True)
+
+    try:
+        previous = sender.objects.get(pk=instance.pk)
+    except sender.DoesNotExist:
+        # Should not happen in post_save, but fail safe
+        return
+
+    if previous.status == instance.status:
+        # No real status change
+        return
+
+    prev_status = previous.status
+    new_status = instance.status
+
+    logger.info(
+        "Market %s status changed: %s → %s",
+        instance.country,
+        prev_status,
+        new_status,
+    )
+
+    # Emit generic status-changed signal
+    market_status_changed.send(
+        sender=sender,
+        instance=instance,
+        previous_status=prev_status,
+        new_status=new_status,
+    )
+
+    # Emit convenience signals
+    if new_status == "OPEN":
+        market_opened.send(sender=sender, instance=instance)
+    elif new_status == "CLOSED":
+        market_closed.send(sender=sender, instance=instance)

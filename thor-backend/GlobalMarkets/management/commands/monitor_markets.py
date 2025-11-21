@@ -1,5 +1,9 @@
 """
-Management command to monitor global markets and trigger captures at market open.
+Management command to monitor global markets and update their status.
+
+This command provides manual control over market status monitoring.
+It does NOT perform any data capture – it only updates Market.status,
+which triggers signals that other apps (like FutureTrading) can listen to.
 
 Run this as a background process during trading hours:
     python manage.py monitor_markets --interval 60
@@ -11,7 +15,6 @@ Or as a one-time check:
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 from GlobalMarkets.models import Market, USMarketStatus
-from FutureTrading.views.MarketOpenCapture import capture_market_open
 import time
 import logging
 
@@ -19,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 
 class Command(BaseCommand):
-    help = 'Monitor global markets and trigger data capture when markets open'
+    help = 'Monitor global markets and update status when markets open/close'
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -100,38 +103,22 @@ class Command(BaseCommand):
             )
             
             # Update the status (this will trigger the signal)
+            # Signal handlers in other apps (e.g. FutureTrading) will handle capture
             market.status = target_status
             market.save()
             
-            # If market just opened, trigger capture explicitly
             if target_status == 'OPEN':
                 self.stdout.write(
                     self.style.SUCCESS(
-                        f'     └─ 📸 Capturing market open data...'
+                        f'     └─ ✅ Status updated to OPEN (signal emitted)'
                     )
                 )
-                
-                try:
-                    session = capture_market_open(market)
-                    if session:
-                        self.stdout.write(
-                            self.style.SUCCESS(
-                                f'        ✅ Session #{session.session_number} created '
-                                f'with {session.futures.count()} futures'
-                            )
-                        )
-                    else:
-                        self.stdout.write(
-                            self.style.ERROR(
-                                f'        ❌ Capture failed (no session created)'
-                            )
-                        )
-                except Exception as e:
-                    self.stdout.write(
-                        self.style.ERROR(
-                            f'        ❌ Error: {str(e)}'
-                        )
+            else:
+                self.stdout.write(
+                    self.style.SUCCESS(
+                        f'     └─ ✅ Status updated to CLOSED (signal emitted)'
                     )
+                )
         else:
             # Status is correct, just log
             status_icon = '🟢' if target_status == 'OPEN' else '🔴'
