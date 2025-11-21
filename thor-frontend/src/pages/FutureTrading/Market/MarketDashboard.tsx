@@ -55,8 +55,6 @@ const CONTROL_MARKETS = [
   { key: "London", label: "London", country: "United Kingdom" },
   { key: "Pre_USA", label: "Pre_USA", country: "Pre_USA" },
   { key: "USA", label: "USA", country: "USA" },
-  { key: "Toronto", label: "Toronto", country: "Canada" },
-  { key: "Mexican", label: "Mexican", country: "Mexico" },
 ] as const;
 
 // Futures universe: 10 futures + Dollar Index + TOTAL (composite)
