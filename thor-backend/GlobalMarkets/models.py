@@ -549,15 +549,18 @@ class MarketDataSnapshot(models.Model):
 
 
 class MarketHoliday(models.Model):
-    """Per-market holiday days (full-day closures). Partial days ignored for now."""
+    """Per-market holiday calendar (full day or partial day)."""
     market = models.ForeignKey(Market, on_delete=models.CASCADE, related_name='holidays')
     date = models.DateField()
-    name = models.CharField(max_length=100, blank=True)
     full_day = models.BooleanField(default=True)
+    description = models.CharField(max_length=200, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        unique_together = ('market', 'date')
-        ordering = ['date']
+        unique_together = ['market', 'date']
+        ordering = ['market__country', '-date']
         verbose_name = 'Market Holiday'
         verbose_name_plural = 'Market Holidays'
 
@@ -565,59 +568,49 @@ class MarketHoliday(models.Model):
         return f"{self.market.country} holiday on {self.date} ({'Full' if self.full_day else 'Partial'})"
 
 
-    class GlobalMarketIndex(models.Model):
-        """
-        Real-time weighted global sentiment composite index
-        Tracks the combined influence of all control markets
-        """
-        timestamp = models.DateTimeField(auto_now_add=True)
-    
-        # Composite scores
-        global_composite_score = models.DecimalField(
-            max_digits=6, 
-            decimal_places=2, 
-            default=0,
-            help_text="Weighted global influence score (0-100)"
-        )
-        active_markets_count = models.IntegerField(default=0, help_text="How many control markets are OPEN")
-        session_phase = models.CharField(
-            max_length=20,
-            choices=[
-                ('ASIAN', 'Asian Session'),
-                ('EUROPEAN', 'European Session'),
-                ('AMERICAN', 'American Session'),
-                ('OVERLAP', 'Overlap/After-hours'),
-            ],
-            help_text="Current dominant trading session"
-        )
-    
-        # Individual market contributions (stored as JSON for flexibility)
-        # Format: {"Tokyo": {"weight": 25, "active": true, "contribution": 25}, ...}
-        contributions_json = models.JSONField(default=dict, blank=True)
-    
-        class Meta:
-            ordering = ['-timestamp']
-            verbose_name = 'Global Market Index'
-            verbose_name_plural = 'Global Market Indices'
-            indexes = [
-                models.Index(fields=['-timestamp']),
-                models.Index(fields=['session_phase']),
-            ]
-    
-        def __str__(self):
-            return f"Global Composite: {self.global_composite_score}% at {self.timestamp} ({self.session_phase})"
-    
-        @classmethod
-        def create_snapshot(cls):
-            """Create a new snapshot of the global composite index"""
-            composite_data = Market.calculate_global_composite()
-        
-            return cls.objects.create(
-                global_composite_score=composite_data['composite_score'],
-                active_markets_count=composite_data['active_markets'],
-                session_phase=composite_data['session_phase'],
-                contributions_json=composite_data['contributions']
-            )
+class GlobalMarketIndex(models.Model):
+    """Real-time weighted global sentiment composite index."""
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+    # Composite regional + global scores (-100 to +100 range assumed)
+    global_composite_score = models.DecimalField(
+        max_digits=6,
+        decimal_places=3,
+        help_text="Overall global sentiment score (-100 to +100)"
+    )
+    asia_score = models.DecimalField(
+        max_digits=6,
+        decimal_places=3,
+        null=True,
+        blank=True,
+        help_text="Composite score for Asian markets"
+    )
+    europe_score = models.DecimalField(
+        max_digits=6,
+        decimal_places=3,
+        null=True,
+        blank=True,
+        help_text="Composite score for European markets"
+    )
+    americas_score = models.DecimalField(
+        max_digits=6,
+        decimal_places=3,
+        null=True,
+        blank=True,
+        help_text="Composite score for American markets"
+    )
+
+    # Market breadth metrics
+    markets_open = models.IntegerField(default=0)
+    markets_bullish = models.IntegerField(default=0)
+    markets_bearish = models.IntegerField(default=0)
+    markets_neutral = models.IntegerField(default=0)
+
+    class Meta:
+        ordering = ['-timestamp']
+
+    def __str__(self):
+        return f"GlobalIndex @ {self.timestamp:%Y-%m-%d %H:%M} = {self.global_composite_score}"
 
 
 class UserMarketWatchlist(models.Model):
