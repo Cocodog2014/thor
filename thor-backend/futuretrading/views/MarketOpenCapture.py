@@ -22,8 +22,6 @@ class MarketOpenCaptureService:
 
     Uses centralized constants from FutureTrading.constants.
     """
-    # Markets we do not persist in MarketSession (data redundant with USA)
-    SKIP_COUNTRIES = {"Canada", "Mexico"}
     
     def get_next_session_number(self):
         last = MarketSession.objects.order_by('-session_number').first()
@@ -157,11 +155,6 @@ class MarketOpenCaptureService:
         All rows share same session_number, country, date/time info.
         """
         try:
-            # Skip redundant markets (Canada and Mexico open with USA)
-            if getattr(market, 'country', None) in self.SKIP_COUNTRIES:
-                logger.info("Skipping MarketSession capture for redundant country: %s", market.country)
-                return None
-
             logger.info(f"Capturing {market.country} market open...")
             
             enriched, composite = get_enriched_quotes_with_composite()
