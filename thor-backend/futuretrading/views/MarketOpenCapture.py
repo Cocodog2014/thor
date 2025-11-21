@@ -147,27 +147,18 @@ class MarketOpenCaptureService:
     
     @transaction.atomic
     def capture_market_open(self, market):
-        """
-        Captures market open by creating 12 MarketSession rows:
-        - 11 rows for individual futures (YM, ES, NQ, RTY, CL, SI, HG, GC, VX, DX, ZB)
-        - 1 row for TOTAL composite
+        """Create MarketSession rows at market open (one per future + TOTAL).
 
-        All rows share same session_number, country, date/time info.
+        Early-return if market-level capture flags disable futures or open capture.
         """
+        # Belt-and-suspenders guard (monitor should already filter, but we re-check)
+        if not getattr(market, 'enable_futures_capture', True):
+            logger.info("Futures capture disabled for %s; skipping.", market.country)
+            return None
+        if not getattr(market, 'enable_open_capture', True):
+            logger.info("Open capture disabled for %s; skipping.", market.country)
+            return None
         try:
-            # Respect market-level capture flags if present
-            if hasattr(market, 'enable_futures_capture') and not market.enable_futures_capture:
-                logger.info(
-                    "Skipping MarketSession OPEN capture for %s (enable_futures_capture=False)",
-                    market.country,
-                )
-                return None
-            if hasattr(market, 'enable_open_capture') and not market.enable_open_capture:
-                logger.info(
-                    "Skipping MarketSession OPEN capture for %s (enable_open_capture=False)",
-                    market.country,
-                )
-                return None
             logger.info(f"Capturing {market.country} market open...")
             
             enriched, composite = get_enriched_quotes_with_composite()
