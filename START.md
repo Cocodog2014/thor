@@ -65,7 +65,7 @@ docker exec -it thor_postgres psql -U thor_user -d thor_db
 \dn                 -- list schemas
 \dt *.*             -- list tables in all schemas
 \dv *.*             -- list views in all schemas
-\d "FutureTrading_marketopensession"   -- describe a table (quoted name)
+\d "FutureTrading_marketsession"   -- describe a table (quoted name)
 ```
 
 Alternative (using host psql without docker exec):
