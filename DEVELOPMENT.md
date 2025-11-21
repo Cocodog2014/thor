@@ -628,3 +628,90 @@ Logic:
 - **BUY/STRONG_BUY**: price >= target_high  WORKED; price <= target_low  DIDNT_WORK
 - **SELL/STRONG_SELL**: price <= target_low  WORKED; price >= target_high  DIDNT_WORK
 - **HOLD** or missing targets  NEUTRAL (no grading)
+
+7. Futures Capture Control (Canada/Mexico Skip Logic)
+
+Thor now supports per-market control over whether futures "open" snapshots are written into `FutureTrading.MarketSession`.
+
+Use cases:
+  - Suppress redundant markets (e.g., Canada, Mexico) whose futures mirror USA session.
+  - Temporarily disable capture for maintenance/testing without code changes.
+
+### 7.1 Model Flags
+
+`GlobalMarkets.Market` has three Boolean fields exposed in the Django admin:
+
+| Field | Purpose |
+|-------|---------|
+| `enable_futures_capture` | Master switch. If false, no MarketSession rows are written for this market. |
+| `enable_open_capture` | Controls open-event capture (market transitions to OPEN). |
+| `enable_close_capture` | Reserved for future close-event snapshots (not yet implemented). |
+
+For Canada/Mexico: uncheck `enable_futures_capture` (and optionally `enable_open_capture`) to skip their rows completely.
+
+### 7.2 How It Works Internally
+
+1. `GlobalMarkets.monitor.MarketMonitor` drives exact open/close transitions by updating `Market.status` using timers.
+2. After a market transitions to `OPEN`, `_on_market_open(market)` is invoked.
+3. `_on_market_open` performs belt-and-suspenders checks:
+   - `if not market.enable_futures_capture: return`
+   - `if not market.enable_open_capture: return`
+4. If allowed, it lazily imports `capture_market_open` from `FutureTrading.views.MarketOpenCapture`.
+5. `capture_market_open` creates 12 `MarketSession` rows (11 individual futures + TOTAL) with a unified `session_number`.
+6. Additional internal checks inside `MarketOpenCaptureService` also guard the flags (defensive redundancy).
+
+This dual-layer (monitor + service) approach ensures:
+  - Safe operation during migrations (service falls back to `getattr(..., True)` if flags absent).
+  - No accidental writes if the monitor logic changes later.
+
+### 7.3 Admin Workflow
+
+1. Visit `/admin/GlobalMarkets/market/`.
+2. Locate Canada and Mexico.
+3. Uncheck `Enable futures capture` (and optionally `Enable open capture`).
+4. Save.
+5. Restart the backend (or wait for next OPEN transition) to see skips logged.
+
+Expected log lines:
+
+```
+INFO Skipping futures open capture for Canada (enable_futures_capture=False)
+INFO Skipping futures open capture for Mexico (enable_futures_capture=False)
+```
+
+Enabled markets will show:
+
+```
+INFO 🚀 Initiating futures open capture for USA
+INFO Capture complete: Session #42, 12 rows created
+```
+
+### 7.4 Environment Guard
+
+During migrations you may want to prevent the monitor from starting and querying tables before new columns exist. Set:
+
+```powershell
+$env:DISABLE_GLOBAL_MARKETS_MONITOR = '1'
+python manage.py makemigrations
+python manage.py migrate
+```
+
+Then unset or restart without the variable to resume normal scheduling.
+
+### 7.5 Verification Checklist
+
+After enabling/disabling flags:
+
+| Step | Check |
+|------|-------|
+| Open transition fires | Log shows status change `CLOSED → OPEN` |
+| Capture skip (disabled) | Skip message appears, no new `MarketSession` rows for that country |
+| Capture success (enabled) | 12 rows inserted with identical `session_number` |
+| TOTAL row present | One row where `future='TOTAL'` |
+| Targets assigned | Rows with composite BUY/SELL have `entry_price`, `target_high`, `target_low` |
+
+### 7.6 Future Extension
+
+`enable_close_capture` is reserved; adding a symmetric `_on_market_close` hook will allow end-of-session snapshots (e.g., realized range vs targets). That code path intentionally omitted for now per project priority.
+
+---

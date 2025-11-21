@@ -144,6 +144,13 @@ class MarketMonitor:
         market.save()  # This triggers post_save signal → signal handlers can capture
         logger.info(f"🔄 {market.country}: {prev} → {target_status}")
 
+        # If market just opened, trigger futures open capture respecting flags
+        if target_status == 'OPEN':
+            try:
+                _on_market_open(market)
+            except Exception as e:
+                logger.error(f"❌ Market open capture failed for {market.country}: {e}", exc_info=True)
+
     def _reconcile_now(self):
         """
         On startup, immediately correct any status mismatches.
@@ -200,3 +207,27 @@ def stop_monitor():
     """Stop the market monitor"""
     monitor = get_monitor()
     monitor.stop()
+
+
+def _on_market_open(market):
+    """Invoke futures open capture for a market honoring capture flags.
+
+    Skips if futures capture or open capture disabled. Uses lazy imports
+    to avoid early app loading issues.
+    """
+    # Belt-and-suspenders: if model does not have flags yet, assume enabled
+    if not getattr(market, 'enable_futures_capture', True):
+        logger.info("Skipping futures open capture for %s (enable_futures_capture=False)", market.country)
+        return
+    if not getattr(market, 'enable_open_capture', True):
+        logger.info("Skipping futures open capture for %s (enable_open_capture=False)", market.country)
+        return
+
+    try:
+        from FutureTrading.views.MarketOpenCapture import capture_market_open
+    except Exception as e:
+        logger.error(f"Import error – cannot capture futures for {market.country}: {e}")
+        return
+
+    logger.info("🚀 Initiating futures open capture for %s", market.country)
+    capture_market_open(market)
