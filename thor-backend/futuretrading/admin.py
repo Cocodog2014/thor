@@ -164,6 +164,7 @@ class Rolling52WeekStatsAdmin(admin.ModelAdmin):
         'high_52w', 'high_52w_date',
         'low_52w', 'low_52w_date',
         'last_price_checked',
+        'stale_hours_display',
         'last_updated'
     ]
     list_filter = ['high_52w_date', 'low_52w_date']
@@ -204,6 +205,21 @@ class Rolling52WeekStatsAdmin(admin.ModelAdmin):
             if not obj.low_52w_date:
                 obj.low_52w_date = today
         super().save_model(request, obj, form, change)
+
+    def get_readonly_fields(self, request, obj=None):
+        # After initial creation, lock extreme fields to enforce data integrity
+        ro = list(super().get_readonly_fields(request, obj))
+        if obj:  # editing existing
+            ro.extend([
+                'high_52w', 'high_52w_date', 'low_52w', 'low_52w_date',
+                'all_time_high', 'all_time_high_date', 'all_time_low', 'all_time_low_date'
+            ])
+        return ro
+
+    def stale_hours_display(self, obj):
+        val = obj.stale_hours()
+        return f"{val:.2f}" if val is not None else '-'
+    stale_hours_display.short_description = 'Stale (h)'
 
 
 # Target High / Low Configuration Admin

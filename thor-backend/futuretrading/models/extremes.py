@@ -7,7 +7,38 @@ Admin can seed initial values, then system auto-updates on new highs/lows.
 
 from django.db import models
 from django.utils import timezone
+from django.dispatch import Signal
 from decimal import Decimal
+
+
+week52_extreme_changed = Signal()
+
+
+class Rolling52WeekStatsManager(models.Manager):
+    """Custom manager providing batch update capability.
+
+    update_batch(prices) accepts a mapping of symbol->last_price (Decimal|str|float).
+    For each existing record it applies update_from_price; new records are NOT
+    created here (seed separately) to keep logic explicit.
+    Returns a list of (symbol, extreme_type, old_value, new_value, date) events.
+    """
+
+    def update_batch(self, prices: dict):
+        if not prices:
+            return []
+        events = []
+        # Normalize prices to Decimal
+        normalized = {}
+        for sym, val in prices.items():
+            try:
+                normalized[sym] = Decimal(str(val))
+            except Exception:
+                continue
+        # Fetch only existing symbols to avoid accidental creation
+        for stats in self.filter(symbol__in=normalized.keys()):
+            stats_events = stats.update_from_price(normalized[stats.symbol], emit_signal=True)
+            events.extend(stats_events)
+        return events
 
 
 class Rolling52WeekStats(models.Model):
@@ -96,7 +127,16 @@ class Rolling52WeekStats(models.Model):
     def __str__(self):
         return f"{self.symbol}: H={self.high_52w} L={self.low_52w}"
     
-    def update_from_price(self, last_price: Decimal) -> bool:
+    objects = Rolling52WeekStatsManager()
+
+    def stale_hours(self) -> float | None:
+        """Return number of hours since last extreme update or None if never checked."""
+        if not self.last_updated:
+            return None
+        delta = timezone.now() - self.last_updated
+        return round(delta.total_seconds() / 3600.0, 2)
+
+    def update_from_price(self, last_price: Decimal, emit_signal: bool = False) -> bool | list:
         """
         Check if incoming LAST price sets new high/low and update if so.
         
@@ -104,39 +144,62 @@ class Rolling52WeekStats(models.Model):
             last_price: Current LAST price from market data
             
         Returns:
-            bool: True if any extreme was updated
+            bool|list: True if any extreme updated (legacy); or list of events when emit_signal=True.
         """
         updated = False
+        events = []
         today = timezone.now().date()
         
         # Check for new high
         if last_price > self.high_52w:
+            prev = self.high_52w
             self.high_52w = last_price
             self.high_52w_date = today
             updated = True
-            
-            # Also update all-time high if tracking
-            if self.all_time_high is None or last_price > self.all_time_high:
+            events.append((self.symbol, 'HIGH_52W', prev, last_price, today))
+
+            # Also update all-time high (only after initial seed exists for both extremes)
+            if (self.all_time_high is None or last_price > self.all_time_high) and self.low_52w_date and self.high_52w_date:
+                prev_at = self.all_time_high
                 self.all_time_high = last_price
                 self.all_time_high_date = today
+                events.append((self.symbol, 'ALL_TIME_HIGH', prev_at, last_price, today))
         
         # Check for new low
         if last_price < self.low_52w:
+            prev = self.low_52w
             self.low_52w = last_price
             self.low_52w_date = today
             updated = True
-            
-            # Also update all-time low if tracking
-            if self.all_time_low is None or last_price < self.all_time_low:
+            events.append((self.symbol, 'LOW_52W', prev, last_price, today))
+
+            # Also update all-time low (only after initial seed exists for both extremes)
+            if (self.all_time_low is None or last_price < self.all_time_low) and self.low_52w_date and self.high_52w_date:
+                prev_at = self.all_time_low
                 self.all_time_low = last_price
                 self.all_time_low_date = today
+                events.append((self.symbol, 'ALL_TIME_LOW', prev_at, last_price, today))
         
         # Always track last checked price
         self.last_price_checked = last_price
         
         if updated:
             self.save()
-        
+            if emit_signal and events:
+                # fire individual signals for each event
+                for (symbol, extreme_type, old_value, new_value, date) in events:
+                    week52_extreme_changed.send(
+                        sender=Rolling52WeekStats,
+                        instance=self,
+                        symbol=symbol,
+                        extreme_type=extreme_type,
+                        old_value=old_value,
+                        new_value=new_value,
+                        date=date,
+                    )
+
+        if emit_signal:
+            return events
         return updated
     
     def to_dict(self):
@@ -152,4 +215,5 @@ class Rolling52WeekStats(models.Model):
             'all_time_low': str(self.all_time_low) if self.all_time_low else None,
             'all_time_low_date': self.all_time_low_date.isoformat() if self.all_time_low_date else None,
             'last_updated': self.last_updated.isoformat(),
+            'stale_hours': self.stale_hours(),
         }
