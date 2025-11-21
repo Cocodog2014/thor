@@ -16,19 +16,17 @@ from FutureTrading.models.target_high_low import TargetHighLowConfig
 from LiveData.shared.redis_client import live_data_redis
 from FutureTrading.services.classification import enrich_quote_row, compute_composite
 from FutureTrading.services.metrics import compute_row_metrics
+from FutureTrading.services.quotes import get_enriched_quotes_with_composite
+from FutureTrading.constants import FUTURES_SYMBOLS, REDIS_SYMBOL_MAP, SYMBOL_NORMALIZE_MAP
 
 logger = logging.getLogger(__name__)
 
 
 class MarketOpenCaptureService:
-    """Captures futures data at market open - matches RTD endpoint logic exactly"""
-    
-    FUTURES_SYMBOLS = ['YM', 'ES', 'NQ', 'RTY', 'CL', 'SI', 'HG', 'GC', 'VX', 'DX', 'ZB']
-    REDIS_SYMBOL_MAP = {'DX': '$DXY'}
-    SYMBOL_NORMALIZE_MAP = {
-        'RT': 'RTY', '30YrBond': 'ZB', '30Yr T-BOND': 'ZB', 'T-BOND': 'ZB',
-        '$DXY': 'DX', 'DXY': 'DX', 'USDX': 'DX'
-    }
+    """Captures futures data at market open - matches RTD endpoint logic exactly.
+
+    Uses centralized constants from FutureTrading.constants.
+    """
     
     def get_next_session_number(self):
         last = MarketSession.objects.order_by('-session_number').first()
@@ -36,8 +34,8 @@ class MarketOpenCaptureService:
     
     def fetch_redis_quotes(self):
         quotes = {}
-        for symbol in self.FUTURES_SYMBOLS:
-            key = self.REDIS_SYMBOL_MAP.get(symbol, symbol)
+        for symbol in FUTURES_SYMBOLS:
+            key = REDIS_SYMBOL_MAP.get(symbol, symbol)
             try:
                 data = live_data_redis.get_latest_quote(key)
                 if data:
@@ -50,12 +48,12 @@ class MarketOpenCaptureService:
         stats_52w = {s.symbol: s for s in Rolling52WeekStats.objects.all()}
         rows = []
         
-        for idx, symbol in enumerate(self.FUTURES_SYMBOLS):
+        for idx, symbol in enumerate(FUTURES_SYMBOLS):
             quote = redis_quotes.get(symbol)
             if not quote:
                 continue
             
-            norm_sym = self.SYMBOL_NORMALIZE_MAP.get(symbol, symbol)
+            norm_sym = SYMBOL_NORMALIZE_MAP.get(symbol, symbol)
             sym_52w = stats_52w.get(norm_sym)
             
             to_str = lambda v: str(v) if v is not None else None
@@ -247,17 +245,10 @@ class MarketOpenCaptureService:
             # Prefetch target high/low configs for all symbols (single query)
             self._target_cfg_cache = {c.symbol.upper(): c for c in TargetHighLowConfig.objects.filter(is_active=True)}
 
-            redis_quotes = self.fetch_redis_quotes()
-            if not redis_quotes:
-                logger.error(f"No quotes for {market.country}")
-                return None
-            
-            enriched = self.build_enriched_rows(redis_quotes)
+            enriched, composite = get_enriched_quotes_with_composite()
             if not enriched:
                 logger.error(f"No enriched rows for {market.country}")
                 return None
-            
-            composite = compute_composite(enriched)
             composite_signal = (composite.get('composite_signal') or 'HOLD').upper()
             
             time_info = market.get_current_market_time()
