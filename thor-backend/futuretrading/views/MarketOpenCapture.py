@@ -2,7 +2,7 @@
 Market Open Capture - Single-Table Design
 
 Captures futures data at market open using the same enrichment pipeline as the live RTD endpoint.
-Creates 12 MarketOpenSession rows per market open (one per future + TOTAL).
+Creates 12 MarketSession rows per market open (one per future + TOTAL).
 """
 
 import logging
@@ -17,6 +17,7 @@ from LiveData.shared.redis_client import live_data_redis
 from FutureTrading.services.classification import enrich_quote_row, compute_composite
 from FutureTrading.services.metrics import compute_row_metrics
 from FutureTrading.services.quotes import get_enriched_quotes_with_composite
+from FutureTrading.services.targets import compute_targets_for_symbol
 from FutureTrading.constants import FUTURES_SYMBOLS, REDIS_SYMBOL_MAP, SYMBOL_NORMALIZE_MAP
 
 logger = logging.getLogger(__name__)
@@ -114,7 +115,7 @@ class MarketOpenCaptureService:
                 return None
     
     def create_session_for_future(self, symbol, row, session_number, time_info, country, composite_signal):
-        """Create one MarketOpenSession row for a single future"""
+        """Create one MarketSession row for a single future"""
         ext = row.get('extended_data', {})
         
         # Base session data
@@ -161,35 +162,17 @@ class MarketOpenCaptureService:
             'study_fw': 'HBS',
         }
         
-        # Calculate entry and targets using configurable offsets
+        # Determine entry price based on composite signal, then compute targets centrally
         if composite_signal and composite_signal not in ['HOLD', '']:
             if composite_signal in ['BUY', 'STRONG_BUY']:
                 data['entry_price'] = data.get('session_ask')
             elif composite_signal in ['SELL', 'STRONG_SELL']:
                 data['entry_price'] = data.get('session_bid')
-
             entry = data.get('entry_price')
             if entry:
-                # Look up per-symbol target config (prefetched earlier into self._target_cfg_cache)
-                cfg = getattr(self, '_target_cfg_cache', {}).get(symbol.upper())
-                if cfg:
-                    try:
-                        targets = cfg.compute_targets(entry)
-                        if targets:
-                            high, low = targets
-                            data['target_high'] = high
-                            data['target_low'] = low
-                        else:
-                            # Disabled config: do not set targets (leave null)
-                            logger.debug(f"Target config disabled for {symbol}; skipping targets")
-                    except Exception as e:
-                        logger.warning(f"Target config compute failed for {symbol}: {e}; falling back to legacy defaults")
-                        data['target_high'] = entry + 20
-                        data['target_low'] = entry - 20
-                else:
-                    # No config present: legacy fallback
-                    data['target_high'] = entry + 20
-                    data['target_low'] = entry - 20
+                high, low = compute_targets_for_symbol(symbol, entry)
+                data['target_high'] = high
+                data['target_low'] = low
         
         try:
             session = MarketSession.objects.create(**data)
@@ -200,7 +183,7 @@ class MarketOpenCaptureService:
             return None
     
     def create_session_for_total(self, composite, session_number, time_info, country):
-        """Create one MarketOpenSession row for TOTAL composite"""
+        """Create one MarketSession row for TOTAL composite"""
         composite_signal = (composite.get('composite_signal') or 'HOLD').upper()
         
         data = {
@@ -233,10 +216,10 @@ class MarketOpenCaptureService:
     @transaction.atomic
     def capture_market_open(self, market):
         """
-        Captures market open by creating 12 MarketOpenSession rows:
+        Captures market open by creating 12 MarketSession rows:
         - 11 rows for individual futures (YM, ES, NQ, RTY, CL, SI, HG, GC, VX, DX, ZB)
         - 1 row for TOTAL composite
-        
+
         All rows share same session_number, country, date/time info.
         """
         try:

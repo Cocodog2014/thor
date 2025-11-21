@@ -13,12 +13,15 @@ from django.db.models import Count, Q
 
 from FutureTrading.models.MarketSession import MarketSession
 from FutureTrading.serializers.MarketSession import (
-    MarketOpenSessionListSerializer,
-    MarketOpenSessionDetailSerializer
+    MarketSessionListSerializer,
+    MarketSessionDetailSerializer,
+    MarketOpenSessionListSerializer,  # backwards compatibility
+    MarketOpenSessionDetailSerializer  # backwards compatibility
 )
+from FutureTrading.constants import CONTROL_COUNTRIES
 
 
-class MarketOpenSessionListView(APIView):
+class MarketSessionListView(APIView):
     """
     GET /api/futures/market-opens/
     
@@ -55,11 +58,11 @@ class MarketOpenSessionListView(APIView):
                     status=status.HTTP_400_BAD_REQUEST
                 )
         
-        serializer = MarketOpenSessionListSerializer(queryset, many=True)
+        serializer = MarketSessionListSerializer(queryset, many=True)
         return Response(serializer.data)
 
 
-class MarketOpenSessionDetailView(APIView):
+class MarketSessionDetailView(APIView):
     """
     GET /api/futures/market-opens/{id}/
     
@@ -69,7 +72,7 @@ class MarketOpenSessionDetailView(APIView):
     def get(self, request, pk):
         try:
             session = MarketSession.objects.get(pk=pk)
-            serializer = MarketOpenSessionDetailSerializer(session)
+            serializer = MarketSessionDetailSerializer(session)
             return Response(serializer.data)
         except MarketSession.DoesNotExist:
             return Response(
@@ -78,7 +81,7 @@ class MarketOpenSessionDetailView(APIView):
             )
 
 
-class TodayMarketOpensView(APIView):
+class TodayMarketSessionsView(APIView):
     """
     GET /api/futures/market-opens/today/
     
@@ -92,11 +95,11 @@ class TodayMarketOpensView(APIView):
             month=today.month,
             date=today.day
         )
-        serializer = MarketOpenSessionDetailSerializer(sessions, many=True)
+        serializer = MarketSessionDetailSerializer(sessions, many=True)
         return Response(serializer.data)
 
 
-class PendingMarketOpensView(APIView):
+class PendingMarketSessionsView(APIView):
     """
     GET /api/futures/market-opens/pending/
     
@@ -105,11 +108,11 @@ class PendingMarketOpensView(APIView):
     
     def get(self, request):
         sessions = MarketSession.objects.filter(fw_nwdw='PENDING')
-        serializer = MarketOpenSessionDetailSerializer(sessions, many=True)
+        serializer = MarketSessionDetailSerializer(sessions, many=True)
         return Response(serializer.data)
 
 
-class MarketOpenStatsView(APIView):
+class MarketSessionStatsView(APIView):
     """
     GET /api/futures/market-opens/stats/
     
@@ -170,7 +173,7 @@ class MarketOpenStatsView(APIView):
         })
 
 
-class LatestPerMarketOpensView(APIView):
+class LatestPerMarketSessionsView(APIView):
     """
     GET /api/futures/market-opens/latest/
 
@@ -179,10 +182,7 @@ class LatestPerMarketOpensView(APIView):
     show something for each market.
     """
 
-    CONTROL_COUNTRIES = [
-        'Japan', 'China', 'India', 'Germany', 'United Kingdom',
-        'Pre_USA', 'USA', 'Canada', 'Mexico'
-    ]
+    CONTROL_COUNTRIES = CONTROL_COUNTRIES
 
     def get(self, request):
         full_sessions = []
@@ -203,11 +203,18 @@ class LatestPerMarketOpensView(APIView):
             ).order_by('future')
             full_sessions.extend(session_rows)
 
-        serializer = MarketOpenSessionDetailSerializer(full_sessions, many=True)
+        serializer = MarketSessionDetailSerializer(full_sessions, many=True)
         return Response(serializer.data)
 
 
 __all__ = [
+    'MarketSessionListView',
+    'MarketSessionDetailView',
+    'TodayMarketSessionsView',
+    'PendingMarketSessionsView',
+    'MarketSessionStatsView',
+    'LatestPerMarketSessionsView',
+    # Backwards compatibility exports
     'MarketOpenSessionListView',
     'MarketOpenSessionDetailView',
     'TodayMarketOpensView',
@@ -215,3 +222,11 @@ __all__ = [
     'MarketOpenStatsView',
     'LatestPerMarketOpensView',
 ]
+
+# Backwards compatibility class aliases
+MarketOpenSessionListView = MarketSessionListView
+MarketOpenSessionDetailView = MarketSessionDetailView
+TodayMarketOpensView = TodayMarketSessionsView
+PendingMarketOpensView = PendingMarketSessionsView
+MarketOpenStatsView = MarketSessionStatsView
+LatestPerMarketOpensView = LatestPerMarketSessionsView

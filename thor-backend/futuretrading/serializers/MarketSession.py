@@ -7,15 +7,19 @@ from rest_framework import serializers
 from FutureTrading.models.MarketSession import MarketSession
 
 
-class MarketOpenSessionListSerializer(serializers.ModelSerializer):
-    """Serializer for list view of market open sessions"""
-    
+class MarketSessionBaseSerializer(serializers.ModelSerializer):
     class Meta:
         model = MarketSession
+        fields = '__all__'
+
+
+class MarketSessionListSerializer(MarketSessionBaseSerializer):
+    class Meta(MarketSessionBaseSerializer.Meta):
         fields = [
-            'id', 'session_number', 'year', 'month', 'date', 'day', 
+            'id', 'session_number', 'year', 'month', 'date', 'day',
             'captured_at', 'country', 'future', 'country_future', 'weight', 'bhs', 'wndw',
-            'country_future_wndw_total', 'strong_buy_worked', 'strong_buy_worked_percentage',
+            'country_future_wndw_total',
+            'strong_buy_worked', 'strong_buy_worked_percentage',
             'strong_buy_didnt_work', 'strong_buy_didnt_work_percentage',
             'buy_worked', 'buy_worked_percentage', 'buy_didnt_work', 'buy_didnt_work_percentage',
             'hold', 'hold_percentage',
@@ -30,13 +34,10 @@ class MarketOpenSessionListSerializer(serializers.ModelSerializer):
         ]
 
 
-class MarketOpenSessionDetailSerializer(serializers.ModelSerializer):
-    """Serializer for detailed view of a single future at market open"""
-    
-    class Meta:
-        model = MarketSession
+class MarketSessionDetailSerializer(MarketSessionBaseSerializer):
+    class Meta(MarketSessionBaseSerializer.Meta):
         fields = [
-            'id', 'session_number', 'year', 'month', 'date', 'day', 
+            'id', 'session_number', 'year', 'month', 'date', 'day',
             'captured_at', 'country', 'future', 'country_future', 'weight', 'bhs', 'wndw',
             'country_future_wndw_total', 'strong_buy_worked', 'strong_buy_worked_percentage',
             'strong_buy_didnt_work', 'strong_buy_didnt_work_percentage',
@@ -46,31 +47,27 @@ class MarketOpenSessionDetailSerializer(serializers.ModelSerializer):
             'strong_sell_didnt_work', 'strong_sell_didnt_work_percentage',
             'sell_worked', 'sell_worked_percentage',
             'sell_didnt_work', 'sell_didnt_work_percentage',
-            # Live price data at open
             'last_price', 'change', 'change_percent',
             'session_ask', 'ask_size', 'session_bid', 'bid_size',
             'volume', 'vwap', 'spread',
-            # Session price data
-            'session_close', 'session_open', 'open_vs_prev_number', 
-            'open_vs_prev_percent',
-            # Range data
+            'session_close', 'session_open', 'open_vs_prev_number', 'open_vs_prev_percent',
             'day_24h_low', 'day_24h_high', 'range_high_low', 'range_percent',
             'week_52_low', 'week_52_high', 'week_52_range_high_low', 'week_52_range_percent',
-            # Entry and targets
             'entry_price', 'target_high', 'target_low',
-            # Signal and composite
-            'weighted_average', 'bhs', 'wndw',
-            'instrument_count', 'strong_sell_flag', 'study_fw', 'fw_weight',
-            # Outcome tracking
-            'outcome', 'didnt_work', 'fw_nwdw', 
-            'exit_price', 'exit_time', 'fw_exit_value', 'fw_exit_percent',
+            'weighted_average', 'bhs', 'wndw', 'instrument_count', 'strong_sell_flag', 'study_fw', 'fw_weight',
+            'outcome', 'didnt_work', 'fw_nwdw', 'exit_price', 'exit_time', 'fw_exit_value', 'fw_exit_percent',
             'fw_stopped_out_value', 'fw_stopped_out_nwdw',
-            # Timestamps
             'created_at', 'updated_at'
         ]
 
+# Backwards compatibility aliases
+MarketOpenSessionListSerializer = MarketSessionListSerializer
+MarketOpenSessionDetailSerializer = MarketSessionDetailSerializer
 
 __all__ = [
+    'MarketSessionBaseSerializer',
+    'MarketSessionListSerializer',
+    'MarketSessionDetailSerializer',
     'MarketOpenSessionListSerializer',
     'MarketOpenSessionDetailSerializer',
 ]

@@ -14,11 +14,9 @@ import logging
 import requests
 
 from ..models import TradingInstrument
-from ..config import EXPECTED_FUTURES
-from LiveData.shared.redis_client import live_data_redis
-from ..models.extremes import Rolling52WeekStats
-from ..services.classification import enrich_quote_row, compute_composite
-from ..services.metrics import compute_row_metrics
+from ..models.extremes import Rolling52WeekStats  # still used for extra metadata
+from FutureTrading.services.quotes import get_enriched_quotes_with_composite
+from FutureTrading.constants import SYMBOL_NORMALIZE_MAP
 
 logger = logging.getLogger(__name__)
 
@@ -33,118 +31,8 @@ class LatestQuotesView(APIView):
 
     def get(self, request):
         try:
-            # Read the latest quotes snapshot from Redis (source of truth)
-            # The Excel poller command (or manual trigger) keeps Redis fresh.
-            raw_quotes = []
-
-            # Symbols as stored by the producer (Excel). Some require mapping from our canonical names.
-            redis_symbol_map = {
-                # Canonical -> Redis key symbol
-                'DX': '$DXY',
-            }
-            fetch_symbols = [redis_symbol_map.get(sym, sym) for sym in EXPECTED_FUTURES]
-
-            # Read from Redis snapshot (populated by Excel poller)
-            raw_quotes = live_data_redis.get_latest_quotes(fetch_symbols) or []
-            
-            if not raw_quotes:
-                logger.warning("No quotes found in Redis. Is the Excel poller running?")
-
-            # Step 2: Transform TOS quotes into FutureTrading structure (instrument + fields)
-            instruments_db = {inst.symbol: inst for inst in TradingInstrument.objects.all()}
-            
-            # Load 52-week stats from database
-            stats_52w = {s.symbol: s for s in Rolling52WeekStats.objects.all()}
-
-            transformed_rows = []
-            for idx, quote in enumerate(raw_quotes):
-                raw_symbol = quote.get('symbol', '')
-
-                # Normalize symbol - fix common Excel RTD symbol mismatches
-                symbol_map = {
-                    'RT': 'RTY',
-                    '30YrBond': 'ZB',
-                    '30Yr T-BOND': 'ZB',
-                    'T-BOND': 'ZB',
-                    # Dollar Index varieties from Excel/feeds
-                    '$DXY': 'DX',
-                    'DXY': 'DX',
-                    'USDX': 'DX',
-                }
-                symbol = symbol_map.get(raw_symbol, raw_symbol)
-
-                db_inst = instruments_db.get(symbol) or instruments_db.get(f'/{symbol}')
-                display_precision = db_inst.display_precision if db_inst else 2
-                tick_value = str(db_inst.tick_value) if db_inst and db_inst.tick_value else None
-                margin_requirement = str(db_inst.margin_requirement) if db_inst and db_inst.margin_requirement else None
-
-                def to_str(val):
-                    return str(val) if val is not None else None
-                
-                # Get 52w stats for this symbol (if exists)
-                symbol_52w = stats_52w.get(symbol)
-                high_52w = to_str(symbol_52w.high_52w) if symbol_52w else None
-                low_52w = to_str(symbol_52w.low_52w) if symbol_52w else None
-
-                row = {
-                    'instrument': {
-                        'id': idx + 1,
-                        'symbol': symbol,
-                        'name': symbol,
-                        'exchange': 'TOS',
-                        'currency': 'USD',
-                        'display_precision': display_precision,
-                        'tick_value': tick_value,
-                        'margin_requirement': margin_requirement,
-                        'is_active': True,
-                        'sort_order': idx
-                    },
-                    'price': to_str(quote.get('last')),
-                    'last': to_str(quote.get('last')),
-                    'bid': to_str(quote.get('bid')),
-                    'ask': to_str(quote.get('ask')),
-                    'volume': quote.get('volume'),
-                    'open_price': to_str(quote.get('open')),
-                    'high_price': to_str(quote.get('high')),
-                    'low_price': to_str(quote.get('low')),
-                    'close_price': to_str(quote.get('close')),
-                    'previous_close': to_str(quote.get('close')),
-                    'change': to_str(quote.get('change')),
-                    'change_percent': None,
-                    'vwap': None,
-                    'bid_size': quote.get('bid_size'),
-                    'ask_size': quote.get('ask_size'),
-                    'last_size': None,
-                    'market_status': 'CLOSED',
-                    'data_source': 'TOS_RTD',
-                    'is_real_time': True,
-                    'delay_minutes': 0,
-                    'timestamp': quote.get('timestamp'),
-                    'extended_data': {
-                        'high_52w': high_52w,  # From database, not Excel
-                        'low_52w': low_52w,    # From database, not Excel
-                    }
-                }
-                transformed_rows.append(row)
-
-            # Step 3: Apply classification and metrics
-            enriched_rows = []
-            for row in transformed_rows:
-                enrich_quote_row(row)
-                try:
-                    metrics = compute_row_metrics(row)
-                    row.update(metrics)
-                    if row.get('change_percent') in (None, '', '—'):
-                        row['change_percent'] = metrics.get('last_prev_pct')
-                except Exception as e:
-                    logger.warning(
-                        f"Metric computation failed for {row.get('instrument',{}).get('symbol','?')}: {e}")
-                enriched_rows.append(row)
-
-            # Step 4: Composite
-            total_data = compute_composite(enriched_rows)
-
-            return Response({'rows': enriched_rows, 'total': total_data}, status=status.HTTP_200_OK)
+            rows, total = get_enriched_quotes_with_composite()
+            return Response({'rows': rows, 'total': total}, status=status.HTTP_200_OK)
 
         except Exception as e:
             logger.error(f"Error in LatestQuotesView: {str(e)}")

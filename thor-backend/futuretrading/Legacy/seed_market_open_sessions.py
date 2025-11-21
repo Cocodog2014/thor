@@ -13,14 +13,11 @@ from decimal import Decimal
 import random
 
 from FutureTrading.models.MarketSession import MarketSession
+from FutureTrading.services.targets import compute_targets_for_symbol
+from FutureTrading.constants import FUTURES_SYMBOLS, CONTROL_COUNTRIES
 
 
-CONTROL_COUNTRIES = [
-    'Japan', 'China', 'India', 'Germany', 'United Kingdom',
-    'Pre_USA', 'USA', 'Canada', 'Mexico'
-]
-
-FUTURES_SYMBOLS = ['YM', 'ES', 'NQ', 'RTY', 'CL', 'SI', 'HG', 'GC', 'VX', 'DX', 'ZB']
+# Centralized lists now imported from constants
 SIGNALS = ['BUY', 'HOLD', 'SELL', 'STRONG_BUY', 'STRONG_SELL']
 
 
@@ -109,12 +106,12 @@ class Command(BaseCommand):
                 if sig not in ['HOLD', None, '']:
                     if sig in ['BUY', 'STRONG_BUY']:
                         data['entry_price'] = data['session_ask']
-                        data['target_high'] = data['entry_price'] + Decimal('20')
-                        data['target_low'] = data['entry_price'] - Decimal('20')
                     elif sig in ['SELL', 'STRONG_SELL']:
                         data['entry_price'] = data['session_bid']
-                        data['target_high'] = data['entry_price'] + Decimal('20')
-                        data['target_low'] = data['entry_price'] - Decimal('20')
+                    if data.get('entry_price'):
+                        th, tl = compute_targets_for_symbol(symbol, data['entry_price'])
+                        data['target_high'] = th
+                        data['target_low'] = tl
 
                 MarketSession.objects.create(**data)
                 created += 1

@@ -1,7 +1,7 @@
 """
 Market Open Grading Logic - Single-Table Design
 
-Monitors pending MarketOpenSession trades and grades them in real-time.
+Monitors pending MarketSession trades and grades them in real-time.
 Each row represents one future at one market open.
 Runs every 0.5 seconds to check if futures hit target or stop.
 """
@@ -73,7 +73,7 @@ class MarketGrader:
         Works for individual futures AND TOTAL row.
         
         Args:
-            session: MarketOpenSession instance (one future)
+            session: MarketSession instance (one future)
             
         Returns:
             bool: True if graded (outcome determined), False if still pending
@@ -165,7 +165,7 @@ class MarketGrader:
     def run_grading_loop(self):
         """
         Main grading loop - runs continuously, checking every 0.5 seconds.
-        Grades all pending MarketOpenSession rows (one per future).
+        Grades all pending MarketSession rows (one per future).
         """
         logger.info(f"Starting Market Open Grader (check interval: {self.check_interval}s)")
         self.running = True
