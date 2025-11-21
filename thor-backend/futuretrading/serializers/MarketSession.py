@@ -29,7 +29,7 @@ class MarketSessionListSerializer(MarketSessionBaseSerializer):
             'sell_didnt_work', 'sell_didnt_work_percentage',
             'last_price', 'change', 'change_percent',
             'entry_price', 'target_high', 'target_low',
-            'outcome', 'fw_nwdw', 'exit_price',
+            'outcome', 'wndw', 'exit_price',
             'created_at'
         ]
 
@@ -55,7 +55,7 @@ class MarketSessionDetailSerializer(MarketSessionBaseSerializer):
             'week_52_low', 'week_52_high', 'week_52_range_high_low', 'week_52_range_percent',
             'entry_price', 'target_high', 'target_low',
             'weighted_average', 'bhs', 'wndw', 'instrument_count', 'strong_sell_flag', 'study_fw', 'fw_weight',
-            'outcome', 'didnt_work', 'fw_nwdw', 'exit_price', 'exit_time', 'fw_exit_value', 'fw_exit_percent',
+            'outcome', 'didnt_work', 'wndw', 'exit_price', 'exit_time', 'fw_exit_value', 'fw_exit_percent',
             'fw_stopped_out_value', 'fw_stopped_out_nwdw',
             'created_at', 'updated_at'
         ]

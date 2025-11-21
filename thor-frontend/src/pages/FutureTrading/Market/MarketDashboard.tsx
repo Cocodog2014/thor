@@ -40,7 +40,7 @@ interface MarketOpenSession {
   bhs?: string | null;
   instrument_count?: number | null;
   outcome?: string | null;
-  fw_nwdw?: string | null;
+  wndw?: string | null;
   exit_price?: string | null;
   fw_exit_value?: string | null;
   fw_exit_percent?: string | null;
@@ -301,7 +301,7 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl }) => {
           const snap = rows.find(r => r.future?.toUpperCase() === selectedSymbol?.toUpperCase()) || rows[0];
 
           const signal = snap?.bhs;
-          const outcomeStatus = snap?.fw_nwdw;
+          const outcomeStatus = snap?.wndw;
 
           return (
             <div key={m.key} className="mo-rt-card">

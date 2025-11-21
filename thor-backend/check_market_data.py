@@ -27,7 +27,7 @@ print(f'Sessions last 24h: {last_24h}')
 latest = MarketOpenSession.objects.order_by('-captured_at').first()
 if latest:
     print(f'Latest session: {latest.captured_at} - {latest.country}')
-    print(f'  Status: {latest.fw_nwdw}')
+    print(f'  Status: {latest.wndw}')
     print(f'  Market: {latest.market_name}')
 else:
     print('Latest session: None')

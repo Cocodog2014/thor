@@ -117,10 +117,10 @@ except Exception as e:
 # Test 6: Update outcome
 print("\n6. Testing outcome update...")
 try:
-    session.fw_nwdw = "WORKED"
+    session.wndw = "WORKED"
     session.fw_exit_value = Decimal("47408.00")
     session.save()
-    print(f"✅ Updated session outcome: {session.fw_nwdw}")
+    print(f"✅ Updated session outcome: {session.wndw}")
 except Exception as e:
     print(f"❌ Error updating outcome: {e}")
     sys.exit(1)

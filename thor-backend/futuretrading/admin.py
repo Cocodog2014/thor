@@ -86,9 +86,9 @@ class SignalWeightAdmin(admin.ModelAdmin):
 class MarketSessionAdmin(admin.ModelAdmin):
     list_display = [
         'session_number', 'country', 'future', 'country_future', 'date_display', 'day', 
-        'bhs', 'wndw', 'fw_nwdw', 'entry_price', 'last_price'
+        'bhs', 'wndw', 'entry_price', 'last_price'
     ]
-    list_filter = ['country', 'future', 'day', 'bhs', 'wndw', 'fw_nwdw', 'year', 'month']
+    list_filter = ['country', 'future', 'day', 'bhs', 'wndw', 'year', 'month']
     search_fields = ['country', 'session_number', 'future']
     readonly_fields = ['captured_at', 'created_at', 'updated_at']
     
@@ -126,7 +126,7 @@ class MarketSessionAdmin(admin.ModelAdmin):
                         'instrument_count', 'strong_sell_flag', 'study_fw', 'fw_weight')
         }),
         ('Outcome Tracking', {
-            'fields': ('outcome', 'fw_nwdw', 'didnt_work', 'exit_price', 'exit_time',
+            'fields': ('outcome', 'wndw', 'didnt_work', 'exit_price', 'exit_time',
                       'fw_exit_value', 'fw_exit_percent')
         }),
         ('Stopped Out', {

@@ -79,16 +79,15 @@ class MarketGrader:
             bool: True if graded (outcome determined), False if still pending
         """
         # Skip if already graded
-        if session.outcome != 'PENDING' and session.fw_nwdw != 'PENDING':
+        if session.outcome != 'PENDING' and session.wndw != 'PENDING':
             return True
         
         # Skip TOTAL composite rows (no actual trade)
         if session.future == 'TOTAL':
             if session.outcome == 'PENDING':
                 session.outcome = 'NEUTRAL'
-                session.fw_nwdw = 'NEUTRAL'
                 session.wndw = 'NEUTRAL'
-                session.save(update_fields=['outcome', 'fw_nwdw', 'wndw', 'updated_at'])
+                session.save(update_fields=['outcome', 'wndw', 'updated_at'])
             return True
         
         # Skip if no entry price or targets
@@ -99,9 +98,8 @@ class MarketGrader:
         if session.bhs == 'HOLD' or not session.bhs:
             if session.outcome == 'PENDING':
                 session.outcome = 'NEUTRAL'
-                session.fw_nwdw = 'NEUTRAL'
                 session.wndw = 'NEUTRAL'
-                session.save(update_fields=['outcome', 'fw_nwdw', 'wndw', 'updated_at'])
+                session.save(update_fields=['outcome', 'wndw', 'updated_at'])
             return True
         
         # Get current price for this future
@@ -131,14 +129,13 @@ class MarketGrader:
         # Update outcome if determined
         if worked:
             session.outcome = 'WORKED'
-            session.fw_nwdw = 'WORKED'
+            session.wndw = 'WORKED'
             session.didnt_work = False
             session.exit_price = current_price
             session.exit_time = timezone.now()
-            session.wndw = 'WORKED'
             session.fw_exit_value = current_price
             session.save(update_fields=[
-                    'outcome', 'fw_nwdw', 'wndw', 'didnt_work', 'exit_price', 
+                    'outcome', 'wndw', 'didnt_work', 'exit_price', 
                 'exit_time', 'fw_exit_value', 'updated_at'
             ])
             logger.info(f"✅ {session.future} (Session #{session.session_number}) WORKED - Exit: {current_price}")
@@ -146,15 +143,14 @@ class MarketGrader:
             
         elif didnt_work:
             session.outcome = 'DIDNT_WORK'
-            session.fw_nwdw = 'DIDNT_WORK'
+            session.wndw = 'DIDNT_WORK'
             session.didnt_work = True
             session.exit_price = current_price
             session.exit_time = timezone.now()
-            session.wndw = 'DIDNT_WORK'
             session.fw_stopped_out_value = current_price
             session.fw_stopped_out_nwdw = 'STOPPED_OUT'
             session.save(update_fields=[
-                    'outcome', 'fw_nwdw', 'wndw', 'didnt_work', 'exit_price', 'exit_time',
+                    'outcome', 'wndw', 'didnt_work', 'exit_price', 'exit_time',
                 'fw_stopped_out_value', 'fw_stopped_out_nwdw', 'updated_at'
             ])
             logger.info(f"❌ {session.future} (Session #{session.session_number}) DIDN'T WORK - Stop: {current_price}")

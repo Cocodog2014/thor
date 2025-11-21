@@ -78,7 +78,7 @@ class MarketSession(models.Model):
             ('PENDING', 'Pending'),
         ],
         default='PENDING',
-        help_text="Window result (mirrors fw_nwdw)"
+        help_text="Outcome status (WORKED/DIDNT_WORK/NEUTRAL/PENDING)"
     )
     country_future_wndw_total = models.DecimalField(
         max_digits=10,
@@ -227,9 +227,9 @@ class MarketSession(models.Model):
     entry_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
                                      help_text="Actual entry (Ask if buying, Bid if selling)")
     target_high = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
-                                     help_text="Entry + 20 points ($100 profit target)")
+                                     help_text="Configurable target above entry (per TargetHighLowConfig)")
     target_low = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
-                                    help_text="Entry - 20 points ($100 stop loss)")
+                                    help_text="Configurable stop below entry (per TargetHighLowConfig)")
     # Keep volume adjacent to ask_size so the physical column layout stays intuitive
     volume = models.BigIntegerField(null=True, blank=True, help_text="Trading volume")
     change = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,
@@ -297,15 +297,6 @@ class MarketSession(models.Model):
                               default='PENDING',
                               help_text="Trade outcome for this future")
     didnt_work = models.BooleanField(default=False, help_text="Trade outcome flag (legacy)")
-    fw_nwdw = models.CharField(max_length=20, 
-                               choices=[
-                                   ('WORKED', 'Worked'),
-                                   ('DIDNT_WORK', "Didn't Work"),
-                                   ('NEUTRAL', 'Neutral'),
-                                   ('PENDING', 'Pending'),
-                               ],
-                               default='PENDING',
-                               help_text="Framework status")
     
     # Exit Values at Close
     exit_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True,

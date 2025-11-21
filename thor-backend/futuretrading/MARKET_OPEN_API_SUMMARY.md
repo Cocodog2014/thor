@@ -211,7 +211,7 @@ bhs                  # BUY/SELL/STRONG_BUY/STRONG_SELL/HOLD
 fw_weight            # Weighted average value
 
 # Outcome
-fw_nwdw              # WORKED/DIDNT_WORK/NEUTRAL/PENDING
+wndw                 # WORKED/DIDNT_WORK/NEUTRAL/PENDING
 fw_exit_value        # Exit price when target hit
 fw_stopped_out_value # Stop price if stopped out
 ```

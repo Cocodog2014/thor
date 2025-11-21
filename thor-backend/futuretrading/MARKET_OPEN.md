@@ -94,7 +94,7 @@ Add section for captured market open sessions:
 - YM prices: open, close, ask, bid, last
 - Entry prices: entry_price, high_dynamic (+20), low_dynamic (-20)
 - Signal: bhs (BUY/SELL/HOLD/STRONG_BUY/STRONG_SELL)
-- Outcome: fw_nwdw (WORKED/DIDNT_WORK/NEUTRAL/PENDING), exit values
+- Outcome: wndw (WORKED/DIDNT_WORK/NEUTRAL/PENDING), exit values
 
 ### FutureSnapshot (12 records per session: 11 futures + TOTAL)
 

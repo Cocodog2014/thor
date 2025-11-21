@@ -41,7 +41,7 @@ class MarketSessionListView(APIView):
         
         status_filter = request.query_params.get('status')
         if status_filter:
-            queryset = queryset.filter(fw_nwdw=status_filter.upper())
+            queryset = queryset.filter(wndw=status_filter.upper())
         
         date_filter = request.query_params.get('date')
         if date_filter:
@@ -107,7 +107,7 @@ class PendingMarketSessionsView(APIView):
     """
     
     def get(self, request):
-        sessions = MarketSession.objects.filter(fw_nwdw='PENDING')
+        sessions = MarketSession.objects.filter(wndw='PENDING')
         serializer = MarketSessionDetailSerializer(sessions, many=True)
         return Response(serializer.data)
 
@@ -127,10 +127,10 @@ class MarketSessionStatsView(APIView):
         total_sessions = MarketSession.objects.count()
         
         # Overall stats
-        worked = MarketSession.objects.filter(fw_nwdw='WORKED').count()
-        didnt_work = MarketSession.objects.filter(fw_nwdw='DIDNT_WORK').count()
-        pending = MarketSession.objects.filter(fw_nwdw='PENDING').count()
-        neutral = MarketSession.objects.filter(fw_nwdw='NEUTRAL').count()
+        worked = MarketSession.objects.filter(wndw='WORKED').count()
+        didnt_work = MarketSession.objects.filter(wndw='DIDNT_WORK').count()
+        pending = MarketSession.objects.filter(wndw='PENDING').count()
+        neutral = MarketSession.objects.filter(wndw='NEUTRAL').count()
         
         # Calculate win rate (exclude pending and neutral)
         graded_sessions = worked + didnt_work
@@ -139,9 +139,9 @@ class MarketSessionStatsView(APIView):
         # Stats by market
         market_stats = MarketSession.objects.values('country').annotate(
             total=Count('id'),
-            worked=Count('id', filter=Q(fw_nwdw='WORKED')),
-            didnt_work=Count('id', filter=Q(fw_nwdw='DIDNT_WORK')),
-            pending=Count('id', filter=Q(fw_nwdw='PENDING'))
+            worked=Count('id', filter=Q(wndw='WORKED')),
+            didnt_work=Count('id', filter=Q(wndw='DIDNT_WORK')),
+            pending=Count('id', filter=Q(wndw='PENDING'))
         ).order_by('-total')
         
         # Recent performance (last 7 days)
@@ -149,8 +149,8 @@ class MarketSessionStatsView(APIView):
         recent_sessions = MarketSession.objects.filter(
             captured_at__gte=seven_days_ago
         )
-        recent_worked = recent_sessions.filter(fw_nwdw='WORKED').count()
-        recent_didnt_work = recent_sessions.filter(fw_nwdw='DIDNT_WORK').count()
+        recent_worked = recent_sessions.filter(wndw='WORKED').count()
+        recent_didnt_work = recent_sessions.filter(wndw='DIDNT_WORK').count()
         recent_graded = recent_worked + recent_didnt_work
         recent_win_rate = (recent_worked / recent_graded * 100) if recent_graded > 0 else 0
         
