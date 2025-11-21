@@ -7,7 +7,6 @@ unchanged—moved here only for clearer organization.
 """
 
 from django.db import models
-from django.core.validators import MinValueValidator, MaxValueValidator
 from decimal import Decimal
 
 
