@@ -20,6 +20,7 @@ import logging
 from LiveData.shared.redis_client import live_data_redis
 from FutureTrading.constants import FUTURES_SYMBOLS, REDIS_SYMBOL_MAP, SYMBOL_NORMALIZE_MAP
 from FutureTrading.models.extremes import Rolling52WeekStats
+from FutureTrading.models import TradingInstrument
 from FutureTrading.services.classification import enrich_quote_row, compute_composite
 from FutureTrading.services.metrics import compute_row_metrics
 
@@ -47,6 +48,13 @@ def _to_str(v):
 def build_enriched_rows(raw_quotes: Dict[str, Dict]) -> List[Dict]:
     """Return enriched row dicts (one per future)."""
     stats_52w = {s.symbol: s for s in Rolling52WeekStats.objects.all()}
+    # Prefetch display precision for all tracked symbols in one query
+    norm_symbols = [SYMBOL_NORMALIZE_MAP.get(sym, sym) for sym in FUTURES_SYMBOLS]
+    query_symbols = norm_symbols + [f'/{s}' for s in norm_symbols]
+    precision_map: Dict[str, int] = {}
+    for inst in TradingInstrument.objects.filter(symbol__in=query_symbols):
+        key = inst.symbol.lstrip('/').upper()
+        precision_map[key] = inst.display_precision
     rows: List[Dict] = []
 
     for idx, sym in enumerate(FUTURES_SYMBOLS):
@@ -63,8 +71,7 @@ def build_enriched_rows(raw_quotes: Dict[str, Dict]) -> List[Dict]:
                 'name': norm,
                 'exchange': 'TOS',
                 'currency': 'USD',
-                # TODO: Optionally load from TradingInstrument.display_precision
-                'display_precision': 2,
+                'display_precision': precision_map.get(norm, 2),
                 'is_active': True,
                 'sort_order': idx,
             },
