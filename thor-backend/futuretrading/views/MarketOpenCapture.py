@@ -11,14 +11,8 @@ from django.utils import timezone
 from django.db import transaction
 
 from FutureTrading.models.MarketSession import MarketSession
-from FutureTrading.models.extremes import Rolling52WeekStats
-from FutureTrading.models.target_high_low import TargetHighLowConfig
-from LiveData.shared.redis_client import live_data_redis
-from FutureTrading.services.classification import enrich_quote_row, compute_composite
-from FutureTrading.services.metrics import compute_row_metrics
 from FutureTrading.services.quotes import get_enriched_quotes_with_composite
 from FutureTrading.services.TargetHighLow import compute_targets_for_symbol
-from FutureTrading.constants import FUTURES_SYMBOLS, REDIS_SYMBOL_MAP, SYMBOL_NORMALIZE_MAP
 
 logger = logging.getLogger(__name__)
 
@@ -32,68 +26,6 @@ class MarketOpenCaptureService:
     def get_next_session_number(self):
         last = MarketSession.objects.order_by('-session_number').first()
         return (last.session_number + 1) if last else 1
-    
-    def fetch_redis_quotes(self):
-        quotes = {}
-        for symbol in FUTURES_SYMBOLS:
-            key = REDIS_SYMBOL_MAP.get(symbol, symbol)
-            try:
-                data = live_data_redis.get_latest_quote(key)
-                if data:
-                    quotes[symbol] = data
-            except Exception as e:
-                logger.error(f"Redis fetch failed for {symbol}: {e}")
-        return quotes
-    
-    def build_enriched_rows(self, redis_quotes):
-        stats_52w = {s.symbol: s for s in Rolling52WeekStats.objects.all()}
-        rows = []
-        
-        for idx, symbol in enumerate(FUTURES_SYMBOLS):
-            quote = redis_quotes.get(symbol)
-            if not quote:
-                continue
-            
-            norm_sym = SYMBOL_NORMALIZE_MAP.get(symbol, symbol)
-            sym_52w = stats_52w.get(norm_sym)
-            
-            to_str = lambda v: str(v) if v is not None else None
-            
-            row = {
-                'instrument': {'id': idx+1, 'symbol': norm_sym, 'name': norm_sym, 'exchange': 'TOS', 
-                              'currency': 'USD', 'display_precision': 2, 'is_active': True, 'sort_order': idx},
-                'price': to_str(quote.get('last')),
-                'last': to_str(quote.get('last')),
-                'bid': to_str(quote.get('bid')),
-                'ask': to_str(quote.get('ask')),
-                'volume': quote.get('volume'),
-                'open_price': to_str(quote.get('open')),
-                'high_price': to_str(quote.get('high')),
-                'low_price': to_str(quote.get('low')),
-                'close_price': to_str(quote.get('close')),
-                'previous_close': to_str(quote.get('close')),
-                'change': to_str(quote.get('change')),
-                'change_percent': None,
-                'vwap': None,
-                'bid_size': quote.get('bid_size'),
-                'ask_size': quote.get('ask_size'),
-                'extended_data': {
-                    'high_52w': str(sym_52w.high_52w) if (sym_52w and sym_52w.high_52w) else None,
-                    'low_52w': str(sym_52w.low_52w) if (sym_52w and sym_52w.low_52w) else None
-                }
-            }
-            
-            enrich_quote_row(row)
-            try:
-                metrics = compute_row_metrics(row)
-                row.update(metrics)
-                if row.get('change_percent') in (None, '', ''):
-                    row['change_percent'] = metrics.get('last_prev_pct')
-            except Exception as e:
-                logger.warning(f"Metrics failed for {norm_sym}: {e}")
-            
-            rows.append(row)
-        return rows
     
     def safe_decimal(self, val):
         if val in (None, '', ''):
@@ -225,9 +157,6 @@ class MarketOpenCaptureService:
         try:
             logger.info(f"Capturing {market.country} market open...")
             
-            # Prefetch target high/low configs for all symbols (single query)
-            self._target_cfg_cache = {c.symbol.upper(): c for c in TargetHighLowConfig.objects.filter(is_active=True)}
-
             enriched, composite = get_enriched_quotes_with_composite()
             if not enriched:
                 logger.error(f"No enriched rows for {market.country}")

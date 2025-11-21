@@ -1,9 +1,22 @@
 """
-Market Open Grading Logic - Single-Table Design
+Market Open Grading Logic (DISABLED)
 
-Monitors pending MarketSession trades and grades them in real-time.
-Each row represents one future at one market open.
-Runs every 0.5 seconds to check if futures hit target or stop.
+This module is intentionally disabled as part of the MarketSession schema
+simplification. The previous implementation depended on legacy grading
+columns that no longer exist on `MarketSession` (e.g., outcome, wndw,
+didnt_work, exit_price, exit_time, fw_exit_value, fw_stopped_out_value,
+fw_stopped_out_nwdw).
+
+Why disabled now:
+- The new design treats `MarketSession` as a snapshot of "what happened at open".
+- Grading/backtesting belongs in a dedicated model (e.g., TradeOutcome or
+    BacktestResult) rather than reusing MarketSession.
+
+Next steps to re-enable:
+- Design and migrate a new backtest/outcome model to store grading results.
+- Update this module to write to that model instead of MarketSession.
+
+Until then, any attempt to start the grading loop will raise NotImplementedError.
 """
 
 import time
@@ -14,6 +27,11 @@ from FutureTrading.models.MarketSession import MarketSession
 from LiveData.shared.redis_client import live_data_redis
 
 logger = logging.getLogger(__name__)
+
+DISABLED_REASON = (
+    "MarketGrader is disabled: MarketSession no longer has grading columns. "
+    "Implement a dedicated Backtest/TradeOutcome model and update the grader to use it."
+)
 
 
 class MarketGrader:
@@ -159,36 +177,9 @@ class MarketGrader:
         return False  # Still pending
     
     def run_grading_loop(self):
-        """
-        Main grading loop - runs continuously, checking every 0.5 seconds.
-        Grades all pending MarketSession rows (one per future).
-        """
-        logger.info(f"Starting Market Open Grader (check interval: {self.check_interval}s)")
-        self.running = True
-        
-        while self.running:
-            try:
-                # Get all pending sessions (includes all futures except TOTAL which auto-marks neutral)
-                pending_sessions = MarketSession.objects.filter(outcome='PENDING')
-                
-                if pending_sessions.exists():
-                    logger.debug(f"Grading {pending_sessions.count()} pending sessions...")
-                    
-                    # Grade each session (one row = one future)
-                    for session in pending_sessions:
-                        self.grade_session(session)
-                
-                # Wait before next check
-                time.sleep(self.check_interval)
-                
-            except KeyboardInterrupt:
-                logger.info("Grading loop interrupted by user")
-                self.running = False
-                break
-                
-            except Exception as e:
-                logger.error(f"Error in grading loop: {e}", exc_info=True)
-                time.sleep(self.check_interval)  # Continue after error
+        """Disabled entry point for the grading loop."""
+        logger.warning(DISABLED_REASON)
+        raise NotImplementedError(DISABLED_REASON)
     
     def stop(self):
         """Stop the grading loop"""
@@ -201,13 +192,17 @@ grader = MarketGrader()
 
 
 def start_grading_service():
-    """Start the grading service (call from management command or background task)"""
-    grader.run_grading_loop()
+    """Start the grading service (disabled)."""
+    logger.warning(DISABLED_REASON)
+    raise NotImplementedError(DISABLED_REASON)
 
 
 def stop_grading_service():
-    """Stop the grading service"""
-    grader.stop()
+    """Stop the grading service (no-op while disabled)."""
+    try:
+        grader.stop()
+    except Exception:
+        pass
 
 
 __all__ = ['start_grading_service', 'stop_grading_service', 'MarketGrader']
