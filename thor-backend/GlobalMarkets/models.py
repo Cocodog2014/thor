@@ -57,6 +57,23 @@ class Market(models.Model):
     # Additional market info
     currency = models.CharField(max_length=3, blank=True)  # USD, JPY, EUR, etc.
     
+    # Futures capture control flags
+    enable_futures_capture = models.BooleanField(
+        default=True,
+        help_text=(
+            "If unchecked, this market will NOT create FutureTrading MarketSession rows. "
+            "Use for redundant markets (e.g., Canada/Mexico) that mirror USA data."
+        ),
+    )
+    enable_open_capture = models.BooleanField(
+        default=True,
+        help_text="If unchecked, skip futures OPEN capture for this market.",
+    )
+    enable_close_capture = models.BooleanField(
+        default=True,
+        help_text="If unchecked, skip futures CLOSE capture for this market.",
+    )
+    
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

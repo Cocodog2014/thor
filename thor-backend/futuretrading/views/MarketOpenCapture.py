@@ -155,6 +155,19 @@ class MarketOpenCaptureService:
         All rows share same session_number, country, date/time info.
         """
         try:
+            # Respect market-level capture flags if present
+            if hasattr(market, 'enable_futures_capture') and not market.enable_futures_capture:
+                logger.info(
+                    "Skipping MarketSession OPEN capture for %s (enable_futures_capture=False)",
+                    market.country,
+                )
+                return None
+            if hasattr(market, 'enable_open_capture') and not market.enable_open_capture:
+                logger.info(
+                    "Skipping MarketSession OPEN capture for %s (enable_open_capture=False)",
+                    market.country,
+                )
+                return None
             logger.info(f"Capturing {market.country} market open...")
             
             enriched, composite = get_enriched_quotes_with_composite()
