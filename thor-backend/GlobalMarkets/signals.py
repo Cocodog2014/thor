@@ -7,7 +7,7 @@ without GlobalMarkets knowing about them.
 """
 
 import logging
-from django.db.models.signals import post_save
+from django.db.models.signals import pre_save
 from django.dispatch import receiver, Signal
 from .models import Market
 
@@ -19,29 +19,29 @@ market_opened = Signal()          # args: instance
 market_closed = Signal()          # args: instance
 
 
-@receiver(post_save, sender=Market)
-def on_market_status_change(sender, instance: Market, created: bool, **kwargs):
+@receiver(pre_save, sender=Market)
+def on_market_status_change(sender, instance: Market, **kwargs):
     """
     Fire signals when a Market's status actually changes.
 
     Does NOT trigger any capturing itself – it just broadcasts events.
     """
-    if created:
-        # Ignore initial creation; status transitions will be handled on later saves
+    # New object being created – no "previous" status to compare to
+    if not instance.pk:
         return
 
     try:
         previous = sender.objects.get(pk=instance.pk)
     except sender.DoesNotExist:
-        # Should not happen in post_save, but fail safe
-        return
-
-    if previous.status == instance.status:
-        # No real status change
+        # Should not happen, but fail safe
         return
 
     prev_status = previous.status
     new_status = instance.status
+
+    if prev_status == new_status:
+        # No real status change
+        return
 
     logger.info(
         "Market %s status changed: %s → %s",
