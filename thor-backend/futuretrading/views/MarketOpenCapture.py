@@ -17,7 +17,7 @@ from LiveData.shared.redis_client import live_data_redis
 from FutureTrading.services.classification import enrich_quote_row, compute_composite
 from FutureTrading.services.metrics import compute_row_metrics
 from FutureTrading.services.quotes import get_enriched_quotes_with_composite
-from FutureTrading.services.targets import compute_targets_for_symbol
+from FutureTrading.services.TargetHighLow import compute_targets_for_symbol
 from FutureTrading.constants import FUTURES_SYMBOLS, REDIS_SYMBOL_MAP, SYMBOL_NORMALIZE_MAP
 
 logger = logging.getLogger(__name__)

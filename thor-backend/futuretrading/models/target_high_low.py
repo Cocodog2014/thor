@@ -118,10 +118,13 @@ class TargetHighLowConfig(models.Model):
             if (self.percent_high is not None and self.percent_high <= 0) or (self.percent_low is not None and self.percent_low <= 0):
                 raise ValidationError("Percent offsets must be positive (e.g. 0.50 for +0.50%)")
 
-    def compute_targets(self, entry_price: Decimal):
+    def compute_targets(self, entry_price: Decimal, quant: Decimal | None = None):
         """Return (target_high, target_low) or None if disabled.
 
         Percent interpretation: percent_high=0.50 means +0.50% (multiply by 1.0050)
+
+        `quant` is an optional Decimal quantization unit (e.g. Decimal('0.01')).
+        If not provided, no explicit quantize is applied – the caller can decide.
         """
         if entry_price is None:
             raise ValueError("entry_price is required to compute targets")
@@ -129,14 +132,17 @@ class TargetHighLowConfig(models.Model):
         if not self.is_active or self.mode == self.MODE_DISABLED:
             return None
 
+        def _q(val: Decimal) -> Decimal:
+            return val.quantize(quant) if quant is not None else val
+
         if self.mode == self.MODE_POINTS:
-            high = (entry_price + self.offset_high).quantize(Decimal("0.01"))
-            low = (entry_price - self.offset_low).quantize(Decimal("0.01"))
+            high = _q(entry_price + self.offset_high)
+            low = _q(entry_price - self.offset_low)
             return high, low
 
         if self.mode == self.MODE_PERCENT:
-            high = (entry_price * (Decimal("1") + (self.percent_high / Decimal("100")))).quantize(Decimal("0.01"))
-            low = (entry_price * (Decimal("1") - (self.percent_low / Decimal("100")))).quantize(Decimal("0.01"))
+            high = _q(entry_price * (Decimal("1") + (self.percent_high / Decimal("100"))))
+            low = _q(entry_price * (Decimal("1") - (self.percent_low / Decimal("100"))))
             return high, low
 
         return None
