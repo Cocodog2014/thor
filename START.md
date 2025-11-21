@@ -232,3 +232,28 @@ cloudflared tunnel run thor
 MarketDashboard now fetches:
 Latest sessions: http://127.0.0.1:8000/api/futures/market-opens/latest/
 Live status: http://127.0.0.1:8000/api/global-markets/markets/live_status/
+---
+
+## 7 (Optional) Start Market Open Grader
+
+The Market Open Grader monitors pending MarketSession rows and updates their `wndw` status (WORKED / DIDNT_WORK / NEUTRAL) based on live Redis prices hitting targets.
+
+Run this in a separate terminal:
+
+```powershell
+cd A:\Thor\thor-backend
+
+# Start the grader with default 0.5s interval
+python manage.py start_market_grader
+
+# Or customize the check interval (in seconds)
+python manage.py start_market_grader --interval 1.0
+```
+
+Notes:
+- Runs continuously until you press Ctrl+C
+- Watches all MarketSession rows with `wndw='PENDING'`
+- Uses live bid/ask from Redis to determine if target_high or target_low is hit
+- For BUY signals: price >= target_high  WORKED, price <= target_low  DIDNT_WORK
+- For SELL signals: price <= target_low  WORKED, price >= target_high  DIDNT_WORK
+- HOLD signals are marked NEUTRAL automatically

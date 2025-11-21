@@ -69,7 +69,22 @@ class MarketSession(models.Model):
                                ('HOLD', 'Hold'),
                            ],
                            help_text="Signal from TOTAL or individual future")
-    # Removed window/outcome/status grading fields (wndw/outcome/etc.)
+    # Optional window/outcome status (lightweight, no grading logic stored elsewhere)
+    wndw = models.CharField(
+        max_length=20,
+        choices=[
+            ('WORKED', 'Worked'),
+            ('DIDNT_WORK', "Didn't Work"),
+            ('NEUTRAL', 'Neutral'),
+            ('PENDING', 'Pending'),
+        ],
+        default='PENDING',
+        null=True,
+        blank=True,
+        help_text="Window/outcome label (Worked / Didn't Work / Neutral / Pending)"
+    )
+
+    # Removed outcome/status grading fields; wndw reintroduced as optional label
     country_future_wndw_total = models.DecimalField(
         max_digits=14,
         decimal_places=4,

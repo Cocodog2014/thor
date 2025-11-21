@@ -602,3 +602,29 @@ cd A:\Thor
 cloudflared tunnel run thor
 ```
 
+
+6. (Optional) Start Market Open Grader (new shell)
+
+The grader monitors pending MarketSession rows and updates their `wndw` field based on live prices hitting targets.
+
+```powershell
+cd A:\Thor\thor-backend
+
+# Start with default 0.5s check interval
+python manage.py start_market_grader
+
+# Or customize interval
+python manage.py start_market_grader --interval 1.0
+```
+
+What it does:
+- Watches all `MarketSession` rows with `wndw='PENDING'`
+- Reads live bid/ask from Redis
+- Compares current price against `target_high` and `target_low`
+- Updates `wndw` to `WORKED`, `DIDNT_WORK`, or `NEUTRAL`
+- Runs continuously (stop with Ctrl+C)
+
+Logic:
+- **BUY/STRONG_BUY**: price >= target_high  WORKED; price <= target_low  DIDNT_WORK
+- **SELL/STRONG_SELL**: price <= target_low  WORKED; price >= target_high  DIDNT_WORK
+- **HOLD** or missing targets  NEUTRAL (no grading)
