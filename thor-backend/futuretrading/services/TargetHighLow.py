@@ -58,7 +58,8 @@ def compute_targets_for_symbol(symbol: str, entry_price: Optional[Decimal]) -> T
     if entry_price is None:
         return None, None
     try:
-        canonical = SYMBOL_NORMALIZE_MAP.get(symbol, symbol).upper()
+        # Normalize and strip any leading slash so '/ES' and 'ES' both resolve
+        canonical = SYMBOL_NORMALIZE_MAP.get(symbol, symbol).lstrip('/').upper()
         quant = _get_quant_for_symbol(canonical)
         
         cfg = TargetHighLowConfig.objects.filter(symbol__iexact=canonical, is_active=True).first()
