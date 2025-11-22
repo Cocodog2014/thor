@@ -17,14 +17,21 @@ interface MarketOpenSession {
   country_future_wndw_total?: string | null;
   weight?: number | null;
   last_price?: string | null;
-  change?: string | null;
-  change_percent?: string | null;
   ask_price?: string | null;
   ask_size?: number | null;
   bid_price?: string | null;
   bid_size?: number | null;
   volume?: number | null;
   vwap?: string | null;
+  market_open?: string | null;
+  market_high_number?: string | null;
+  market_high_percentage?: string | null;
+  market_low_number?: string | null;
+  market_low_percentage?: string | null;
+  market_close_number?: string | null;
+  market_close_percentage?: string | null;
+  market_range_number?: string | null;
+  market_range_percentage?: string | null;
   spread?: string | null;
   session_close?: string | null;
   session_open?: string | null;
@@ -103,6 +110,42 @@ const formatNum = (n?: string | number | null, maxFrac = 2) => {
   const p = Number(s.replace(/,/g, ""));
   if (Number.isNaN(p)) return s;
   return p.toLocaleString("en-US", { maximumFractionDigits: maxFrac });
+};
+
+const parseNumericValue = (value?: string | number | null) => {
+  if (value === null || value === undefined || value === "") return null;
+  if (typeof value === "number") {
+    return Number.isNaN(value) ? null : value;
+  }
+  const parsed = Number(String(value).replace(/,/g, ""));
+  return Number.isNaN(parsed) ? null : parsed;
+};
+
+const formatSignedValue = (
+  value?: string | number | null,
+  { maxFrac = 2, showPlus = true }: { maxFrac?: number; showPlus?: boolean } = {}
+) => {
+  const parsed = parseNumericValue(value);
+  if (parsed === null) return undefined;
+  const formatted = parsed.toLocaleString("en-US", { maximumFractionDigits: maxFrac });
+  if (parsed > 0 && showPlus && !formatted.startsWith("+")) {
+    return `+${formatted}`;
+  }
+  return formatted;
+};
+
+const formatPercentValue = (
+  value?: string | number | null,
+  options?: { maxFrac?: number; showPlus?: boolean }
+) => {
+  const formatted = formatSignedValue(value, { maxFrac: options?.maxFrac ?? 2, showPlus: options?.showPlus ?? true });
+  return formatted ? `${formatted}%` : undefined;
+};
+
+const getDeltaClass = (value?: string | number | null) => {
+  const parsed = parseNumericValue(value);
+  if (parsed === null || parsed === 0) return "delta-neutral";
+  return parsed > 0 ? "delta-positive" : "delta-negative";
 };
 
 // Helper to check if a value is zero (number or string)
@@ -270,6 +313,36 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl }) => {
           const totalSumValue = formatNum(totalSumRaw) ?? (isZero(totalSumRaw) ? 0 : "—");
           const totalInstrumentCount = snap?.instrument_count ?? 11;
           const totalCapture = snap?.captured_at ? new Date(snap.captured_at).toLocaleTimeString() : "—";
+          const closeDeltaValue = formatSignedValue(snap?.market_close_number);
+          const closeDeltaPercent = formatPercentValue(snap?.market_close_percentage);
+          const closeDeltaClass = getDeltaClass(snap?.market_close_number ?? snap?.market_close_percentage);
+          const marketDeltaMetrics = [
+            {
+              label: "Open Δ",
+              primary: formatSignedValue(snap?.market_open),
+              secondary: undefined,
+              className: getDeltaClass(snap?.market_open),
+            },
+            {
+              label: "High Δ",
+              primary: formatSignedValue(snap?.market_high_number),
+              secondary: formatPercentValue(snap?.market_high_percentage),
+              className: getDeltaClass(snap?.market_high_number ?? snap?.market_high_percentage),
+            },
+            {
+              label: "Low Δ",
+              primary: formatSignedValue(snap?.market_low_number),
+              secondary: formatPercentValue(snap?.market_low_percentage),
+              className: getDeltaClass(snap?.market_low_number ?? snap?.market_low_percentage),
+            },
+            {
+              label: "Range Δ",
+              primary: formatSignedValue(snap?.market_range_number),
+              secondary: formatPercentValue(snap?.market_range_percentage),
+              className: getDeltaClass(snap?.market_range_number ?? snap?.market_range_percentage),
+            },
+          ];
+          const hasDeltaData = marketDeltaMetrics.some(metric => metric.primary || metric.secondary);
 
           return (
             <div key={m.key} className="mo-rt-card">
@@ -343,9 +416,13 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl }) => {
                         <div className="label">Last</div>
                       </div>
                       <div className="mo-rt-change">
-                        <div className="val">{formatNum(snap?.change) ?? (isZero(snap?.change) ? 0 : "—")}</div>
-                        <div className="pct">{formatNum(snap?.change_percent, 2) ?? (isZero(snap?.change_percent) ? 0 : "—")}%</div>
-                        <div className="label">Change</div>
+                        <div className={`val ${closeDeltaClass}`}>
+                          {closeDeltaValue ?? (isZero(snap?.market_close_number) ? "0" : "—")}
+                        </div>
+                        <div className={`pct ${closeDeltaClass}`}>
+                          {closeDeltaPercent ?? (isZero(snap?.market_close_percentage) ? "0%" : "—")}
+                        </div>
+                        <div className="label">Close Δ</div>
                       </div>
                     </div>
 
@@ -361,6 +438,22 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl }) => {
                         <div className="bbo-sub">Size {formatNum(snap?.ask_size, 0) ?? (isZero(snap?.ask_size) ? 0 : "—")}</div>
                       </div>
                     </div>
+
+                    {hasDeltaData && (
+                      <div className="mo-rt-deltas">
+                        {marketDeltaMetrics.map(metric => (
+                          <div className="delta-card" key={metric.label}>
+                            <div className="delta-label">{metric.label}</div>
+                            <div className={`delta-value ${metric.className}`}>
+                              {metric.primary ?? "—"}
+                            </div>
+                            {metric.secondary && (
+                              <div className="delta-sub">{metric.secondary}</div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
 
                     <div className="mo-rt-meta">
                       <div className="meta">
