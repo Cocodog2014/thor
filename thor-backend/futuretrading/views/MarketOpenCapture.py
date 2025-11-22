@@ -13,6 +13,8 @@ from django.db import transaction
 from FutureTrading.models.MarketSession import MarketSession
 from FutureTrading.services.quotes import get_enriched_quotes_with_composite
 from FutureTrading.services.TargetHighLow import compute_targets_for_symbol
+from FutureTrading.services.country_future_counts import update_country_future_stats
+
 
 
 logger = logging.getLogger(__name__)
@@ -205,6 +207,18 @@ class MarketOpenCaptureService:
             )
             if total_session:
                 sessions_created.append(total_session)
+
+            # 🔹 Refresh aggregate country/future metrics so downstream dashboards stay in sync.
+            #     We wrap this in a best-effort block so a logging/reporting hiccup never breaks captures.
+            try:
+                update_country_future_stats()
+            except Exception as stats_error:
+                logger.warning(
+                    "Country/future stats refresh failed after capture %s: %s",
+                    session_number,
+                    stats_error,
+                    exc_info=True,
+                )
             
             logger.info(f"Capture complete: Session #{session_number}, {len(sessions_created)} rows created")
             return sessions_created[0] if sessions_created else None
@@ -215,6 +229,8 @@ class MarketOpenCaptureService:
 
 
 _service = MarketOpenCaptureService()
+
+
 
 def capture_market_open(market):
     return _service.capture_market_open(market)
