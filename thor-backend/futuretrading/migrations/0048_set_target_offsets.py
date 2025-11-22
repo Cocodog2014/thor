@@ -25,7 +25,7 @@ def apply_target_offsets(apps, schema_editor):
         TargetHighLowConfig.objects.update_or_create(
             symbol=symbol,
             defaults={
-                "mode": TargetHighLowConfig.MODE_POINTS,
+                "mode": "POINTS",
                 "offset_high": offset,
                 "offset_low": offset,
                 "percent_high": None,
