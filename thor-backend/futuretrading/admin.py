@@ -30,7 +30,9 @@ class InstrumentCategoryAdmin(admin.ModelAdmin):
 
 @admin.register(TradingInstrument)
 class TradingInstrumentAdmin(admin.ModelAdmin):
-    list_display = ['symbol', 'name', 'category', 'exchange', 'is_active', 'is_watchlist']
+    list_display = [
+        'symbol', 'name', 'category', 'exchange', 'tick_value', 'margin_requirement', 'is_active', 'is_watchlist'
+    ]
     list_filter = ['category', 'is_active', 'is_watchlist', 'exchange']
     list_editable = ['is_active', 'is_watchlist']
     search_fields = ['symbol', 'name']
@@ -48,6 +50,9 @@ class TradingInstrumentAdmin(admin.ModelAdmin):
         }),
         ('Display Configuration', {
             'fields': ('display_precision', 'tick_size', 'contract_size')
+        }),
+        ('Trading Calculations', {
+            'fields': ('tick_value', 'margin_requirement')
         }),
         ('API Configuration', {
             'fields': ('api_provider', 'api_symbol', 'update_frequency')
