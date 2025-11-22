@@ -78,19 +78,24 @@ const FUTURE_OPTIONS = [
 ] as const;
 
 const chipClass = (kind: "signal" | "status", value?: string) => {
-  const base = "mo-rt-chip";
-  if (!value) return `${base} default`;
+  const classes = ["chip", kind];
   const v = (value || "").toUpperCase();
-  if (kind === "signal") {
-    if (v === "BUY" || v === "STRONG_BUY") return `${base} success`;
-    if (v === "SELL" || v === "STRONG_SELL") return `${base} error`;
-    if (v === "HOLD") return `${base} warning`;
-    return `${base} default`;
+  if (!value) {
+    classes.push("default");
+    return classes.join(" ");
   }
-  if (v === "WORKED") return `${base} success`;
-  if (v === "DIDNT_WORK") return `${base} error`;
-  if (v === "PENDING") return `${base} warning`;
-  return `${base} default`;
+  if (kind === "signal") {
+    if (v === "BUY" || v === "STRONG_BUY") classes.push("success");
+    else if (v === "SELL" || v === "STRONG_SELL") classes.push("error");
+    else if (v === "HOLD") classes.push("warning");
+    else classes.push("default");
+  } else {
+    if (v === "WORKED") classes.push("success");
+    else if (v === "DIDNT_WORK") classes.push("error");
+    else if (v === "PENDING") classes.push("warning");
+    else classes.push("default");
+  }
+  return classes.join(" ");
 };
 
 const formatNum = (n?: string | number | null, maxFrac = 2) => {
@@ -219,48 +224,20 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl }) => {
         <div className="text-xs subtitle-text">Always shows all 9 control markets</div>
       </div>
 
-      {/* TOTAL Composite Card - always show, spans 3 columns */}
-      <div className="total-composite-card">
-        <div className="total-header">
-          <span className="total-title">TOTAL</span>
-          <span className="total-badge composite">Composite</span>
-          <span className="total-badge futures">11 Futures</span>
-          {totalSession && (
-            <span
-              className={`total-pill ${String(totalSession.bhs || '').toLowerCase().replace('_','-')}`}
-            >
+      {/* TOTAL Composite Card */}
+      <div className="total-card">
+        <div className="total-card-title">TOTAL — Composite of 11 Futures</div>
+        <div className="total-card-meta">
+          <span className="total-card-label">Weighted Avg:</span>
+          <span className="total-card-value">{totalSession ? (formatNum(String(totalSession.weighted_average), 3) ?? '—') : '—'}</span>
+          <span className="total-card-label">Capture:</span>
+          <span className="total-card-value">{totalSession?.captured_at ? new Date(totalSession.captured_at).toLocaleTimeString() : '—'}</span>
+          {totalSession?.bhs && (
+            <span className={`total-pill ${String(totalSession.bhs || '').toLowerCase().replace('_','-')}`}>
               {(totalSession.bhs || '—').replace('_',' ')}
             </span>
           )}
-          <span className="total-time">
-            {totalSession?.captured_at ? new Date(totalSession.captured_at).toLocaleTimeString() : "—"}
-          </span>
         </div>
-        {totalSession ? (
-          <div className="total-body">
-            <div className="total-left">
-              <div className="total-val">{formatNum(String(totalSession.weighted_average), 3) || '—'}</div>
-              <div className="total-label">Weighted Average</div>
-              <div className="total-left-metrics">
-                <div className="total-mini-card">
-                  <div className="mini-title">Count</div>
-                  <div className="mini-value">{totalSession.instrument_count ?? '—'}</div>
-                  <div className="mini-sub">Instruments</div>
-                </div>
-                <div className="total-mini-card">
-                  <div className="mini-title">Weight</div>
-                  <div className="mini-value">{totalSession.weight ?? '—'}</div>
-                  <div className="mini-sub">Composite</div>
-                </div>
-              </div>
-            </div>
-            <div className="total-right">
-              <div className="live-label">LIVE TOTAL</div>
-            </div>
-          </div>
-        ) : (
-          <div className="total-empty">🪫 No TOTAL data captured yet — waiting for market open…</div>
-        )}
       </div>
 
       <div className="market-grid">
@@ -282,43 +259,40 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl }) => {
           if (hidePriorNow) {
             return (
               <div key={m.key} className="mo-rt-card">
-                <div className="mo-rt-header">
-                  <span className="mo-rt-chip sym">{m.label}</span>
-                  <span className="mo-rt-chip default">—</span>
-                </div>
-                <div className="mo-rt-body">
-                  <div className="mo-rt-top">
-                    <div className="mo-rt-last"><div className="val">—</div><div className="label">Last</div></div>
-                    <div className="mo-rt-change"><div className="val">—</div><div className="pct">—%</div><div className="label">Change</div></div>
+                <div className="mo-rt-left">
+                  <div className="mo-rt-header">
+                    <div className="mo-rt-header-chips">
+                      <span className="chip sym">{m.label}</span>
+                      <span className="chip default">Awaiting market open…</span>
+                    </div>
                   </div>
+                  <div className="mo-rt-placeholder">Prior capture hidden 5 minutes before today's open.</div>
                 </div>
               </div>
             );
           }
-          const selectedSymbol = selected[m.key];
+          const selectedSymbol = selected[m.key] || FUTURE_OPTIONS[0].key;
           // Find the row for the selected future
-          const snap = rows.find(r => r.future?.toUpperCase() === selectedSymbol?.toUpperCase()) || rows[0];
+          const snap = rows.find(r => r.future?.toUpperCase() === selectedSymbol.toUpperCase()) || rows[0];
 
           const signal = snap?.bhs;
           const outcomeStatus = snap?.wndw;
 
           return (
             <div key={m.key} className="mo-rt-card">
-              <div className="mo-rt-header">
-                <span className="mo-rt-chip sym">{m.label}</span>
-                <span className={chipClass("signal", signal || undefined)}>{signal || "—"}</span>
-                <span className={chipClass("status", outcomeStatus || undefined)}>{outcomeStatus || "—"}</span>
-                <span className="mo-rt-chip">Wgt: {snap?.weight ?? '—'}</span>
-              </div>
-
-              <div className="mo-rt-body">
-                {/* Chips + Future Dropdown */}
-                <div className="flex-controls">
-                  <div className="ml-auto">
-                    <label className="future-select-label">Future</label>
+              <div className="mo-rt-left">
+                <div className="mo-rt-header">
+                  <div className="mo-rt-header-chips">
+                    <span className="chip sym">{m.label}</span>
+                    <span className={chipClass("signal", signal || undefined)}>{signal || "—"}</span>
+                    <span className={chipClass("status", outcomeStatus || undefined)}>{outcomeStatus || "—"}</span>
+                    <span className="chip weight">Wgt: {snap?.weight ?? '—'}</span>
+                  </div>
+                  <div>
+                    <span className="future-select-label">Future</span>
                     <select
                       className="future-select"
-                      value={selected[m.key]}
+                      value={selected[m.key] || FUTURE_OPTIONS[0].key}
                       onChange={(e) => setSelected(prev => ({ ...prev, [m.key]: e.target.value }))}
                       aria-label="Select future contract"
                     >
@@ -329,7 +303,6 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl }) => {
                   </div>
                 </div>
 
-                {/* Top: Last & Change */}
                 <div className="mo-rt-top">
                   <div className="mo-rt-last">
                     <div className="val">{formatNum(snap?.last_price) ?? (isZero(snap?.last_price) ? 0 : '—')}</div>
@@ -342,31 +315,47 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl }) => {
                   </div>
                 </div>
 
-                {/* BBO tiles */}
                 <div className="mo-rt-bbo">
-                  <div className="tile bid">
-                    <div className="t-head">BID</div>
-                    <div className="t-main">{formatNum(snap?.bid_price) ?? (isZero(snap?.bid_price) ? 0 : '—')}</div>
-                    <div className="t-sub">Size {formatNum(snap?.bid_size, 0) ?? (isZero(snap?.bid_size) ? 0 : '—')}</div>
+                  <div className="bbo-tile">
+                    <div className="bbo-head bid">Bid</div>
+                    <div className="bbo-main">{formatNum(snap?.bid_price) ?? (isZero(snap?.bid_price) ? 0 : '—')}</div>
+                    <div className="bbo-sub">Size {formatNum(snap?.bid_size, 0) ?? (isZero(snap?.bid_size) ? 0 : '—')}</div>
                   </div>
-                  <div className="tile ask">
-                    <div className="t-head">ASK</div>
-                    <div className="t-main">{formatNum(snap?.ask_price) ?? (isZero(snap?.ask_price) ? 0 : '—')}</div>
-                    <div className="t-sub">Size {formatNum(snap?.ask_size, 0) ?? (isZero(snap?.ask_size) ? 0 : '—')}</div>
+                  <div className="bbo-tile">
+                    <div className="bbo-head ask">Ask</div>
+                    <div className="bbo-main">{formatNum(snap?.ask_price) ?? (isZero(snap?.ask_price) ? 0 : '—')}</div>
+                    <div className="bbo-sub">Size {formatNum(snap?.ask_size, 0) ?? (isZero(snap?.ask_size) ? 0 : '—')}</div>
                   </div>
                 </div>
 
-                {/* Stats grid */}
+                <div className="mo-rt-meta">
+                  <div className="meta">
+                    <div className="meta-label">Capture</div>
+                    <div className="meta-value">{snap?.captured_at ? new Date(snap.captured_at).toLocaleTimeString() : '—'}</div>
+                  </div>
+                  <div className="meta">
+                    <div className="meta-label">Contract</div>
+                    <div className="meta-value">{snap?.future || '—'}</div>
+                  </div>
+                  <div className="meta">
+                    <div className="meta-label">Entry</div>
+                    <div className="meta-value">{formatNum(snap?.entry_price) ?? (isZero(snap?.entry_price) ? 0 : '—')}</div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mo-rt-right">
+                <div className="mo-rt-stats-title">Session Stats</div>
                 <div className="mo-rt-stats">
-                  <div className="stat"><div className="label">Volume</div><div className="value">{snap?.volume !== undefined && snap?.volume !== null ? formatNum(snap?.volume, 0) : '—'}</div></div>
-                  <div className="stat"><div className="label">VWAP</div><div className="value">{formatNum(snap?.vwap) ?? (isZero(snap?.vwap) ? 0 : '—')}</div></div>
-                  <div className="stat"><div className="label">Close</div><div className="value">{formatNum(snap?.session_close) ?? (isZero(snap?.session_close) ? 0 : '—')}</div></div>
-                  <div className="stat"><div className="label">Open</div><div className="value">{formatNum(snap?.session_open) ?? (isZero(snap?.session_open) ? 0 : '—')}</div></div>
-                  <div className="stat"><div className="label">24h Low</div><div className="value">{formatNum(snap?.day_24h_low) ?? (isZero(snap?.day_24h_low) ? 0 : '—')}</div></div>
-                  <div className="stat"><div className="label">24h High</div><div className="value">{formatNum(snap?.day_24h_high) ?? (isZero(snap?.day_24h_high) ? 0 : '—')}</div></div>
-                  <div className="stat"><div className="label">24h Range</div><div className="value">{snap?.range_high_low ? <>{formatNum(snap?.range_high_low)} <span className="sub">{formatNum(snap?.range_percent)}</span></> : '—'}</div></div>
-                  <div className="stat"><div className="label">52W Low</div><div className="value">{formatNum(snap?.week_52_low) ?? (isZero(snap?.week_52_low) ? 0 : '—')}</div></div>
-                  <div className="stat"><div className="label">52W High</div><div className="value">{formatNum(snap?.week_52_high) ?? (isZero(snap?.week_52_high) ? 0 : '—')}</div></div>
+                  <div className="stat"><div className="stat-label">Volume</div><div className="stat-value">{snap?.volume !== undefined && snap?.volume !== null ? formatNum(snap?.volume, 0) : '—'}</div></div>
+                  <div className="stat"><div className="stat-label">VWAP</div><div className="stat-value">{formatNum(snap?.vwap) ?? (isZero(snap?.vwap) ? 0 : '—')}</div></div>
+                  <div className="stat"><div className="stat-label">Close</div><div className="stat-value">{formatNum(snap?.session_close) ?? (isZero(snap?.session_close) ? 0 : '—')}</div></div>
+                  <div className="stat"><div className="stat-label">Open</div><div className="stat-value">{formatNum(snap?.session_open) ?? (isZero(snap?.session_open) ? 0 : '—')}</div></div>
+                  <div className="stat"><div className="stat-label">24h Low</div><div className="stat-value">{formatNum(snap?.day_24h_low) ?? (isZero(snap?.day_24h_low) ? 0 : '—')}</div></div>
+                  <div className="stat"><div className="stat-label">24h High</div><div className="stat-value">{formatNum(snap?.day_24h_high) ?? (isZero(snap?.day_24h_high) ? 0 : '—')}</div></div>
+                  <div className="stat"><div className="stat-label">24h Range</div><div className="stat-value">{snap?.range_high_low ? `${formatNum(snap?.range_high_low)} (${formatNum(snap?.range_percent) ?? '—'})` : '—'}</div></div>
+                  <div className="stat"><div className="stat-label">52W Low</div><div className="stat-value">{formatNum(snap?.week_52_low) ?? (isZero(snap?.week_52_low) ? 0 : '—')}</div></div>
+                  <div className="stat"><div className="stat-label">52W High</div><div className="stat-value">{formatNum(snap?.week_52_high) ?? (isZero(snap?.week_52_high) ? 0 : '—')}</div></div>
                 </div>
               </div>
             </div>
