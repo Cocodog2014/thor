@@ -210,50 +210,113 @@
   .mo-rt-right { flex: 1 1 auto; }
 }
 
-/* TOTAL Card */
-.total-card {
+/* TOTAL inline layout (per market) */
+.total-inline-card {
   background: linear-gradient(135deg, #ff9800, #ff5722);
-  padding: 18px 20px;
-  border-radius: 10px;
-  font-weight: 700;
-  margin-bottom: 20px;
-}
-
-.total-card-title {
-  font-size: 18px;
-  letter-spacing: 0.08em;
-  margin-bottom: 8px;
-}
-
-.total-card-meta {
+  border: 1px solid rgba(255,152,0,0.55);
+  border-radius: 12px;
+  padding: 16px;
   display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.total-inline-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
   flex-wrap: wrap;
-  gap: 8px;
-  align-items: center;
-  font-size: 13px;
 }
 
-.total-card-label {
-  opacity: 0.8;
+.total-inline-title {
+  font-size: 0.9rem;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.total-card-value {
   font-weight: 800;
 }
 
-.total-pill {
-  padding: 4px 10px;
-  border-radius: 999px;
-  font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  background: rgba(0,0,0,0.25);
+.total-inline-tags {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 6px;
 }
 
-.total-pill.buy, .total-pill.strong-buy { background: rgba(16,185,129,0.35); color:#e6fff5; }
-.total-pill.sell, .total-pill.strong-sell { background: rgba(244,63,94,0.35); color:#ffe6ea; }
-.total-pill.hold { background: rgba(251,191,36,0.35); color:#fff5da; }
+.total-inline-badge {
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  background: rgba(0,0,0,0.25);
+  font-weight: 700;
+}
+
+.total-inline-signal {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.total-inline-weight {
+  font-size: 0.85rem;
+  font-weight: 700;
+  opacity: 0.9;
+}
+
+.total-inline-main {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.total-inline-value {
+  font-size: 2.4rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.total-inline-label {
+  font-size: 0.9rem;
+  opacity: 0.85;
+  font-weight: 600;
+}
+
+.total-inline-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+}
+
+.total-inline-mini {
+  background: rgba(0,0,0,0.18);
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.25);
+  padding: 12px;
+}
+
+.total-inline-mini .mini-title {
+  font-size: 0.75rem;
+  opacity: 0.75;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 4px;
+}
+
+.total-inline-mini .mini-value {
+  font-size: 1.4rem;
+  font-weight: 800;
+}
+
+.total-inline-mini .mini-sub {
+  font-size: 0.75rem;
+  opacity: 0.8;
+}
+
+.total-inline-meta {
+  font-size: 0.8rem;
+  opacity: 0.85;
+}
 
 .subtitle-text { opacity: 0.9; }

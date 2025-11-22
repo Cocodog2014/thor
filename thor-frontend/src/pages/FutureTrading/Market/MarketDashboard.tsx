@@ -14,6 +14,7 @@ interface MarketOpenSession {
   country: string;
   future: string; // YM, ES, NQ, RTY, CL, SI, HG, GC, VX, DX, ZB, TOTAL
   country_future?: string | null;
+  country_future_wndw_total?: string | null;
   weight?: number | null;
   last_price?: string | null;
   change?: string | null;
@@ -245,8 +246,30 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl }) => {
 
           const snap = rows.find(r => r.future?.toUpperCase() === selectedSymbol.toUpperCase()) || rows[0];
 
+          if (!snap) {
+            return (
+              <div key={m.key} className="mo-rt-card">
+                <div className="mo-rt-left">
+                  <div className="mo-rt-header">
+                    <div className="mo-rt-header-chips">
+                      <span className="chip sym">{m.label}</span>
+                      <span className="chip default">No capture yet</span>
+                    </div>
+                  </div>
+                  <div className="mo-rt-placeholder">No market capture has been recorded for this session yet.</div>
+                </div>
+              </div>
+            );
+          }
+
           const signal = snap?.bhs;
           const outcomeStatus = snap?.wndw;
+          const isTotalFuture = (snap.future || "").toUpperCase() === "TOTAL";
+          const totalSumRaw = snap.country_future_wndw_total ?? snap.country_future;
+          const totalWeightedAverage = formatNum(snap?.weighted_average, 3) ?? (isZero(snap?.weighted_average) ? 0 : "—");
+          const totalSumValue = formatNum(totalSumRaw) ?? (isZero(totalSumRaw) ? 0 : "—");
+          const totalInstrumentCount = snap?.instrument_count ?? 11;
+          const totalCapture = snap?.captured_at ? new Date(snap.captured_at).toLocaleTimeString() : "—";
 
           return (
             <div key={m.key} className="mo-rt-card">
@@ -254,9 +277,13 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl }) => {
                 <div className="mo-rt-header">
                   <div className="mo-rt-header-chips">
                     <span className="chip sym">{m.label}</span>
-                    <span className={chipClass("signal", signal || undefined)}>{signal || "—"}</span>
+                    {!isTotalFuture && (
+                      <span className={chipClass("signal", signal || undefined)}>{signal || "—"}</span>
+                    )}
                     <span className={chipClass("status", outcomeStatus || undefined)}>{outcomeStatus || "—"}</span>
-                    <span className="chip weight">Wgt: {snap?.weight ?? "—"}</span>
+                    {!isTotalFuture && (
+                      <span className="chip weight">Wgt: {snap?.weight ?? "—"}</span>
+                    )}
                   </div>
                   <div>
                     <span className="future-select-label">Future</span>
@@ -273,45 +300,84 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl }) => {
                   </div>
                 </div>
 
-                <div className="mo-rt-top">
-                  <div className="mo-rt-last">
-                    <div className="val">{formatNum(snap?.last_price) ?? (isZero(snap?.last_price) ? 0 : "—")}</div>
-                    <div className="label">Last</div>
+                {isTotalFuture ? (
+                  <div className="total-inline-card">
+                    <div className="total-inline-top">
+                      <div>
+                        <div className="total-inline-title">TOTAL</div>
+                        <div className="total-inline-tags">
+                          <span className="total-inline-badge">Composite</span>
+                          <span className="total-inline-badge">{totalInstrumentCount} Futures</span>
+                        </div>
+                      </div>
+                      <div className="total-inline-signal">
+                        <span className={chipClass("signal", signal || undefined)}>{signal || "—"}</span>
+                        <span className="total-inline-weight">Wgt: {snap?.weight ?? "—"}</span>
+                      </div>
+                    </div>
+                    <div className="total-inline-main">
+                      <div className="total-inline-value">{totalWeightedAverage}</div>
+                      <div className="total-inline-label">Weighted Average</div>
+                    </div>
+                    <div className="total-inline-metrics">
+                      <div className="total-inline-mini">
+                        <div className="mini-title">Sum</div>
+                        <div className="mini-value">{totalSumValue}</div>
+                        <div className="mini-sub">Weighted</div>
+                      </div>
+                      <div className="total-inline-mini">
+                        <div className="mini-title">Count</div>
+                        <div className="mini-value">{totalInstrumentCount}</div>
+                        <div className="mini-sub">Instruments</div>
+                      </div>
+                    </div>
+                    <div className="total-inline-meta">
+                      <span>Capture: {totalCapture}</span>
+                    </div>
                   </div>
-                  <div className="mo-rt-change">
-                    <div className="val">{formatNum(snap?.change) ?? (isZero(snap?.change) ? 0 : "—")}</div>
-                    <div className="pct">{formatNum(snap?.change_percent, 2) ?? (isZero(snap?.change_percent) ? 0 : "—")}%</div>
-                    <div className="label">Change</div>
-                  </div>
-                </div>
+                ) : (
+                  <>
+                    <div className="mo-rt-top">
+                      <div className="mo-rt-last">
+                        <div className="val">{formatNum(snap?.last_price) ?? (isZero(snap?.last_price) ? 0 : "—")}</div>
+                        <div className="label">Last</div>
+                      </div>
+                      <div className="mo-rt-change">
+                        <div className="val">{formatNum(snap?.change) ?? (isZero(snap?.change) ? 0 : "—")}</div>
+                        <div className="pct">{formatNum(snap?.change_percent, 2) ?? (isZero(snap?.change_percent) ? 0 : "—")}%</div>
+                        <div className="label">Change</div>
+                      </div>
+                    </div>
 
-                <div className="mo-rt-bbo">
-                  <div className="bbo-tile">
-                    <div className="bbo-head bid">Bid</div>
-                    <div className="bbo-main">{formatNum(snap?.bid_price) ?? (isZero(snap?.bid_price) ? 0 : "—")}</div>
-                    <div className="bbo-sub">Size {formatNum(snap?.bid_size, 0) ?? (isZero(snap?.bid_size) ? 0 : "—")}</div>
-                  </div>
-                  <div className="bbo-tile">
-                    <div className="bbo-head ask">Ask</div>
-                    <div className="bbo-main">{formatNum(snap?.ask_price) ?? (isZero(snap?.ask_price) ? 0 : "—")}</div>
-                    <div className="bbo-sub">Size {formatNum(snap?.ask_size, 0) ?? (isZero(snap?.ask_size) ? 0 : "—")}</div>
-                  </div>
-                </div>
+                    <div className="mo-rt-bbo">
+                      <div className="bbo-tile">
+                        <div className="bbo-head bid">Bid</div>
+                        <div className="bbo-main">{formatNum(snap?.bid_price) ?? (isZero(snap?.bid_price) ? 0 : "—")}</div>
+                        <div className="bbo-sub">Size {formatNum(snap?.bid_size, 0) ?? (isZero(snap?.bid_size) ? 0 : "—")}</div>
+                      </div>
+                      <div className="bbo-tile">
+                        <div className="bbo-head ask">Ask</div>
+                        <div className="bbo-main">{formatNum(snap?.ask_price) ?? (isZero(snap?.ask_price) ? 0 : "—")}</div>
+                        <div className="bbo-sub">Size {formatNum(snap?.ask_size, 0) ?? (isZero(snap?.ask_size) ? 0 : "—")}</div>
+                      </div>
+                    </div>
 
-                <div className="mo-rt-meta">
-                  <div className="meta">
-                    <div className="meta-label">Capture</div>
-                    <div className="meta-value">{snap?.captured_at ? new Date(snap.captured_at).toLocaleTimeString() : "—"}</div>
-                  </div>
-                  <div className="meta">
-                    <div className="meta-label">Contract</div>
-                    <div className="meta-value">{snap?.future || "—"}</div>
-                  </div>
-                  <div className="meta">
-                    <div className="meta-label">Entry</div>
-                    <div className="meta-value">{formatNum(snap?.entry_price) ?? (isZero(snap?.entry_price) ? 0 : "—")}</div>
-                  </div>
-                </div>
+                    <div className="mo-rt-meta">
+                      <div className="meta">
+                        <div className="meta-label">Capture</div>
+                        <div className="meta-value">{snap?.captured_at ? new Date(snap.captured_at).toLocaleTimeString() : "—"}</div>
+                      </div>
+                      <div className="meta">
+                        <div className="meta-label">Contract</div>
+                        <div className="meta-value">{snap?.future || "—"}</div>
+                      </div>
+                      <div className="meta">
+                        <div className="meta-label">Entry</div>
+                        <div className="meta-value">{formatNum(snap?.entry_price) ?? (isZero(snap?.entry_price) ? 0 : "—")}</div>
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
 
               <div className="mo-rt-right">
