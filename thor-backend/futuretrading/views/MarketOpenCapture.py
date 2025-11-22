@@ -11,9 +11,10 @@ from django.utils import timezone
 from django.db import transaction
 
 from FutureTrading.models.MarketSession import MarketSession
+from FutureTrading.services.country_future_counts import update_country_future_stats
 from FutureTrading.services.quotes import get_enriched_quotes_with_composite
 from FutureTrading.services.TargetHighLow import compute_targets_for_symbol
-from FutureTrading.services.country_future_counts import update_country_future_stats
+
 
 
 
