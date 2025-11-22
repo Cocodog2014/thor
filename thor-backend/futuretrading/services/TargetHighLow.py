@@ -1,17 +1,4 @@
-"""Target high/low computation service.
 
-Provides helper to compute (target_high, target_low) given a symbol and entry price.
-Precision is controlled by TradingInstrument.display_precision (admin-configurable).
-
-Logic order:
-1. Normalize symbol using SYMBOL_NORMALIZE_MAP.
-2. Look up TradingInstrument.display_precision to build quantization unit.
-3. Look for active TargetHighLowConfig for symbol.
-4. If active and compute succeeds → return config targets.
-5. Else fallback to legacy ±20 band.
-6. If entry_price missing → return (None, None).
-"""
-from __future__ import annotations
 """
 Target high/low computation service.
 
@@ -21,17 +8,14 @@ for a given symbol + entry price.
 Configuration is 100% admin-driven:
 
 * Per-instrument decimals:
-  - TradingInstrument.display_precision  (set in admin)
+  - TradingInstrument.display_precision (set in admin)
 * Per-instrument target offsets:
   - TargetHighLowConfig (mode, offset_high/low, percent_high/low)
 
-Logic order:
-1. Normalize symbol using SYMBOL_NORMALIZE_MAP.
-2. Look up TradingInstrument.display_precision to build a quantization unit.
-3. Look up active TargetHighLowConfig for the canonical symbol.
-4. If config exists and compute succeeds → return those targets.
-5. Else, fall back to legacy ±20 band (still quantized if we know precision).
-6. If entry_price is missing → return (None, None).
+Behavior:
+- If there is an active TargetHighLowConfig for the symbol, we use it.
+- If there is NO config, or it's disabled, we return (None, None).
+- No legacy ±20 fallback is used.
 """
 
 from __future__ import annotations
@@ -46,9 +30,6 @@ from FutureTrading.models import TradingInstrument
 
 logger = logging.getLogger(__name__)
 
-# Legacy band used when no config exists or config fails
-LEGACY_OFFSET = Decimal("20")
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -56,16 +37,15 @@ LEGACY_OFFSET = Decimal("20")
 
 def _get_quant_for_symbol(symbol: str) -> Optional[Decimal]:
     """
-    Look up TradingInstrument.display_precision (configured in admin)
-    and build a quantization unit Decimal, e.g.:
+    Use TradingInstrument.display_precision (admin-set)
+    to build a quantizer such as:
 
         precision = 0  -> Decimal('1')
         precision = 2  -> Decimal('0.01')
         precision = 3  -> Decimal('0.001')
 
     Returns:
-        Decimal quantization unit, or None if instrument not found
-        (meaning: don't quantize in this function).
+        Decimal quantization unit, or None if no TradingInstrument exists.
     """
     base = symbol.lstrip("/").upper()
 
@@ -74,14 +54,10 @@ def _get_quant_for_symbol(symbol: str) -> Optional[Decimal]:
     ).first()
 
     if not inst:
-        logger.warning(
-            "No TradingInstrument found for symbol %s; skipping quantization",
-            symbol,
-        )
+        logger.warning("No TradingInstrument for %s; skipping quantization.", symbol)
         return None
 
     precision = inst.display_precision
-    # scaleb(-precision) gives 10**(-precision)
     return Decimal("1").scaleb(-precision)
 
 
@@ -99,20 +75,18 @@ def _compute_from_config(
     if not cfg.is_active or cfg.mode == cfg.MODE_DISABLED:
         return None
 
-    def _q(val: Decimal) -> Decimal:
-        return val.quantize(quant) if quant is not None else val
+    def _q(v: Decimal) -> Decimal:
+        return v.quantize(quant) if quant is not None else v
 
     if cfg.mode == cfg.MODE_POINTS:
-        # absolute offsets in points
         high = _q(entry_price + cfg.offset_high)
         low = _q(entry_price - cfg.offset_low)
         return high, low
 
     if cfg.mode == cfg.MODE_PERCENT:
-        # percent offsets, e.g. 0.50 => +0.50%
-        high = _q(entry_price * (Decimal("1") + (cfg.percent_high / Decimal("100"))))
-        low = _q(entry_price * (Decimal("1") - (cfg.percent_low / Decimal("100"))))
-        return high, low
+        up = entry_price * (Decimal("1") + (cfg.percent_high / Decimal("100")))
+        dn = entry_price * (Decimal("1") - (cfg.percent_low / Decimal("100")))
+        return _q(up), _q(dn)
 
     return None
 
@@ -131,50 +105,32 @@ def compute_targets_for_symbol(
     Called by MarketOpenCapture after it decides entry_price
     (Ask for BUY, Bid for SELL).
 
-    Returns:
-        (target_high, target_low), each possibly None.
+    No fallback bands. If a config does not exist or is disabled:
+    → return (None, None)
+    → MarketOpenCapture will store null targets.
     """
     if entry_price is None:
         return None, None
 
     try:
-        # Normalize to canonical symbol, e.g. '/ES' -> 'ES'
         canonical = SYMBOL_NORMALIZE_MAP.get(symbol, symbol).lstrip("/").upper()
 
-        # Determine quantization based on TradingInstrument.display_precision
         quant = _get_quant_for_symbol(canonical)
 
-        # Try to apply configured targets first
         cfg = TargetHighLowConfig.objects.filter(
             symbol__iexact=canonical,
             is_active=True,
         ).first()
 
-        if cfg:
-            try:
-                targets = _compute_from_config(cfg, entry_price, quant=quant)
-                if targets:
-                    high, low = targets
-                    return high, low
-            except Exception as e:
-                logger.warning(
-                    "Target config compute failed for %s: %s; falling back to legacy",
-                    canonical,
-                    e,
-                )
+        if not cfg:
+            # No admin config = no targets
+            return None, None
 
-        # Fallback legacy: ±20 points
-        high = entry_price + LEGACY_OFFSET
-        low = entry_price - LEGACY_OFFSET
-
-        if quant is not None:
-            high = high.quantize(quant)
-            low = low.quantize(quant)
-
-        return high, low
+        targets = _compute_from_config(cfg, entry_price, quant=quant)
+        return targets if targets else (None, None)
 
     except Exception as e:
-        logger.error("Unexpected target compute error for %s: %s", symbol, e)
+        logger.error("Target compute error for %s: %s", symbol, e)
         return None, None
 
 

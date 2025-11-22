@@ -14,6 +14,7 @@ from FutureTrading.models.MarketSession import MarketSession
 from FutureTrading.services.quotes import get_enriched_quotes_with_composite
 from FutureTrading.services.TargetHighLow import compute_targets_for_symbol
 
+
 logger = logging.getLogger(__name__)
 
 
@@ -94,13 +95,18 @@ class MarketOpenCaptureService:
             # Removed legacy study_fw field (framework identifier no longer stored)
         }
         
+        # Default values when there is no trade signal
+        data['entry_price'] = None
+        data['target_high'] = None
+        data['target_low'] = None
+
         # Determine entry price based on composite signal, then compute targets centrally
         if composite_signal and composite_signal not in ['HOLD', '']:
             if composite_signal in ['BUY', 'STRONG_BUY']:
                 data['entry_price'] = data.get('session_ask')
             elif composite_signal in ['SELL', 'STRONG_SELL']:
                 data['entry_price'] = data.get('session_bid')
-            entry = data.get('entry_price')
+            entry = data['entry_price']
             if entry:
                 high, low = compute_targets_for_symbol(symbol, entry)
                 data['target_high'] = high
