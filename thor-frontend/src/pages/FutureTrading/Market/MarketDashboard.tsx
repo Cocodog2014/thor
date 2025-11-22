@@ -380,47 +380,49 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl }) => {
                 )}
               </div>
 
-              <div className="mo-rt-right">
-                <div className="mo-rt-stats-title">Session Stats</div>
-                <div className="mo-rt-stats">
-                  <div className="stat">
-                    <div className="stat-label">Volume</div>
-                    <div className="stat-value">{snap?.volume !== undefined && snap?.volume !== null ? formatNum(snap?.volume, 0) : "—"}</div>
-                  </div>
-                  <div className="stat">
-                    <div className="stat-label">VWAP</div>
-                    <div className="stat-value">{formatNum(snap?.vwap) ?? (isZero(snap?.vwap) ? 0 : "—")}</div>
-                  </div>
-                  <div className="stat">
-                    <div className="stat-label">Close</div>
-                    <div className="stat-value">{formatNum(snap?.session_close) ?? (isZero(snap?.session_close) ? 0 : "—")}</div>
-                  </div>
-                  <div className="stat">
-                    <div className="stat-label">Open</div>
-                    <div className="stat-value">{formatNum(snap?.session_open) ?? (isZero(snap?.session_open) ? 0 : "—")}</div>
-                  </div>
-                  <div className="stat">
-                    <div className="stat-label">24h Low</div>
-                    <div className="stat-value">{formatNum(snap?.day_24h_low) ?? (isZero(snap?.day_24h_low) ? 0 : "—")}</div>
-                  </div>
-                  <div className="stat">
-                    <div className="stat-label">24h High</div>
-                    <div className="stat-value">{formatNum(snap?.day_24h_high) ?? (isZero(snap?.day_24h_high) ? 0 : "—")}</div>
-                  </div>
-                  <div className="stat">
-                    <div className="stat-label">24h Range</div>
-                    <div className="stat-value">{snap?.range_high_low ? `${formatNum(snap?.range_high_low)} (${formatNum(snap?.range_percent) ?? "—"})` : "—"}</div>
-                  </div>
-                  <div className="stat">
-                    <div className="stat-label">52W Low</div>
-                    <div className="stat-value">{formatNum(snap?.week_52_low) ?? (isZero(snap?.week_52_low) ? 0 : "—")}</div>
-                  </div>
-                  <div className="stat">
-                    <div className="stat-label">52W High</div>
-                    <div className="stat-value">{formatNum(snap?.week_52_high) ?? (isZero(snap?.week_52_high) ? 0 : "—")}</div>
+              {!isTotalFuture && (
+                <div className="mo-rt-right">
+                  <div className="mo-rt-stats-title">Session Stats</div>
+                  <div className="mo-rt-stats">
+                    <div className="stat">
+                      <div className="stat-label">Volume</div>
+                      <div className="stat-value">{snap?.volume !== undefined && snap?.volume !== null ? formatNum(snap?.volume, 0) : "—"}</div>
+                    </div>
+                    <div className="stat">
+                      <div className="stat-label">VWAP</div>
+                      <div className="stat-value">{formatNum(snap?.vwap) ?? (isZero(snap?.vwap) ? 0 : "—")}</div>
+                    </div>
+                    <div className="stat">
+                      <div className="stat-label">Close</div>
+                      <div className="stat-value">{formatNum(snap?.session_close) ?? (isZero(snap?.session_close) ? 0 : "—")}</div>
+                    </div>
+                    <div className="stat">
+                      <div className="stat-label">Open</div>
+                      <div className="stat-value">{formatNum(snap?.session_open) ?? (isZero(snap?.session_open) ? 0 : "—")}</div>
+                    </div>
+                    <div className="stat">
+                      <div className="stat-label">24h Low</div>
+                      <div className="stat-value">{formatNum(snap?.day_24h_low) ?? (isZero(snap?.day_24h_low) ? 0 : "—")}</div>
+                    </div>
+                    <div className="stat">
+                      <div className="stat-label">24h High</div>
+                      <div className="stat-value">{formatNum(snap?.day_24h_high) ?? (isZero(snap?.day_24h_high) ? 0 : "—")}</div>
+                    </div>
+                    <div className="stat">
+                      <div className="stat-label">24h Range</div>
+                      <div className="stat-value">{snap?.range_high_low ? `${formatNum(snap?.range_high_low)} (${formatNum(snap?.range_percent) ?? "—"})` : "—"}</div>
+                    </div>
+                    <div className="stat">
+                      <div className="stat-label">52W Low</div>
+                      <div className="stat-value">{formatNum(snap?.week_52_low) ?? (isZero(snap?.week_52_low) ? 0 : "—")}</div>
+                    </div>
+                    <div className="stat">
+                      <div className="stat-label">52W High</div>
+                      <div className="stat-value">{formatNum(snap?.week_52_high) ?? (isZero(snap?.week_52_high) ? 0 : "—")}</div>
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
             </div>
           );
         })}
