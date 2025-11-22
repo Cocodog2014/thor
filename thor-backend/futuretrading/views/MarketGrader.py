@@ -1,23 +1,24 @@
 """
 Market Open Grading Logic (SIMPLIFIED)
 
-Grades MarketSession rows in real time based on entry/target prices.
+This module continuously checks all MarketSession rows where wndw='PENDING'
+and determines whether each trade has:
 
-What this does:
-- Watches all MarketSession rows with wndw='PENDING'.
-- For each row, reads the current bid/ask from Redis.
-- For BUY/STRONG_BUY:
-    - If price >= target_high  -> wndw = 'WORKED'
-    - If price <= target_low   -> wndw = 'DIDNT_WORK'
-- For SELL/STRONG_SELL:
-    - If price <= target_low   -> wndw = 'WORKED'
-    - If price >= target_high  -> wndw = 'DIDNT_WORK'
-- For HOLD or missing targets, marks wndw='NEUTRAL' and skips grading.
+- Hit the target  →  WORKED
+- Hit the stop    →  DIDNT_WORK
+- Had no trade setup → NEUTRAL
 
-Notes:
-- Uses only the current MarketSession schema: wndw, bhs, entry_price, target_high, target_low.
-- Does NOT store detailed exit price/timestamps; that can move into a dedicated
-  TradeOutcome / BacktestResult model later if needed.
+The grader uses:
+- entry_price
+- target_high
+- target_low
+- bhs (BUY/HOLD/SELL)
+- live price data from Redis (bid/ask)
+
+The grader does NOT:
+- Store exit timestamps
+- Store exit prices
+(Those can be added later in a TradeOutcome model.)
 """
 
 import time
@@ -32,125 +33,156 @@ logger = logging.getLogger(__name__)
 
 class MarketGrader:
     """
-    Grades pending market open trades for each future.
+    MarketGrader continuously evaluates open trades for ALL futures.
 
-    Single-table design: one MarketSession row per future per market open.
-    Checks every `check_interval` seconds whether each pending trade has hit
-    its target or stop.
+    HOW IT WORKS:
+    -------------
+    - Every .5 seconds (or whatever interval you set), it scans all
+      MarketSession rows with wndw='PENDING'.
+
+    - For each row:
+        * Fetches the current exit price from Redis.
+        * Compares the price against target_high/target_low.
+        * Updates wndw to:
+            'WORKED'      — target reached
+            'DIDNT_WORK'  — stop reached
+            'NEUTRAL'     — no valid trade or HOLD signal
+
+    - TOTAL is treated like a normal trade, but its price source is YM.
     """
 
     def __init__(self, check_interval: float = 0.5):
         """
-        Initialize grader.
-
         Args:
-            check_interval: Seconds between checks (default 0.5)
+            check_interval (float): seconds between grading cycles.
         """
         self.check_interval = check_interval
         self.running = False
 
-    # -------------------------
-    # Data access / price lookup
-    # -------------------------
+    # ============================================================
+    # DATA ACCESS / PRICE LOOKUP
+    # ============================================================
 
     def get_current_price(self, symbol: str, signal: str) -> Decimal | None:
         """
-        Get current price from Redis for any symbol.
+        Fetch the live price used for EXIT logic.
 
-        - For BUY/STRONG_BUY: use bid (we exit at bid).
-        - For SELL/STRONG_SELL: use ask (we exit at ask).
-        - For HOLD: returns None (no trade to grade).
+        EXIT PRICE RULES:
+        -----------------
+        BUY / STRONG_BUY  → exit at BID  (market sells to bid)
+        SELL / STRONG_SELL → exit at ASK (market buys to ask)
+        HOLD               → no exit (no trade)
 
-        Handles DX -> $DXY mapping for Redis.
+        SYMBOL MAPPING:
+        ---------------
+        TOTAL → '/YM'   (system trade executed using YM quotes)
+        DX    → '$DXY'  (your live feed provides DXY index, not DX futures)
+        ALL OTHERS → use the symbol as-is.
+
+        Returns:
+            Decimal price or None if unavailable.
         """
         try:
-            redis_key = '$DXY' if symbol == 'DX' else symbol
+            # Map special synthetic symbols to live Redis keys.
+            if symbol == 'TOTAL':
+                # TOTAL is graded using YM price
+                redis_key = '/YM'
+            elif symbol == 'DX':
+                # DX is graded using DXY index because DX futures aren't fed
+                redis_key = '$DXY'
+            else:
+                # All other futures use their own symbol
+                redis_key = symbol
+
             data = live_data_redis.get_latest_quote(redis_key)
 
             if not data:
-                logger.warning("No %s data in Redis snapshot", symbol)
+                logger.warning("No Redis data for %s (mapped key: %s)", symbol, redis_key)
                 return None
 
+            # Exit price selection depends on direction of trade
             if signal in ['BUY', 'STRONG_BUY']:
-                price = data.get('bid')
+                price = data.get('bid')  # we exit longs on the bid
             elif signal in ['SELL', 'STRONG_SELL']:
-                price = data.get('ask')
+                price = data.get('ask')  # we exit shorts on the ask
             else:
-                # HOLD or unknown signal -> nothing to grade
+                # HOLD or invalid = not a trade
                 return None
 
             return Decimal(str(price)) if price is not None else None
 
         except Exception as e:
-            logger.error("Error getting %s price from Redis: %s", symbol, e, exc_info=True)
+            logger.error("Redis price error for %s: %s", symbol, e, exc_info=True)
             return None
 
-    # --------------
-    # Grading logic
-    # --------------
+    # ============================================================
+    # CORE GRADING LOGIC
+    # ============================================================
 
     def grade_session(self, session: MarketSession) -> bool:
         """
-        Check if a session's trade has hit target or stop.
+        Evaluate a single MarketSession row.
 
-        Args:
-            session: MarketSession instance (one future)
+        The row is graded if:
+            - It has a valid entry_price
+            - It has valid target_high/target_low
+            - It is not HOLD
+            - A valid exit price exists from Redis
 
         Returns:
-            bool: True if graded (wndw resolved), False if still pending
+            True if the row is no longer PENDING (graded or neutral)
+            False if still pending (unable to evaluate this cycle)
         """
-        # Skip if already graded
+
+        # Already graded → nothing to do
         if session.wndw != 'PENDING':
             return True
 
-        # TOTAL composite row: no actual trade, mark neutral once and move on
-        if session.future == 'TOTAL':
-            session.wndw = 'NEUTRAL'
-            session.save(update_fields=['wndw', 'updated_at'])
-            return True
-
-        # Skip if no entry price or no targets
+        # If no entry or missing targets → cannot grade → mark NEUTRAL
         if not session.entry_price or not session.target_high or not session.target_low:
-            # No way to grade this row; mark NEUTRAL so it doesn't keep clogging pending
             session.wndw = 'NEUTRAL'
-            session.save(update_fields=['wndw', 'updated_at'])
+            session.save(update_fields=['wndw'])
             return True
 
-        # Skip HOLD or blank signals: treat as neutral
+        # HOLD (or empty signal) → no trade → mark NEUTRAL
         if session.bhs in ['HOLD', None, '']:
             session.wndw = 'NEUTRAL'
-            session.save(update_fields=['wndw', 'updated_at'])
+            session.save(update_fields=['wndw'])
             return True
 
-        # Get current price
+        # Get current price for exit evaluation
         current_price = self.get_current_price(session.future, session.bhs)
         if current_price is None:
-            # Can't grade without price data
+            # Cannot grade without a live price
             return False
 
         worked = False
         didnt_work = False
 
-        # BUY side logic
+        # LONG LOGIC (BUY / STRONG_BUY)
         if session.bhs in ['BUY', 'STRONG_BUY']:
-            # Target = target_high, Stop = target_low
-            if current_price >= session.target_high:
+            target = session.target_high
+            stop = session.target_low
+
+            if current_price >= target:
                 worked = True
-            elif current_price <= session.target_low:
+            elif current_price <= stop:
                 didnt_work = True
 
-        # SELL side logic
+        # SHORT LOGIC (SELL / STRONG_SELL)
         elif session.bhs in ['SELL', 'STRONG_SELL']:
-            # Target = target_low, Stop = target_high
-            if current_price <= session.target_low:
+            target = session.target_low
+            stop = session.target_high
+
+            if current_price <= target:
                 worked = True
-            elif current_price >= session.target_high:
+            elif current_price >= stop:
                 didnt_work = True
 
-        # Update wndw based on result
+        # Save result
         if worked:
             session.wndw = 'WORKED'
-            session.save(update_fields=['wndw', 'updated_at'])
+            session.save(update_fields=['wndw'])
             logger.info(
                 "✅ %s (Session #%s) WORKED at ~%s",
                 session.future, session.session_number, current_price
@@ -159,30 +191,36 @@ class MarketGrader:
 
         if didnt_work:
             session.wndw = 'DIDNT_WORK'
-            session.save(update_fields=['wndw', 'updated_at'])
+            session.save(update_fields=['wndw'])
             logger.info(
                 "❌ %s (Session #%s) DIDN'T WORK at ~%s",
                 session.future, session.session_number, current_price
             )
             return True
 
-        return False  # Still pending
+        # Still inside target/stop range → pending
+        return False
 
-    # ----------------
-    # Grading main loop
-    # ----------------
+    # ============================================================
+    # GRADING LOOP
+    # ============================================================
 
     def run_grading_loop(self):
         """
-        Main grading loop - runs continuously, checking every `check_interval` seconds.
+        The continuous loop that powers the whole grading engine.
 
-        Grades all pending MarketSession rows (wndw='PENDING').
+        - Runs forever (until stop() called)
+        - Every interval:
+            * Fetches all PENDING rows
+            * Attempts to grade each one
         """
+
         logger.info("Starting Market Open Grader (interval: %ss)", self.check_interval)
         self.running = True
 
         while self.running:
             try:
+                # Fetch all trades not yet resolved
                 pending_sessions = MarketSession.objects.filter(wndw='PENDING')
 
                 if pending_sessions.exists():
@@ -191,6 +229,7 @@ class MarketGrader:
                     for session in pending_sessions:
                         self.grade_session(session)
 
+                # Wait before next grading pass
                 time.sleep(self.check_interval)
 
             except KeyboardInterrupt:
@@ -199,7 +238,7 @@ class MarketGrader:
                 break
 
             except Exception as e:
-                logger.error("Error in grading loop: %s", e, exc_info=True)
+                logger.error("Grading loop error: %s", e, exc_info=True)
                 time.sleep(self.check_interval)
 
         logger.info("Market Open Grader stopped")
@@ -210,12 +249,14 @@ class MarketGrader:
         self.running = False
 
 
-# Singleton instance
+# ---------------------------------------------------------
+# SINGLETON INSTANCE USED BY APP
+# ---------------------------------------------------------
 grader = MarketGrader()
 
 
 def start_grading_service():
-    """Start the grading service (call from management command or background task)."""
+    """Start the grading service from CLI or background thread."""
     grader.run_grading_loop()
 
 
@@ -225,4 +266,3 @@ def stop_grading_service():
 
 
 __all__ = ['start_grading_service', 'stop_grading_service', 'MarketGrader']
-

@@ -67,9 +67,9 @@ class MarketOpenCaptureService:
             'last_price': self.safe_decimal(row.get('last')),
             'change': self.safe_decimal(row.get('change')),
             'change_percent': self.safe_decimal(row.get('change_percent') or row.get('last_prev_pct')),
-            'session_ask': self.safe_decimal(row.get('ask')),
+            'ask_price': self.safe_decimal(row.get('ask')),
             'ask_size': self.safe_int(row.get('ask_size')),
-            'session_bid': self.safe_decimal(row.get('bid')),
+            'bid_price': self.safe_decimal(row.get('bid')),
             'bid_size': self.safe_int(row.get('bid_size')),
             'volume': self.safe_int(row.get('volume')),
             'vwap': self.safe_decimal(row.get('vwap')),
@@ -103,9 +103,9 @@ class MarketOpenCaptureService:
         # Determine entry price based on composite signal, then compute targets centrally
         if composite_signal and composite_signal not in ['HOLD', '']:
             if composite_signal in ['BUY', 'STRONG_BUY']:
-                data['entry_price'] = data.get('session_ask')
+                data['entry_price'] = data.get('ask_price')
             elif composite_signal in ['SELL', 'STRONG_SELL']:
-                data['entry_price'] = data.get('session_bid')
+                data['entry_price'] = data.get('bid_price')
             entry = data['entry_price']
             if entry:
                 high, low = compute_targets_for_symbol(symbol, entry)
@@ -120,7 +120,7 @@ class MarketOpenCaptureService:
             logger.error(f"Session creation failed for {symbol}: {e}", exc_info=True)
             return None
     
-    def create_session_for_total(self, composite, session_number, time_info, country):
+    def create_session_for_total(self, composite, session_number, time_info, country, ym_entry_price=None):
         """Create one MarketSession row for TOTAL composite"""
         composite_signal = (composite.get('composite_signal') or 'HOLD').upper()
         
@@ -142,6 +142,12 @@ class MarketOpenCaptureService:
             'weight': composite.get('signal_weight_sum'),
             # Removed legacy study_fw field
         }
+
+        if ym_entry_price is not None and composite_signal not in ['HOLD', '']:
+            data['entry_price'] = ym_entry_price
+            high, low = compute_targets_for_symbol('YM', ym_entry_price)
+            data['target_high'] = high
+            data['target_low'] = low
         
         try:
             session = MarketSession.objects.create(**data)
@@ -178,6 +184,7 @@ class MarketOpenCaptureService:
             
             # Create 11 future sessions
             sessions_created = []
+            ym_entry_price = None
             for row in enriched:
                 symbol = row['instrument']['symbol']
                 session = self.create_session_for_future(
@@ -185,10 +192,16 @@ class MarketOpenCaptureService:
                 )
                 if session:
                     sessions_created.append(session)
+                base_symbol = symbol.lstrip('/').upper()
+                if base_symbol == 'YM' and composite_signal not in ['HOLD', '']:
+                    if composite_signal in ['BUY', 'STRONG_BUY']:
+                        ym_entry_price = self.safe_decimal(row.get('ask'))
+                    elif composite_signal in ['SELL', 'STRONG_SELL']:
+                        ym_entry_price = self.safe_decimal(row.get('bid'))
             
             # Create TOTAL session
             total_session = self.create_session_for_total(
-                composite, session_number, time_info, market.country
+                composite, session_number, time_info, market.country, ym_entry_price=ym_entry_price
             )
             if total_session:
                 sessions_created.append(total_session)

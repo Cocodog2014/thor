@@ -220,13 +220,13 @@ class MarketSession(models.Model):
     )
 
     # Live Price Data at Market Open (bid/ask should follow wndw for physical ordering requirements)
-    session_bid = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True,
-                                      help_text="Bid price at capture (renamed from reference_bid)")
+    bid_price = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True,
+                                    help_text="Bid price at capture")
     bid_size = models.IntegerField(null=True, blank=True, help_text="Bid size")
     last_price = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True,
                                      help_text="Last traded price at market open")
-    session_ask = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True,
-                                      help_text="Ask price at capture")
+    ask_price = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True,
+                                    help_text="Ask price at capture")
     ask_size = models.IntegerField(null=True, blank=True, help_text="Ask size")
     # Entry and targets
     entry_price = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True,
@@ -281,10 +281,6 @@ class MarketSession(models.Model):
                                            help_text="Count of instruments (for TOTAL)")
     
     # Removed legacy strong_sell_flag (no longer tracked)
-    
-    # Timestamps
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
     
     class Meta:
         ordering = ['-captured_at', 'future']

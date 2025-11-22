@@ -95,15 +95,15 @@ class MarketSessionAdmin(admin.ModelAdmin):
     ]
     list_filter = ['country', 'future', 'day', 'bhs', 'year', 'month']
     search_fields = ['country', 'session_number', 'future']
-    readonly_fields = ['captured_at', 'created_at', 'updated_at']
+    readonly_fields = ['captured_at']
     
     fieldsets = (
         ('Session Info', {
             'fields': ('session_number', 'country', 'future', 'country_future', 'year', 'month', 'date', 'day', 'captured_at')
         }),
         ('Live Price Data (Open)', {
-            'fields': ('last_price', 'change', 'change_percent', 'session_ask', 'ask_size', 
-                      'session_bid', 'bid_size', 'volume', 'vwap', 'spread')
+            'fields': ('last_price', 'change', 'change_percent', 'ask_price', 'ask_size', 
+                      'bid_price', 'bid_size', 'volume', 'vwap', 'spread')
         }),
         ('Session Price Data', {
             'fields': ('session_close', 'session_open', 'open_vs_prev_number', 'open_vs_prev_percent')
@@ -129,10 +129,6 @@ class MarketSessionAdmin(admin.ModelAdmin):
                     'sell_didnt_work', 'sell_didnt_work_percentage',
                         'weighted_average', 'weight',
                             'instrument_count')
-        }),
-        ('Timestamps', {
-            'fields': ('created_at', 'updated_at'),
-            'classes': ('collapse',)
         }),
     )
     

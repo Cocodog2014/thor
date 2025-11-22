@@ -18,9 +18,9 @@ interface MarketOpenSession {
   last_price?: string | null;
   change?: string | null;
   change_percent?: string | null;
-  session_ask?: string | null;
+  ask_price?: string | null;
   ask_size?: number | null;
-  session_bid?: string | null;
+  bid_price?: string | null;
   bid_size?: number | null;
   volume?: number | null;
   vwap?: string | null;
@@ -350,12 +350,12 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl }) => {
                 <div className="mo-rt-bbo">
                   <div className="tile bid">
                     <div className="t-head">BID</div>
-                    <div className="t-main">{formatNum(snap?.session_bid) ?? (isZero(snap?.session_bid) ? 0 : '—')}</div>
+                    <div className="t-main">{formatNum(snap?.bid_price) ?? (isZero(snap?.bid_price) ? 0 : '—')}</div>
                     <div className="t-sub">Size {formatNum(snap?.bid_size, 0) ?? (isZero(snap?.bid_size) ? 0 : '—')}</div>
                   </div>
                   <div className="tile ask">
                     <div className="t-head">ASK</div>
-                    <div className="t-main">{formatNum(snap?.session_ask) ?? (isZero(snap?.session_ask) ? 0 : '—')}</div>
+                    <div className="t-main">{formatNum(snap?.ask_price) ?? (isZero(snap?.ask_price) ? 0 : '—')}</div>
                     <div className="t-sub">Size {formatNum(snap?.ask_size, 0) ?? (isZero(snap?.ask_size) ? 0 : '—')}</div>
                   </div>
                 </div>

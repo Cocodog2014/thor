@@ -28,8 +28,7 @@ class MarketSessionListSerializer(MarketSessionBaseSerializer):
             'sell_worked', 'sell_worked_percentage',
             'sell_didnt_work', 'sell_didnt_work_percentage',
             'last_price', 'change', 'change_percent',
-            'entry_price', 'target_high', 'target_low',
-            'created_at'
+            'entry_price', 'target_high', 'target_low'
         ]
 
 
@@ -47,14 +46,13 @@ class MarketSessionDetailSerializer(MarketSessionBaseSerializer):
             'sell_worked', 'sell_worked_percentage',
             'sell_didnt_work', 'sell_didnt_work_percentage',
             'last_price', 'change', 'change_percent',
-            'session_ask', 'ask_size', 'session_bid', 'bid_size',
+            'ask_price', 'ask_size', 'bid_price', 'bid_size',
             'volume', 'vwap', 'spread',
             'session_close', 'session_open', 'open_vs_prev_number', 'open_vs_prev_percent',
             'day_24h_low', 'day_24h_high', 'range_high_low', 'range_percent',
             'week_52_low', 'week_52_high', 'week_52_range_high_low', 'week_52_range_percent',
             'entry_price', 'target_high', 'target_low',
-            'weighted_average', 'instrument_count',
-            'created_at', 'updated_at'
+            'weighted_average', 'instrument_count'
         ]
 
 # Backwards compatibility aliases
