@@ -92,6 +92,67 @@ class MarketSession(models.Model):
         blank=True,
         help_text="Country-level total for wndw aggregation"
     )
+    # Live Price Data at Market Open (bid/ask should follow wndw for physical ordering requirements)
+    bid_price = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True,
+                                    help_text="Bid price at capture")
+    bid_size = models.IntegerField(null=True, blank=True, help_text="Bid size")
+    last_price = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True,
+                                     help_text="Last traded price at market open")
+    spread = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True,
+                                 help_text="Bid-Ask spread")
+    ask_price = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True,
+                                    help_text="Ask price at capture")
+    ask_size = models.IntegerField(null=True, blank=True, help_text="Ask size")
+    # Entry and targets
+    entry_price = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True,
+                                      help_text="Actual entry (Ask if buying, Bid if selling)")
+    target_high = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True,
+                                      help_text="Configurable target above entry (per TargetHighLowConfig)")
+    target_low = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True,
+                                     help_text="Configurable stop below entry (per TargetHighLowConfig)")
+    # Additional market data
+    volume = models.BigIntegerField(null=True, blank=True, help_text="Trading volume")
+    change = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True,
+                                 help_text="Price change from previous close")
+    change_percent = models.DecimalField(max_digits=14, decimal_places=6, null=True, blank=True,
+                                         help_text="Percentage change")
+    vwap = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True,
+                               help_text="Volume Weighted Average Price")
+    session_close = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True,
+                                        help_text="Previous close price")
+    session_open = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True,
+                                       help_text="Open price")
+    open_vs_prev_number = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True,
+                                              help_text="Open vs Prev (Number)")
+    open_vs_prev_percent = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True,
+                                               help_text="Open vs Prev (%)")
+    day_24h_low = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True,
+                                      help_text="24 hour low")
+    day_24h_high = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True,
+                                       help_text="24 hour high")
+    range_high_low = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True,
+                                         help_text="Range (24h High - 24h Low)")
+    range_percent = models.DecimalField(max_digits=14, decimal_places=6, null=True, blank=True,
+                                        help_text="Range as % of previous close")
+
+    # 52-Week Range Data
+    week_52_low = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True,
+                                      help_text="52-week low")
+    week_52_high = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True,
+                                       help_text="52-week high")
+    week_52_range_high_low = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True,
+                                                  help_text="52-week range (High - Low)")
+    week_52_range_percent = models.DecimalField(max_digits=14, decimal_places=6, null=True, blank=True,
+                                                help_text="52-week range as % of current price")
+    
+    # Signal & Composite Data
+    # For TOTAL row: weighted_average and composite signal
+    # For individual futures: their own signal/HBS
+    weighted_average = models.DecimalField(max_digits=14, decimal_places=6, null=True, blank=True,
+                                           help_text="TOTAL weighted average (e.g., -0.109)")
+    instrument_count = models.IntegerField(null=True, blank=True, default=11,
+                                           help_text="Count of instruments (for TOTAL)")
+    # Signal outcome metrics kept together near instrument_count for consistent export ordering
     strong_buy_worked = models.DecimalField(
         max_digits=14,
         decimal_places=4,
@@ -218,67 +279,6 @@ class MarketSession(models.Model):
         blank=True,
         help_text="Percent of sells that failed"
     )
-
-    # Live Price Data at Market Open (bid/ask should follow wndw for physical ordering requirements)
-    bid_price = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True,
-                                    help_text="Bid price at capture")
-    bid_size = models.IntegerField(null=True, blank=True, help_text="Bid size")
-    last_price = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True,
-                                     help_text="Last traded price at market open")
-    ask_price = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True,
-                                    help_text="Ask price at capture")
-    ask_size = models.IntegerField(null=True, blank=True, help_text="Ask size")
-    # Entry and targets
-    entry_price = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True,
-                                      help_text="Actual entry (Ask if buying, Bid if selling)")
-    target_high = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True,
-                                      help_text="Configurable target above entry (per TargetHighLowConfig)")
-    target_low = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True,
-                                     help_text="Configurable stop below entry (per TargetHighLowConfig)")
-    # Additional market data
-    volume = models.BigIntegerField(null=True, blank=True, help_text="Trading volume")
-    change = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True,
-                                 help_text="Price change from previous close")
-    change_percent = models.DecimalField(max_digits=14, decimal_places=6, null=True, blank=True,
-                                         help_text="Percentage change")
-    vwap = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True,
-                               help_text="Volume Weighted Average Price")
-    spread = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True,
-                                 help_text="Bid-Ask spread")
-    session_close = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True,
-                                        help_text="Previous close price")
-    session_open = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True,
-                                       help_text="Open price")
-    open_vs_prev_number = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True,
-                                              help_text="Open vs Prev (Number)")
-    open_vs_prev_percent = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True,
-                                               help_text="Open vs Prev (%)")
-    day_24h_low = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True,
-                                      help_text="24 hour low")
-    day_24h_high = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True,
-                                       help_text="24 hour high")
-    range_high_low = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True,
-                                         help_text="Range (24h High - 24h Low)")
-    range_percent = models.DecimalField(max_digits=14, decimal_places=6, null=True, blank=True,
-                                        help_text="Range as % of previous close")
-
-    # 52-Week Range Data
-    week_52_low = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True,
-                                      help_text="52-week low")
-    week_52_high = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True,
-                                       help_text="52-week high")
-    week_52_range_high_low = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True,
-                                                  help_text="52-week range (High - Low)")
-    week_52_range_percent = models.DecimalField(max_digits=14, decimal_places=6, null=True, blank=True,
-                                                help_text="52-week range as % of current price")
-    
-    # Signal & Composite Data
-    # For TOTAL row: weighted_average and composite signal
-    # For individual futures: their own signal/HBS
-    weighted_average = models.DecimalField(max_digits=14, decimal_places=6, null=True, blank=True,
-                                           help_text="TOTAL weighted average (e.g., -0.109)")
-    instrument_count = models.IntegerField(null=True, blank=True, default=11,
-                                           help_text="Count of instruments (for TOTAL)")
     
     # Removed legacy strong_sell_flag (no longer tracked)
     
