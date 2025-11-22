@@ -46,7 +46,6 @@ interface MarketOpenSession {
   fw_exit_percent?: string | null;
 }
 
-// ---- Fixed control markets in display order (UI labels) ----
 const CONTROL_MARKETS = [
   { key: "Tokyo", label: "Tokyo", country: "Japan" },
   { key: "Shanghai", label: "Shanghai", country: "China" },
@@ -55,7 +54,12 @@ const CONTROL_MARKETS = [
   { key: "London", label: "London", country: "United Kingdom" },
   { key: "Pre_USA", label: "Pre_USA", country: "Pre_USA" },
   { key: "USA", label: "USA", country: "USA" },
+
+  // 👇 REMOVE THESE TWO MARKETS FROM THE FRONTEND
+  // { key: "Toronto", label: "Toronto", country: "Canada" },
+  // { key: "Mexican", label: "Mexican", country: "Mexico" },
 ] as const;
+
 
 // Futures universe: 10 futures + Dollar Index + TOTAL (composite)
 const FUTURE_OPTIONS = [
