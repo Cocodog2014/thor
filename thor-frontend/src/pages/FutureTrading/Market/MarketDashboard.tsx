@@ -285,7 +285,6 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl }) => {
                 <div className="mo-rt-header">
                   <span className="mo-rt-chip sym">{m.label}</span>
                   <span className="mo-rt-chip default">—</span>
-                  <span className="mo-rt-time">Starting soon…</span>
                 </div>
                 <div className="mo-rt-body">
                   <div className="mo-rt-top">
@@ -296,8 +295,6 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl }) => {
               </div>
             );
           }
-          const time = latestRow?.captured_at ? new Date(latestRow.captured_at).toLocaleTimeString() : "—";
-
           const selectedSymbol = selected[m.key];
           // Find the row for the selected future
           const snap = rows.find(r => r.future?.toUpperCase() === selectedSymbol?.toUpperCase()) || rows[0];
@@ -312,7 +309,6 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl }) => {
                 <span className={chipClass("signal", signal || undefined)}>{signal || "—"}</span>
                 <span className={chipClass("status", outcomeStatus || undefined)}>{outcomeStatus || "—"}</span>
                 <span className="mo-rt-chip">Wgt: {snap?.weight ?? '—'}</span>
-                <span className="mo-rt-time">{time}</span>
               </div>
 
               <div className="mo-rt-body">

@@ -59,7 +59,6 @@
 .mo-rt-chip.warning { background: rgba(255,152,0,0.35); }
 .mo-rt-chip.default { background: rgba(0,0,0,0.18); }
 .mo-rt-chip.sym { background: rgba(0,0,0,0.22); }
-.mo-rt-time { margin-left: auto; font-size: 0.78rem; opacity: 0.9; }
 
 .mo-rt-body { padding: 12px; }
 
@@ -232,7 +231,6 @@
 .mo-rt-chip.warning { background: rgba(255,152,0,0.35); }
 .mo-rt-chip.default { background: rgba(0,0,0,0.18); }
 .mo-rt-chip.sym { background: rgba(0,0,0,0.22); }
-.mo-rt-time { margin-left: auto; font-size: 0.78rem; opacity: 0.9; }
 
 .mo-rt-body { padding: 12px; }
 
