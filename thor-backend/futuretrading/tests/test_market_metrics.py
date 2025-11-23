@@ -38,6 +38,15 @@ class MarketOpenMetricTests(TestCase):
         self.assertEqual(ym.market_open, Decimal("100"))
         self.assertEqual(total.market_open, Decimal("250"))
 
+    def test_market_open_handles_total_composite_row(self):
+        """Verify TOTAL row gets market_open just like individual futures."""
+        for future in ["YM", "ES", "NQ", "TOTAL"]:
+            make_session("USA", future, 2, last_price=Decimal("100"))
+        updated = MarketOpenMetric.update(2)
+        self.assertEqual(updated, 4)
+        total = MarketSession.objects.get(country="USA", future="TOTAL", session_number=2)
+        self.assertEqual(total.market_open, Decimal("100"))
+
 
 class MarketHighMetricTests(TestCase):
     def setUp(self):
@@ -74,6 +83,15 @@ class MarketHighMetricTests(TestCase):
         ym.refresh_from_db()
         self.assertEqual(ym.market_high_number, Decimal("103"))  # unchanged
         self.assertTrue(ym.market_high_percentage > Decimal("0"))
+
+    def test_high_metric_updates_total_composite(self):
+        """TOTAL rows track highs separately from individual futures."""
+        make_session("USA", "TOTAL", 3, last_price=Decimal("150"), market_open=Decimal("150"))
+        enriched = [{"instrument": {"symbol": "/TOTAL"}, "last": "155"}]
+        MarketHighMetric.update_from_quotes("USA", enriched)
+        total = MarketSession.objects.get(country="USA", future="TOTAL", session_number=3)
+        self.assertEqual(total.market_high_number, Decimal("155"))
+        self.assertEqual(total.market_high_percentage, Decimal("0"))
 
 
 class MarketLowMetricTests(TestCase):
@@ -113,6 +131,20 @@ class MarketLowMetricTests(TestCase):
         self.assertEqual(es.market_low_number, Decimal("197"))
         self.assertEqual(es.market_low_percentage, Decimal("0"))
 
+    def test_low_metric_updates_total_composite(self):
+        """TOTAL rows track lows separately from individual futures."""
+        make_session("USA", "TOTAL", 4, last_price=Decimal("150"), market_open=Decimal("150"))
+        enriched = [{"instrument": {"symbol": "/TOTAL"}, "last": "145"}]
+        MarketLowMetric.update_from_quotes("USA", enriched)
+        total = MarketSession.objects.get(country="USA", future="TOTAL", session_number=4)
+        self.assertEqual(total.market_low_number, Decimal("145"))
+        self.assertEqual(total.market_low_percentage, Decimal("0"))
+        # Price moves above low
+        enriched = [{"instrument": {"symbol": "/TOTAL"}, "last": "148"}]
+        MarketLowMetric.update_from_quotes("USA", enriched)
+        total.refresh_from_db()
+        self.assertTrue(total.market_low_percentage > Decimal("0"))
+
 
 class MarketCloseAndRangeMetricTests(TestCase):
     def setUp(self):
@@ -147,6 +179,19 @@ class MarketCloseAndRangeMetricTests(TestCase):
         # Range percentage = range / open * 100
         self.assertEqual(ym.market_range_percentage, (Decimal("105") - Decimal("99")) / Decimal("100") * Decimal("100"))
         self.assertEqual(es.market_range_percentage, (Decimal("212") - Decimal("198")) / Decimal("200") * Decimal("100"))
+
+    def test_close_and_range_for_total_composite(self):
+        """TOTAL rows get close and range metrics computed."""
+        make_session("USA", "TOTAL", 5, last_price=Decimal("150"), market_open=Decimal("150"), high=Decimal("160"), low=Decimal("145"))
+        enriched = [{"instrument": {"symbol": "/TOTAL"}, "last": "155"}]
+        MarketCloseMetric.update_for_country_on_close("USA", enriched)
+        MarketRangeMetric.update_for_country_on_close("USA")
+        total = MarketSession.objects.get(country="USA", future="TOTAL", session_number=5)
+        self.assertEqual(total.market_close_number, Decimal("155"))
+        # (155-150)/150*100 = 3.333...
+        self.assertTrue(Decimal("3.33") < total.market_close_percentage < Decimal("3.34"))
+        self.assertEqual(total.market_range_number, Decimal("15"))  # 160-145
+        self.assertEqual(total.market_range_percentage, Decimal("10"))  # 15/150*100
 
 
 class MarketMetricEdgeCaseTests(TestCase):
