@@ -115,6 +115,20 @@ class MarketOpenCaptureService:
                 high, low = compute_targets_for_symbol(symbol, entry)
                 data['target_high'] = high
                 data['target_low'] = low
+
+        # Populate 52-week range derivative fields if both ends available
+        wlow = data.get('week_52_low')
+        whigh = data.get('week_52_high')
+        last_price = data.get('last_price')
+        if wlow is not None and whigh is not None:
+            try:
+                data['week_52_range_high_low'] = (whigh - wlow)
+                if last_price:
+                    # Percent of current price occupied by 52w range
+                    data['week_52_range_percent'] = ((whigh - wlow) / last_price) * Decimal('100')
+            except Exception:
+                # Leave unset on any arithmetic issues
+                pass
         
         # ---------- Backtest stats: use existing service ----------
         try:
