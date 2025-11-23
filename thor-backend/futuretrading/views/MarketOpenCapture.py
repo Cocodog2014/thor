@@ -16,6 +16,7 @@ from FutureTrading.services.country_future_wndw_counts import update_country_fut
 from FutureTrading.services.market_metrics import MarketOpenMetric
 from FutureTrading.services.quotes import get_enriched_quotes_with_composite
 from FutureTrading.services.TargetHighLow import compute_targets_for_symbol
+from FutureTrading.services.backtest_stats import compute_backtest_stats_for_future
 
 
 
@@ -115,6 +116,13 @@ class MarketOpenCaptureService:
                 data['target_high'] = high
                 data['target_low'] = low
         
+        # ---------- Backtest stats: use existing service ----------
+        try:
+            stats = compute_backtest_stats_for_future(symbol)
+            data.update(stats)
+        except Exception as e:
+            logger.warning("Backtest stats failed for %s: %s", symbol, e)
+
         try:
             session = MarketSession.objects.create(**data)
             logger.debug(f"Created {symbol} session: {session.last_price}")
@@ -151,6 +159,13 @@ class MarketOpenCaptureService:
             high, low = compute_targets_for_symbol('YM', ym_entry_price)
             data['target_high'] = high
             data['target_low'] = low
+
+        # ---------- Backtest stats: use existing service ----------
+        try:
+            stats = compute_backtest_stats_for_future('TOTAL')
+            data.update(stats)
+        except Exception as e:
+            logger.warning("Backtest stats failed for TOTAL: %s", e)
         
         try:
             session = MarketSession.objects.create(**data)
