@@ -147,3 +147,71 @@ class MarketCloseAndRangeMetricTests(TestCase):
         # Range percentage = range / open * 100
         self.assertEqual(ym.market_range_percentage, (Decimal("105") - Decimal("99")) / Decimal("100") * Decimal("100"))
         self.assertEqual(es.market_range_percentage, (Decimal("212") - Decimal("198")) / Decimal("200") * Decimal("100"))
+
+
+class MarketMetricEdgeCaseTests(TestCase):
+    """Edge-case coverage for metrics (missing data, zero baselines, empty quotes)."""
+
+    def test_high_metric_skips_when_open_missing_or_zero(self):
+        # Session with market_open None
+        make_session("USA", "YM", 5, last_price=Decimal("100"), market_open=None)
+        # Session with market_open zero
+        make_session("USA", "ES", 5, last_price=Decimal("200"), market_open=Decimal("0"))
+
+        enriched = [
+            {"instrument": {"symbol": "/YM"}, "last": "101"},
+            {"instrument": {"symbol": "/ES"}, "last": "201"},
+        ]
+        updated = MarketHighMetric.update_from_quotes("USA", enriched)
+        self.assertEqual(updated, 0, "Should skip updates when open is None or 0")
+        ym = MarketSession.objects.get(country="USA", future="YM", session_number=5)
+        es = MarketSession.objects.get(country="USA", future="ES", session_number=5)
+        self.assertIsNone(ym.market_high_number)
+        self.assertIsNone(es.market_high_number)
+
+    def test_low_metric_skips_when_no_quotes(self):
+        make_session("USA", "YM", 6, last_price=Decimal("100"), market_open=Decimal("100"))
+        updated = MarketLowMetric.update_from_quotes("USA", [])
+        self.assertEqual(updated, 0)
+        ym = MarketSession.objects.get(country="USA", future="YM", session_number=6)
+        self.assertIsNone(ym.market_low_number)
+
+    def test_close_metric_percentage_none_when_open_missing_or_zero(self):
+        make_session("USA", "YM", 7, last_price=Decimal("150"), market_open=None)
+        make_session("USA", "ES", 7, last_price=Decimal("250"), market_open=Decimal("0"))
+        enriched = [
+            {"instrument": {"symbol": "/YM"}, "last": "151"},
+            {"instrument": {"symbol": "/ES"}, "last": "251"},
+        ]
+        MarketCloseMetric.update_for_country_on_close("USA", enriched)
+        ym = MarketSession.objects.get(country="USA", future="YM", session_number=7)
+        es = MarketSession.objects.get(country="USA", future="ES", session_number=7)
+        self.assertEqual(ym.market_close_number, Decimal("151"))
+        self.assertEqual(es.market_close_number, Decimal("251"))
+        self.assertIsNone(ym.market_close_percentage)
+        self.assertIsNone(es.market_close_percentage)
+
+    def test_range_metric_skips_when_missing_high_or_low(self):
+        # Missing low
+        make_session("USA", "YM", 8, market_open=Decimal("100"), high=Decimal("110"), low=None)
+        # Missing high
+        make_session("USA", "ES", 8, market_open=Decimal("200"), high=None, low=Decimal("195"))
+        # Complete values for control
+        make_session("USA", "NQ", 8, market_open=Decimal("300"), high=Decimal("315"), low=Decimal("290"))
+        updated = MarketRangeMetric.update_for_country_on_close("USA")
+        # Only NQ should update
+        self.assertEqual(updated, 1)
+        nq = MarketSession.objects.get(country="USA", future="NQ", session_number=8)
+        ym = MarketSession.objects.get(country="USA", future="YM", session_number=8)
+        es = MarketSession.objects.get(country="USA", future="ES", session_number=8)
+        self.assertEqual(nq.market_range_number, Decimal("315") - Decimal("290"))
+        self.assertIsNone(ym.market_range_number)
+        self.assertIsNone(es.market_range_number)
+
+    def test_range_metric_percentage_none_when_open_zero(self):
+        make_session("USA", "YM", 9, market_open=Decimal("0"), high=Decimal("110"), low=Decimal("100"))
+        updated = MarketRangeMetric.update_for_country_on_close("USA")
+        self.assertEqual(updated, 1)
+        ym = MarketSession.objects.get(country="USA", future="YM", session_number=9)
+        self.assertEqual(ym.market_range_number, Decimal("10"))
+        self.assertIsNone(ym.market_range_percentage)
