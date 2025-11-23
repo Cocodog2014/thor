@@ -12,6 +12,7 @@ from django.db import transaction
 
 from FutureTrading.models.MarketSession import MarketSession
 from FutureTrading.services.country_future_counts import update_country_future_stats
+from FutureTrading.services.country_future_wndw_counts import update_country_future_wndw_total
 from FutureTrading.services.quotes import get_enriched_quotes_with_composite
 from FutureTrading.services.TargetHighLow import compute_targets_for_symbol
 
@@ -209,17 +210,22 @@ class MarketOpenCaptureService:
             if total_session:
                 sessions_created.append(total_session)
 
-            # 🔹 Refresh aggregate country/future metrics so downstream dashboards stay in sync.
-            #     We wrap this in a best-effort block so a logging/reporting hiccup never breaks captures.
-            try:
-                update_country_future_stats()
-            except Exception as stats_error:
-                logger.warning(
-                    "Country/future stats refresh failed after capture %s: %s",
-                    session_number,
-                    stats_error,
-                    exc_info=True,
-                )
+            # 🔹 Refresh aggregate metrics so downstream dashboards stay in sync.
+            #     Each helper runs best-effort so reporting does not block captures.
+            for updater, label in (
+                (update_country_future_stats, "country/future counts"),
+                (update_country_future_wndw_total, "country/future WNDW totals"),
+            ):
+                try:
+                    updater()
+                except Exception as stats_error:
+                    logger.warning(
+                        "Failed %s refresh after capture %s: %s",
+                        label,
+                        session_number,
+                        stats_error,
+                        exc_info=True,
+                    )
             
             logger.info(f"Capture complete: Session #{session_number}, {len(sessions_created)} rows created")
             return sessions_created[0] if sessions_created else None
