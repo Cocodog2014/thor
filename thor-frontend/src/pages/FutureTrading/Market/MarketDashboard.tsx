@@ -54,14 +54,18 @@ interface MarketOpenSession {
   fw_exit_percent?: string | null;
 }
 
+// Control markets must use exact country strings from backend sessions.
+// Backend currently stores: Japan, China, India, Germany, UK, Pre_USA, USA, Canada, Mexico
 const CONTROL_MARKETS = [
-  { key: "Tokyo", label: "Tokyo", country: "Japan" },
-  { key: "Shanghai", label: "Shanghai", country: "China" },
-  { key: "Bombay", label: "Bombay", country: "India" },
-  { key: "Frankfurt", label: "Frankfurt", country: "Germany" },
-  { key: "London", label: "London", country: "United Kingdom" },
-  { key: "Pre_USA", label: "Pre_USA", country: "Pre_USA" },
-  { key: "USA", label: "USA", country: "USA" },
+  { key: "Tokyo",       label: "Tokyo",        country: "Japan" },
+  { key: "Shanghai",    label: "Shanghai",     country: "China" },
+  { key: "Bombay",      label: "Bombay",       country: "India" },
+  { key: "Frankfurt",   label: "Frankfurt",    country: "Germany" },
+  { key: "London",      label: "London",       country: "UK" }, // was "United Kingdom" (mismatch)
+  { key: "Toronto",     label: "Toronto",      country: "Canada" },
+  { key: "MexicoCity",  label: "Mexico City",  country: "Mexico" },
+  { key: "Pre_USA",     label: "Pre-USA",      country: "Pre_USA" },
+  { key: "USA",         label: "USA",          country: "USA" },
 ] as const;
 
 // Futures universe: 10 futures + Dollar Index + TOTAL (composite)
