@@ -1,47 +1,50 @@
-from collections import defaultdict
 from django.db.models import Count
 from django.utils import timezone
 
 from FutureTrading.models.MarketSession import MarketSession
 
 
-def get_country_future_counts():
+def update_country_future_stats():
+    """Persist counts per (country, future) pair into `country_future`.
+
+    Every invocation recalculates how many MarketSession rows exist for each
+    (country, future) combination and writes that number to the
+    `country_future` column across all matching rows. Downstream dashboards can
+    then read the count from any row without doing their own aggregation.
     """
-    Pure calculation:
-    Returns nested dict like:
-    {
-        "Japan": {"TOTAL": 10, "ZB": 5, "DX": 5},
-        "US": {"TOTAL": 30, "ES": 15, "NQ": 15},
-        ...
-    }
-    """
+    import logging
+
+    logger = logging.getLogger(__name__)
+    logger.info("Updating country_future counts at %s", timezone.now())
+
     qs = (
         MarketSession.objects
         .values("country", "future")
         .annotate(total=Count("id"))
     )
 
-    result = defaultdict(dict)
+    updated_pairs = 0
     for row in qs:
-        result[row["country"]][row["future"]] = row["total"]
-    return result
+        country = row["country"]
+        future = row["future"]
+        total = row["total"]
 
+        updated = (
+            MarketSession.objects
+            .filter(country=country, future=future)
+            .update(country_future=total)
+        )
 
-def update_country_future_stats():
-    """Aggregate latest capture counts per country/future for monitoring.
+        updated_pairs += 1
+        logger.info(
+            "Set country_future=%s on %s rows for %s / %s",
+            total,
+            updated,
+            country,
+            future,
+        )
 
-    Today we simply recompute the counts and log them so operations can
-    see that the dataset stayed balanced. In the future this hook can be
-    extended to write into Redis or a reporting table for the frontend.
-    """
-    data = get_country_future_counts()
-
-    # Optional: log it so we can see it happening during dev
-    import logging
-    logger = logging.getLogger(__name__)
-
-    logger.info("Updated country/future stats at %s", timezone.now())
-    for country, futures in sorted(data.items()):
-        logger.info("Country: %s", country)
-        for future, count in sorted(futures.items()):
-            logger.info("  %s : %s", future, count)
+    logger.info(
+        "country_future stats refresh complete: %s (country, future) pairs updated",
+        updated_pairs,
+    )
