@@ -715,3 +715,316 @@ After enabling/disabling flags:
 `enable_close_capture` is reserved; adding a symmetric `_on_market_close` hook will allow end-of-session snapshots (e.g., realized range vs targets). That code path intentionally omitted for now per project priority.
 
 ---
+
+## 8. Intraday Market Supervisor
+
+The **IntradayMarketSupervisor** is an automated background service that manages real-time metric updates for each open market. It runs continuously during market hours and handles market-specific high/low/close/range calculations.
+
+### 8.1 What It Does
+
+The supervisor maintains separate worker threads for each open market and:
+
+- **During market hours (OPEN)**:
+  - Updates `MarketHighMetric` every 10 seconds (default)
+  - Updates `MarketLowMetric` every 10 seconds (default)
+  - Tracks intraday high/low values for all 11 futures symbols
+
+- **On market close**:
+  - Stops the intraday worker thread
+  - Executes `MarketCloseMetric.update_for_country_on_close()`
+  - Executes `MarketRangeMetric.update_for_country_on_close()`
+  - Captures final session statistics
+
+### 8.2 Architecture
+
+```
+MarketMonitor (GlobalMarkets)
+    ↓
+Market.status → OPEN
+    ↓
+Signal: _on_market_open(market)
+    ↓
+IntradayMarketSupervisor.on_market_open(market)
+    ↓
+Spawns worker thread for that market
+    ↓
+Worker polls every 10s (configurable)
+    ↓
+Calls MarketHighMetric.update_from_quotes()
+    ↓
+Calls MarketLowMetric.update_from_quotes()
+    ↓
+Market.status → CLOSED
+    ↓
+IntradayMarketSupervisor.on_market_close(market)
+    ↓
+Stops worker thread
+    ↓
+Calls MarketCloseMetric + MarketRangeMetric
+```
+
+### 8.3 Automatic Startup
+
+The supervisor starts **automatically** when Django starts via the `FutureTrading` app configuration:
+
+**File**: `FutureTrading/apps.py`
+```python
+class FuturetradingConfig(AppConfig):
+    def ready(self):
+        # ... other initialization ...
+        from GlobalMarkets.monitor import start_monitor
+        start_monitor()  # ← Starts MarketMonitor which manages IntradayMarketSupervisor
+```
+
+When a market transitions to OPEN:
+1. `MarketMonitor` updates `Market.status = 'OPEN'`
+2. `_on_market_open(market)` is called
+3. `IntradayMarketSupervisor.on_market_open(market)` spawns a worker thread
+4. Worker runs until market closes
+
+### 8.4 Worker Thread Behavior
+
+Each market gets its own daemon thread named `Intraday-{country}`:
+
+```python
+# Inside IntradayMarketSupervisor._worker_loop
+while not stop_event.is_set():
+    enriched, composite = get_enriched_quotes_with_composite()
+    MarketHighMetric.update_from_quotes(country, enriched)
+    MarketLowMetric.update_from_quotes(country, enriched)
+    time.sleep(10)  # Default interval
+```
+
+The thread is **daemon=True**, meaning it won't prevent Django shutdown.
+
+### 8.5 Manual Control
+
+**Check if running**:
+```powershell
+# Django must be running for supervisor to work
+python manage.py runserver
+```
+
+**Monitor market status manually**:
+```powershell
+# One-time check
+python manage.py monitor_markets --once
+
+# Continuous monitoring (alternative to automatic)
+python manage.py monitor_markets --interval 60
+```
+
+**Configuration**:
+```python
+# Default interval: 10 seconds
+# To customize, modify in FutureTrading/services/IntradayMarketSupervisor.py:
+intraday_market_supervisor = IntradayMarketSupervisor(interval_seconds=10)
+```
+
+### 8.6 Logging
+
+The supervisor emits detailed logs:
+
+```
+INFO Intraday metrics worker STARTED for Japan
+INFO ⏱️ Scheduled Japan next open in 3600s (at 2025-11-23T09:00:00+09:00)
+INFO Intraday worker loop started for Japan
+INFO 🔄 Japan: CLOSED → OPEN
+INFO Intraday metrics worker STOPPED for Japan
+INFO Intraday worker loop EXITING for Japan
+```
+
+**Log levels**:
+- `INFO`: Normal operations (start/stop/schedule)
+- `ERROR`: Failed metric updates or worker crashes
+- `EXCEPTION`: Full stack traces for debugging
+
+### 8.7 Integration Points
+
+| Component | Purpose |
+|-----------|---------|
+| `MarketMonitor` | Triggers on_market_open/on_market_close |
+| `get_enriched_quotes_with_composite()` | Fetches live quotes from Redis |
+| `MarketHighMetric` | Tracks intraday highs per symbol |
+| `MarketLowMetric` | Tracks intraday lows per symbol |
+| `MarketCloseMetric` | Captures closing prices |
+| `MarketRangeMetric` | Calculates session range |
+
+### 8.8 Testing
+
+Run unit tests:
+```powershell
+cd A:\Thor\thor-backend
+python manage.py test FutureTrading.tests.test_intraday_supervisor
+```
+
+Test coverage includes:
+- Worker thread lifecycle (start/stop)
+- Metric updates during market hours
+- Close metrics execution
+- Multiple concurrent markets
+- Error handling and recovery
+
+### 8.9 Troubleshooting
+
+**Supervisor not starting**:
+- Check Django logs for `Market Scheduler started` message
+- Verify `Market.is_control_market=True` for monitored markets
+- Ensure `Market.is_active=True`
+
+**Metrics not updating**:
+- Check Redis has live quote data: `redis-cli HGETALL quotes:latest:YM`
+- Verify worker thread is running in logs
+- Check for exception traces in Django logs
+
+**High CPU usage**:
+- Default 10-second interval should be fine
+- Increase `interval_seconds` if needed
+- Check for database connection leaks
+
+**Worker stuck after market close**:
+- Worker threads are daemon threads and should exit cleanly
+- Check for infinite loops in metric update code
+- Restart Django to force cleanup
+
+### 8.10 Future Enhancements
+
+Planned improvements:
+- [ ] Configurable intervals per market via database settings
+- [ ] Metric update batching for efficiency
+- [ ] WebSocket integration for real-time UI updates
+- [ ] Historical metric replay for backtesting
+- [ ] Health check endpoint for monitoring worker status
+
+---
+
+## 9. 52-Week High/Low Monitor
+
+The **52-Week Monitor** automatically tracks and updates 52-week high/low extremes for all 11 futures symbols based on incoming live prices from Redis.
+
+### 9.1 What It Does
+
+- **Continuous monitoring**: Polls Redis every 1 second (default) for latest LAST prices
+- **Automatic updates**: Updates database when new 52-week highs or lows occur
+- **Market-aware operation**: Only runs when at least one global control market is OPEN
+- **Symbol mapping**: Handles TOS RTD naming differences (RT↔RTY, 30YRBOND↔ZB)
+- **API integration**: Injects 52w data into `/api/quotes/latest` for frontend display
+
+### 9.2 Architecture
+
+```
+Week52ExtremesSupervisor (checks every 60s)
+    ↓
+Any control market OPEN? → YES
+    ↓
+Start Week52ExtremesMonitor thread
+    ↓
+Poll Redis every 1s for LAST prices
+    ↓
+Compare to Rolling52WeekStats in DB
+    ↓
+Update if new high/low detected
+    ↓
+All markets CLOSED? → Stop monitor thread
+```
+
+### 9.3 Automatic Startup
+
+Both the supervisor and monitor start automatically via `FutureTrading/apps.py`:
+
+```python
+class FuturetradingConfig(AppConfig):
+    def ready(self):
+        # Starts supervisor which manages the monitor based on market status
+        from FutureTrading.services.Week52Monitor import start_52w_monitor_supervisor
+        start_52w_monitor_supervisor()
+```
+
+**Supervisor logic**:
+- Checks every 60 seconds if ANY control market (Tokyo, Shanghai, Bombay, Frankfurt, London, Pre_USA, USA, Toronto, Mexico) is OPEN
+- If yes → starts the 52w monitor thread (idempotent)
+- If all closed → stops the monitor thread to save resources
+- Immediate evaluation on startup (doesn't wait 60s)
+
+### 9.4 Database Model
+
+`Rolling52WeekStats` (in `FutureTrading/models/extremes.py`):
+- `symbol` - Future symbol (YM, ES, NQ, etc.)
+- `high_52w` / `high_52w_date` - Current 52-week high and when it occurred
+- `low_52w` / `low_52w_date` - Current 52-week low and when it occurred
+- `last_price_checked` - Most recent price evaluated
+- `all_time_high` / `all_time_low` - Optional lifetime tracking
+
+### 9.5 Initial Setup
+
+One-time admin setup at `http://localhost:8000/admin/FutureTrading/rolling52weekstats/`:
+1. Enter initial 52w high/low values for each symbol
+2. Set dates when those extremes occurred
+3. Save - system auto-updates from there
+
+The monitor auto-creates initial records if missing (using first seen price).
+
+### 9.6 Configuration
+
+**Disable the monitor** (useful during development/testing):
+```powershell
+$env:FUTURETRADING_ENABLE_52W_MONITOR = '0'
+python manage.py runserver
+```
+
+**Adjust polling intervals**:
+```powershell
+# Monitor checks Redis every N seconds (default 1.0)
+$env:FUTURETRADING_52W_MONITOR_INTERVAL = '2.0'
+
+# Supervisor checks markets every N seconds (default 60.0)
+$env:FUTURETRADING_52W_SUPERVISOR_INTERVAL = '30.0'
+```
+
+### 9.7 Symbol Mappings
+
+Handles TOS RTD naming differences automatically:
+- **RTY** (database) ↔ **RT** (Redis/Excel)
+- **ZB** (database) ↔ **30YRBOND** (Redis/Excel)
+
+### 9.8 Logging
+
+```
+📈 52-Week Extremes monitor started (interval=1.00s)
+🛰️ 52w supervisor started (interval=60.0s)
+🎯 [52w] YM updated: H=47683.00 (2025-11-23) L=47679.00 (2025-11-23)
+💓 [52w heartbeat] tick=60 interval=1.00s last_update=YM@2025-11-23T14:30:00
+🛑 52-Week Extremes monitor stop requested (all markets closed)
+```
+
+### 9.9 Frontend Integration
+
+The RTD API automatically includes 52w data in `extended_data`:
+```json
+{
+  "symbol": "YM",
+  "last": 47682.0,
+  "extended_data": {
+    "high_52w": 47683.0,
+    "low_52w": 47679.0,
+    "dist_from_52w_high": 1.0,
+    "dist_from_52w_low": 3.0
+  }
+}
+```
+
+Frontend displays this automatically—no changes needed.
+
+### 9.10 Testing
+
+Run unit tests:
+```powershell
+python manage.py test FutureTrading.tests.test_week52_monitor
+```
+
+Manual verification:
+1. Check Django admin for `last_updated` timestamps
+2. View Redis prices: `redis-cli HGETALL quotes:latest:YM`
+3. Verify logs show heartbeat updates every 60s
+
+---
