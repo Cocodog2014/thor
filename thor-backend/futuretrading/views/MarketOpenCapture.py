@@ -13,6 +13,7 @@ from django.db import transaction
 from FutureTrading.models.MarketSession import MarketSession
 from FutureTrading.services.country_future_counts import update_country_future_stats
 from FutureTrading.services.country_future_wndw_counts import update_country_future_wndw_total
+from FutureTrading.services.market_metrics import update_market_open_for_session
 from FutureTrading.services.quotes import get_enriched_quotes_with_composite
 from FutureTrading.services.TargetHighLow import compute_targets_for_symbol
 
@@ -207,6 +208,17 @@ class MarketOpenCaptureService:
             )
             if total_session:
                 sessions_created.append(total_session)
+
+            # 🔹 Populate market_open from last_price for this session
+            try:
+                update_market_open_for_session(session_number)
+            except Exception as metrics_error:
+                logger.warning(
+                    "market_open refresh failed for session %s: %s",
+                    session_number,
+                    metrics_error,
+                    exc_info=True,
+                )
 
             # 🔹 Refresh aggregate metrics so downstream dashboards stay in sync.
             #     Each helper runs best-effort so reporting does not block captures.
