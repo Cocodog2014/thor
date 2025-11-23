@@ -1,4 +1,3 @@
-
 """
 Target high/low computation service.
 

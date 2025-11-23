@@ -25,6 +25,7 @@ import time
 import logging
 from decimal import Decimal
 
+from django.utils import timezone  # <-- ADD THIS
 from FutureTrading.models.MarketSession import MarketSession
 from LiveData.shared.redis_client import live_data_redis
 
@@ -129,6 +130,11 @@ class MarketGrader:
             - It is not HOLD
             - A valid exit price exists from Redis
 
+        When WORKED / DIDNT_WORK is decided, we also record:
+            - target_hit_at
+            - target_hit_price
+            - target_hit_type  ('TARGET' for profit target, 'STOP' for stop loss)
+
         Returns:
             True if the row is no longer PENDING (graded or neutral)
             False if still pending (unable to evaluate this cycle)
@@ -158,48 +164,67 @@ class MarketGrader:
 
         worked = False
         didnt_work = False
+        hit_type = None  # 'TARGET' or 'STOP'
 
         # LONG LOGIC (BUY / STRONG_BUY)
         if session.bhs in ['BUY', 'STRONG_BUY']:
-            target = session.target_high
-            stop = session.target_low
+            target = session.target_high    # profit target
+            stop = session.target_low       # stop loss
 
             if current_price >= target:
                 worked = True
+                hit_type = 'TARGET'
             elif current_price <= stop:
                 didnt_work = True
+                hit_type = 'STOP'
 
         # SHORT LOGIC (SELL / STRONG_SELL)
         elif session.bhs in ['SELL', 'STRONG_SELL']:
-            target = session.target_low
-            stop = session.target_high
+            target = session.target_low     # profit target
+            stop = session.target_high      # stop loss
 
             if current_price <= target:
                 worked = True
+                hit_type = 'TARGET'
             elif current_price >= stop:
                 didnt_work = True
+                hit_type = 'STOP'
 
-        # Save result
+        # Still inside the band → no decision this cycle
+        if not worked and not didnt_work:
+            return False
+
+        # We have a decision: WORKED or DIDNT_WORK
+        now = timezone.now()
+        update_fields = ['wndw']
+
+        # Only stamp the hit info the FIRST time this session is resolved
+        if session.target_hit_at is None:
+            session.target_hit_at = now
+            session.target_hit_price = current_price
+            session.target_hit_type = hit_type
+            update_fields.extend(['target_hit_at', 'target_hit_price', 'target_hit_type'])
+
         if worked:
             session.wndw = 'WORKED'
-            session.save(update_fields=['wndw'])
-            logger.info(
-                "✅ %s (Session #%s) WORKED at ~%s",
-                session.future, session.session_number, current_price
-            )
-            return True
-
-        if didnt_work:
+            verb = "WORKED"
+        else:
             session.wndw = 'DIDNT_WORK'
-            session.save(update_fields=['wndw'])
-            logger.info(
-                "❌ %s (Session #%s) DIDN'T WORK at ~%s",
-                session.future, session.session_number, current_price
-            )
-            return True
+            verb = "DIDN'T WORK"
 
-        # Still inside target/stop range → pending
-        return False
+        session.save(update_fields=update_fields)
+
+        logger.info(
+            "✅ %s (Session #%s) %s at ~%s [hit_type=%s]",
+            session.future,
+            session.session_number,
+            verb,
+            current_price,
+            hit_type,
+        )
+        return True
+
+
 
     # ============================================================
     # GRADING LOOP
