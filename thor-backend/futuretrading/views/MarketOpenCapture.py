@@ -69,8 +69,6 @@ class MarketOpenCaptureService:
             
             # Live price data at open
             'last_price': self.safe_decimal(row.get('last')),
-            'change': self.safe_decimal(row.get('change')),
-            'change_percent': self.safe_decimal(row.get('change_percent') or row.get('last_prev_pct')),
             'ask_price': self.safe_decimal(row.get('ask')),
             'ask_size': self.safe_int(row.get('ask_size')),
             'bid_price': self.safe_decimal(row.get('bid')),
