@@ -1,28 +1,37 @@
 """Target High / Low Configuration Model
 
-Provides per-symbol configurable base offsets used to derive
-`target_high` and `target_low` for a `MarketSession` when a BUY/SELL
-signal is generated.
+Provides per-symbol configurable offsets used to derive `target_high` and 
+`target_low` for a `MarketSession` when market open signals are captured.
 
-Rationale:
-The previous implementation hard-coded a +/-20 offset for all futures.
-Different contracts have different tick sizes and volatility ranges,
-so a uniform offset is not meaningful. This model lets an admin define
-per-symbol offsets (either absolute points or percentage). The capture
-logic can then look up the symbol and compute targets consistently.
+Purpose:
+Different futures contracts have vastly different tick sizes, price ranges, 
+and volatility profiles. This model allows admins to define custom target 
+offsets per symbol using either:
+- **Points mode**: Fixed absolute offsets (e.g., ES +/- 25 points)
+- **Percent mode**: Percentage-based offsets (e.g., VX +/- 5%)
+- **Disabled mode**: No targets calculated for that symbol
 
-Usage:
-1. Admin creates one `TargetHighLowConfig` per active symbol (YM, ES, NQ,...).
-2. For BUY signals: target_high = entry_price + offset_high, target_low = entry_price - offset_low.
-   For SELL signals: target_high = entry_price + offset_high (stop), target_low = entry_price - offset_low (target)
-   (Downstream grading logic interprets direction accordingly.)
-3. If `use_percentage` is True, offsets are treated as percentages of the entry price.
-4. If no config exists for a symbol, capture logic falls back to legacy +/-20 default.
+Configuration is 100% admin-driven via Django admin interface. Targets are
+automatically quantized to each symbol's display precision (configured in
+TradingInstrument.display_precision).
 
-Future Extension Ideas:
-* Add time-of-day profiles
-* Volatility-adjusted dynamic offsets
-* Separate BUY vs SELL offset sets
+Usage Flow:
+1. Admin creates one `TargetHighLowConfig` per symbol (YM, ES, NQ, RTY, etc.)
+2. Selects mode: POINTS, PERCENT, or DISABLED
+3. Sets offset values appropriate to that symbol's characteristics
+4. Market open capture queries this config to compute targets
+5. If no config exists or mode=DISABLED → targets remain None (no grading)
+
+Target Interpretation:
+- **BUY signals**: target_high = profit target, target_low = stop loss
+- **SELL signals**: target_low = profit target, target_high = stop loss
+- Grading logic evaluates which level hits first within the evaluation window
+
+Precision Handling:
+Computed targets respect TradingInstrument.display_precision:
+- YM (display_precision=0): whole numbers (47683, 47663)
+- ES (display_precision=2): two decimals (5923.25, 5898.75)
+- SI (display_precision=3): three decimals (31.850, 31.350)
 """
 
 from decimal import Decimal

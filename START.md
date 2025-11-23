@@ -243,7 +243,7 @@ Run this in a separate terminal:
 ```powershell
 cd A:\Thor\thor-backend
 
-# Start the grader with default 0.5s interval
+# Start the grader with default 0.5s interval monitors wndw
 python manage.py start_market_grader
 
 # Or customize the check interval (in seconds)
