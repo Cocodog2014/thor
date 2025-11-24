@@ -155,17 +155,17 @@ class MarketSession(models.Model):
         ('STOP', 'Stop Loss'),
     ]
 
-    target_hit_at = models.DateTimeField(
-        null=True,
-        blank=True,
-        help_text="Timestamp when the first target or stop was hit",
-    )
     target_hit_price = models.DecimalField(
         max_digits=14,
         decimal_places=4,
         null=True,
         blank=True,
         help_text="Price at which the first target or stop was hit",
+    )
+    target_hit_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Timestamp when the first target or stop was hit",
     )
     target_hit_type = models.CharField(
         max_length=10,
