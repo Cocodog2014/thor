@@ -16,7 +16,7 @@ class MarketSessionBaseSerializer(serializers.ModelSerializer):
 class MarketSessionListSerializer(MarketSessionBaseSerializer):
     class Meta(MarketSessionBaseSerializer.Meta):
         fields = [
-            'id', 'session_number', 'year', 'month', 'date', 'day',
+            'id', 'session_number', 'capture_group', 'year', 'month', 'date', 'day',
             'captured_at', 'country', 'future', 'country_future', 'weight', 'bhs',
             'country_future_wndw_total',
             'strong_buy_worked', 'strong_buy_worked_percentage',
@@ -41,7 +41,7 @@ class MarketSessionListSerializer(MarketSessionBaseSerializer):
 class MarketSessionDetailSerializer(MarketSessionBaseSerializer):
     class Meta(MarketSessionBaseSerializer.Meta):
         fields = [
-            'id', 'session_number', 'year', 'month', 'date', 'day',
+            'id', 'session_number', 'capture_group', 'year', 'month', 'date', 'day',
             'captured_at', 'country', 'future', 'country_future', 'weight', 'bhs',
             'country_future_wndw_total', 'strong_buy_worked', 'strong_buy_worked_percentage',
             'strong_buy_didnt_work', 'strong_buy_didnt_work_percentage',
