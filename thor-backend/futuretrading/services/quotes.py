@@ -52,9 +52,17 @@ def build_enriched_rows(raw_quotes: Dict[str, Dict]) -> List[Dict]:
     norm_symbols = [SYMBOL_NORMALIZE_MAP.get(sym, sym) for sym in FUTURES_SYMBOLS]
     query_symbols = norm_symbols + [f'/{s}' for s in norm_symbols]
     precision_map: Dict[str, int] = {}
+    instrument_meta: Dict[str, Dict[str, str]] = {}
     for inst in TradingInstrument.objects.filter(symbol__in=query_symbols):
         key = inst.symbol.lstrip('/').upper()
-        precision_map[key] = inst.display_precision
+        # Prefer first occurrence (avoid overwriting with alt symbol formatting)
+        if key not in precision_map:
+            precision_map[key] = inst.display_precision
+        # Capture tick_value and margin_requirement (convert to str for JSON)
+        instrument_meta[key] = {
+            'tick_value': _to_str(inst.tick_value),
+            'margin_requirement': _to_str(inst.margin_requirement),
+        }
     rows: List[Dict] = []
 
     for idx, sym in enumerate(FUTURES_SYMBOLS):
@@ -64,6 +72,7 @@ def build_enriched_rows(raw_quotes: Dict[str, Dict]) -> List[Dict]:
         norm = SYMBOL_NORMALIZE_MAP.get(sym, sym)
         stat = stats_52w.get(norm)
 
+        meta = instrument_meta.get(norm, {})
         row = {
             'instrument': {
                 'id': idx + 1,
@@ -74,6 +83,8 @@ def build_enriched_rows(raw_quotes: Dict[str, Dict]) -> List[Dict]:
                 'display_precision': precision_map.get(norm, 2),
                 'is_active': True,
                 'sort_order': idx,
+                'tick_value': meta.get('tick_value'),
+                'margin_requirement': meta.get('margin_requirement'),
             },
             # Ensure downstream composite has a timestamp
             'timestamp': quote.get('timestamp'),
