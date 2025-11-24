@@ -9,6 +9,9 @@ Tracks trades based on TOTAL composite signals and grades outcomes.
 from django.db import models
 from django.utils import timezone
 
+# Grouping support
+
+
 
 class MarketSession(models.Model):
     """
@@ -19,6 +22,12 @@ class MarketSession(models.Model):
 
     # Identification
     session_number = models.IntegerField(help_text="Trade counter/sequence number")
+    capture_group = models.IntegerField(
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text="Group identifier for all rows captured in the same market-open event"
+    )
 
     # Date/Time Info
     year = models.IntegerField()

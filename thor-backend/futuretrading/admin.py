@@ -90,7 +90,7 @@ class SignalWeightAdmin(admin.ModelAdmin):
 @admin.register(MarketSession)
 class MarketSessionAdmin(admin.ModelAdmin):
     list_display = [
-        'session_number', 'country', 'future', 'country_future', 'date_display', 'day',
+        'capture_group', 'session_number', 'country', 'future', 'country_future', 'date_display', 'day',
         'bhs', 'entry_price', 'last_price'
     ]
     list_filter = ['country', 'future', 'day', 'bhs', 'year', 'month']
@@ -136,7 +136,7 @@ class MarketSessionAdmin(admin.ModelAdmin):
         return f"{obj.year}/{obj.month:02d}/{obj.date:02d}"
     date_display.short_description = 'Date'
     
-    ordering = ['-captured_at', 'future']
+    ordering = ['-capture_group', 'future']
 
 
 # 52-Week High/Low Tracking Admin

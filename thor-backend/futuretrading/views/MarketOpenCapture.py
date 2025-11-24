@@ -28,6 +28,7 @@ class MarketOpenCaptureService:
     """Captures futures data at market open - matches RTD endpoint logic exactly.
 
     Uses centralized constants from FutureTrading.constants.
+    Adds capture_group for explicit grouping of rows per open event.
     """
     
     def get_next_session_number(self):
@@ -53,13 +54,14 @@ class MarketOpenCaptureService:
             except Exception:
                 return None
     
-    def create_session_for_future(self, symbol, row, session_number, time_info, country, composite_signal):
+    def create_session_for_future(self, symbol, row, session_number, capture_group, time_info, country, composite_signal):
         """Create one MarketSession row for a single future"""
         ext = row.get('extended_data', {})
         
         # Base session data
         data = {
             'session_number': session_number,
+            'capture_group': capture_group,
             'year': time_info['year'],
             'month': time_info['month'],
             'date': time_info['date'],
@@ -145,12 +147,13 @@ class MarketOpenCaptureService:
             logger.error(f"Session creation failed for {symbol}: {e}", exc_info=True)
             return None
     
-    def create_session_for_total(self, composite, session_number, time_info, country, ym_entry_price=None):
+    def create_session_for_total(self, composite, session_number, capture_group, time_info, country, ym_entry_price=None):
         """Create one MarketSession row for TOTAL composite"""
         composite_signal = (composite.get('composite_signal') or 'HOLD').upper()
         
         data = {
             'session_number': session_number,
+            'capture_group': capture_group,
             'year': time_info['year'],
             'month': time_info['month'],
             'date': time_info['date'],
@@ -213,6 +216,9 @@ class MarketOpenCaptureService:
             
             time_info = market.get_current_market_time()
             session_number = self.get_next_session_number()
+            # Derive next capture_group (reuse session_number if desired, but keep independent for flexibility)
+            last_group = MarketSession.objects.exclude(capture_group__isnull=True).order_by('-capture_group').first()
+            capture_group = (last_group.capture_group + 1) if last_group and last_group.capture_group is not None else 1
             
             # Create 11 future sessions
             sessions_created = []
@@ -220,7 +226,7 @@ class MarketOpenCaptureService:
             for row in enriched:
                 symbol = row['instrument']['symbol']
                 session = self.create_session_for_future(
-                    symbol, row, session_number, time_info, market.country, composite_signal
+                    symbol, row, session_number, capture_group, time_info, market.country, composite_signal
                 )
                 if session:
                     sessions_created.append(session)
@@ -233,7 +239,7 @@ class MarketOpenCaptureService:
             
             # Create TOTAL session
             total_session = self.create_session_for_total(
-                composite, session_number, time_info, market.country, ym_entry_price=ym_entry_price
+                composite, session_number, capture_group, time_info, market.country, ym_entry_price=ym_entry_price
             )
             if total_session:
                 sessions_created.append(total_session)
