@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-// Styles are imported globally via src/styles/global.css
+// Market Open Session Styles are imported globally via src/styles/global.css
 
 // ---- Types ----
 // Single-table design: each row represents one future at one market open

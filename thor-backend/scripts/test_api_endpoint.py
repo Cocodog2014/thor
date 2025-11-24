@@ -13,8 +13,11 @@ try:
         if isinstance(data, list):
             print(f"Sessions returned: {len(data)}")
             if data:
-                print(f"First session country: {data[0].get('country')}")
-                print(f"First session future: {data[0].get('future')}")
+                first = data[0]
+                print(f"First session country: {first.get('country')}")
+                print(f"First session future: {first.get('future')}")
+                print(f"First session bhs: {first.get('bhs')}")
+                print(f"First session wndw: {first.get('wndw')}")
         else:
             print(f"Response: {data}")
     else:
