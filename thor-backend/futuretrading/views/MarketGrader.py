@@ -313,8 +313,6 @@ class MarketGrader:
                             timestamp_minute=current_minute,
                             defaults={
                                 'last_price': _dec(quote.get('last')),
-                                'bid_price': _dec(quote.get('bid')),
-                                'ask_price': _dec(quote.get('ask')),
                                 'cumulative_volume': _int(quote.get('volume')),
                             }
                         )

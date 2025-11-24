@@ -251,7 +251,7 @@ class TargetHighLowConfigAdmin(admin.ModelAdmin):
 
 @admin.register(VwapMinute)
 class VwapMinuteAdmin(admin.ModelAdmin):
-    list_display = ("symbol", "timestamp_minute", "last_price", "bid_price", "ask_price", "cumulative_volume", "captured_at")
+    list_display = ("symbol", "timestamp_minute", "last_price", "cumulative_volume", "captured_at")
     list_filter = ("symbol",)
     search_fields = ("symbol",)
     ordering = ("-timestamp_minute", "symbol")

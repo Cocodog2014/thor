@@ -19,8 +19,6 @@ class VwapMinute(models.Model):
     timestamp_minute = models.DateTimeField(help_text="UTC minute (floored)")
 
     last_price = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True)
-    bid_price = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True)
-    ask_price = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True)
     cumulative_volume = models.BigIntegerField(null=True, blank=True, help_text="Cumulative volume from feed at sample time")
 
     captured_at = models.DateTimeField(auto_now_add=True)
