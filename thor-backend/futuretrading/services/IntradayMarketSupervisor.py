@@ -17,6 +17,12 @@ This supervisor is started/stopped by the global MarketMonitor.
 import logging
 import threading
 import time
+import os
+import json
+from django.utils import timezone
+from LiveData.shared.redis_client import live_data_redis
+from FutureTrading.constants import FUTURES_SYMBOLS
+from FutureTrading.services.vwap import vwap_service
 
 from FutureTrading.services.quotes import get_enriched_quotes_with_composite
 from FutureTrading.services.market_metrics import (
@@ -120,6 +126,27 @@ class IntradayMarketSupervisor:
                 # Continuous intraday updates
                 MarketHighMetric.update_from_quotes(country, enriched)
                 MarketLowMetric.update_from_quotes(country, enriched)
+
+                # Rolling VWAP precomputation
+                window_minutes = int(os.getenv('ROLLING_VWAP_WINDOW_MINUTES', '30'))
+                now_dt = timezone.now().replace(second=0, microsecond=0)
+                vwap_payload = {}
+                for sym in FUTURES_SYMBOLS:
+                    try:
+                        val = vwap_service.calculate_rolling_vwap(sym, window_minutes, now_dt=now_dt)
+                        vwap_payload[sym] = str(val) if val is not None else None
+                    except Exception as vw_err:
+                        logger.debug("Rolling VWAP calc failed for %s: %s", sym, vw_err)
+                        vwap_payload[sym] = None
+                live_data_redis.set(
+                    f"rolling_vwap:{window_minutes}",
+                    json.dumps({
+                        'window_minutes': window_minutes,
+                        'as_of': now_dt.isoformat(),
+                        'values': vwap_payload,
+                    }),
+                    ex=120,
+                )
 
             except Exception:
                 logger.exception("Intraday metrics update failed for %s", country)

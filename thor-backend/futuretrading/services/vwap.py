@@ -103,6 +103,47 @@ class VwapService:
         res = self.calculate_vwap(symbol, start=start, end=tz_now)
         return res.vwap
 
+    def calculate_rolling_vwap(self, symbol: str, lookback_minutes: int, now_dt=None) -> Optional[Decimal]:
+        """Calculate VWAP over the last `lookback_minutes` minutes ending at `now_dt`.
+
+        Uses the previous cumulative volume just BEFORE the window start to derive
+        the correct incremental volume for the first in-window row.
+        """
+        if lookback_minutes <= 0:
+            return None
+        if now_dt is None:
+            now_dt = timezone.now().replace(second=0, microsecond=0)
+        start = now_dt - timezone.timedelta(minutes=lookback_minutes)
+        # Previous row outside window (highest timestamp < start)
+        prev_row = (
+            VwapMinute.objects.filter(symbol=symbol, timestamp_minute__lt=start)
+            .order_by('-timestamp_minute')
+            .first()
+        )
+        prev_cum = prev_row.cumulative_volume if prev_row and prev_row.cumulative_volume is not None else None
+        window_rows = (
+            VwapMinute.objects.filter(symbol=symbol, timestamp_minute__gte=start, timestamp_minute__lte=now_dt)
+            .order_by('timestamp_minute')
+        )
+        numerator = Decimal('0')
+        denominator = Decimal('0')
+        for r in window_rows:
+            if r.last_price is None or r.cumulative_volume is None:
+                continue
+            if prev_cum is None:
+                inc = r.cumulative_volume
+            else:
+                inc = r.cumulative_volume - prev_cum
+            prev_cum = r.cumulative_volume
+            if inc is None or inc <= 0:
+                continue
+            inc_dec = Decimal(str(inc))
+            numerator += (r.last_price * inc_dec)
+            denominator += inc_dec
+        if denominator > 0:
+            return (numerator / denominator).quantize(Decimal('0.0001'))
+        return None
+
     # Backwards compatibility for any legacy import expecting get_current_vwap
     def get_current_vwap(self, symbol: str) -> Optional[Decimal]:
         return self.get_today_vwap(symbol)
