@@ -148,22 +148,8 @@ class MarketSession(models.Model):
         blank=True,
         help_text="Actual entry (Ask if buying, Bid if selling)",
     )
-    target_high = models.DecimalField(
-        max_digits=14,
-        decimal_places=4,
-        null=True,
-        blank=True,
-        help_text="Configurable target above entry (per TargetHighLowConfig)",
-    )
-    target_low = models.DecimalField(
-        max_digits=14,
-        decimal_places=4,
-        null=True,
-        blank=True,
-        help_text="Configurable stop below entry (per TargetHighLowConfig)",
-    )
 
-    # ▶ Target hit tracking (NEW – uses the above entry/targets)
+    # ▶ Target hit tracking (placed after entry_price for logical grouping)
     TARGET_HIT_CHOICES = [
         ('TARGET', 'Profit Target'),
         ('STOP', 'Stop Loss'),
@@ -187,6 +173,21 @@ class MarketSession(models.Model):
         null=True,
         blank=True,
         help_text="Which level was hit first: profit TARGET or STOP",
+    )
+
+    target_high = models.DecimalField(
+        max_digits=14,
+        decimal_places=4,
+        null=True,
+        blank=True,
+        help_text="Configurable target above entry (per TargetHighLowConfig)",
+    )
+    target_low = models.DecimalField(
+        max_digits=14,
+        decimal_places=4,
+        null=True,
+        blank=True,
+        help_text="Configurable stop below entry (per TargetHighLowConfig)",
     )
 
     # Additional market data
