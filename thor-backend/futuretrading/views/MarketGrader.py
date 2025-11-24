@@ -76,9 +76,9 @@ class MarketGrader:
 
         SYMBOL MAPPING:
         ---------------
-        TOTAL → '/YM'   (system trade executed using YM quotes)
+        TOTAL → 'YM'   (system trade executed using YM quotes)
         DX    → '$DXY'  (your live feed provides DXY index, not DX futures)
-        ALL OTHERS → use the symbol as-is.
+        ALL OTHERS → use the symbol as-is (without leading slash).
 
         Returns:
             Decimal price or None if unavailable.
@@ -86,14 +86,14 @@ class MarketGrader:
         try:
             # Map special synthetic symbols to live Redis keys.
             if symbol == 'TOTAL':
-                # TOTAL is graded using YM price
-                redis_key = '/YM'
+                # TOTAL is graded using YM price (no slash)
+                redis_key = 'YM'
             elif symbol == 'DX':
                 # DX is graded using DXY index because DX futures aren't fed
                 redis_key = '$DXY'
             else:
-                # All other futures use their own symbol
-                redis_key = symbol
+                # All other futures use their own symbol (strip leading slash if present)
+                redis_key = symbol.lstrip('/')
 
             data = live_data_redis.get_latest_quote(redis_key)
 
@@ -146,12 +146,21 @@ class MarketGrader:
 
         # If no entry or missing targets → cannot grade → mark NEUTRAL
         if not session.entry_price or not session.target_high or not session.target_low:
+            logger.debug(
+                "⚠ %s (Session #%s) → NEUTRAL: missing entry=%s, target_h=%s, target_l=%s",
+                session.future, session.session_number,
+                session.entry_price, session.target_high, session.target_low
+            )
             session.wndw = 'NEUTRAL'
             session.save(update_fields=['wndw'])
             return True
 
         # HOLD (or empty signal) → no trade → mark NEUTRAL
         if session.bhs in ['HOLD', None, '']:
+            logger.debug(
+                "⚠ %s (Session #%s) → NEUTRAL: signal=%s (no trade)",
+                session.future, session.session_number, session.bhs
+            )
             session.wndw = 'NEUTRAL'
             session.save(update_fields=['wndw'])
             return True
@@ -160,6 +169,10 @@ class MarketGrader:
         current_price = self.get_current_price(session.future, session.bhs)
         if current_price is None:
             # Cannot grade without a live price
+            logger.debug(
+                "⏸ %s (Session #%s) → no price available yet (signal=%s)",
+                session.future, session.session_number, session.bhs
+            )
             return False
 
         worked = False
