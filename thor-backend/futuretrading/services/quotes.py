@@ -23,7 +23,6 @@ from FutureTrading.models.extremes import Rolling52WeekStats
 from FutureTrading.models import TradingInstrument
 from FutureTrading.services.classification import enrich_quote_row, compute_composite
 from FutureTrading.services.metrics import compute_row_metrics
-from FutureTrading.services.vwap import vwap_service
 
 logger = logging.getLogger(__name__)
 
@@ -118,14 +117,6 @@ def build_enriched_rows(raw_quotes: Dict[str, Dict]) -> List[Dict]:
                 row['change_percent'] = metrics.get('last_prev_pct')
         except Exception as e:
             logger.warning(f"Metrics failed for {norm}: {e}")
-
-        # Attach real-time VWAP (if available)
-        try:
-            vwap_val = vwap_service.get_current_vwap(norm)
-            if vwap_val is not None:
-                row['vwap'] = str(vwap_val)
-        except Exception:
-            pass
 
         rows.append(row)
     return rows
