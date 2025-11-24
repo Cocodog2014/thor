@@ -6,6 +6,7 @@ from .models import (
 from .models.MarketSession import MarketSession
 from .models.extremes import Rolling52WeekStats
 from .models.target_high_low import TargetHighLowConfig
+from .models.vwap import VwapMinute
 
 
 class SignalStatValueInline(admin.TabularInline):
@@ -247,5 +248,13 @@ class TargetHighLowConfigAdmin(admin.ModelAdmin):
             'classes': ('collapse',)
         }),
     )
+
+@admin.register(VwapMinute)
+class VwapMinuteAdmin(admin.ModelAdmin):
+    list_display = ("symbol", "timestamp_minute", "last_price", "bid_price", "ask_price", "cumulative_volume", "captured_at")
+    list_filter = ("symbol",)
+    search_fields = ("symbol",)
+    ordering = ("-timestamp_minute", "symbol")
+
 
 
