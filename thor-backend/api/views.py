@@ -59,7 +59,7 @@ def vwap_rolling(request: HttpRequest):
     now_iso = now().isoformat()
     # Try precomputed hash
     redis_key = f"rolling_vwap:{window_minutes}"
-    cached = live_data_redis.get(redis_key)
+    cached = live_data_redis.client.get(redis_key)
     cached_payload = None
     if cached:
         try:
