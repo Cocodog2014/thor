@@ -162,11 +162,6 @@ class MarketSession(models.Model):
         blank=True,
         help_text="Price at which the first target or stop was hit",
     )
-    target_hit_at = models.DateTimeField(
-        null=True,
-        blank=True,
-        help_text="Timestamp when the first target or stop was hit",
-    )
     target_hit_type = models.CharField(
         max_length=10,
         choices=TARGET_HIT_CHOICES,
@@ -188,6 +183,11 @@ class MarketSession(models.Model):
         null=True,
         blank=True,
         help_text="Configurable stop below entry (per TargetHighLowConfig)",
+    )
+    target_hit_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Timestamp when the first target or stop was hit",
     )
 
     # Additional market data
