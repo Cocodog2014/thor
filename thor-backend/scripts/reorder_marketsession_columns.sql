@@ -40,7 +40,9 @@ CREATE TABLE "FutureTrading_marketsession_new" (
     "market_low_number" numeric(14, 4),
     "market_low_percentage" numeric(14, 6),
     "market_close_number" numeric(14, 4),
-    "market_close_percentage" numeric(14, 6),
+    "market_close_percentage_high" numeric(14, 4),
+    "market_close_percentage_low" numeric(14, 4),
+    "market_close_vs_open_percentage" numeric(14, 4),
     "market_range_number" numeric(14, 4),
     "market_range_percentage" numeric(14, 6),
     "session_close" numeric(14, 4),
@@ -85,7 +87,8 @@ SELECT
     bid_price, bid_size, last_price, spread, ask_price, ask_size,
     entry_price, target_hit_price, target_hit_type, target_high, target_low, target_hit_at,
     volume, vwap, market_open, market_high_number, market_high_percentage,
-    market_low_number, market_low_percentage, market_close_number, market_close_percentage,
+    market_low_number, market_low_percentage, market_close_number,
+    market_close_percentage_high, market_close_percentage_low, market_close_vs_open_percentage,
     market_range_number, market_range_percentage, session_close, session_open,
     open_vs_prev_number, open_vs_prev_percent, day_24h_low, day_24h_high,
     range_high_low, range_percent, week_52_low, week_52_high,
@@ -114,7 +117,7 @@ CREATE INDEX "FutureTrading_marketsession_wndw_idx" ON "FutureTrading_marketsess
 
 -- Reset sequence
 SELECT setval(pg_get_serial_sequence('"FutureTrading_marketsession"', 'id'), 
-              COALESCE((SELECT MAX(id) FROM "FutureTrading_marketsession"), 1), 
+              GREATEST(1, COALESCE((SELECT MAX(id) FROM "FutureTrading_marketsession"), 0)), 
               true);
 
 COMMIT;

@@ -29,7 +29,9 @@ interface MarketOpenSession {
   market_low_number?: string | null;
   market_low_percentage?: string | null;
   market_close_number?: string | null;
-  market_close_percentage?: string | null;
+  market_close_percentage_high?: string | null;
+  market_close_percentage_low?: string | null;
+  market_close_vs_open_percentage?: string | null;
   market_range_number?: string | null;
   market_range_percentage?: string | null;
   spread?: string | null;
@@ -318,8 +320,13 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl }) => {
           const totalInstrumentCount = snap?.instrument_count ?? 11;
           const totalCapture = snap?.captured_at ? new Date(snap.captured_at).toLocaleTimeString() : "—";
           const closeDeltaValue = formatSignedValue(snap?.market_close_number);
-          const closeDeltaPercent = formatPercentValue(snap?.market_close_percentage);
-          const closeDeltaClass = getDeltaClass(snap?.market_close_number ?? snap?.market_close_percentage);
+          const closeDeltaPercent = formatPercentValue(snap?.market_close_vs_open_percentage);
+          const closeDeltaClass = getDeltaClass(
+            snap?.market_close_number
+              ?? snap?.market_close_vs_open_percentage
+              ?? snap?.market_close_percentage_high
+              ?? snap?.market_close_percentage_low
+          );
           const marketDeltaMetrics = [
             {
               label: "Open Δ",
@@ -424,7 +431,8 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl }) => {
                           {closeDeltaValue ?? (isZero(snap?.market_close_number) ? "0" : "—")}
                         </div>
                         <div className={`pct ${closeDeltaClass}`}>
-                          {closeDeltaPercent ?? (isZero(snap?.market_close_percentage) ? "0%" : "—")}
+                            {closeDeltaPercent
+                              ?? (isZero(snap?.market_close_vs_open_percentage) ? "0%" : "—")}
                         </div>
                         <div className="label">Close Δ</div>
                       </div>
