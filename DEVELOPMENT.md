@@ -1028,3 +1028,73 @@ Manual verification:
 3. Verify logs show heartbeat updates every 60s
 
 ---
+
+## Intraday VWAP System
+
+The VWAP (Volume-Weighted Average Price) subsystem provides both minute-by-minute session VWAP snapshots and a lightweight rolling VWAP used by the frontend for intraday visualization.
+
+### Overview
+- **Goal**: Persist accurate 1-minute VWAP progression for each tracked futures symbol and supply fast rolling VWAP values without recalculating on every request.
+- **Symbols Covered**: All 11 futures plus `TOTAL` (same universe as `MarketSession`).
+- **Persistence Model**: `VwapMinute` (fields include symbol, minute timestamp, last_price, cumulative_volume, computed vwap). Bid/ask removed—VWAP only requires trade price + volume.
+- **Computation Source**: Live quotes + cumulative volume from Redis (Excel RTD feed currently; Schwab later).
+
+### Minute Snapshot Logic
+At (or just after) each minute boundary the capture routine:
+1. Reads latest `last_price` and current cumulative volume for a symbol.
+2. Calculates incremental volume: `ΔV = cumulative_volume_now - cumulative_volume_prev`.
+3. Applies formula: `VWAP = Σ(price_i * ΔV_i) / Σ(ΔV_i)` across all minute slices so far in the session.
+4. Writes a new `VwapMinute` row.
+
+If no volume progress (`ΔV == 0`) the system skips the row to avoid artificial flat segments or divide-by-zero cases.
+
+### Rolling VWAP
+Some UI views need a short-horizon VWAP (e.g. last 15 minutes) separate from the full session VWAP. The rolling VWAP service:
+- Pulls recent `VwapMinute` rows within the requested window (N minutes) for a symbol.
+- Recomputes VWAP using only those slices (same formula but limited to window set).
+- Caches result in Redis for fast reuse (key pattern: `vwap:rolling:<symbol>:<window>`).
+- Updated periodically by the `IntradayMarketSupervisor` rather than on each HTTP request.
+
+### Formula Reference
+For ticks grouped into minute buckets with cumulative volumes:
+```
+ΔV_i = cumulative_volume_i - cumulative_volume_{i-1}
+SessionVWAP_t = (Σ P_i * ΔV_i) / (Σ ΔV_i)
+```
+Where `P_i` is the minute's representative trade price (last price at capture) and `ΔV_i > 0`.
+
+### Endpoints
+| Endpoint | Purpose | Example |
+|----------|---------|---------|
+| `GET /api/vwap/today?symbol=ES` | Returns session-to-date VWAP (full accumulation) | `/api/vwap/today?symbol=ES` |
+| `GET /api/vwap/rolling?symbol=ES&window=15` | Returns rolling VWAP over last N minutes | `/api/vwap/rolling?symbol=NQ&window=30` |
+
+Responses are JSON with `{ symbol, window(optional), vwap, ts }`. Early in the session these may return `null` until at least one minute with volume completes.
+
+### Redis Integration
+- Uses existing latest quote hashes (`quotes:latest:<symbol>`) for current price & cumulative volume.
+- Rolling results stored briefly in Redis to avoid repetitive database scans.
+- Supervisor thread interval (~10s by default) ensures near-real-time freshness without load spikes.
+
+### Interaction With Intraday High/Low
+- High/low metrics are initialized at session open using the opening price.
+- VWAP appears only after first minute completes with volume; absence of VWAP prior is expected and not an error condition.
+
+### Operational Notes
+- If cumulative volume resets mid-session (data provider glitch) the next capture treats it as a restart; integrity checks should be extended later (planned enhancement).
+- Backfilling for missed minutes can be done by replaying ticks (future Parquet export process) and regenerating `VwapMinute` rows.
+
+### Manual Verification
+1. Start backend + poller (`python manage.py poll_tos_excel`).
+2. Wait > 1 minute for volume accumulation.
+3. Call: `curl http://127.0.0.1:8000/api/vwap/today?symbol=ES` → expect numeric `vwap`.
+4. Call: `curl "http://127.0.0.1:8000/api/vwap/rolling?symbol=ES&window=15"`.
+5. Compare rolling vs session VWAP—rolling should converge toward session as window increases.
+
+### Future Enhancements
+- Multiple simultaneous windows (5, 15, 30, 60) cached together.
+- SSE push of VWAP deltas for smoother UI charts.
+- Automatic integrity repair on volume resets.
+- Bar-aligned VWAP (using generated 1m bars post ingestor rollout).
+
+---
