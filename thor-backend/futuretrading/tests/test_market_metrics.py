@@ -149,7 +149,7 @@ class MarketLowMetricTests(TestCase):
 class MarketCloseAndRangeMetricTests(TestCase):
     def setUp(self):
         # Prepare session 4 with highs/lows
-        make_session("USA", "YM", 4, last_price=Decimal("105"), market_open=Decimal("100"), high=Decimal("105"), low=Decimal("99"))
+        make_session("USA", "YM", 4, last_price=Decimal("105"), market_open=Decimal("100"), high=Decimal("106"), low=Decimal("99"))
         make_session("USA", "ES", 4, last_price=Decimal("210"), market_open=Decimal("200"), high=Decimal("212"), low=Decimal("198"))
 
     def _enriched(self, ym_last, es_last):
@@ -164,9 +164,14 @@ class MarketCloseAndRangeMetricTests(TestCase):
         es = MarketSession.objects.get(country="USA", future="ES", session_number=4)
         self.assertEqual(ym.market_close_number, Decimal("106"))
         self.assertEqual(es.market_close_number, Decimal("211"))
-        # Percentage move from open
-        self.assertEqual(ym.market_close_percentage, Decimal("6"))  # (106-100)/100*100
-        self.assertEqual(es.market_close_percentage, Decimal("5.5"))  # (211-200)/200*100
+        # Distance from high and low
+        self.assertEqual(ym.market_close_percentage_high, Decimal("0"))
+        self.assertTrue(Decimal("0.4716") < es.market_close_percentage_high < Decimal("0.4718"))
+        self.assertTrue(Decimal("7.0706") < ym.market_close_percentage_low < Decimal("7.0708"))
+        self.assertTrue(Decimal("6.5656") < es.market_close_percentage_low < Decimal("6.5658"))
+        # Close vs open percentage stored separately
+        self.assertEqual(ym.market_close_vs_open_percentage, Decimal("6"))  # (106-100)/100*100
+        self.assertEqual(es.market_close_vs_open_percentage, Decimal("5.5"))  # (211-200)/200*100
 
     def test_range_metric(self):
         # First run close metric so highs/lows considered final
@@ -188,8 +193,11 @@ class MarketCloseAndRangeMetricTests(TestCase):
         MarketRangeMetric.update_for_country_on_close("USA")
         total = MarketSession.objects.get(country="USA", future="TOTAL", session_number=5)
         self.assertEqual(total.market_close_number, Decimal("155"))
+        # Off high / above low percentages
+        self.assertEqual(total.market_close_percentage_high, Decimal("3.1250"))
+        self.assertTrue(Decimal("6.8965") < total.market_close_percentage_low < Decimal("6.8967"))
         # (155-150)/150*100 = 3.333...
-        self.assertTrue(Decimal("3.33") < total.market_close_percentage < Decimal("3.34"))
+        self.assertTrue(Decimal("3.33") < total.market_close_vs_open_percentage < Decimal("3.34"))
         self.assertEqual(total.market_range_number, Decimal("15"))  # 160-145
         self.assertEqual(total.market_range_percentage, Decimal("10"))  # 15/150*100
 
@@ -221,20 +229,32 @@ class MarketMetricEdgeCaseTests(TestCase):
         ym = MarketSession.objects.get(country="USA", future="YM", session_number=6)
         self.assertIsNone(ym.market_low_number)
 
-    def test_close_metric_percentage_none_when_open_missing_or_zero(self):
-        make_session("USA", "YM", 7, last_price=Decimal("150"), market_open=None)
-        make_session("USA", "ES", 7, last_price=Decimal("250"), market_open=Decimal("0"))
+    def test_close_metric_handles_missing_or_flat_range(self):
+        make_session("USA", "YM", 7, last_price=Decimal("150"), market_open=Decimal("150"), high=None, low=Decimal("140"))
+        make_session("USA", "ES", 7, last_price=Decimal("250"), market_open=Decimal("250"), high=Decimal("260"), low=None)
+        make_session("USA", "NQ", 7, last_price=Decimal("300"), market_open=Decimal("300"), high=Decimal("300"), low=Decimal("300"))
         enriched = [
             {"instrument": {"symbol": "/YM"}, "last": "151"},
             {"instrument": {"symbol": "/ES"}, "last": "251"},
+            {"instrument": {"symbol": "/NQ"}, "last": "300"},
         ]
         MarketCloseMetric.update_for_country_on_close("USA", enriched)
         ym = MarketSession.objects.get(country="USA", future="YM", session_number=7)
         es = MarketSession.objects.get(country="USA", future="ES", session_number=7)
+        nq = MarketSession.objects.get(country="USA", future="NQ", session_number=7)
         self.assertEqual(ym.market_close_number, Decimal("151"))
         self.assertEqual(es.market_close_number, Decimal("251"))
-        self.assertIsNone(ym.market_close_percentage)
-        self.assertIsNone(es.market_close_percentage)
+        self.assertEqual(nq.market_close_number, Decimal("300"))
+        self.assertIsNone(ym.market_close_percentage_high)
+        self.assertTrue(Decimal("7.8570") < ym.market_close_percentage_low < Decimal("7.8572"))
+        self.assertTrue(Decimal("3.4614") < es.market_close_percentage_high < Decimal("3.4616"))
+        self.assertIsNone(es.market_close_percentage_low)
+        self.assertEqual(nq.market_close_percentage_high, Decimal("0"))
+        self.assertEqual(nq.market_close_percentage_low, Decimal("0"))
+        # Close vs open still computed when open present
+        self.assertTrue(Decimal("0.66") < ym.market_close_vs_open_percentage < Decimal("0.67"))
+        self.assertTrue(Decimal("0.39") < es.market_close_vs_open_percentage < Decimal("0.41"))
+        self.assertEqual(nq.market_close_vs_open_percentage, Decimal("0"))
 
     def test_range_metric_skips_when_missing_high_or_low(self):
         # Missing low

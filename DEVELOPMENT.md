@@ -922,7 +922,7 @@ Supervisor integration changes (recent):
 - Diagnostic debug logs (`[DIAG High]`, `[DIAG Low]`) were temporarily added in `FutureTrading/services/market_metrics.py` to trace skip reasons and formula application; remove or downgrade once stable.
 
 Precision change summary:
-- Previous schema stored percentages with `decimal_places=6`; now `decimal_places=4` for: `market_high_percentage`, `market_low_percentage`, `market_close_percentage`, `market_range_percentage`, `range_percent`, `week_52_range_percent`.
+- Previous schema stored percentages with `decimal_places=6`; now `decimal_places=4` for: `market_high_percentage`, `market_low_percentage`, `market_close_percentage_high`, `market_close_percentage_low`, `market_range_percentage`, `range_percent`, `week_52_range_percent`.
 - Runtime quantization enforces four decimals BEFORE saving to avoid unnecessary rounding drift.
 
 Operational guidance:
@@ -948,6 +948,45 @@ Planned future adjustments:
 - Optional smoothing/EMA on drawdown/run-up for volatility-aware UI.
 - Threshold-based alerting for large intraday reversals.
 - Export of intraday high/low trajectory for ML feature engineering.
+
+### 8.12 Manual Market Close Capture
+
+Under normal operation the intraday worker triggers close and range metrics automatically when a market transitions to `CLOSED`. A manual API hook exists for reconciliation or forced re-run:
+
+Endpoint:
+```
+GET /api/future-trading/market-close/capture?country=United%20States
+GET /api/future-trading/market-close/capture?country=United%20States&force=1  # recompute even if already closed
+```
+
+Behavior:
+1. Locates latest `session_number` for the country.
+2. Skips if `market_close_number` already populated (unless `force=1`).
+3. Fetches a fresh enriched quote snapshot.
+4. Runs:
+  - `MarketCloseMetric.update_for_country_on_close(country, enriched)`
+  - `MarketRangeMetric.update_for_country_on_close(country)`
+5. Returns JSON summary `{ status, session_number, close_rows_updated, range_rows_updated }`.
+
+Use Cases:
+- Recover from worker outage or missed CLOSE event.
+- Recalculate after correcting a bad tick (use `force=1`).
+- Operational monitoring / dashboard button.
+
+Idempotency:
+- Without `force=1` the view will not overwrite existing close metrics.
+- With `force=1` values are recomputed using the current enriched prices (ensure snapshot integrity first).
+
+File Reference:
+`FutureTrading/views/MarketCloseCapture.py`
+
+Security / Access:
+- Treat as admin-only or protect via auth layer if exposed publicly; recomputation can alter historical end-of-session values.
+
+Future Enhancements:
+- Batch close capture for all markets simultaneously.
+- Include validation of expected session duration before permitting recompute.
+- Add audit log row recording recomputation event & diff of changed values.
 
 ---
 

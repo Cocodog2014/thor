@@ -241,12 +241,26 @@ class MarketSession(models.Model):
         blank=True,
         help_text="Close move from open (number)",
     )
-    market_close_percentage = models.DecimalField(
+    market_close_percentage_high = models.DecimalField(
         max_digits=14,
         decimal_places=4,
         null=True,
         blank=True,
-        help_text="Close move from open (percent)",
+        help_text="Percent distance from intraday high",
+    )
+    market_close_percentage_low = models.DecimalField(
+        max_digits=14,
+        decimal_places=4,
+        null=True,
+        blank=True,
+        help_text="Percent distance above intraday low",
+    )
+    market_close_vs_open_percentage = models.DecimalField(
+        max_digits=14,
+        decimal_places=4,
+        null=True,
+        blank=True,
+        help_text="Close vs open change (percent)",
     )
     market_range_number = models.DecimalField(
         max_digits=14,
