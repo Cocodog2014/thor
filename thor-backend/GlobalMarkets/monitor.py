@@ -53,6 +53,25 @@ class MarketMonitor:
         except Exception as e:
             logger.error(f"❌ Initial reconciliation failed: {e}", exc_info=True)
 
+        # After reconciliation, ensure intraday supervisor is running for any
+        # markets that are already OPEN (reconciliation may flip statuses but
+        # does not itself start workers).
+        try:
+            from FutureTrading.services.IntradayMarketSupervisor import intraday_market_supervisor
+            from GlobalMarkets.models import Market
+            open_markets = Market.objects.filter(is_active=True, is_control_market=True, status='OPEN')
+            started = 0
+            for m in open_markets:
+                try:
+                    intraday_market_supervisor.on_market_open(m)
+                    started += 1
+                except Exception as ie:
+                    logger.error(f"❌ Failed starting intraday supervisor (reconcile) for {m.country}: {ie}")
+            if started:
+                logger.info(f"🚀 Intraday supervisor started for {started} already-open market(s)")
+        except Exception as e:
+            logger.error(f"❌ Post-reconcile intraday start failed: {e}")
+
     def stop(self):
         """Cancel all timers and stop scheduling."""
         with self._lock:
@@ -125,6 +144,11 @@ class MarketMonitor:
         The post_save signal will fire and notify any listeners (e.g. FutureTrading).
         """
         from GlobalMarkets.models import Market
+        # Lazy import intraday supervisor so it is only touched at event time
+        try:
+            from FutureTrading.services.IntradayMarketSupervisor import intraday_market_supervisor
+        except Exception:
+            intraday_market_supervisor = None
 
         try:
             market = Market.objects.get(pk=market_id)
@@ -150,6 +174,19 @@ class MarketMonitor:
                 _on_market_open(market)
             except Exception as e:
                 logger.error(f"❌ Market open capture failed for {market.country}: {e}", exc_info=True)
+            # Start intraday high/low worker
+            if intraday_market_supervisor:
+                try:
+                    intraday_market_supervisor.on_market_open(market)
+                except Exception as e:
+                    logger.error(f"❌ Failed starting intraday supervisor for {market.country}: {e}", exc_info=True)
+        else:
+            # Market transitioned to CLOSED: stop worker + finalize metrics
+            if intraday_market_supervisor:
+                try:
+                    intraday_market_supervisor.on_market_close(market)
+                except Exception as e:
+                    logger.error(f"❌ Failed stopping intraday supervisor for {market.country}: {e}", exc_info=True)
 
     def _reconcile_now(self):
         """

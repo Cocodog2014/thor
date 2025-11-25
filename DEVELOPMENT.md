@@ -896,6 +896,59 @@ Planned improvements:
 - [ ] Historical metric replay for backtesting
 - [ ] Health check endpoint for monitoring worker status
 
+### 8.11 Intraday High / Low Metrics – Formulas & Behavior
+
+Thor maintains two continuously updating intraday extrema metrics per `(country, future)` while a market is OPEN:
+
+| Field | Meaning | Update Condition | Percentage Formula |
+|-------|---------|------------------|--------------------|
+| `market_high_number` | Highest `last_price` seen so far in the current session | New tick above prior high | — (stores raw price) |
+| `market_high_percentage` | Percent drawdown from current intraday high | Tick below the stored high | `(high - last_price) / high * 100` |
+| `market_low_number` | Lowest `last_price` seen so far in the current session | New tick below prior low | — (stores raw price) |
+| `market_low_percentage` | Percent run-up from current intraday low | Tick above the stored low | `(last_price - low) / low * 100` |
+
+Key characteristics:
+- Both percentages are exactly `0.0000` at the moment a new high/low is set (we reset on new extrema).
+- They remain zero until price moves away from the extreme in the corresponding direction (down from the high, up from the low).
+- Percentages are quantized to FOUR decimal places in the update functions and stored with `decimal_places=4` (migration `0062_alter_percentage_precision`).
+- If `market_open` is not yet set or `last_price` is missing, the metric update for that future is skipped defensively.
+
+Zero percentage diagnostics:
+- High stays `0.0000`: price has either not fallen below the recorded high or a new higher high keeps resetting the drawdown.
+- Low stays `0.0000`: price has not traded above the recorded low, or successive lower lows keep resetting run-up to zero.
+
+Supervisor integration changes (recent):
+- `IntradayMarketSupervisor` now starts immediately for markets that are already OPEN after the initial monitor reconciliation. This fixes the earlier issue where percentages stayed at zero because no worker thread was running mid-session.
+- Diagnostic debug logs (`[DIAG High]`, `[DIAG Low]`) were temporarily added in `FutureTrading/services/market_metrics.py` to trace skip reasons and formula application; remove or downgrade once stable.
+
+Precision change summary:
+- Previous schema stored percentages with `decimal_places=6`; now `decimal_places=4` for: `market_high_percentage`, `market_low_percentage`, `market_close_percentage`, `market_range_percentage`, `range_percent`, `week_52_range_percent`.
+- Runtime quantization enforces four decimals BEFORE saving to avoid unnecessary rounding drift.
+
+Operational guidance:
+1. Confirm worker thread active via logs: `Intraday metrics worker STARTED for <country>`.
+2. Sample a session row after a few ticks: values should show non-zero percentages once price moves off extremes.
+3. Remove diagnostics: delete added debug lines or set logger level to INFO in production.
+
+Example progression (high side):
+```
+Tick1 last=6719.50 → market_high_number=6719.50, market_high_percentage=0.0000
+Tick2 last=6719.25 → drawdown=(6719.50-6719.25)=0.25; pct=0.25/6719.50*100=0.0037
+Tick3 last=6720.00 → NEW HIGH resets: market_high_number=6720.00, market_high_percentage=0.0000
+```
+
+Example progression (low side):
+```
+Tick1 last=6719.50 → market_low_number=6719.50, market_low_percentage=0.0000
+Tick2 last=6719.75 → runup=(6719.75-6719.50)=0.25; pct=0.25/6719.50*100=0.0037
+Tick3 last=6719.10 → NEW LOWER LOW resets: market_low_number=6719.10, market_low_percentage=0.0000
+```
+
+Planned future adjustments:
+- Optional smoothing/EMA on drawdown/run-up for volatility-aware UI.
+- Threshold-based alerting for large intraday reversals.
+- Export of intraday high/low trajectory for ML feature engineering.
+
 ---
 
 ## 9. 52-Week High/Low Monitor
