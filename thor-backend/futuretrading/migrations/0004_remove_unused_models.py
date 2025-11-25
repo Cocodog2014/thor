@@ -8,21 +8,4 @@ class Migration(migrations.Migration):
         ("FutureTrading", "0003_delete_hbsthresholds"),
     ]
 
-    operations = [
-        migrations.RunSQL(
-            sql='DROP TABLE IF EXISTS "FutureTrading_marketdata" CASCADE;',
-            reverse_sql="",
-        ),
-        migrations.RunSQL(
-            sql='DROP TABLE IF EXISTS "FutureTrading_tradingsignal" CASCADE;',
-            reverse_sql="",
-        ),
-        migrations.RunSQL(
-            sql='DROP TABLE IF EXISTS "FutureTrading_watchlistitem" CASCADE;',
-            reverse_sql="",
-        ),
-        migrations.RunSQL(
-            sql='DROP TABLE IF EXISTS "FutureTrading_watchlistgroup" CASCADE;',
-            reverse_sql="",
-        ),
-    ]
+    operations = []

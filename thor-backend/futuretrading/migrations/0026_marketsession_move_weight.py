@@ -141,7 +141,7 @@ BEGIN
 
     PERFORM setval(
         pg_get_serial_sequence('"FutureTrading_marketsession"','id'),
-        (SELECT MAX(id) FROM "FutureTrading_marketsession")
+        GREATEST(1, COALESCE((SELECT MAX(id) FROM "FutureTrading_marketsession"), 0))
     );
 END$$;
 """
