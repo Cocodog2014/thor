@@ -5,46 +5,19 @@ from FutureTrading.models.MarketSession import MarketSession
 
 
 def update_country_future_stats():
-    """Persist counts per (country, future) pair into `country_future`.
-
-    Every invocation recalculates how many MarketSession rows exist for each
-    (country, future) combination and writes that number to the
-    `country_future` column across all matching rows. Downstream dashboards can
-    then read the count from any row without doing their own aggregation.
+    """DEPRECATED: No longer needed. country_future is now set on insert as an incrementing counter.
+    
+    This function previously performed bulk updates that overwrote country_future for all rows,
+    preventing it from being a historical session counter. It's now a no-op to avoid breaking
+    any external code that may still reference it.
+    
+    Old behavior: Recalculated total count for each (country, future) pair and bulk-updated all rows.
+    New behavior: country_future is set once on MarketSession creation and never modified.
     """
     import logging
 
     logger = logging.getLogger(__name__)
-    logger.info("Updating country_future counts at %s", timezone.now())
-
-    qs = (
-        MarketSession.objects
-        .values("country", "future")
-        .annotate(total=Count("id"))
-    )
-
-    updated_pairs = 0
-    for row in qs:
-        country = row["country"]
-        future = row["future"]
-        total = row["total"]
-
-        updated = (
-            MarketSession.objects
-            .filter(country=country, future=future)
-            .update(country_future=total)
-        )
-
-        updated_pairs += 1
-        logger.info(
-            "Set country_future=%s on %s rows for %s / %s",
-            total,
-            updated,
-            country,
-            future,
-        )
-
-    logger.info(
-        "country_future stats refresh complete: %s (country, future) pairs updated",
-        updated_pairs,
+    logger.debug(
+        "update_country_future_stats() called but is deprecated (no-op). "
+        "country_future is now set on insert and never updated."
     )

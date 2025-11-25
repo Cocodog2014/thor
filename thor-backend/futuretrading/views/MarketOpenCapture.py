@@ -58,6 +58,15 @@ class MarketOpenCaptureService:
         """Create one MarketSession row for a single future"""
         ext = row.get('extended_data', {})
         
+        # Calculate country_future as incrementing session counter for this (country, future) pair
+        last_session = (
+            MarketSession.objects
+            .filter(country=country, future=symbol)
+            .order_by('-country_future')
+            .first()
+        )
+        next_country_future = (last_session.country_future + 1) if (last_session and last_session.country_future) else 1
+        
         # Base session data
         data = {
             'session_number': session_number,
@@ -68,6 +77,7 @@ class MarketOpenCaptureService:
             'day': time_info['day'],
             'country': country,
             'future': symbol,
+            'country_future': next_country_future,
             'captured_at': timezone.now(),
             # Removed legacy wndw/outcome framework fields
             
@@ -152,6 +162,15 @@ class MarketOpenCaptureService:
         """Create one MarketSession row for TOTAL composite"""
         composite_signal = (composite.get('composite_signal') or 'HOLD').upper()
         
+        # Calculate country_future as incrementing session counter for this (country, TOTAL) pair
+        last_session = (
+            MarketSession.objects
+            .filter(country=country, future='TOTAL')
+            .order_by('-country_future')
+            .first()
+        )
+        next_country_future = (last_session.country_future + 1) if (last_session and last_session.country_future) else 1
+        
         data = {
             'session_number': session_number,
             'capture_group': capture_group,
@@ -161,6 +180,7 @@ class MarketOpenCaptureService:
             'day': time_info['day'],
             'country': country,
             'future': 'TOTAL',
+            'country_future': next_country_future,
             'captured_at': timezone.now(),
             # Removed legacy wndw field
             
@@ -259,16 +279,7 @@ class MarketOpenCaptureService:
 
             # 🔹 Refresh aggregate metrics so downstream dashboards stay in sync.
             #     Each helper runs best-effort so reporting does not block captures.
-            try:
-                # If this one is global, keep as-is
-                update_country_future_stats()
-            except Exception as stats_error:
-                logger.warning(
-                    "Failed country/future counts refresh after capture %s: %s",
-                    session_number,
-                    stats_error,
-                    exc_info=True,
-                )
+            # NOTE: Removed update_country_future_stats() - country_future is now set on insert and never updated
 
             try:
                 # Only update WNDW totals for THIS session & THIS market
