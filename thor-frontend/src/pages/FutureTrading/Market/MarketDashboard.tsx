@@ -55,13 +55,13 @@ interface MarketOpenSession {
 }
 
 // Control markets must use exact country strings from backend sessions.
-// Backend currently stores: Japan, China, India, Germany, UK, Pre_USA, USA, Canada, Mexico
+// Backend currently stores: Japan, China, India, Germany, United Kingdom, Pre_USA, USA, Canada, Mexico
 const CONTROL_MARKETS = [
   { key: "Tokyo",       label: "Tokyo",        country: "Japan" },
   { key: "Shanghai",    label: "Shanghai",     country: "China" },
   { key: "Bombay",      label: "Bombay",       country: "India" },
   { key: "Frankfurt",   label: "Frankfurt",    country: "Germany" },
-  { key: "London",      label: "London",       country: "UK" }, // was "United Kingdom" (mismatch)
+  { key: "London",      label: "London",       country: "United Kingdom" }, // fixed backend country string
   { key: "Toronto",     label: "Toronto",      country: "Canada" },
   { key: "MexicoCity",  label: "Mexico City",  country: "Mexico" },
   { key: "Pre_USA",     label: "Pre-USA",      country: "Pre_USA" },
