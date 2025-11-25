@@ -106,11 +106,12 @@ class MarketOpenCaptureService:
         data['target_high'] = None
         data['target_low'] = None
 
-        # Determine entry price based on composite signal, then compute targets centrally
-        if composite_signal and composite_signal not in ['HOLD', '']:
-            if composite_signal in ['BUY', 'STRONG_BUY']:
+        # Determine entry price based on INDIVIDUAL future's signal (not composite), then compute targets centrally
+        individual_signal = data['bhs']
+        if individual_signal and individual_signal not in ['HOLD', '']:
+            if individual_signal in ['BUY', 'STRONG_BUY']:
                 data['entry_price'] = data.get('ask_price')
-            elif composite_signal in ['SELL', 'STRONG_SELL']:
+            elif individual_signal in ['SELL', 'STRONG_SELL']:
                 data['entry_price'] = data.get('bid_price')
             entry = data['entry_price']
             if entry:
