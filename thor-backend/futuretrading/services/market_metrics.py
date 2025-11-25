@@ -42,16 +42,41 @@ class MarketOpenMetric:
     @staticmethod
     def update(session_number: int) -> int:
         logger.info("MarketOpenMetric → Session %s", session_number)
-        updated = (
-            MarketSession.objects
-            .filter(session_number=session_number)
-            .update(market_open=F("last_price"))
-        )
+
+        # First set market_open from last_price for all rows in this session.
+        base_qs = MarketSession.objects.filter(session_number=session_number)
+        open_updated = base_qs.update(market_open=F("last_price"))
+
+        # Initialize high/low columns at the moment of open so the dashboard
+        # immediately shows starting values instead of nulls. We only set them
+        # if not already populated (defensive against re-runs).
+        initialized_count = 0
+        for session in base_qs.only(
+            "id", "market_high_number", "market_low_number", "last_price", "market_high_percentage", "market_low_percentage"
+        ):
+            lp = session.last_price
+            # Skip if we have no last price yet.
+            if lp in (None, 0):
+                continue
+            to_update = []
+            if session.market_high_number is None:
+                session.market_high_number = lp
+                session.market_high_percentage = Decimal("0")
+                to_update.extend(["market_high_number", "market_high_percentage"])
+            if session.market_low_number is None:
+                session.market_low_number = lp
+                session.market_low_percentage = Decimal("0")
+                to_update.extend(["market_low_number", "market_low_percentage"])
+            if to_update:
+                session.save(update_fields=to_update)
+                initialized_count += 1
+
+        total = open_updated  # rows where open price copied
         logger.info(
-            "MarketOpenMetric complete → %s rows updated (session %s)",
-            updated, session_number
+            "MarketOpenMetric complete → %s open prices, %s high/low initialized (session %s)",
+            open_updated, initialized_count, session_number
         )
-        return updated
+        return total
 
 
 # -------------------------------------------------------------------------
