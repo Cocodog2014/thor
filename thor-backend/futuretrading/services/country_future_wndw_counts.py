@@ -1,79 +1,95 @@
 # FutureTrading/services/country_future_wndw_counts.py
 
 """
-Computes and stores the sum of outcome metrics per (country, future) pair
-into MarketSession.country_future_wndw_total.
+Per-market WNDW totals for MarketSession rows.
 
-For each (country, future), we sum the nine non-percentage columns:
-  strong_buy_worked, strong_buy_didnt_work,
-  buy_worked, buy_didnt_work,
-  hold,
-  strong_sell_worked, strong_sell_didnt_work,
-  sell_worked, sell_didnt_work
+Requirement:
+  For each newly created MarketSession row, set `country_future_wndw_total` to
+  the count of prior occurrences for the SAME (country, future) only — never
+  mixing other countries.
 
-and write that total (as a whole number) into country_future_wndw_total
-for every row belonging to that (country, future) pair.
-
-This service is intended to be called after market-open capture.
+Implementation:
+  This function is called right after a market's open capture, with the
+  specific session_number and country. It updates ONLY the rows created for
+  that session + country, counting occurrences within that country.
 """
 
-from django.db.models import Sum, F, Value
-from django.db.models.functions import Coalesce
-from django.utils import timezone
+from typing import Optional
+import logging
+
 from FutureTrading.models.MarketSession import MarketSession
 
 
-def update_country_future_wndw_total():
-    """Populate country_future_wndw_total with the sum of outcome columns."""
-    import logging
-    logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
-    logger.info("Updating country_future_wndw_total at %s", timezone.now())
 
-    # Reset all to 0 so unmatched pairs don't keep stale data
-    MarketSession.objects.update(country_future_wndw_total=0)
+def update_country_future_wndw_total(
+    session_number: int,
+    country: str,
+    window_size: Optional[int] = None,
+) -> None:
+    """
+    Update country_future_wndw_total for rows created in a specific session
+    and a specific market (country).
 
-    # Aggregate the sum of the nine outcome columns per (country, future)
-    qs = (
-        MarketSession.objects
-        .values("country", "future")
-        .annotate(
-            total=Sum(
-                Coalesce(F("strong_buy_worked"), Value(0))
-                + Coalesce(F("strong_buy_didnt_work"), Value(0))
-                + Coalesce(F("buy_worked"), Value(0))
-                + Coalesce(F("buy_didnt_work"), Value(0))
-                + Coalesce(F("hold"), Value(0))
-                + Coalesce(F("strong_sell_worked"), Value(0))
-                + Coalesce(F("strong_sell_didnt_work"), Value(0))
-                + Coalesce(F("sell_worked"), Value(0))
-                + Coalesce(F("sell_didnt_work"), Value(0))
-            )
+    Behavior:
+    - Only rows where session_number = given session AND country = given
+      country are updated.
+    - For each updated row, the value is set to the count of rows that share
+      the SAME (country, future) within this table.
+    - If `window_size` is provided, restrict the count to that rolling window
+      of session_numbers (inclusive). Otherwise, count across all history for
+      that country.
+    """
+    if not session_number or not country:
+        logger.warning(
+            "update_country_future_wndw_total requires session_number and country; nothing to do."
         )
+        return
+
+    # The current session rows to update
+    current_rows = MarketSession.objects.filter(
+        session_number=session_number,
+        country=country,
     )
 
-    updated_pairs = 0
-    for row in qs:
-        country = row["country"]
-        future = row["future"]
-        total = int(row["total"] or 0)
-
-        updated = (
-            MarketSession.objects
-            .filter(country=country, future=future)
-            .update(country_future_wndw_total=total)
-        )
-
-        updated_pairs += 1
+    if not current_rows.exists():
         logger.info(
-            "Set country_future_wndw_total=%s on %s rows for %s / %s",
-            total,
-            updated,
+            "No MarketSession rows found for session %s and country %s; nothing to update.",
+            session_number,
             country,
-            future,
+        )
+        return
+
+    # Base queryset for counting occurrences for this country
+    if window_size is not None and window_size > 0:
+        min_session = max(1, session_number - window_size + 1)
+        base_qs = MarketSession.objects.filter(
+            country=country,
+            session_number__gte=min_session,
+            session_number__lte=session_number,
+        )
+    else:
+        base_qs = MarketSession.objects.filter(country=country)
+
+    updated = 0
+    for row in current_rows:
+        total_for_pair = base_qs.filter(future=row.future).count()
+        if row.country_future_wndw_total != total_for_pair:
+            row.country_future_wndw_total = total_for_pair
+            row.save(update_fields=["country_future_wndw_total"])
+        updated += 1
+        logger.debug(
+            "WNDW total id=%s (%s/%s) -> %s",
+            row.id,
+            row.country,
+            row.future,
+            total_for_pair,
         )
 
     logger.info(
-        "country_future_wndw_total refresh complete: %s (country, future) pairs updated",
-        updated_pairs,
+        "Updated WNDW totals for session %s, country %s on %s rows.",
+        session_number,
+        country,
+        updated,
     )

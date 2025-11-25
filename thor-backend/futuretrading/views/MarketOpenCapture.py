@@ -259,20 +259,27 @@ class MarketOpenCaptureService:
 
             # 🔹 Refresh aggregate metrics so downstream dashboards stay in sync.
             #     Each helper runs best-effort so reporting does not block captures.
-            for updater, label in (
-                (update_country_future_stats, "country/future counts"),
-                (update_country_future_wndw_total, "country/future WNDW totals"),
-            ):
-                try:
-                    updater()
-                except Exception as stats_error:
-                    logger.warning(
-                        "Failed %s refresh after capture %s: %s",
-                        label,
-                        session_number,
-                        stats_error,
-                        exc_info=True,
-                    )
+            try:
+                # If this one is global, keep as-is
+                update_country_future_stats()
+            except Exception as stats_error:
+                logger.warning(
+                    "Failed country/future counts refresh after capture %s: %s",
+                    session_number,
+                    stats_error,
+                    exc_info=True,
+                )
+
+            try:
+                # Only update WNDW totals for THIS session & THIS market
+                update_country_future_wndw_total(session_number=session_number, country=market.country)
+            except Exception as stats_error:
+                logger.warning(
+                    "Failed country/future WNDW totals refresh after capture %s: %s",
+                    session_number,
+                    stats_error,
+                    exc_info=True,
+                )
             
             logger.info(f"Capture complete: Session #{session_number}, {len(sessions_created)} rows created")
             return sessions_created[0] if sessions_created else None
