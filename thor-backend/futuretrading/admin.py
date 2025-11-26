@@ -297,6 +297,12 @@ class MarketSessionAdmin(admin.ModelAdmin):
     
     ordering = ['-capture_group', 'future']
 
+    class Media:
+        css = {
+            'all': ('FutureTrading/admin/marketsession.css',)
+        }
+        js = ('FutureTrading/admin/marketsession.js',)
+
 
 # 52-Week High/Low Tracking Admin
 

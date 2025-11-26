@@ -1,0 +1,24 @@
+/* Sticky headers for MarketSession changelist */
+.change-list #result_list thead th {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    background: #f6f6f6;
+    box-shadow: 0 1px 0 #d9d9d9;
+}
+
+/* Allow horizontal overflow while keeping scrollbars stable */
+.change-list .results {
+    overflow-x: auto;
+}
+
+/* Optional mirrored top scrollbar (inserted via JS) */
+.marketsession-top-scroll {
+    overflow-x: auto;
+    overflow-y: hidden;
+    margin-bottom: 4px;
+}
+
+.marketsession-top-scroll .marketsession-top-scroll-spacer {
+    height: 1px;
+}
