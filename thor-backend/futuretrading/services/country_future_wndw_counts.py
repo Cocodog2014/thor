@@ -4,18 +4,19 @@
 Per-market WNDW totals for MarketSession rows.
 
 Requirement:
-  For each newly created MarketSession row, set `country_future_wndw_total` to
-  the count of prior occurrences for the SAME (country, future) only — never
-  mixing other countries.
+  For each newly created MarketSession row, compute `country_future_wndw_total` 
+  by aggregating WNDW outcomes (WORKED/DIDNT_WORK) from all PREVIOUS rows 
+  for that (country, future) pair. This is a frozen snapshot - once written,
+  it never changes even when future sessions are added.
 
 Implementation:
-  This function is called right after a market's open capture, with the
-  specific session_number and country. It updates ONLY the rows created for
-  that session + country, counting occurrences within that country.
+  Called right after market open capture. For each new row, count historical
+  WNDW outcomes and store the aggregate. Never updates old rows.
 """
 
 from typing import Optional
 import logging
+from decimal import Decimal
 
 from FutureTrading.models.MarketSession import MarketSession
 
@@ -29,17 +30,15 @@ def update_country_future_wndw_total(
     window_size: Optional[int] = None,
 ) -> None:
     """
-    Update country_future_wndw_total for rows created in a specific session
-    and a specific market (country).
+    Update country_future_wndw_total for NEW rows created in a specific session.
 
-    Behavior:
-    - Only rows where session_number = given session AND country = given
-      country are updated.
-    - For each updated row, the value is set to the count of rows that share
-      the SAME (country, future) within this table.
-    - If `window_size` is provided, restrict the count to that rolling window
-      of session_numbers (inclusive). Otherwise, count across all history for
-      that country.
+    For each new row:
+    1. Query all PREVIOUS rows for same (country, future) where captured_at < current
+    2. Count WNDW outcomes: WORKED, DIDNT_WORK, etc.
+    3. Store aggregate as snapshot - never update this row again
+    
+    IMPORTANT: Only updates rows where country_future_wndw_total is NULL.
+    Once set, the value is frozen forever (historical snapshot).
     """
     if not session_number or not country:
         logger.warning(
@@ -47,48 +46,60 @@ def update_country_future_wndw_total(
         )
         return
 
-    # The current session rows to update
+    # Only update NEW rows that don't have a value yet
     current_rows = MarketSession.objects.filter(
         session_number=session_number,
         country=country,
+        country_future_wndw_total__isnull=True,  # Only rows without a value
     )
 
     if not current_rows.exists():
         logger.info(
-            "No MarketSession rows found for session %s and country %s; nothing to update.",
+            "No new MarketSession rows found for session %s and country %s; nothing to update.",
             session_number,
             country,
         )
         return
 
-    # Base queryset for counting occurrences for this country
-    if window_size is not None and window_size > 0:
-        min_session = max(1, session_number - window_size + 1)
-        base_qs = MarketSession.objects.filter(
-            country=country,
-            session_number__gte=min_session,
-            session_number__lte=session_number,
-        )
-    else:
-        base_qs = MarketSession.objects.filter(country=country)
-
     updated = 0
     for row in current_rows:
-        total_for_pair = base_qs.filter(future=row.future).count()
-        if row.country_future_wndw_total != total_for_pair:
-            row.country_future_wndw_total = total_for_pair
-            row.save(update_fields=["country_future_wndw_total"])
+        # Get all PREVIOUS rows for this (country, future) pair
+        # captured_at < current row ensures we only look at history
+        historical_rows = MarketSession.objects.filter(
+            country=row.country,
+            future=row.future,
+            captured_at__lt=row.captured_at,
+        )
+        
+        # Count WNDW outcomes from history
+        worked_count = historical_rows.filter(wndw='WORKED').count()
+        didnt_work_count = historical_rows.filter(wndw='DIDNT_WORK').count()
+        neutral_count = historical_rows.filter(wndw='NEUTRAL').count()
+        pending_count = historical_rows.filter(wndw='PENDING').count()
+        
+        # Calculate total - using worked count as the primary metric
+        # You can adjust this formula based on what you want to track
+        total_value = Decimal(worked_count)
+        
+        # Set the value - this is a one-time write, never updated again
+        row.country_future_wndw_total = total_value
+        row.save(update_fields=["country_future_wndw_total"])
+        
         updated += 1
         logger.debug(
-            "WNDW total id=%s (%s/%s) -> %s",
+            "WNDW snapshot id=%s (%s/%s) -> %s (W:%s DW:%s N:%s P:%s)",
             row.id,
             row.country,
             row.future,
-            total_for_pair,
+            total_value,
+            worked_count,
+            didnt_work_count,
+            neutral_count,
+            pending_count,
         )
 
     logger.info(
-        "Updated WNDW totals for session %s, country %s on %s rows.",
+        "Set WNDW snapshots for session %s, country %s on %s new rows.",
         session_number,
         country,
         updated,
