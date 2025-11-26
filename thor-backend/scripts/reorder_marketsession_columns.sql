@@ -19,7 +19,7 @@ CREATE TABLE "FutureTrading_marketsession_new" (
     "weight" integer,
     "bhs" varchar(20) NOT NULL,
     "wndw" varchar(20),
-    "country_future_wndw_total" numeric(14, 4),
+    "country_future_wndw_total" bigint,
     "bid_price" numeric(14, 4),
     "bid_size" integer,
     "last_price" numeric(14, 4),

@@ -12,7 +12,9 @@ from django.db import transaction
 
 from FutureTrading.models.MarketSession import MarketSession
 from FutureTrading.services.country_future_counts import CountryFutureCounter
-from FutureTrading.services.country_future_wndw_counts import update_country_future_wndw_total
+from FutureTrading.services.country_future_wndw_counts import (
+    CountryFutureWndwTotalsService,
+)
 from FutureTrading.services.market_metrics import MarketOpenMetric
 from FutureTrading.services.quotes import get_enriched_quotes_with_composite
 from FutureTrading.services.TargetHighLow import compute_targets_for_symbol
@@ -266,7 +268,10 @@ class MarketOpenCaptureService:
 
             try:
                 # Only update WNDW totals for THIS session & THIS market
-                update_country_future_wndw_total(session_number=session_number, country=market.country)
+                _country_future_wndw_service.update_for_session_country(
+                    session_number=session_number,
+                    country=market.country,
+                )
             except Exception as stats_error:
                 logger.warning(
                     "Failed country/future WNDW totals refresh after capture %s: %s",
@@ -285,6 +290,7 @@ class MarketOpenCaptureService:
 
 _service = MarketOpenCaptureService()
 _country_future_counter = CountryFutureCounter()
+_country_future_wndw_service = CountryFutureWndwTotalsService()
 
 
 

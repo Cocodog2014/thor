@@ -100,12 +100,10 @@ class MarketSession(models.Model):
     )
 
     # Removed outcome/status grading fields; wndw reintroduced as optional label
-    country_future_wndw_total = models.DecimalField(
-        max_digits=14,
-        decimal_places=4,
+    country_future_wndw_total = models.BigIntegerField(
         null=True,
         blank=True,
-        help_text="Country-level total for wndw aggregation",
+        help_text="Historical total count for this country/future window",
     )
 
     # Live Price Data at Market Open (bid/ask should follow wndw for physical ordering requirements)
