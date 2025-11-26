@@ -62,10 +62,7 @@ const CONTROL_MARKETS = [
   { key: "Tokyo",       label: "Tokyo",        country: "Japan" },
   { key: "Shanghai",    label: "Shanghai",     country: "China" },
   { key: "Bombay",      label: "Bombay",       country: "India" },
-  { key: "Frankfurt",   label: "Frankfurt",    country: "Germany" },
   { key: "London",      label: "London",       country: "United Kingdom" }, // fixed backend country string
-  { key: "Toronto",     label: "Toronto",      country: "Canada" },
-  { key: "MexicoCity",  label: "Mexico City",  country: "Mexico" },
   { key: "Pre_USA",     label: "Pre-USA",      country: "Pre_USA" },
   { key: "USA",         label: "USA",          country: "USA" },
 ] as const;
