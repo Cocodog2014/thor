@@ -84,7 +84,6 @@ def compute_backtest_stats_for_future(future: str) -> Dict[str, Decimal | None]:
       - buy_didnt_work
       - buy_didnt_work_percentage
       - hold
-      - hold_percentage
       - strong_sell_worked
       - strong_sell_worked_percentage
       - strong_sell_didnt_work
@@ -101,13 +100,8 @@ def compute_backtest_stats_for_future(future: str) -> Dict[str, Decimal | None]:
     sb_w, sb_d, sb_wp, sb_dp = _signal_stats(qs, 'STRONG_BUY')
     # Buy
     b_w, b_d, b_wp, b_dp = _signal_stats(qs, 'BUY')
-    # Hold: we just care about count and percentage of all graded rows
+    # Hold: only track count (percentage field removed from model)
     hold_count = qs.filter(bhs='HOLD').count()
-    graded_total = qs.count()
-    hold_pct = (
-        (Decimal(hold_count) / Decimal(graded_total)) * Decimal('100')
-        if graded_total > 0 else None
-    )
     # Strong Sell
     ss_w, ss_d, ss_wp, ss_dp = _signal_stats(qs, 'STRONG_SELL')
     # Sell
@@ -125,7 +119,6 @@ def compute_backtest_stats_for_future(future: str) -> Dict[str, Decimal | None]:
         'buy_didnt_work_percentage': b_dp,
 
         'hold': hold_count or None,
-        'hold_percentage': hold_pct,
 
         'strong_sell_worked': ss_w or None,
         'strong_sell_worked_percentage': ss_wp,

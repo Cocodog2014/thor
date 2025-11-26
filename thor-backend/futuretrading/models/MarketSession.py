@@ -442,13 +442,6 @@ class MarketSession(models.Model):
         blank=True,
         help_text="Hold signals count",
     )
-    hold_percentage = models.DecimalField(
-        max_digits=14,
-        decimal_places=4,
-        null=True,
-        blank=True,
-        help_text="Percent of holds",
-    )
     strong_sell_worked = models.DecimalField(
         max_digits=14,
         decimal_places=4,

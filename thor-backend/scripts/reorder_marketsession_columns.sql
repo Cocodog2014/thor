@@ -68,7 +68,6 @@ CREATE TABLE "FutureTrading_marketsession_new" (
     "buy_didnt_work" numeric(14, 4),
     "buy_didnt_work_percentage" numeric(14, 4),
     "hold" numeric(14, 4),
-    "hold_percentage" numeric(14, 4),
     "strong_sell_worked" numeric(14, 4),
     "strong_sell_worked_percentage" numeric(14, 4),
     "strong_sell_didnt_work" numeric(14, 4),
@@ -95,7 +94,7 @@ SELECT
     week_52_range_high_low, week_52_range_percent, weighted_average, instrument_count,
     strong_buy_worked, strong_buy_worked_percentage, strong_buy_didnt_work, strong_buy_didnt_work_percentage,
     buy_worked, buy_worked_percentage, buy_didnt_work, buy_didnt_work_percentage,
-    hold, hold_percentage, strong_sell_worked, strong_sell_worked_percentage,
+    hold, strong_sell_worked, strong_sell_worked_percentage,
     strong_sell_didnt_work, strong_sell_didnt_work_percentage, sell_worked, sell_worked_percentage,
     sell_didnt_work, sell_didnt_work_percentage
 FROM "FutureTrading_marketsession";
