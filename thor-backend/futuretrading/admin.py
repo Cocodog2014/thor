@@ -109,6 +109,7 @@ class SignalWeightAdmin(admin.ModelAdmin):
 
 @admin.register(MarketSession)
 class MarketSessionAdmin(admin.ModelAdmin):
+    change_list_template = "admin/FutureTrading/marketsession/change_list.html"
     # Preset column bundles for the change list view
     COLUMN_SETS = {
         "basic": (
