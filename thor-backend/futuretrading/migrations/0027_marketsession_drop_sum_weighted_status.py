@@ -11,12 +11,12 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RemoveField(
-            model_name="marketsession",
-            name="sum_weighted",
+        migrations.RunSQL(
+            sql='ALTER TABLE "FutureTrading_marketsession" DROP COLUMN IF EXISTS "sum_weighted" CASCADE;',
+            reverse_sql="",
         ),
-        migrations.RemoveField(
-            model_name="marketsession",
-            name="status",
+        migrations.RunSQL(
+            sql='ALTER TABLE "FutureTrading_marketsession" DROP COLUMN IF EXISTS "status" CASCADE;',
+            reverse_sql="",
         ),
     ]

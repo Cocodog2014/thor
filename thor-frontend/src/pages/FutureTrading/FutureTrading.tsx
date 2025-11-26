@@ -1,3 +1,6 @@
+
+/** RTD.tSX */
+
 import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 // Sparkline removed
@@ -753,6 +756,23 @@ export default function FutureTrading({ onToggleMarketOpen, showMarketOpen }: Fu
         const data: ApiResponse = await r.json();
         setRows(data.rows);
         setTotalData(data.total);
+        // After quotes load, fetch VWAPs for same symbols
+        const symbols = data.rows.map(r=>r.instrument.symbol).join(',');
+        try {
+            const vw = await fetch(`/api/vwap/rolling?symbols=${symbols}&minutes=30`);
+          if (vw.ok){
+            const vwData: {symbol:string; vwap:string|null}[] = await vw.json();
+            setRows(prev => prev.map(row => {
+              const found = vwData.find(v=>v.symbol===row.instrument.symbol);
+              if (found){
+                return { ...row, vwap: found.vwap };
+              }
+              return row;
+            }));
+          }
+        } catch(err){
+          console.warn('VWAP fetch failed', err);
+        }
         return;
       } else {
         throw new Error(`Request failed with status ${r.status}`);

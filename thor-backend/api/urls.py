@@ -7,6 +7,8 @@ urlpatterns = [
     path('stats/', views.api_statistics, name='api-statistics'),
     path('quotes', views.quotes_snapshot, name='quotes-snapshot'),
     path('quotes/stream', views.quotes_stream, name='quotes-stream'),
+    path('vwap/today', views.vwap_today, name='vwap-today'),
+    path('vwap/rolling', views.vwap_rolling, name='vwap-rolling'),
     # Account Statement summary (paper/real)
     path('account-statement/summary', views.account_statement_summary, name='account-statement-summary'),
     # Paper account reset (dev open; will secure later)

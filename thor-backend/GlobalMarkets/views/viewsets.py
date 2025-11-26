@@ -62,21 +62,21 @@ class MarketViewSet(viewsets.ModelViewSet):
         
         return queryset
     
-    @action(detail=False, methods=['get'])
+    @action(detail=False, methods=['get'], permission_classes=[AllowAny])
     def control(self, request):
         """Return only control markets (9)"""
         qs = Market.objects.filter(is_active=True, is_control_market=True)
         serializer = self.get_serializer(qs, many=True)
         return Response(serializer.data)
     
-    @action(detail=False, methods=['get'])
+    @action(detail=False, methods=['get'], permission_classes=[AllowAny])
     def active_markets(self, request):
         """Get all active markets that should be tracked"""
         active_markets = Market.objects.filter(is_active=True, status='OPEN')
         serializer = self.get_serializer(active_markets, many=True)
         return Response(serializer.data)
     
-    @action(detail=False, methods=['get'])
+    @action(detail=False, methods=['get'], permission_classes=[AllowAny])
     def live_status(self, request):
         """Get real-time status of all markets"""
         us_market_open = USMarketStatus.is_us_market_open_today()

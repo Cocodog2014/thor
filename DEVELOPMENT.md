@@ -896,6 +896,98 @@ Planned improvements:
 - [ ] Historical metric replay for backtesting
 - [ ] Health check endpoint for monitoring worker status
 
+### 8.11 Intraday High / Low Metrics – Formulas & Behavior
+
+Thor maintains two continuously updating intraday extrema metrics per `(country, future)` while a market is OPEN:
+
+| Field | Meaning | Update Condition | Percentage Formula |
+|-------|---------|------------------|--------------------|
+| `market_high_number` | Highest `last_price` seen so far in the current session | New tick above prior high | — (stores raw price) |
+| `market_high_percentage` | Percent drawdown from current intraday high | Tick below the stored high | `(high - last_price) / high * 100` |
+| `market_low_number` | Lowest `last_price` seen so far in the current session | New tick below prior low | — (stores raw price) |
+| `market_low_percentage` | Percent run-up from current intraday low | Tick above the stored low | `(last_price - low) / low * 100` |
+
+Key characteristics:
+- Both percentages are exactly `0.0000` at the moment a new high/low is set (we reset on new extrema).
+- They remain zero until price moves away from the extreme in the corresponding direction (down from the high, up from the low).
+- Percentages are quantized to FOUR decimal places in the update functions and stored with `decimal_places=4` (migration `0062_alter_percentage_precision`).
+- If `market_open` is not yet set or `last_price` is missing, the metric update for that future is skipped defensively.
+
+Zero percentage diagnostics:
+- High stays `0.0000`: price has either not fallen below the recorded high or a new higher high keeps resetting the drawdown.
+- Low stays `0.0000`: price has not traded above the recorded low, or successive lower lows keep resetting run-up to zero.
+
+Supervisor integration changes (recent):
+- `IntradayMarketSupervisor` now starts immediately for markets that are already OPEN after the initial monitor reconciliation. This fixes the earlier issue where percentages stayed at zero because no worker thread was running mid-session.
+- Diagnostic debug logs (`[DIAG High]`, `[DIAG Low]`) were temporarily added in `FutureTrading/services/market_metrics.py` to trace skip reasons and formula application; remove or downgrade once stable.
+
+Precision change summary:
+- Previous schema stored percentages with `decimal_places=6`; now `decimal_places=4` for: `market_high_percentage`, `market_low_percentage`, `market_close_percentage_high`, `market_close_percentage_low`, `market_range_percentage`, `range_percent`, `week_52_range_percent`.
+- Runtime quantization enforces four decimals BEFORE saving to avoid unnecessary rounding drift.
+
+Operational guidance:
+1. Confirm worker thread active via logs: `Intraday metrics worker STARTED for <country>`.
+2. Sample a session row after a few ticks: values should show non-zero percentages once price moves off extremes.
+3. Remove diagnostics: delete added debug lines or set logger level to INFO in production.
+
+Example progression (high side):
+```
+Tick1 last=6719.50 → market_high_number=6719.50, market_high_percentage=0.0000
+Tick2 last=6719.25 → drawdown=(6719.50-6719.25)=0.25; pct=0.25/6719.50*100=0.0037
+Tick3 last=6720.00 → NEW HIGH resets: market_high_number=6720.00, market_high_percentage=0.0000
+```
+
+Example progression (low side):
+```
+Tick1 last=6719.50 → market_low_number=6719.50, market_low_percentage=0.0000
+Tick2 last=6719.75 → runup=(6719.75-6719.50)=0.25; pct=0.25/6719.50*100=0.0037
+Tick3 last=6719.10 → NEW LOWER LOW resets: market_low_number=6719.10, market_low_percentage=0.0000
+```
+
+Planned future adjustments:
+- Optional smoothing/EMA on drawdown/run-up for volatility-aware UI.
+- Threshold-based alerting for large intraday reversals.
+- Export of intraday high/low trajectory for ML feature engineering.
+
+### 8.12 Manual Market Close Capture
+
+Under normal operation the intraday worker triggers close and range metrics automatically when a market transitions to `CLOSED`. A manual API hook exists for reconciliation or forced re-run:
+
+Endpoint:
+```
+GET /api/future-trading/market-close/capture?country=United%20States
+GET /api/future-trading/market-close/capture?country=United%20States&force=1  # recompute even if already closed
+```
+
+Behavior:
+1. Locates latest `session_number` for the country.
+2. Skips if `market_close_number` already populated (unless `force=1`).
+3. Fetches a fresh enriched quote snapshot.
+4. Runs:
+  - `MarketCloseMetric.update_for_country_on_close(country, enriched)`
+  - `MarketRangeMetric.update_for_country_on_close(country)`
+5. Returns JSON summary `{ status, session_number, close_rows_updated, range_rows_updated }`.
+
+Use Cases:
+- Recover from worker outage or missed CLOSE event.
+- Recalculate after correcting a bad tick (use `force=1`).
+- Operational monitoring / dashboard button.
+
+Idempotency:
+- Without `force=1` the view will not overwrite existing close metrics.
+- With `force=1` values are recomputed using the current enriched prices (ensure snapshot integrity first).
+
+File Reference:
+`FutureTrading/views/MarketCloseCapture.py`
+
+Security / Access:
+- Treat as admin-only or protect via auth layer if exposed publicly; recomputation can alter historical end-of-session values.
+
+Future Enhancements:
+- Batch close capture for all markets simultaneously.
+- Include validation of expected session duration before permitting recompute.
+- Add audit log row recording recomputation event & diff of changed values.
+
 ---
 
 ## 9. 52-Week High/Low Monitor
@@ -1026,5 +1118,75 @@ Manual verification:
 1. Check Django admin for `last_updated` timestamps
 2. View Redis prices: `redis-cli HGETALL quotes:latest:YM`
 3. Verify logs show heartbeat updates every 60s
+
+---
+
+## Intraday VWAP System
+
+The VWAP (Volume-Weighted Average Price) subsystem provides both minute-by-minute session VWAP snapshots and a lightweight rolling VWAP used by the frontend for intraday visualization.
+
+### Overview
+- **Goal**: Persist accurate 1-minute VWAP progression for each tracked futures symbol and supply fast rolling VWAP values without recalculating on every request.
+- **Symbols Covered**: All 11 futures plus `TOTAL` (same universe as `MarketSession`).
+- **Persistence Model**: `VwapMinute` (fields include symbol, minute timestamp, last_price, cumulative_volume, computed vwap). Bid/ask removed—VWAP only requires trade price + volume.
+- **Computation Source**: Live quotes + cumulative volume from Redis (Excel RTD feed currently; Schwab later).
+
+### Minute Snapshot Logic
+At (or just after) each minute boundary the capture routine:
+1. Reads latest `last_price` and current cumulative volume for a symbol.
+2. Calculates incremental volume: `ΔV = cumulative_volume_now - cumulative_volume_prev`.
+3. Applies formula: `VWAP = Σ(price_i * ΔV_i) / Σ(ΔV_i)` across all minute slices so far in the session.
+4. Writes a new `VwapMinute` row.
+
+If no volume progress (`ΔV == 0`) the system skips the row to avoid artificial flat segments or divide-by-zero cases.
+
+### Rolling VWAP
+Some UI views need a short-horizon VWAP (e.g. last 15 minutes) separate from the full session VWAP. The rolling VWAP service:
+- Pulls recent `VwapMinute` rows within the requested window (N minutes) for a symbol.
+- Recomputes VWAP using only those slices (same formula but limited to window set).
+- Caches result in Redis for fast reuse (key pattern: `vwap:rolling:<symbol>:<window>`).
+- Updated periodically by the `IntradayMarketSupervisor` rather than on each HTTP request.
+
+### Formula Reference
+For ticks grouped into minute buckets with cumulative volumes:
+```
+ΔV_i = cumulative_volume_i - cumulative_volume_{i-1}
+SessionVWAP_t = (Σ P_i * ΔV_i) / (Σ ΔV_i)
+```
+Where `P_i` is the minute's representative trade price (last price at capture) and `ΔV_i > 0`.
+
+### Endpoints
+| Endpoint | Purpose | Example |
+|----------|---------|---------|
+| `GET /api/vwap/today?symbol=ES` | Returns session-to-date VWAP (full accumulation) | `/api/vwap/today?symbol=ES` |
+| `GET /api/vwap/rolling?symbol=ES&window=15` | Returns rolling VWAP over last N minutes | `/api/vwap/rolling?symbol=NQ&window=30` |
+
+Responses are JSON with `{ symbol, window(optional), vwap, ts }`. Early in the session these may return `null` until at least one minute with volume completes.
+
+### Redis Integration
+- Uses existing latest quote hashes (`quotes:latest:<symbol>`) for current price & cumulative volume.
+- Rolling results stored briefly in Redis to avoid repetitive database scans.
+- Supervisor thread interval (~10s by default) ensures near-real-time freshness without load spikes.
+
+### Interaction With Intraday High/Low
+- High/low metrics are initialized at session open using the opening price.
+- VWAP appears only after first minute completes with volume; absence of VWAP prior is expected and not an error condition.
+
+### Operational Notes
+- If cumulative volume resets mid-session (data provider glitch) the next capture treats it as a restart; integrity checks should be extended later (planned enhancement).
+- Backfilling for missed minutes can be done by replaying ticks (future Parquet export process) and regenerating `VwapMinute` rows.
+
+### Manual Verification
+1. Start backend + poller (`python manage.py poll_tos_excel`).
+2. Wait > 1 minute for volume accumulation.
+3. Call: `curl http://127.0.0.1:8000/api/vwap/today?symbol=ES` → expect numeric `vwap`.
+4. Call: `curl "http://127.0.0.1:8000/api/vwap/rolling?symbol=ES&window=15"`.
+5. Compare rolling vs session VWAP—rolling should converge toward session as window increases.
+
+### Future Enhancements
+- Multiple simultaneous windows (5, 15, 30, 60) cached together.
+- SSE push of VWAP deltas for smoother UI charts.
+- Automatic integrity repair on volume resets.
+- Bar-aligned VWAP (using generated 1m bars post ingestor rollout).
 
 ---

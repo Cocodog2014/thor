@@ -100,12 +100,10 @@ class MarketSession(models.Model):
     )
 
     # Removed outcome/status grading fields; wndw reintroduced as optional label
-    country_future_wndw_total = models.DecimalField(
-        max_digits=14,
-        decimal_places=4,
+    country_future_wndw_total = models.BigIntegerField(
         null=True,
         blank=True,
-        help_text="Country-level total for wndw aggregation",
+        help_text="Historical total count for this country/future window",
     )
 
     # Live Price Data at Market Open (bid/ask should follow wndw for physical ordering requirements)
@@ -215,7 +213,7 @@ class MarketSession(models.Model):
     )
     market_high_percentage = models.DecimalField(
         max_digits=14,
-        decimal_places=6,
+        decimal_places=4,
         null=True,
         blank=True,
         help_text="High move from open (percent)",
@@ -229,7 +227,7 @@ class MarketSession(models.Model):
     )
     market_low_percentage = models.DecimalField(
         max_digits=14,
-        decimal_places=6,
+        decimal_places=4,
         null=True,
         blank=True,
         help_text="Low move from open (percent)",
@@ -241,12 +239,26 @@ class MarketSession(models.Model):
         blank=True,
         help_text="Close move from open (number)",
     )
-    market_close_percentage = models.DecimalField(
+    market_close_percentage_high = models.DecimalField(
         max_digits=14,
-        decimal_places=6,
+        decimal_places=4,
         null=True,
         blank=True,
-        help_text="Close move from open (percent)",
+        help_text="Percent distance from intraday high",
+    )
+    market_close_percentage_low = models.DecimalField(
+        max_digits=14,
+        decimal_places=4,
+        null=True,
+        blank=True,
+        help_text="Percent distance above intraday low",
+    )
+    market_close_vs_open_percentage = models.DecimalField(
+        max_digits=14,
+        decimal_places=4,
+        null=True,
+        blank=True,
+        help_text="Close vs open change (percent)",
     )
     market_range_number = models.DecimalField(
         max_digits=14,
@@ -257,7 +269,7 @@ class MarketSession(models.Model):
     )
     market_range_percentage = models.DecimalField(
         max_digits=14,
-        decimal_places=6,
+        decimal_places=4,
         null=True,
         blank=True,
         help_text="Intraday range (percent)",
@@ -313,7 +325,7 @@ class MarketSession(models.Model):
     )
     range_percent = models.DecimalField(
         max_digits=14,
-        decimal_places=6,
+        decimal_places=4,
         null=True,
         blank=True,
         help_text="Range as % of previous close",
@@ -343,7 +355,7 @@ class MarketSession(models.Model):
     )
     week_52_range_percent = models.DecimalField(
         max_digits=14,
-        decimal_places=6,
+        decimal_places=4,
         null=True,
         blank=True,
         help_text="52-week range as % of current price",

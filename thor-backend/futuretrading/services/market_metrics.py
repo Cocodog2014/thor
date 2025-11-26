@@ -32,6 +32,16 @@ def _safe_decimal(val):
         return None
 
 
+def _quantize_pct(pct: Decimal | None) -> Decimal | None:
+    """Force percentage values to four decimal places if not None."""
+    if pct is None:
+        return None
+    try:
+        return pct.quantize(Decimal('0.0001'))
+    except Exception:
+        return pct
+
+
 # -------------------------------------------------------------------------
 # ⭐ MARKET OPEN METRIC
 # -------------------------------------------------------------------------
@@ -42,16 +52,41 @@ class MarketOpenMetric:
     @staticmethod
     def update(session_number: int) -> int:
         logger.info("MarketOpenMetric → Session %s", session_number)
-        updated = (
-            MarketSession.objects
-            .filter(session_number=session_number)
-            .update(market_open=F("last_price"))
-        )
+
+        # First set market_open from last_price for all rows in this session.
+        base_qs = MarketSession.objects.filter(session_number=session_number)
+        open_updated = base_qs.update(market_open=F("last_price"))
+
+        # Initialize high/low columns at the moment of open so the dashboard
+        # immediately shows starting values instead of nulls. We only set them
+        # if not already populated (defensive against re-runs).
+        initialized_count = 0
+        for session in base_qs.only(
+            "id", "market_high_number", "market_low_number", "last_price", "market_high_percentage", "market_low_percentage"
+        ):
+            lp = session.last_price
+            # Skip if we have no last price yet.
+            if lp in (None, 0):
+                continue
+            to_update = []
+            if session.market_high_number is None:
+                session.market_high_number = lp
+                session.market_high_percentage = Decimal("0")
+                to_update.extend(["market_high_number", "market_high_percentage"])
+            if session.market_low_number is None:
+                session.market_low_number = lp
+                session.market_low_percentage = Decimal("0")
+                to_update.extend(["market_low_number", "market_low_percentage"])
+            if to_update:
+                session.save(update_fields=to_update)
+                initialized_count += 1
+
+        total = open_updated  # rows where open price copied
         logger.info(
-            "MarketOpenMetric complete → %s rows updated (session %s)",
-            updated, session_number
+            "MarketOpenMetric complete → %s open prices, %s high/low initialized (session %s)",
+            open_updated, initialized_count, session_number
         )
-        return updated
+        return total
 
 
 # -------------------------------------------------------------------------
@@ -93,11 +128,13 @@ class MarketHighMetric:
         for row in enriched_rows:
             symbol = row.get("instrument", {}).get("symbol")
             if not symbol:
+                logger.debug("[DIAG High] Skip row: missing symbol row=%s", row)
                 continue
 
             future = symbol.lstrip("/").upper()
             last_price = _safe_decimal(row.get("last"))
             if last_price is None:
+                logger.debug("[DIAG High] Skip %s: last_price None raw_last=%s", future, row.get("last"))
                 continue
 
             session = (
@@ -107,11 +144,13 @@ class MarketHighMetric:
                 .first()
             )
             if not session:
+                logger.debug("[DIAG High] No session row for %s country=%s session=%s", future, country, latest_session)
                 continue
 
             # You must have a valid open to compute anything
             market_open = session.market_open
             if market_open is None or market_open == 0:
+                logger.debug("[DIAG High] Skip %s: market_open missing (%s)", future, market_open)
                 continue
 
             current_high = session.market_high_number
@@ -121,6 +160,7 @@ class MarketHighMetric:
                 session.market_high_number = last_price
                 session.market_high_percentage = Decimal("0")  # at the high
                 session.save(update_fields=["market_high_number", "market_high_percentage"])
+                logger.debug("[DIAG High] FIRST TICK %s: set high=%s pct=0", future, last_price)
                 updated_count += 1
                 continue
 
@@ -129,6 +169,7 @@ class MarketHighMetric:
                 session.market_high_number = last_price
                 session.market_high_percentage = Decimal("0")
                 session.save(update_fields=["market_high_number", "market_high_percentage"])
+                logger.debug("[DIAG High] NEW HIGH %s: last=%s prev_high=%s pct=0", future, last_price, current_high)
                 updated_count += 1
                 continue
 
@@ -138,10 +179,12 @@ class MarketHighMetric:
                 pct = (drawdown / current_high) * Decimal("100")
             except (InvalidOperation, ZeroDivisionError):
                 pct = None
+            pct = _quantize_pct(pct)
 
             session.market_high_number = current_high  # unchanged
             session.market_high_percentage = pct
             session.save(update_fields=["market_high_percentage"])
+            logger.debug("[DIAG High] BELOW HIGH %s: last=%s high=%s drawdown=%s pct=%s", future, last_price, current_high, drawdown if 'drawdown' in locals() else None, pct)
             updated_count += 1
 
         logger.info(
@@ -151,41 +194,17 @@ class MarketHighMetric:
         return updated_count
 
 
-# -------------------------------------------------------------------------
-# ⏳ PLACEHOLDERS
-# -------------------------------------------------------------------------
-
 class MarketLowMetric:
-    """
-    Tracks intraday low and percentage run-up from that low for each
-    (country, future) while the market is open.
-
-    Columns:
-      - market_low_number      = lowest last_price seen so far
-      - market_low_percentage  = (last_price - low) / low * 100
-            → 0% at the low
-            → grows as price moves ABOVE the low
-    """
+    """Maintain intraday low price and percentage run-up from that low."""
 
     @staticmethod
     @transaction.atomic
     def update_from_quotes(country: str, enriched_rows) -> int:
-        """
-        Update market_low_number and market_low_percentage for the latest
-        session for `country` using a batch of enriched quote rows.
-
-        `enriched_rows` should be the same structure returned by
-        get_enriched_quotes_with_composite().
-        """
         if not enriched_rows:
             return 0
 
-        logger.info(
-            "MarketLowMetric → Updating lows for %s at %s",
-            country, timezone.now()
-        )
+        logger.info("MarketLowMetric → Updating %s", country)
 
-        # Latest session for this country (current open session)
         latest_session = (
             MarketSession.objects
             .filter(country=country)
@@ -194,22 +213,23 @@ class MarketLowMetric:
         )
 
         if latest_session is None:
-            logger.info("MarketLowMetric → No sessions yet for %s; skipping", country)
+            logger.info("MarketLowMetric → No sessions for %s", country)
             return 0
 
         updated_count = 0
 
         for row in enriched_rows:
-            symbol = row.get("instrument", {}).get("symbol")  # e.g. "/YM"
+            symbol = row.get("instrument", {}).get("symbol")
             if not symbol:
+                logger.debug("[DIAG Low] Skip row: missing symbol row=%s", row)
                 continue
-            future = symbol.lstrip("/").upper()               # normalize to "YM"
 
+            future = symbol.lstrip("/").upper()
             last_price = _safe_decimal(row.get("last"))
             if last_price is None:
+                logger.debug("[DIAG Low] Skip %s: last_price None raw_last=%s", future, row.get("last"))
                 continue
 
-            # Lock the current session row for this future
             session = (
                 MarketSession.objects
                 .select_for_update()
@@ -221,40 +241,42 @@ class MarketLowMetric:
                 .first()
             )
             if not session:
+                logger.debug("[DIAG Low] No session row for %s country=%s session=%s", future, country, latest_session)
                 continue
 
             current_low = session.market_low_number
 
-            # FIRST TICK (no low recorded yet)
             if current_low is None:
                 session.market_low_number = last_price
-                session.market_low_percentage = Decimal("0")  # at the low
+                session.market_low_percentage = Decimal("0")
                 session.save(update_fields=["market_low_number", "market_low_percentage"])
+                logger.debug("[DIAG Low] FIRST TICK %s: set low=%s pct=0", future, last_price)
                 updated_count += 1
                 continue
 
-            # NEW LOWER LOW → reset run-up to 0
             if last_price < current_low:
                 session.market_low_number = last_price
                 session.market_low_percentage = Decimal("0")
                 session.save(update_fields=["market_low_number", "market_low_percentage"])
+                logger.debug("[DIAG Low] NEW LOWER LOW %s: last=%s prev_low=%s pct=0", future, last_price, current_low)
                 updated_count += 1
                 continue
 
-            # ABOVE THE LOW → compute run-up from low: (last - low) / low * 100
             try:
                 move_up = last_price - current_low
                 pct = (move_up / current_low) * Decimal("100") if current_low != 0 else None
             except (InvalidOperation, ZeroDivisionError):
                 pct = None
+            pct = _quantize_pct(pct)
 
-            session.market_low_number = current_low  # unchanged
+            session.market_low_number = current_low
             session.market_low_percentage = pct
             session.save(update_fields=["market_low_percentage"])
+            logger.debug("[DIAG Low] ABOVE LOW %s: last=%s low=%s runup=%s pct=%s", future, last_price, current_low, move_up if 'move_up' in locals() else None, pct)
             updated_count += 1
 
         logger.info(
-            "MarketLowMetric complete → %s rows updated for %s (session %s)",
+            "MarketLowMetric complete → %s updated for %s (session %s)",
             updated_count, country, latest_session
         )
         return updated_count
@@ -262,26 +284,22 @@ class MarketLowMetric:
 
 class MarketCloseMetric:
     """
-    Handles copying last_price → market_close_number and computing
-    market_close_percentage when a market transitions from OPEN to CLOSED.
+    Handles copying last_price → market_close_number and computing closing metrics
+    when a market transitions from OPEN to CLOSED.
 
     This is a one-time event per session, unlike high/low which run continuously.
 
     Columns:
-      - market_close_number     = last_price at close
-      - market_close_percentage = (close - open) / open * 100
+      - market_close_number              = last_price at close
+      - market_close_percentage_high     = percent below the intraday high
+      - market_close_percentage_low      = percent above the intraday low
+      - market_close_vs_open_percentage  = (close - open) / open * 100
     """
 
     @staticmethod
     @transaction.atomic
     def update_for_country_on_close(country: str, enriched_rows) -> int:
-        """
-        Called when a country’s market status flips to CLOSED.
-
-        - Determine the latest session_number for that country
-        - Copy last_price (from live enriched feed) into market_close_number
-        - Compute market_close_percentage vs market_open
-        """
+        """Store close metrics when a country's market transitions to CLOSED."""
         if not enriched_rows:
             return 0
 
@@ -290,7 +308,6 @@ class MarketCloseMetric:
             country, timezone.now()
         )
 
-        # Find latest session for this country
         latest_session = (
             MarketSession.objects
             .filter(country=country)
@@ -304,7 +321,6 @@ class MarketCloseMetric:
 
         updated_count = 0
 
-        # Update each future’s close price + percentage move from open
         for row in enriched_rows:
             symbol = row.get("instrument", {}).get("symbol")
             if not symbol:
@@ -330,18 +346,49 @@ class MarketCloseMetric:
 
             session.market_close_number = last_price
 
-            # Percentage move from open: (close - open) / open * 100
-            pct = None
+            high_pct = None
+            high_price = session.market_high_number
+            if high_price not in (None, 0):
+                try:
+                    diff_high = high_price - last_price
+                    if diff_high < 0:
+                        diff_high = Decimal("0")
+                    high_pct = (diff_high / high_price) * Decimal("100")
+                except (InvalidOperation, ZeroDivisionError):
+                    high_pct = None
+            high_pct = _quantize_pct(high_pct)
+
+            low_pct = None
+            low_price = session.market_low_number
+            if low_price not in (None, 0):
+                try:
+                    diff_low = last_price - low_price
+                    if diff_low < 0:
+                        diff_low = Decimal("0")
+                    low_pct = (diff_low / low_price) * Decimal("100")
+                except (InvalidOperation, ZeroDivisionError):
+                    low_pct = None
+            low_pct = _quantize_pct(low_pct)
+
+            close_vs_open_pct = None
             open_price = session.market_open
             if open_price not in (None, 0):
                 try:
                     move = last_price - open_price
-                    pct = (move / open_price) * Decimal("100")
+                    close_vs_open_pct = (move / open_price) * Decimal("100")
                 except (InvalidOperation, ZeroDivisionError):
-                    pct = None
+                    close_vs_open_pct = None
+            close_vs_open_pct = _quantize_pct(close_vs_open_pct)
 
-            session.market_close_percentage = pct
-            session.save(update_fields=["market_close_number", "market_close_percentage"])
+            session.market_close_percentage_high = high_pct
+            session.market_close_percentage_low = low_pct
+            session.market_close_vs_open_percentage = close_vs_open_pct
+            session.save(update_fields=[
+                "market_close_number",
+                "market_close_percentage_high",
+                "market_close_percentage_low",
+                "market_close_vs_open_percentage",
+            ])
             updated_count += 1
 
         logger.info(

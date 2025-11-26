@@ -1,79 +1,154 @@
 # FutureTrading/services/country_future_wndw_counts.py
 
-"""
-Computes and stores the sum of outcome metrics per (country, future) pair
-into MarketSession.country_future_wndw_total.
+"""Snapshot totals for ``country_future_wndw_total``."""
 
-For each (country, future), we sum the nine non-percentage columns:
-  strong_buy_worked, strong_buy_didnt_work,
-  buy_worked, buy_didnt_work,
-  hold,
-  strong_sell_worked, strong_sell_didnt_work,
-  sell_worked, sell_didnt_work
+from __future__ import annotations
 
-and write that total (as a whole number) into country_future_wndw_total
-for every row belonging to that (country, future) pair.
+import logging
+from typing import Dict, Iterable, Optional
 
-This service is intended to be called after market-open capture.
-"""
+from django.db.models import Q
 
-from django.db.models import Sum, F, Value
-from django.db.models.functions import Coalesce
-from django.utils import timezone
 from FutureTrading.models.MarketSession import MarketSession
 
 
-def update_country_future_wndw_total():
-    """Populate country_future_wndw_total with the sum of outcome columns."""
-    import logging
-    logger = logging.getLogger(__name__)
+class CountryFutureWndwTotalsService:
+    """Computes historical signal/outcome totals for a (country, future) pair."""
 
-    logger.info("Updating country_future_wndw_total at %s", timezone.now())
+    SIGNAL_KEYS = (
+        "STRONG_BUY",
+        "BUY",
+        "HOLD",
+        "SELL",
+        "STRONG_SELL",
+    )
 
-    # Reset all to 0 so unmatched pairs don't keep stale data
-    MarketSession.objects.update(country_future_wndw_total=0)
+    OUTCOME_KEYS = {
+        "WORKED": "worked",
+        "DIDNT_WORK": "didnt_work",
+        "NEUTRAL": "neutral",
+        "PENDING": "pending",
+    }
 
-    # Aggregate the sum of the nine outcome columns per (country, future)
-    qs = (
-        MarketSession.objects
-        .values("country", "future")
-        .annotate(
-            total=Sum(
-                Coalesce(F("strong_buy_worked"), Value(0))
-                + Coalesce(F("strong_buy_didnt_work"), Value(0))
-                + Coalesce(F("buy_worked"), Value(0))
-                + Coalesce(F("buy_didnt_work"), Value(0))
-                + Coalesce(F("hold"), Value(0))
-                + Coalesce(F("strong_sell_worked"), Value(0))
-                + Coalesce(F("strong_sell_didnt_work"), Value(0))
-                + Coalesce(F("sell_worked"), Value(0))
-                + Coalesce(F("sell_didnt_work"), Value(0))
+    def __init__(self, model=MarketSession):
+        self.model = model
+        self.logger = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
+
+    def update_for_session_country(self, session_number: int, country: str) -> int:
+        """Populate snapshots for all NEW rows captured in a session.
+
+        Returns the number of rows updated. Only rows whose
+        ``country_future_wndw_total`` is empty/NULL are touched so we never
+        overwrite previously recorded history.
+        """
+        if not session_number or not country:
+            self.logger.warning(
+                "update_for_session_country requires session_number and country; nothing to do."
             )
-        )
-    )
+            return 0
 
-    updated_pairs = 0
-    for row in qs:
-        country = row["country"]
-        future = row["future"]
-        total = int(row["total"] or 0)
+        pending_rows = self.model.objects.filter(
+            session_number=session_number,
+            country=country,
+        ).filter(Q(country_future_wndw_total__isnull=True) | Q(country_future_wndw_total=0))
 
-        updated = (
-            MarketSession.objects
-            .filter(country=country, future=future)
-            .update(country_future_wndw_total=total)
-        )
+        if not pending_rows.exists():
+            self.logger.info(
+                "No pending MarketSession rows found for session %s and country %s; nothing to update.",
+                session_number,
+                country,
+            )
+            return 0
 
-        updated_pairs += 1
-        logger.info(
-            "Set country_future_wndw_total=%s on %s rows for %s / %s",
-            total,
+        updated = 0
+        for row in pending_rows:
+            summary = self._build_summary_for_row(row)
+            total_value = summary["total_records"]
+            row.country_future_wndw_total = total_value
+            row.save(update_fields=["country_future_wndw_total"])
+            updated += 1
+            self.logger.debug(
+                "WNDW totals snapshot id=%s (%s/%s) -> %s",
+                row.id,
+                row.country,
+                row.future,
+                total_value,
+            )
+
+        self.logger.info(
+            "Set %s WNDW snapshots for session %s, country %s.",
             updated,
+            session_number,
             country,
-            future,
+        )
+        return updated
+
+    def _build_summary_for_row(self, row) -> Dict[str, int]:
+        summary = self._empty_summary()
+        for record in self._historical_rows(row):
+            signal_key = self._normalize_signal(record.get("bhs"))
+            outcome_key = self._normalize_outcome(record.get("wndw"))
+
+            if signal_key:
+                summary[signal_key] += 1
+                if outcome_key == "worked":
+                    summary[f"{signal_key}_worked"] += 1
+                elif outcome_key == "didnt_work":
+                    summary[f"{signal_key}_didnt_work"] += 1
+
+            summary["total_records"] += 1
+            if outcome_key:
+                summary[f"{outcome_key}_total"] += 1
+
+        return summary
+
+    def _historical_rows(self, row) -> Iterable[Dict[str, Optional[str]]]:
+        return (
+            self.model.objects
+            .filter(country=row.country, future=row.future, captured_at__lte=row.captured_at)
+            .order_by("captured_at")
+            .values("bhs", "wndw")
         )
 
-    logger.info(
-        "country_future_wndw_total refresh complete: %s (country, future) pairs updated",
-        updated_pairs,
-    )
+    def _empty_summary(self) -> Dict[str, int]:
+        summary: Dict[str, int] = {
+            "total_records": 0,
+            "worked_total": 0,
+            "didnt_work_total": 0,
+            "neutral_total": 0,
+            "pending_total": 0,
+        }
+        for signal in self.SIGNAL_KEYS:
+            key = signal.lower()
+            summary[key] = 0
+            summary[f"{key}_worked"] = 0
+            summary[f"{key}_didnt_work"] = 0
+        return summary
+
+    def _normalize_signal(self, raw_signal: Optional[str]) -> Optional[str]:
+        if not raw_signal:
+            return None
+        upper = raw_signal.upper()
+        if upper in self.SIGNAL_KEYS:
+            return upper.lower()
+        return None
+
+    def _normalize_outcome(self, raw_outcome: Optional[str]) -> Optional[str]:
+        if not raw_outcome:
+            return None
+        upper = raw_outcome.upper()
+        return self.OUTCOME_KEYS.get(upper)
+
+
+_service = CountryFutureWndwTotalsService()
+
+
+def update_country_future_wndw_total(session_number: int, country: str) -> int:
+    """Backward-compatible wrapper around the service."""
+    return _service.update_for_session_country(session_number=session_number, country=country)
+
+
+__all__ = [
+    "CountryFutureWndwTotalsService",
+    "update_country_future_wndw_total",
+]

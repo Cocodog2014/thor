@@ -31,7 +31,7 @@ class MarketSessionListSerializer(MarketSessionBaseSerializer):
             'last_price',
             'market_open', 'market_high_number', 'market_high_percentage',
             'market_low_number', 'market_low_percentage',
-            'market_close_number', 'market_close_percentage',
+            'market_close_number', 'market_close_percentage_high', 'market_close_percentage_low', 'market_close_vs_open_percentage',
             'market_range_number', 'market_range_percentage',
             'entry_price', 'target_high', 'target_low',
             # NEW: target hit tracking
@@ -58,7 +58,7 @@ class MarketSessionDetailSerializer(MarketSessionBaseSerializer):
             'volume', 'vwap',
             'market_open', 'market_high_number', 'market_high_percentage',
             'market_low_number', 'market_low_percentage',
-            'market_close_number', 'market_close_percentage',
+            'market_close_number', 'market_close_percentage_high', 'market_close_percentage_low', 'market_close_vs_open_percentage',
             'market_range_number', 'market_range_percentage',
             'spread',
             'session_close', 'session_open', 'open_vs_prev_number', 'open_vs_prev_percent',

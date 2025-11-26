@@ -11,8 +11,10 @@ from django.utils import timezone
 from django.db import transaction
 
 from FutureTrading.models.MarketSession import MarketSession
-from FutureTrading.services.country_future_counts import update_country_future_stats
-from FutureTrading.services.country_future_wndw_counts import update_country_future_wndw_total
+from FutureTrading.services.country_future_counts import CountryFutureCounter
+from FutureTrading.services.country_future_wndw_counts import (
+    CountryFutureWndwTotalsService,
+)
 from FutureTrading.services.market_metrics import MarketOpenMetric
 from FutureTrading.services.quotes import get_enriched_quotes_with_composite
 from FutureTrading.services.TargetHighLow import compute_targets_for_symbol
@@ -106,11 +108,12 @@ class MarketOpenCaptureService:
         data['target_high'] = None
         data['target_low'] = None
 
-        # Determine entry price based on composite signal, then compute targets centrally
-        if composite_signal and composite_signal not in ['HOLD', '']:
-            if composite_signal in ['BUY', 'STRONG_BUY']:
+        # Determine entry price based on INDIVIDUAL future's signal (not composite), then compute targets centrally
+        individual_signal = data['bhs']
+        if individual_signal and individual_signal not in ['HOLD', '']:
+            if individual_signal in ['BUY', 'STRONG_BUY']:
                 data['entry_price'] = data.get('ask_price')
-            elif composite_signal in ['SELL', 'STRONG_SELL']:
+            elif individual_signal in ['SELL', 'STRONG_SELL']:
                 data['entry_price'] = data.get('bid_price')
             entry = data['entry_price']
             if entry:
@@ -141,6 +144,8 @@ class MarketOpenCaptureService:
 
         try:
             session = MarketSession.objects.create(**data)
+            _country_future_counter.assign_sequence(session)
+            
             logger.debug(f"Created {symbol} session: {session.last_price}")
             return session
         except Exception as e:
@@ -186,6 +191,8 @@ class MarketOpenCaptureService:
         
         try:
             session = MarketSession.objects.create(**data)
+            _country_future_counter.assign_sequence(session)
+            
             logger.info(f"TOTAL session: {data['weighted_average']:.4f} -> {composite_signal}" if data['weighted_average'] else f"TOTAL: {composite_signal}")
             return session
         except Exception as e:
@@ -258,20 +265,20 @@ class MarketOpenCaptureService:
 
             # 🔹 Refresh aggregate metrics so downstream dashboards stay in sync.
             #     Each helper runs best-effort so reporting does not block captures.
-            for updater, label in (
-                (update_country_future_stats, "country/future counts"),
-                (update_country_future_wndw_total, "country/future WNDW totals"),
-            ):
-                try:
-                    updater()
-                except Exception as stats_error:
-                    logger.warning(
-                        "Failed %s refresh after capture %s: %s",
-                        label,
-                        session_number,
-                        stats_error,
-                        exc_info=True,
-                    )
+
+            try:
+                # Only update WNDW totals for THIS session & THIS market
+                _country_future_wndw_service.update_for_session_country(
+                    session_number=session_number,
+                    country=market.country,
+                )
+            except Exception as stats_error:
+                logger.warning(
+                    "Failed country/future WNDW totals refresh after capture %s: %s",
+                    session_number,
+                    stats_error,
+                    exc_info=True,
+                )
             
             logger.info(f"Capture complete: Session #{session_number}, {len(sessions_created)} rows created")
             return sessions_created[0] if sessions_created else None
@@ -282,6 +289,8 @@ class MarketOpenCaptureService:
 
 
 _service = MarketOpenCaptureService()
+_country_future_counter = CountryFutureCounter()
+_country_future_wndw_service = CountryFutureWndwTotalsService()
 
 
 
