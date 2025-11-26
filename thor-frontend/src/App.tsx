@@ -3,6 +3,7 @@ import { Routes, Route, useLocation, Navigate } from 'react-router-dom'
 import { Container } from '@mui/material'
 // GlobalHeader is used inside AppLayout only
 import GlobalMarkets from './pages/GlobalMarkets/GlobalMarkets'
+import MarketDashboard from './pages/FutureTrading/Market/MarketDashboard'
 import FutureTrading from './pages/FutureTrading'
 import ActivityPositions from './pages/ActivityPositions'
 import AccountStatement from './pages/AccountStatement/AccountStatement'
@@ -23,7 +24,9 @@ function App() {
   const location = useLocation();
   const [showTradingActivity, setShowTradingActivity] = useState(false);
   const [showAccountStatement, setShowAccountStatement] = useState(false);
-  const [showGlobalMarket, setShowGlobalMarket] = useState(false);
+  const [showGlobalMarket, setShowGlobalMarket] = useState(true); // Show by default
+  const [showFuturesOnHome, setShowFuturesOnHome] = useState(false); // Toggle for split view
+  const [showMarketOpenDashboard, setShowMarketOpenDashboard] = useState(false); // Market Open Dashboard toggle
   
   // Routes that should have full-width layout (no Container)
   // Ensure both bare paths and /app/* variants are treated as full width
@@ -45,20 +48,52 @@ function App() {
     setShowGlobalMarket(!showGlobalMarket);
   };
 
-  // Inline Home component - just the GlobalMarkets display
+  const toggleFuturesOnHome = () => {
+    setShowFuturesOnHome(!showFuturesOnHome);
+  };
+
+  const toggleMarketOpenDashboard = () => {
+    setShowMarketOpenDashboard(!showMarketOpenDashboard);
+  };
+
+  // Inline Home component - split layout with Global Markets + Futures
   const HomeContent = () => (
     <div className="home-screen">
       <div className="dashboard-grid">
-        {showGlobalMarket && (
-          <section className="dashboard-card global-markets" aria-label="Global Markets">
-            <GlobalMarkets />
+        {/* Left column stack: Global Markets + Market Open Dashboard */}
+        {(showGlobalMarket || showMarketOpenDashboard) && (
+          <div className="left-stack">
+            {showGlobalMarket && (
+              <section className="dashboard-card global-markets" aria-label="Global Markets">
+                <GlobalMarkets />
+              </section>
+            )}
+            {showMarketOpenDashboard && (
+              <section className="dashboard-card market-open-dashboard" aria-label="Market Open Dashboard">
+                <MarketDashboard />
+              </section>
+            )}
+          </div>
+        )}
+        
+        {/* Futures Trading Section */}
+        {showFuturesOnHome && (
+          <section className="dashboard-card future-trading" aria-label="Futures Trading">
+            <FutureTrading 
+              onToggleMarketOpen={toggleMarketOpenDashboard}
+              showMarketOpen={showMarketOpenDashboard}
+            />
           </section>
         )}
+        
+        {/* Account Statement Section */}
         {showAccountStatement && (
           <section className="dashboard-card account-statement" aria-label="Account Statement">
             <AccountStatement />
           </section>
         )}
+        
+        {/* Activity & Positions Section */}
         {showTradingActivity && (
           <section className="dashboard-card activity-positions" aria-label="Activity & Positions">
             <ActivityPositions />
@@ -101,6 +136,8 @@ function App() {
                 showAccountStatement={showAccountStatement}
                 onGlobalMarketToggle={toggleGlobalMarket}
                 showGlobalMarket={showGlobalMarket}
+                onFuturesOnHomeToggle={toggleFuturesOnHome}
+                showFuturesOnHome={showFuturesOnHome}
               >
               {isFullWidth ? (
                 <Routes>

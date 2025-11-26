@@ -36,6 +36,8 @@ export interface CollapsibleDrawerProps {
   showAccountStatement?: boolean;
   onGlobalMarketToggle?: () => void;
   showGlobalMarket?: boolean;
+  onFuturesOnHomeToggle?: () => void;
+  showFuturesOnHome?: boolean;
 }
 
 export const DEFAULT_WIDTH_OPEN = 240;
@@ -58,6 +60,8 @@ const CollapsibleDrawer: React.FC<CollapsibleDrawerProps> = ({
   showAccountStatement = false,
   onGlobalMarketToggle,
   showGlobalMarket = false,
+  onFuturesOnHomeToggle,
+  showFuturesOnHome = false,
 }) => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -135,17 +139,29 @@ const CollapsibleDrawer: React.FC<CollapsibleDrawerProps> = ({
       )}
 
       <List>
-        {navigationItems.map((item) => (
-          <ListItem key={item.text} disablePadding sx={{ display: 'block' }}>
-            <ListItemButton
-              selected={!item.external && location.pathname === item.path}
-              onClick={() => {
-                if (item.external) {
-                  window.open(item.path, '_blank', 'noopener,noreferrer');
-                  return;
-                }
-                navigate(item.path);
-              }}
+        {navigationItems.map((item) => {
+          const isFutures = item.text === 'Futures';
+          const selected = isFutures
+            ? showFuturesOnHome && location.pathname.startsWith('/app/home')
+            : (!item.external && location.pathname === item.path);
+          return (
+            <ListItem key={item.text} disablePadding sx={{ display: 'block' }}>
+              <ListItemButton
+                selected={selected}
+                onClick={() => {
+                  if (item.external) {
+                    window.open(item.path, '_blank', 'noopener,noreferrer');
+                    return;
+                  }
+                  if (isFutures) {
+                    onFuturesOnHomeToggle?.();
+                    if (!location.pathname.startsWith('/app/home')) {
+                      navigate('/app/home');
+                    }
+                    return;
+                  }
+                  navigate(item.path);
+                }}
               sx={{
                 minHeight: 48,
                 justifyContent: open ? 'initial' : 'center',
@@ -165,7 +181,7 @@ const CollapsibleDrawer: React.FC<CollapsibleDrawerProps> = ({
               <ListItemText primary={item.text} sx={{ opacity: open ? 1 : 0, color: '#fff' }} />
             </ListItemButton>
           </ListItem>
-        ))}
+        );})}
 
         {/* Global Market (TimeZone) Toggle */}
         <ListItem disablePadding sx={{ display: 'block' }}>

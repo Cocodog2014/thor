@@ -32,32 +32,92 @@ cloudflared tunnel run thor
 
 ```powershell
 cd A:\Thor\thor-backend
-conda activate Thor_inv
+#conda activate Thor_inv
 
 # Set environment variables for Excel Live data
 $env:DATA_PROVIDER = 'excel_live'
-$env:EXCEL_DATA_FILE = 'A:\Thor\CleanData.xlsm'
-$env:EXCEL_SHEET_NAME = 'Futures'
-$env:EXCEL_LIVE_RANGE = 'A1:M20'
+$env:EXCEL_DATA_FILE = 'A:\\Thor\\RTD_TOS.xlsm'
+$env:EXCEL_SHEET_NAME = 'LiveData'
+$env:EXCEL_LIVE_RANGE = 'A1:N13'
 $env:REDIS_URL = 'redis://localhost:6379/0'
 
+
 # Start Django
-cd A:\Thor\thor-backend
+#cd A:\Thor\thor-backend
 python manage.py runserver
 ```
 
+Note:
+- The 52-week extremes monitor now auto-starts with the backend and updates `Rolling52WeekStats` from Redis in real time. To disable it, set `FUTURETRADING_ENABLE_52W_MONITOR=0` in Django settings or environment.
+
 ---
 
-## 4️⃣ Start Frontend (Optional)
+## 🔌 Connect to Postgres (psql)
+
+Use these to open psql inside the running Docker container and list all tables.
+
+```powershell
+# From host, attach a shell into the DB container and run psql
+docker exec -it thor_postgres psql -U thor_user -d thor_db
+
+# In psql
+\conninfo           -- show current connection
+\dn                 -- list schemas
+\dt *.*             -- list tables in all schemas
+\dv *.*             -- list views in all schemas
+\d "FutureTrading_marketsession"   -- describe a table (quoted name)
+```
+
+Alternative (using host psql without docker exec):
+
+```powershell
+# One‑off command (no interactive prompt)
+$Env:PGPASSWORD = 'thor_password'
+psql -h 127.0.0.1 -p 5432 -U thor_user -d thor_db -c "\dt *.*"
+```
+
+Notes:
+- The default credentials come from `docker-compose.yml`: user `thor_user`, db `thor_db`, password `thor_password`.
+- If you customized them in a `.env`, use those values instead.
+- Seeing only a few tables? Ensure you’re connected to `thor_db` and run `\dt *.*` (across all schemas).
+
+---
+
+## 4️⃣ Start Excel Data Poller
+
+Run this in a separate terminal to stream live TOS RTD data into Redis:
+
+```powershell
+cd A:\Thor\thor-backend
+#conda activate Thor_inv
+
+# Poll Excel every 3 seconds and publish to Redis
+python manage.py poll_tos_excel
+
+# Or customize the interval (in seconds)
+python manage.py poll_tos_excel --interval 5
+```
+
+Notes:
+- Runs until you press Ctrl+C
+- Uses a Redis lock so only one Excel instance opens
+- Frontend reads from Redis (no Excel opens from the UI)
+
+### Data Flow (new)
+- poll_tos_excel (producer) → reads Excel RTD and publishes quotes to Redis
+- Backend API → serves quotes from Redis to the frontend
+- Frontend → displays whatever is in Redis; no longer triggers Excel reads
+
+---
+
+## 5️⃣ Start Frontend
 
 ```powershell
 cd A:\Thor\thor-frontend
 npm run dev
 ```
 
----
-
-## 5️⃣ Start Frontend in Production (Preview)
+## 6️⃣ (Optional) Start Frontend in Production (Preview)
 
 Use this when serving the frontend through Cloudflare to avoid dev-module 404s.
 
@@ -168,3 +228,32 @@ cloudflared tunnel run thor
 > - Make sure Vite dev is running on port 5173 (`npm run dev`) and Django on 8000.
 > - Confirm both cloudflared configs point to 5173 for the frontend (`C:\ProgramData\cloudflared\config.yml` and `%USERPROFILE%\.cloudflared\config.yml`).
 > - Hard refresh the browser (Ctrl+F5) to clear cached dev assets.
+
+MarketDashboard now fetches:
+Latest sessions: http://127.0.0.1:8000/api/futures/market-opens/latest/
+Live status: http://127.0.0.1:8000/api/global-markets/markets/live_status/
+---
+
+## 7 (Optional) Start Market Open Grader
+
+The Market Open Grader monitors pending MarketSession rows and updates their `wndw` status (WORKED / DIDNT_WORK / NEUTRAL) based on live Redis prices hitting targets.
+
+Run this in a separate terminal:
+
+```powershell
+cd A:\Thor\thor-backend
+
+# Start the grader with default 0.5s interval monitors wndw
+python manage.py start_market_grader
+
+# Or customize the check interval (in seconds)
+python manage.py start_market_grader --interval 1.0
+```
+
+Notes:
+- Runs continuously until you press Ctrl+C
+- Watches all MarketSession rows with `wndw='PENDING'`
+- Uses live bid/ask from Redis to determine if target_high or target_low is hit
+- For BUY signals: price >= target_high  WORKED, price <= target_low  DIDNT_WORK
+- For SELL signals: price <= target_low  WORKED, price >= target_high  DIDNT_WORK
+- HOLD signals are marked NEUTRAL automatically

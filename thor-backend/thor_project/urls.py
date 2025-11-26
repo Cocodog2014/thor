@@ -47,7 +47,8 @@ urlpatterns = [
     # path('admin/cloudflared/', cloudflared_control, name='admin_cloudflared_control'),
     path('admin/', admin.site.urls),
     path('api/', include('api.urls')),           # Thor APIs
-    path('api/', include('FutureTrading.urls')), # Future Trading APIs
+    path('api/', include('FutureTrading.urls')), # Future Trading APIs (base prefix)
+    path('api/futures/', include('FutureTrading.urls')), # Alias prefix to match docs/frontend expecting /api/futures/
     path('api/users/', include('users.urls')),   # User authentication
     # LiveData endpoints (new structure)
     path('api/schwab/', include(('LiveData.schwab.urls', 'schwab'), namespace='schwab')),

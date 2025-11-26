@@ -9,12 +9,14 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from django.utils import timezone
+import threading
 import logging
 import requests
 
 from ..models import TradingInstrument
-from ..services.classification import enrich_quote_row, compute_composite
-from ..services.metrics import compute_row_metrics
+from ..models.extremes import Rolling52WeekStats  # still used for extra metadata
+from FutureTrading.services.quotes import get_enriched_quotes_with_composite
+from FutureTrading.constants import SYMBOL_NORMALIZE_MAP
 
 logger = logging.getLogger(__name__)
 
@@ -29,110 +31,8 @@ class LatestQuotesView(APIView):
 
     def get(self, request):
         try:
-            # Step 1: Get raw quotes from TOS Excel reader (reads Excel and populates Redis)
-            raw_quotes = []
-
-            try:
-                # Call TOS Excel endpoint - reads from Excel file and publishes to Redis
-                response = requests.get(
-                    'http://localhost:8000/api/feed/tos/quotes/latest/',
-                    params={'consumer': 'futures_trading'},
-                    timeout=5
-                )
-
-                if response.status_code == 200:
-                    data = response.json()
-                    raw_quotes = data.get('quotes', [])
-                    logger.info(f"Fetched {len(raw_quotes)} quotes from TOS Excel")
-                else:
-                    logger.warning(f"TOS endpoint returned {response.status_code}")
-
-            except requests.exceptions.RequestException as e:
-                logger.error(f"Failed to fetch TOS data: {e}")
-
-            # Step 2: Transform TOS quotes into FutureTrading structure (instrument + fields)
-            instruments_db = {inst.symbol: inst for inst in TradingInstrument.objects.all()}
-
-            transformed_rows = []
-            for idx, quote in enumerate(raw_quotes):
-                raw_symbol = quote.get('symbol', '')
-
-                # Normalize symbol - fix common Excel RTD symbol mismatches
-                symbol_map = {
-                    'RT': 'RTY',
-                    '30YrBond': 'ZB',
-                    '30Yr T-BOND': 'ZB',
-                    'T-BOND': 'ZB',
-                }
-                symbol = symbol_map.get(raw_symbol, raw_symbol)
-
-                db_inst = instruments_db.get(symbol) or instruments_db.get(f'/{symbol}')
-                display_precision = db_inst.display_precision if db_inst else 2
-                tick_value = str(db_inst.tick_value) if db_inst and db_inst.tick_value else None
-                margin_requirement = str(db_inst.margin_requirement) if db_inst and db_inst.margin_requirement else None
-
-                def to_str(val):
-                    return str(val) if val is not None else None
-
-                row = {
-                    'instrument': {
-                        'id': idx + 1,
-                        'symbol': symbol,
-                        'name': symbol,
-                        'exchange': 'TOS',
-                        'currency': 'USD',
-                        'display_precision': display_precision,
-                        'tick_value': tick_value,
-                        'margin_requirement': margin_requirement,
-                        'is_active': True,
-                        'sort_order': idx
-                    },
-                    'price': to_str(quote.get('last')),
-                    'last': to_str(quote.get('last')),
-                    'bid': to_str(quote.get('bid')),
-                    'ask': to_str(quote.get('ask')),
-                    'volume': quote.get('volume'),
-                    'open_price': to_str(quote.get('open')),
-                    'high_price': to_str(quote.get('high')),
-                    'low_price': to_str(quote.get('low')),
-                    'close_price': to_str(quote.get('close')),
-                    'previous_close': to_str(quote.get('close')),
-                    'change': to_str(quote.get('change')),
-                    'change_percent': None,
-                    'vwap': None,
-                    'bid_size': quote.get('bid_size'),
-                    'ask_size': quote.get('ask_size'),
-                    'last_size': None,
-                    'market_status': 'CLOSED',
-                    'data_source': 'TOS_RTD',
-                    'is_real_time': True,
-                    'delay_minutes': 0,
-                    'timestamp': quote.get('timestamp'),
-                    'extended_data': {
-                        'high_52w': to_str(quote.get('high_52w')),
-                        'low_52w': to_str(quote.get('low_52w')),
-                    }
-                }
-                transformed_rows.append(row)
-
-            # Step 3: Apply classification and metrics
-            enriched_rows = []
-            for row in transformed_rows:
-                enrich_quote_row(row)
-                try:
-                    metrics = compute_row_metrics(row)
-                    row.update(metrics)
-                    if row.get('change_percent') in (None, '', '—'):
-                        row['change_percent'] = metrics.get('last_prev_pct')
-                except Exception as e:
-                    logger.warning(
-                        f"Metric computation failed for {row.get('instrument',{}).get('symbol','?')}: {e}")
-                enriched_rows.append(row)
-
-            # Step 4: Composite
-            total_data = compute_composite(enriched_rows)
-
-            return Response({'rows': enriched_rows, 'total': total_data}, status=status.HTTP_200_OK)
+            rows, total = get_enriched_quotes_with_composite()
+            return Response({'rows': rows, 'total': total}, status=status.HTTP_200_OK)
 
         except Exception as e:
             logger.error(f"Error in LatestQuotesView: {str(e)}")

@@ -32,6 +32,9 @@ export interface Market {
   status: string; // 'OPEN' | 'CLOSED'
   is_active: boolean;
   currency: string;
+  // New optional fields from backend
+  weight?: number; // 0.00 - 1.00
+  is_control_market?: boolean;
   current_time: MarketCurrentTime;
   market_status: MarketStatus;
   sort_order: number;

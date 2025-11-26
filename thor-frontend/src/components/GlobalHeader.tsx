@@ -11,9 +11,11 @@ interface LayoutProps {
   showAccountStatement?: boolean;
   onGlobalMarketToggle?: () => void;
   showGlobalMarket?: boolean;
+  onFuturesOnHomeToggle?: () => void;
+  showFuturesOnHome?: boolean;
 }
 
-const GlobalHeader: React.FC<LayoutProps> = ({ children, onTradingActivityToggle, showTradingActivity, onAccountStatementToggle, showAccountStatement, onGlobalMarketToggle, showGlobalMarket }) => {
+const GlobalHeader: React.FC<LayoutProps> = ({ children, onTradingActivityToggle, showTradingActivity, onAccountStatementToggle, showAccountStatement, onGlobalMarketToggle, showGlobalMarket, onFuturesOnHomeToggle, showFuturesOnHome }) => {
   const [open, setOpen] = React.useState(false);
   const { mode } = useTradingMode();
 
@@ -81,6 +83,8 @@ const GlobalHeader: React.FC<LayoutProps> = ({ children, onTradingActivityToggle
     showAccountStatement={showAccountStatement}
     onGlobalMarketToggle={onGlobalMarketToggle}
     showGlobalMarket={showGlobalMarket}
+    onFuturesOnHomeToggle={onFuturesOnHomeToggle}
+    showFuturesOnHome={showFuturesOnHome}
   />
 
       {/* Main Content */}
@@ -91,6 +95,8 @@ const GlobalHeader: React.FC<LayoutProps> = ({ children, onTradingActivityToggle
           bgcolor: 'background.default',
           p: 0,
           minHeight: '100vh',
+          maxHeight: '100vh', // Constrain to viewport height
+          overflowY: 'auto', // Enable vertical scroll for all app content
           transition: 'margin 200ms ease',
           pt: '64px', // Clear fixed header height
           // Ensure content sits flush to the right of the drawer

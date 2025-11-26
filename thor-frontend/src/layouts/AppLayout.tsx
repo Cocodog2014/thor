@@ -9,10 +9,12 @@ type AppLayoutProps = {
   showAccountStatement?: boolean;
   onGlobalMarketToggle?: () => void;
   showGlobalMarket?: boolean;
+  onFuturesOnHomeToggle?: () => void;
+  showFuturesOnHome?: boolean;
 };
 
 const AppLayout: React.FC<AppLayoutProps>
-  = ({ children, onTradingActivityToggle, showTradingActivity, onAccountStatementToggle, showAccountStatement, onGlobalMarketToggle, showGlobalMarket }) => {
+  = ({ children, onTradingActivityToggle, showTradingActivity, onAccountStatementToggle, showAccountStatement, onGlobalMarketToggle, showGlobalMarket, onFuturesOnHomeToggle, showFuturesOnHome }) => {
   return (
     <GlobalHeader 
       onTradingActivityToggle={onTradingActivityToggle} 
@@ -21,6 +23,8 @@ const AppLayout: React.FC<AppLayoutProps>
       showAccountStatement={showAccountStatement}
       onGlobalMarketToggle={onGlobalMarketToggle}
       showGlobalMarket={showGlobalMarket}
+      onFuturesOnHomeToggle={onFuturesOnHomeToggle}
+      showFuturesOnHome={showFuturesOnHome}
     >
       {children}
     </GlobalHeader>

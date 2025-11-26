@@ -10,12 +10,15 @@ class MarketSerializer(serializers.ModelSerializer):
     market_status = serializers.SerializerMethodField()
     display_name = serializers.SerializerMethodField()
     sort_order = serializers.SerializerMethodField()
+    weight = serializers.DecimalField(max_digits=4, decimal_places=2, read_only=True)
+    is_control_market = serializers.BooleanField(read_only=True)
     
     class Meta:
         model = Market
         fields = [
             'id', 'country', 'display_name', 'timezone_name', 'market_open_time', 
             'market_close_time', 'status', 'is_active', 'currency',
+            'weight', 'is_control_market',
             'current_time', 'market_status', 'sort_order', 'created_at', 'updated_at'
         ]
     

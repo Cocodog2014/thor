@@ -13,45 +13,68 @@
 
 .home-screen div.dashboard-grid {
   display: grid !important;
-  grid-template-columns: 1fr !important; /* Single stacked column */
-  grid-auto-rows: auto !important; /* Rows size to content */
-  row-gap: 18px !important; /* Space between sections */
+  grid-template-columns: 1fr 1fr !important; /* Two equal columns */
+  grid-auto-rows: auto !important;
+  /* Keep column spacing wide, but tighten rows so Global Markets and Market Open sit close */
+  column-gap: 18px !important;
+  row-gap: 2px !important; /* ~90% reduction from 18px */
   width: 100% !important;
-  /* Let the layout width be controlled by the main content area next to the drawer */
   max-width: none !important;
-  margin: 0 !important; /* No outer margin */
-  padding: 0 !important; /* No inner padding */
+  margin: 0 !important;
+  padding: 0 !important;
   min-height: calc(100vh - 70px) !important;
-  justify-items: stretch !important; /* Make children fill the grid column width */
+  justify-items: stretch !important;
   align-items: start !important;
 }
 
-/* Global Markets Section - Positioned at top left touching header */
-.home-screen section.dashboard-card.global-markets {
-  width: 50% !important;
+/* When only one column of content exists, make it span both columns */
+.home-screen div.dashboard-grid > section:only-child {
+  grid-column: 1 / -1 !important; /* Span all columns */
+}
+
+/* Left column wrapper that stacks Global Markets + Market Open */
+.home-screen .left-stack {
   grid-column: 1 !important;
-  align-self: start !important;
-  justify-self: stretch !important; /* Fill grid width */
+  grid-row: 1 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 4px !important; /* tiny internal gap */
+  width: 100% !important;
+}
+
+/* Global Markets + Market Open are stacked inside .left-stack */
+.home-screen section.dashboard-card.global-markets,
+.home-screen section.dashboard-card.market-open-dashboard {
+  width: 100% !important;
   margin: 0 !important;
   padding: 0 !important;
 }
 
-/* Activity Positions Section - Positioned below Global Markets */
+/* Futures Trading - Column 2, single row with horizontal scroll */
+.home-screen section.dashboard-card.future-trading {
+  grid-column: 2 !important;
+  grid-row: 1 !important; /* single row */
+  width: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow-x: auto !important; /* Enable horizontal scroll */
+  overflow-y: hidden !important;
+}
+
+/* Activity Positions - Column 1, Row 3 */
 .home-screen .dashboard-card.activity-positions {
-  width: 50% !important;
-  grid-column: 0 !important;
-  align-self: start !important;
-  justify-self: stretch !important;
+  grid-column: 1 !important;
+  grid-row: 3 !important;
+  width: 100% !important;
   margin: 0 !important;
   padding: 0 !important;
 }
 
-/* Account Statement Section - Positioned below Global Markets (same column) */
+/* Account Statement - Column 2, Row 3 */
 .home-screen .dashboard-card.account-statement {
-  width: 50% !important;
-  grid-column: 1 !important;
-  align-self: start !important;
-  justify-self: stretch !important;
+  grid-column: 2 !important;
+  grid-row: 3 !important;
+  width: 100% !important;
   margin: 0 !important;
   padding: 0 !important;
 }

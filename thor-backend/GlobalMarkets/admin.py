@@ -6,9 +6,9 @@ from .models import Market, USMarketStatus, UserMarketWatchlist, MarketDataSnaps
 class MarketAdmin(admin.ModelAdmin):
     list_display = [
         'country', 'timezone_name', 'market_open_time', 'market_close_time', 
-        'status', 'is_active', 'currency', 'get_market_status_display'
+        'status', 'is_active', 'currency', 'enable_futures_capture', 'get_market_status_display'
     ]
-    list_filter = ['status', 'is_active', 'currency']
+    list_filter = ['status', 'is_active', 'currency', 'enable_futures_capture']
     search_fields = ['country', 'timezone_name']
     ordering = ['country']
     list_per_page = 25
@@ -22,6 +22,14 @@ class MarketAdmin(admin.ModelAdmin):
         }),
         ('Status', {
             'fields': ('status', 'is_active')
+        }),
+        ('Futures Capture', {
+            'fields': (
+                'enable_futures_capture',
+                'enable_open_capture',
+                'enable_close_capture',
+            ),
+            'description': 'Control if this market writes rows into FutureTrading.MarketSession.'
         }),
     )
     

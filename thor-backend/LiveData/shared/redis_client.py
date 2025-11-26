@@ -84,6 +84,39 @@ class LiveDataRedis:
                 out.append(q)
         return out
     
+    # --- Single-flight lock for Excel reads ---
+    EXCEL_LOCK_KEY = "live_data:excel_lock"
+    EXCEL_LOCK_TTL = 10  # seconds - prevents stale locks if a read crashes
+
+    def acquire_excel_lock(self, timeout: int = 10) -> bool:
+        """
+        Try to acquire exclusive Excel read lock (SET NX with TTL).
+        
+        Args:
+            timeout: Lock TTL in seconds (auto-expires if holder crashes)
+        
+        Returns:
+            True if lock acquired, False if another reader holds it
+        """
+        try:
+            result = self.client.set(
+                self.EXCEL_LOCK_KEY,
+                "locked",
+                nx=True,  # Only set if key doesn't exist
+                ex=timeout  # Auto-expire after timeout seconds
+            )
+            return bool(result)
+        except Exception as e:
+            logger.error(f"Failed to acquire Excel lock: {e}")
+            return False
+
+    def release_excel_lock(self) -> None:
+        """Release the Excel read lock."""
+        try:
+            self.client.delete(self.EXCEL_LOCK_KEY)
+        except Exception as e:
+            logger.error(f"Failed to release Excel lock: {e}")
+    
     def publish_quote(self, symbol: str, data: Dict[str, Any]) -> int:
         """
         Publish quote data for a symbol (used by TOS and other streaming feeds).

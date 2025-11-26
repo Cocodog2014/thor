@@ -1,3 +1,6 @@
+
+/** RTD.tSX */
+
 import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 // Sparkline removed
@@ -29,6 +32,11 @@ import type { ChipProps } from "@mui/material";
  * Your later script can populate `extended_data.signal` for each instrument
  * with one of: STRONG_BUY | BUY | HOLD | SELL | STRONG_SELL.
  */
+
+interface FutureTradingProps {
+  onToggleMarketOpen?: () => void;
+  showMarketOpen?: boolean;
+}
 
 // ----------------------------- Config ----------------------------
 
@@ -700,7 +708,7 @@ function L1Card({row, onSample, hist: _hist, theme, getQty, setQty}:{
 
 // -------------------------- Main Component -----------------------
 
-export default function FutureTrading(){
+export default function FutureTrading({ onToggleMarketOpen, showMarketOpen }: FutureTradingProps = {}){
   const theme = useTheme();
   const [pollMs, setPollMs] = useState(2000);
   const [rows, setRows] = useState<MarketData[]>([]);
@@ -748,6 +756,23 @@ export default function FutureTrading(){
         const data: ApiResponse = await r.json();
         setRows(data.rows);
         setTotalData(data.total);
+        // After quotes load, fetch VWAPs for same symbols
+        const symbols = data.rows.map(r=>r.instrument.symbol).join(',');
+        try {
+            const vw = await fetch(`/api/vwap/rolling?symbols=${symbols}&minutes=30`);
+          if (vw.ok){
+            const vwData: {symbol:string; vwap:string|null}[] = await vw.json();
+            setRows(prev => prev.map(row => {
+              const found = vwData.find(v=>v.symbol===row.instrument.symbol);
+              if (found){
+                return { ...row, vwap: found.vwap };
+              }
+              return row;
+            }));
+          }
+        } catch(err){
+          console.warn('VWAP fetch failed', err);
+        }
         return;
       } else {
         throw new Error(`Request failed with status ${r.status}`);
@@ -888,10 +913,25 @@ export default function FutureTrading(){
       )}
 
       {routingPlan && (
-        <Box mb={2}>
+        <Box mb={2} display="flex" justifyContent="space-between" alignItems="center">
           <Typography variant="caption" color="text.secondary">
             Feed: {routingPlan.primary_feed?.display_name ?? "Not configured"}
           </Typography>
+          {onToggleMarketOpen && (
+            <Button
+              variant="text"
+              size="small"
+              onClick={onToggleMarketOpen}
+              sx={{ 
+                color: 'white',
+                '&:hover': {
+                  backgroundColor: 'rgba(255, 255, 255, 0.1)'
+                }
+              }}
+            >
+              {showMarketOpen ? '📊 Hide' : '📊 Show'} Market Open Sessions
+            </Button>
+          )}
         </Box>
       )}
 
@@ -914,17 +954,16 @@ export default function FutureTrading(){
         </Button>
       </Box>
 
-      {/* Responsive grid layout - TOTAL card + 11 futures cards */}
+      {/* Horizontal scrolling layout with fixed card sizes - 6x2 grid */}
       <Box 
-        display="grid" 
-        gridTemplateColumns={{
-          xs: 'repeat(1, 1fr)',
-          sm: 'repeat(2, 1fr)', 
-          md: 'repeat(3, 1fr)',
-          lg: 'repeat(4, 1fr)',
-          xl: 'repeat(6, 1fr)'
+        sx={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(6, 320px)', // Fixed 6 columns, 320px each
+          gridTemplateRows: 'repeat(2, auto)', // 2 rows
+          gap: 2,
+          width: 'fit-content', // Grid only as wide as needed
+          minWidth: '100%' // Ensure it fills container when smaller
         }}
-        gap={2}
       >
         {/* Total Composite Card - appears first */}
         <Box>

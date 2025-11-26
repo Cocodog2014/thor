@@ -14,13 +14,13 @@ class Migration(migrations.Migration):
             model_name="tradingsignal",
             name="instrument",
         ),
-        migrations.RemoveField(
-            model_name="watchlistitem",
-            name="group",
-        ),
         migrations.AlterUniqueTogether(
             name="watchlistitem",
             unique_together=None,
+        ),
+        migrations.RemoveField(
+            model_name="watchlistitem",
+            name="group",
         ),
         migrations.RemoveField(
             model_name="watchlistitem",

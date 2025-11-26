@@ -52,7 +52,8 @@ from decimal import Decimal
 from functools import lru_cache
 from typing import Optional, Tuple
 
-from ..models import SignalStatValue, ContractWeight, TradingInstrument, SignalWeight, SIGNAL_CHOICES
+from ..models import SignalStatValue, ContractWeight, SignalWeight
+from FutureTrading.constants import SYMBOL_NORMALIZE_MAP
 
 # Fallback static defaults (only used if DB rows missing) – mirrors management command
 FALLBACK_STAT_MAP = {
@@ -72,9 +73,8 @@ FALLBACK_STAT_MAP = {
 SIGNAL_ORDER = ['STRONG_BUY', 'BUY', 'HOLD', 'SELL', 'STRONG_SELL']
 
 # Symbol aliases - maps Excel/TOS symbols to database symbols
-SYMBOL_ALIASES = {
-    'RT': 'RTY',  # Russell 2000 in TOS is "RT" but database has "RTY"
-}
+ # Deprecated legacy alias map replaced by SYMBOL_NORMALIZE_MAP
+SYMBOL_ALIASES = SYMBOL_NORMALIZE_MAP
 
 
 def _normalize_symbol(symbol: str) -> str:
@@ -83,7 +83,6 @@ def _normalize_symbol(symbol: str) -> str:
     Returns the canonical symbol without leading slash.
     """
     base = symbol.lstrip('/')
-    # Check if this is an alias
     return SYMBOL_ALIASES.get(base, base)
 
 

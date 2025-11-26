@@ -3,6 +3,21 @@ from datetime import datetime, time, timedelta
 import pytz
 
 
+# Control Markets Configuration - The 9 markets that drive global sentiment
+CONTROL_MARKET_WEIGHTS = {
+    # East → West, session order
+    'Japan': 0.25,           # Tokyo (Nikkei) - Primary Asian session driver
+    'China': 0.10,           # Shanghai (SSE) - Mainland sentiment
+    'India': 0.05,           # Bombay (Sensex) - Emerging market proxy
+    'Germany': 0.20,         # Frankfurt (DAX) - Core Eurozone
+    'United Kingdom': 0.05,  # London (FTSE) - Early Europe sentiment
+    'Pre_USA': 0.05,         # CME Globex Futures - Bridge between sessions
+    'USA': 0.25,             # New York (S&P/Dow/NASDAQ) - Global leader
+    'Canada': 0.03,          # Toronto (TSX) - Commodity confirmation
+    'Mexico': 0.02,          # BMV IPC - Regional follow-through
+}
+
+
 class Market(models.Model):
     """
     Represents stock markets around the world for monitoring while trading US markets
@@ -27,11 +42,37 @@ class Market(models.Model):
         default='CLOSED'
     )
     
+    # Control market configuration
+    is_control_market = models.BooleanField(default=False, help_text="Is this one of the 9 global control markets?")
+    weight = models.DecimalField(
+        max_digits=4, 
+        decimal_places=2, 
+        default=0.00,
+        help_text="Weight in global composite index (0.00 - 1.00)"
+    )
+    
     # Market configuration
     is_active = models.BooleanField(default=True)
     
     # Additional market info
     currency = models.CharField(max_length=3, blank=True)  # USD, JPY, EUR, etc.
+    
+    # Futures capture control flags
+    enable_futures_capture = models.BooleanField(
+        default=True,
+        help_text=(
+            "If unchecked, this market will NOT create FutureTrading MarketSession rows. "
+            "Use for redundant markets (e.g., Canada/Mexico) that mirror USA data."
+        ),
+    )
+    enable_open_capture = models.BooleanField(
+        default=True,
+        help_text="If unchecked, skip futures OPEN capture for this market.",
+    )
+    enable_close_capture = models.BooleanField(
+        default=True,
+        help_text="If unchecked, skip futures CLOSE capture for this market.",
+    )
     
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
@@ -49,14 +90,9 @@ class Market(models.Model):
         """Get the display name for the frontend based on user requirements"""
         display_names = {
             'Japan': 'Tokyo',
-            'Shenzhen': 'Shenzhen', 
-            'Hong Kong': 'Hong Kong',
             'China': 'Shanghai',
             'India': 'Bombay',
-            'Netherlands': 'Amsterdam',
-            'France': 'France',
             'Germany': 'Frankfurt',
-            'Spain': 'Spain',
             'United Kingdom': 'London',
             'Pre_USA': 'Pre_USA',
             'USA': 'USA',
@@ -69,19 +105,14 @@ class Market(models.Model):
         """Get sort order based on user's requested market sequence"""
         order_map = {
             'Japan': 1,      # Tokyo
-            'Shenzhen': 2,   # Shenzhen
-            'Hong Kong': 3,  # Hong Kong
-            'China': 4,      # Shanghai
-            'India': 5,      # Bombay
-            'Netherlands': 6, # Amsterdam
-            'France': 7,     # France
-            'Germany': 8,    # Frankfurt
-            'Spain': 9,      # Spain
-            'United Kingdom': 10, # London
-            'Pre_USA': 11,   # Pre_USA
-            'USA': 12,       # USA
-            'Canada': 13,    # Toronto
-            'Mexico': 14     # Mexican
+                'China': 2,      # Shanghai
+                'India': 3,      # Bombay
+                'Germany': 4,    # Frankfurt
+                'United Kingdom': 5, # London
+                'Pre_USA': 6,    # Pre_USA
+                'USA': 7,        # USA
+                'Canada': 8,     # Toronto
+                'Mexico': 9      # Mexican
         }
         return order_map.get(self.country, 999)
     
@@ -273,6 +304,69 @@ class Market(models.Model):
         }
 
 
+        @classmethod
+        def calculate_global_composite(cls):
+            """
+            Calculate weighted global market composite index based on control markets
+            Returns 0-100 score based on which control markets are currently OPEN
+            """
+            composite_score = 0.0
+            active_count = 0
+            contributions = {}
+        
+            for market in cls.objects.filter(is_control_market=True, is_active=True):
+                weight = float(market.weight)
+                market_name = market.get_display_name()
+            
+                if market.is_market_open_now():
+                    # Market is OPEN - add weighted contribution
+                    contribution = weight * 100
+                    composite_score += contribution
+                    active_count += 1
+                    contributions[market_name] = {
+                        'weight': weight * 100,
+                        'active': True,
+                        'contribution': contribution
+                    }
+                else:
+                    # Market CLOSED - no contribution
+                    contributions[market_name] = {
+                        'weight': weight * 100,
+                        'active': False,
+                        'contribution': 0
+                    }
+        
+            return {
+                'composite_score': round(composite_score, 2),
+                'active_markets': active_count,
+                'total_control_markets': 9,
+                'max_possible': 100.0,
+                'session_phase': cls._determine_session_phase(),
+                'contributions': contributions,
+                'timestamp': datetime.now(pytz.UTC).isoformat()
+            }
+    
+        @classmethod
+        def _determine_session_phase(cls):
+            """Determine which trading session is dominant"""
+            now_utc = datetime.now(pytz.UTC)
+            hour = now_utc.hour
+        
+            # Trading session phases based on UTC time
+            # Asian: 0:00-8:00 UTC (Tokyo 9am = 0:00 UTC)
+            # European: 8:00-14:00 UTC (Frankfurt 9am = 8:00 UTC)
+            # American: 14:00-21:00 UTC (NY 9:30am = 14:30 UTC)
+            # Overlap/After-hours: 21:00-24:00 UTC
+            if 0 <= hour < 8:
+                return 'ASIAN'
+            elif 8 <= hour < 14:
+                return 'EUROPEAN'
+            elif 14 <= hour < 21:
+                return 'AMERICAN'
+            else:
+                return 'OVERLAP'
+
+
 class USMarketStatus(models.Model):
     """
     Tracks US market status - controls whether we collect ANY data
@@ -455,20 +549,68 @@ class MarketDataSnapshot(models.Model):
 
 
 class MarketHoliday(models.Model):
-    """Per-market holiday days (full-day closures). Partial days ignored for now."""
+    """Per-market holiday calendar (full day or partial day)."""
     market = models.ForeignKey(Market, on_delete=models.CASCADE, related_name='holidays')
     date = models.DateField()
-    name = models.CharField(max_length=100, blank=True)
     full_day = models.BooleanField(default=True)
+    description = models.CharField(max_length=200, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        unique_together = ('market', 'date')
-        ordering = ['date']
+        unique_together = ['market', 'date']
+        ordering = ['market__country', '-date']
         verbose_name = 'Market Holiday'
         verbose_name_plural = 'Market Holidays'
 
     def __str__(self):
         return f"{self.market.country} holiday on {self.date} ({'Full' if self.full_day else 'Partial'})"
+
+
+class GlobalMarketIndex(models.Model):
+    """Real-time weighted global sentiment composite index."""
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+    # Composite regional + global scores (-100 to +100 range assumed)
+    global_composite_score = models.DecimalField(
+        max_digits=6,
+        decimal_places=3,
+        help_text="Overall global sentiment score (-100 to +100)"
+    )
+    asia_score = models.DecimalField(
+        max_digits=6,
+        decimal_places=3,
+        null=True,
+        blank=True,
+        help_text="Composite score for Asian markets"
+    )
+    europe_score = models.DecimalField(
+        max_digits=6,
+        decimal_places=3,
+        null=True,
+        blank=True,
+        help_text="Composite score for European markets"
+    )
+    americas_score = models.DecimalField(
+        max_digits=6,
+        decimal_places=3,
+        null=True,
+        blank=True,
+        help_text="Composite score for American markets"
+    )
+
+    # Market breadth metrics
+    markets_open = models.IntegerField(default=0)
+    markets_bullish = models.IntegerField(default=0)
+    markets_bearish = models.IntegerField(default=0)
+    markets_neutral = models.IntegerField(default=0)
+
+    class Meta:
+        ordering = ['-timestamp']
+
+    def __str__(self):
+        return f"GlobalIndex @ {self.timestamp:%Y-%m-%d %H:%M} = {self.global_composite_score}"
 
 
 class UserMarketWatchlist(models.Model):
