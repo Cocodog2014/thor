@@ -56,3 +56,10 @@ python manage.py start_market_grader
 
 # Or customize interval
 python manage.py start_market_grader --interval 1.0
+
+### Local Access
+- **Backend API**: http://localhost:8000/api/
+- **Admin Panel**: http://localhost:8000/admin/
+  - Email: `admin@360edu.org`
+  - Password: `Coco1464#`
+- **Frontend**: http://localhost:5173
