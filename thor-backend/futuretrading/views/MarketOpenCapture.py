@@ -11,7 +11,7 @@ from django.utils import timezone
 from django.db import transaction
 
 from FutureTrading.models.MarketSession import MarketSession
-from FutureTrading.services.country_future_counts import update_country_future_stats
+from FutureTrading.services.country_future_counts import CountryFutureCounter
 from FutureTrading.services.country_future_wndw_counts import update_country_future_wndw_total
 from FutureTrading.services.market_metrics import MarketOpenMetric
 from FutureTrading.services.quotes import get_enriched_quotes_with_composite
@@ -142,19 +142,7 @@ class MarketOpenCaptureService:
 
         try:
             session = MarketSession.objects.create(**data)
-            
-            # Only set country_future if it wasn't already set (NULL/empty)
-            if session.country_future is None:
-                last_session = (
-                    MarketSession.objects
-                    .filter(country=country, future=symbol)
-                    .exclude(id=session.id)  # exclude the one we just created
-                    .order_by('-country_future')
-                    .first()
-                )
-                next_value = (last_session.country_future + 1) if (last_session and last_session.country_future) else 1
-                session.country_future = next_value
-                session.save(update_fields=['country_future'])
+            _country_future_counter.assign_sequence(session)
             
             logger.debug(f"Created {symbol} session: {session.last_price}")
             return session
@@ -201,19 +189,7 @@ class MarketOpenCaptureService:
         
         try:
             session = MarketSession.objects.create(**data)
-            
-            # Only set country_future if it wasn't already set (NULL/empty)
-            if session.country_future is None:
-                last_session = (
-                    MarketSession.objects
-                    .filter(country=country, future='TOTAL')
-                    .exclude(id=session.id)  # exclude the one we just created
-                    .order_by('-country_future')
-                    .first()
-                )
-                next_value = (last_session.country_future + 1) if (last_session and last_session.country_future) else 1
-                session.country_future = next_value
-                session.save(update_fields=['country_future'])
+            _country_future_counter.assign_sequence(session)
             
             logger.info(f"TOTAL session: {data['weighted_average']:.4f} -> {composite_signal}" if data['weighted_average'] else f"TOTAL: {composite_signal}")
             return session
@@ -287,7 +263,6 @@ class MarketOpenCaptureService:
 
             # 🔹 Refresh aggregate metrics so downstream dashboards stay in sync.
             #     Each helper runs best-effort so reporting does not block captures.
-            # NOTE: Removed update_country_future_stats() - country_future is now set on insert and never updated
 
             try:
                 # Only update WNDW totals for THIS session & THIS market
@@ -309,6 +284,7 @@ class MarketOpenCaptureService:
 
 
 _service = MarketOpenCaptureService()
+_country_future_counter = CountryFutureCounter()
 
 
 

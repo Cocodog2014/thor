@@ -10,8 +10,8 @@ Requirement:
   it never changes even when future sessions are added.
 
 Implementation:
-  Called right after market open capture. For each new row, count historical
-  WNDW outcomes and store the aggregate. Never updates old rows.
+    Called right after market open capture. For each new row, count historical
+    WNDW outcomes and store the aggregate. Never updates old rows.
 """
 
 from typing import Optional
