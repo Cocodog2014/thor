@@ -2,39 +2,35 @@
     --marketsession-sticky-top: 52px;
 }
 
-/* Ensure sticky headers behave inside the Django admin table */
-.change-list #result_list {
-    border-collapse: separate;
-    border-spacing: 0;
+/* 1) Make the table area the scroll container */
+.change-list #changelist-form .results {
+    max-height: calc(100vh - 180px);
+    overflow-y: auto;
+    overflow-x: auto;
 }
 
-.change-list #result_list thead th {
+/* 2) Sticky header inside that scroll container */
+.change-list #result_list thead {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: #f6f6f6;
+    box-shadow: 0 1px 0 #d9d9d9;
+}
+
+/* .change-list #result_list thead th {
     position: sticky;
     top: var(--marketsession-sticky-top, 52px);
     z-index: 9;
     background: #f6f6f6;
     box-shadow: 0 1px 0 #d9d9d9;
-}
-
-.change-list #result_list thead th:first-child {
-    left: 0;
-}
-
-/* Allow horizontal overflow while keeping scrollbars stable */
-.change-list .results {
-    overflow-x: auto;
-}
+} */
 
 /* Optional mirrored top scrollbar (inserted via JS) */
 .marketsession-top-scroll {
     overflow-x: auto;
     overflow-y: hidden;
     margin-bottom: 4px;
-    position: sticky;
-    top: calc(var(--marketsession-sticky-top, 52px) - 30px);
-    z-index: 8;
-    background: #fff;
-    padding: 2px 0;
 }
 
 .marketsession-top-scroll .marketsession-top-scroll-spacer {
