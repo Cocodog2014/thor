@@ -58,15 +58,6 @@ class MarketOpenCaptureService:
         """Create one MarketSession row for a single future"""
         ext = row.get('extended_data', {})
         
-        # Calculate country_future as incrementing session counter for this (country, future) pair
-        last_session = (
-            MarketSession.objects
-            .filter(country=country, future=symbol)
-            .order_by('-country_future')
-            .first()
-        )
-        next_country_future = (last_session.country_future + 1) if (last_session and last_session.country_future) else 1
-        
         # Base session data
         data = {
             'session_number': session_number,
@@ -77,7 +68,6 @@ class MarketOpenCaptureService:
             'day': time_info['day'],
             'country': country,
             'future': symbol,
-            'country_future': next_country_future,
             'captured_at': timezone.now(),
             # Removed legacy wndw/outcome framework fields
             
@@ -152,6 +142,20 @@ class MarketOpenCaptureService:
 
         try:
             session = MarketSession.objects.create(**data)
+            
+            # Only set country_future if it wasn't already set (NULL/empty)
+            if session.country_future is None:
+                last_session = (
+                    MarketSession.objects
+                    .filter(country=country, future=symbol)
+                    .exclude(id=session.id)  # exclude the one we just created
+                    .order_by('-country_future')
+                    .first()
+                )
+                next_value = (last_session.country_future + 1) if (last_session and last_session.country_future) else 1
+                session.country_future = next_value
+                session.save(update_fields=['country_future'])
+            
             logger.debug(f"Created {symbol} session: {session.last_price}")
             return session
         except Exception as e:
@@ -162,15 +166,6 @@ class MarketOpenCaptureService:
         """Create one MarketSession row for TOTAL composite"""
         composite_signal = (composite.get('composite_signal') or 'HOLD').upper()
         
-        # Calculate country_future as incrementing session counter for this (country, TOTAL) pair
-        last_session = (
-            MarketSession.objects
-            .filter(country=country, future='TOTAL')
-            .order_by('-country_future')
-            .first()
-        )
-        next_country_future = (last_session.country_future + 1) if (last_session and last_session.country_future) else 1
-        
         data = {
             'session_number': session_number,
             'capture_group': capture_group,
@@ -180,7 +175,6 @@ class MarketOpenCaptureService:
             'day': time_info['day'],
             'country': country,
             'future': 'TOTAL',
-            'country_future': next_country_future,
             'captured_at': timezone.now(),
             # Removed legacy wndw field
             
@@ -207,6 +201,20 @@ class MarketOpenCaptureService:
         
         try:
             session = MarketSession.objects.create(**data)
+            
+            # Only set country_future if it wasn't already set (NULL/empty)
+            if session.country_future is None:
+                last_session = (
+                    MarketSession.objects
+                    .filter(country=country, future='TOTAL')
+                    .exclude(id=session.id)  # exclude the one we just created
+                    .order_by('-country_future')
+                    .first()
+                )
+                next_value = (last_session.country_future + 1) if (last_session and last_session.country_future) else 1
+                session.country_future = next_value
+                session.save(update_fields=['country_future'])
+            
             logger.info(f"TOTAL session: {data['weighted_average']:.4f} -> {composite_signal}" if data['weighted_average'] else f"TOTAL: {composite_signal}")
             return session
         except Exception as e:
