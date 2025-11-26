@@ -9,6 +9,25 @@ from .models.target_high_low import TargetHighLowConfig
 from .models.vwap import VwapMinute
 
 
+class ColumnSetFilter(admin.SimpleListFilter):
+    title = "Column set"
+    parameter_name = "colset"
+
+    def lookups(self, request, model_admin):
+        return (
+            ("basic", "Basic"),
+            ("price", "Price / Live"),
+            ("targets", "Entry & Targets"),
+            ("session", "Session & Range"),
+            ("backtest", "Backtest Stats"),
+            ("full", "Everything (wide)"),
+        )
+
+    def queryset(self, request, queryset):
+        # Column set selection only influences list display
+        return queryset
+
+
 class SignalStatValueInline(admin.TabularInline):
     model = SignalStatValue
     extra = 0
@@ -90,11 +109,150 @@ class SignalWeightAdmin(admin.ModelAdmin):
 
 @admin.register(MarketSession)
 class MarketSessionAdmin(admin.ModelAdmin):
-    list_display = [
-        'capture_group', 'session_number', 'country', 'future', 'country_future', 'date_display', 'day',
-        'bhs', 'entry_price', 'last_price'
-    ]
-    list_filter = ['country', 'future', 'day', 'bhs', 'year', 'month']
+    # Preset column bundles for the change list view
+    COLUMN_SETS = {
+        "basic": (
+            "captured_at",
+            "country",
+            "future",
+            "bhs",
+            "wndw",
+            "day",
+        ),
+        "price": (
+            "captured_at",
+            "country",
+            "future",
+            "last_price",
+            "change",
+            "change_percent",
+            "bid_price",
+            "bid_size",
+            "ask_price",
+            "ask_size",
+            "volume",
+            "vwap",
+            "spread",
+        ),
+        "targets": (
+            "captured_at",
+            "country",
+            "future",
+            "bhs",
+            "entry_price",
+            "target_high",
+            "target_low",
+            "target_hit_price",
+            "target_hit_type",
+            "target_hit_at",
+        ),
+        "session": (
+            "captured_at",
+            "country",
+            "future",
+            "session_open",
+            "session_close",
+            "open_vs_prev_number",
+            "open_vs_prev_percent",
+            "day_24h_low",
+            "day_24h_high",
+            "range_high_low",
+            "range_percent",
+            "week_52_low",
+            "week_52_high",
+            "week_52_range_high_low",
+            "week_52_range_percent",
+        ),
+        "backtest": (
+            "captured_at",
+            "country",
+            "future",
+            "bhs",
+            "country_future_wndw_total",
+            "strong_buy_worked", "strong_buy_worked_percentage",
+            "strong_buy_didnt_work", "strong_buy_didnt_work_percentage",
+            "buy_worked", "buy_worked_percentage",
+            "buy_didnt_work", "buy_didnt_work_percentage",
+            "hold", "hold_percentage",
+            "strong_sell_worked", "strong_sell_worked_percentage",
+            "strong_sell_didnt_work", "strong_sell_didnt_work_percentage",
+            "sell_worked", "sell_worked_percentage",
+            "sell_didnt_work", "sell_didnt_work_percentage",
+            "weighted_average",
+            "instrument_count",
+        ),
+        "full": (
+            "captured_at",
+            "country",
+            "future",
+            "bhs",
+            "wndw",
+            "session_number",
+            "capture_group",
+            "country_future",
+            "year",
+            "month",
+            "date",
+            "day",
+            "weight",
+            "weighted_average",
+            "instrument_count",
+            "entry_price",
+            "last_price",
+            "target_high",
+            "target_low",
+            "target_hit_price",
+            "target_hit_type",
+            "market_open",
+            "market_high_number",
+            "market_high_percentage",
+            "market_low_number",
+            "market_low_percentage",
+            "market_close_number",
+            "market_close_percentage_high",
+            "market_close_percentage_low",
+            "market_close_vs_open_percentage",
+            "market_range_number",
+            "market_range_percentage",
+            "session_open",
+            "session_close",
+            "open_vs_prev_number",
+            "open_vs_prev_percent",
+            "day_24h_low",
+            "day_24h_high",
+            "range_high_low",
+            "range_percent",
+            "week_52_low",
+            "week_52_high",
+            "week_52_range_high_low",
+            "week_52_range_percent",
+            "volume",
+            "vwap",
+            "bid_price",
+            "bid_size",
+            "ask_price",
+            "ask_size",
+            "spread",
+            "strong_buy_worked", "strong_buy_worked_percentage",
+            "strong_buy_didnt_work", "strong_buy_didnt_work_percentage",
+            "buy_worked", "buy_worked_percentage",
+            "buy_didnt_work", "buy_didnt_work_percentage",
+            "hold", "hold_percentage",
+            "strong_sell_worked", "strong_sell_worked_percentage",
+            "strong_sell_didnt_work", "strong_sell_didnt_work_percentage",
+            "sell_worked", "sell_worked_percentage",
+            "sell_didnt_work", "sell_didnt_work_percentage",
+        ),
+    }
+
+    DEFAULT_COLUMN_SET = "basic"
+    list_display = COLUMN_SETS[DEFAULT_COLUMN_SET]
+
+    def get_list_display(self, request):
+        colset = request.GET.get("colset", self.DEFAULT_COLUMN_SET)
+        return self.COLUMN_SETS.get(colset, self.COLUMN_SETS[self.DEFAULT_COLUMN_SET])
+
+    list_filter = [ColumnSetFilter, 'country', 'future', 'day', 'bhs', 'year', 'month']
     search_fields = ['country', 'session_number', 'future']
     readonly_fields = ['captured_at']
     
