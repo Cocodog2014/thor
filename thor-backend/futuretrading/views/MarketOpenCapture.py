@@ -92,8 +92,8 @@ class MarketOpenCaptureService:
             'open_prev_pct_24h': self.safe_decimal(row.get('open_prev_pct')),
             
             # Range data
-            'day_24h_low': self.safe_decimal(row.get('low_price')),
-            'day_24h_high': self.safe_decimal(row.get('high_price')),
+            'low_24h': self.safe_decimal(row.get('low_price')),
+            'high_24h': self.safe_decimal(row.get('high_price')),
             'range_high_low': self.safe_decimal(row.get('range_diff')),
             'range_percent': self.safe_decimal(row.get('range_pct')),
             'week_52_low': self.safe_decimal(ext.get('low_52w')),

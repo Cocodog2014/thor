@@ -39,8 +39,8 @@ interface MarketOpenSession {
   open_price_24h?: string | null;
   open_prev_diff_24h?: string | null;
   open_prev_pct_24h?: string | null;
-  day_24h_low?: string | null;
-  day_24h_high?: string | null;
+  low_24h?: string | null;
+  high_24h?: string | null;
   range_high_low?: string | null;
   range_percent?: string | null;
   week_52_low?: string | null;
@@ -506,11 +506,11 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl }) => {
                     </div>
                     <div className="stat">
                       <div className="stat-label">24h Low</div>
-                      <div className="stat-value">{formatNum(snap?.day_24h_low) ?? (isZero(snap?.day_24h_low) ? 0 : "—")}</div>
+                      <div className="stat-value">{formatNum(snap?.low_24h) ?? (isZero(snap?.low_24h) ? 0 : "—")}</div>
                     </div>
                     <div className="stat">
                       <div className="stat-label">24h High</div>
-                      <div className="stat-value">{formatNum(snap?.day_24h_high) ?? (isZero(snap?.day_24h_high) ? 0 : "—")}</div>
+                      <div className="stat-value">{formatNum(snap?.high_24h) ?? (isZero(snap?.high_24h) ? 0 : "—")}</div>
                     </div>
                     <div className="stat">
                       <div className="stat-label">24h Range</div>

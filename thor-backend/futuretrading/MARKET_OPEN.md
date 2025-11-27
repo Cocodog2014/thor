@@ -103,7 +103,7 @@ Add section for captured market open sessions:
 2. Bid/Ask: bid, bid_size, ask, ask_size
 3. Market data: volume, vwap, spread
 4. Session: open, close, open_vs_prev (number & percent)
-5. 24h range: day_24h_low, day_24h_high, range_high_low, range_percent
+5. 24h range: low_24h, high_24h, range_high_low, range_percent
 6. 52-week range: week_52_low, week_52_high, week_52_range_high_low, week_52_range_percent
 7. Entry/targets: entry_price, high_dynamic (+20), low_dynamic (-20)
 

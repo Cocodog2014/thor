@@ -306,14 +306,14 @@ class MarketSession(models.Model):
         blank=True,
         help_text="24h Open − Prev 24h Close (%)",
     )
-    day_24h_low = models.DecimalField(
+    low_24h = models.DecimalField(
         max_digits=14,
         decimal_places=4,
         null=True,
         blank=True,
         help_text="24 hour low",
     )
-    day_24h_high = models.DecimalField(
+    high_24h = models.DecimalField(
         max_digits=14,
         decimal_places=4,
         null=True,

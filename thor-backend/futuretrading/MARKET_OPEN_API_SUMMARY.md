@@ -226,7 +226,7 @@ last_price, change, change_percent
 bid, bid_size, ask, ask_size
 volume, vwap, spread
 open, close
-day_24h_high, day_24h_low
+high_24h, low_24h
 week_52_high, week_52_low
 
 # Entry/Targets (all futures)

@@ -155,8 +155,8 @@ class MarketSessionAdmin(admin.ModelAdmin):
             "prev_close_24h",
             "open_prev_diff_24h",
             "open_prev_pct_24h",
-            "day_24h_low",
-            "day_24h_high",
+            "low_24h",
+            "high_24h",
             "range_high_low",
             "range_percent",
             "week_52_low",
@@ -219,8 +219,8 @@ class MarketSessionAdmin(admin.ModelAdmin):
             "open_price_24h",
             "open_prev_diff_24h",
             "open_prev_pct_24h",
-            "day_24h_low",
-            "day_24h_high",
+            "low_24h",
+            "high_24h",
             "range_high_low",
             "range_percent",
             "week_52_low",
@@ -269,7 +269,7 @@ class MarketSessionAdmin(admin.ModelAdmin):
             'fields': ('prev_close_24h', 'open_price_24h', 'open_prev_diff_24h', 'open_prev_pct_24h')
         }),
         ('Range Data', {
-            'fields': ('day_24h_low', 'day_24h_high', 'range_high_low', 'range_percent',
+            'fields': ('low_24h', 'high_24h', 'range_high_low', 'range_percent',
                       'week_52_low', 'week_52_high', 'week_52_range_high_low', 'week_52_range_percent'),
             'classes': ('collapse',)
         }),

@@ -125,7 +125,7 @@ def simulate_tokyo_open():
         print(f"   Change: {snap.change} ({snap.change_percent}%)")
         print(f"   Signal: {snap.signal} (Weight: {snap.weight})")
         print(f"   Bid: {snap.bid} x {snap.bid_size}  |  Ask: {snap.ask} x {snap.ask_size}")
-        print(f"   24h Range: {snap.day_24h_low} - {snap.day_24h_high} (Range: {snap.range_high_low}, {snap.range_percent}%)")
+        print(f"   24h Range: {snap.low_24h} - {snap.high_24h} (Range: {snap.range_high_low}, {snap.range_percent}%)")
         print(f"   52w Range: {snap.week_52_low} - {snap.week_52_high}")
         if snap.entry_price:
             print(f"   Entry: {snap.entry_price} | Dynamic High: {snap.high_dynamic} | Dynamic Low: {snap.low_dynamic}")
@@ -155,7 +155,7 @@ def simulate_tokyo_open():
             missing.append("weight")
         if snap.change_percent is None:
             missing.append("change_percent")
-        if snap.day_24h_low is None or snap.day_24h_high is None:
+        if snap.low_24h is None or snap.high_24h is None:
             missing.append("24h_range")
         if snap.week_52_low is None and snap.week_52_high is None:
             missing.append("52w_range")
