@@ -94,7 +94,7 @@ class Command(BaseCommand):
                     'range_diff_24h': Decimal('2.00'),
                     'range_pct_24h': Decimal('0.05'),
                     'week_52_low': (base * Decimal('0.7')).quantize(Decimal('0.01')),
-                    'week_52_high': (base * Decimal('1.3')).quantize(Decimal('0.01')),
+                    'high_52w': (base * Decimal('1.3')).quantize(Decimal('0.01')),
                     'bhs': sig,
                     'weight': random.randint(0, 5),
                     'study_fw': 'HBS',

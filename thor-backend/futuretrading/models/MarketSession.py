@@ -336,7 +336,7 @@ class MarketSession(models.Model):
     )
 
     # 52-Week Range Data
-    week_52_low = models.DecimalField(
+    low_52w = models.DecimalField(
         max_digits=14,
         decimal_places=4,
         null=True,
@@ -350,7 +350,7 @@ class MarketSession(models.Model):
         blank=True,
         help_text="Percent above 52-week low relative to current price",
     )
-    week_52_high = models.DecimalField(
+    high_52w = models.DecimalField(
         max_digits=14,
         decimal_places=4,
         null=True,

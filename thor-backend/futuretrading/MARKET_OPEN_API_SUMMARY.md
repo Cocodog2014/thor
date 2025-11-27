@@ -227,7 +227,7 @@ bid, bid_size, ask, ask_size
 volume, vwap, spread
 open, close
 high_24h, low_24h
-week_52_high, week_52_low, low_pct_52, high_pct_52
+high_52w, low_52w, low_pct_52, high_pct_52
 
 # Entry/Targets (all futures)
 entry_price          # Ask if buying, Bid if selling

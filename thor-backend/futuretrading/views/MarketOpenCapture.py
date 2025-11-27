@@ -96,9 +96,9 @@ class MarketOpenCaptureService:
             'high_24h': self.safe_decimal(row.get('high_price')),
             'range_diff_24h': self.safe_decimal(row.get('range_diff')),
             'range_pct_24h': self.safe_decimal(row.get('range_pct')),
-            'week_52_low': self.safe_decimal(ext.get('low_52w')),
+            'low_52w': self.safe_decimal(ext.get('low_52w')),
             'low_pct_52': self.safe_decimal(ext.get('low_pct_52')),
-            'week_52_high': self.safe_decimal(ext.get('high_52w')),
+            'high_52w': self.safe_decimal(ext.get('high_52w')),
             'high_pct_52': self.safe_decimal(ext.get('high_pct_52')),
             
             # Signal (individual future's signal from HBS)
@@ -126,8 +126,8 @@ class MarketOpenCaptureService:
                 data['target_low'] = low
 
         # Populate 52-week range derivative fields if both ends available
-        wlow = data.get('week_52_low')
-        whigh = data.get('week_52_high')
+        wlow = data.get('low_52w')
+        whigh = data.get('high_52w')
         last_price = data.get('last_price')
         if wlow is not None:
             try:

@@ -129,7 +129,7 @@ def simulate_tokyo_open():
         print(f"   Signal: {snap.bhs} (Weight: {snap.weight})")
         print(f"   Bid: {snap.bid_price} x {snap.bid_size}  |  Ask: {snap.ask_price} x {snap.ask_size}")
         print(f"   24h Range: {snap.low_24h} - {snap.high_24h} (Range: {snap.range_diff_24h}, {snap.range_pct_24h}%)")
-        print(f"   52w Range: {snap.week_52_low} - {snap.week_52_high}")
+        print(f"   52w Range: {snap.low_52w} - {snap.high_52w}")
         if snap.entry_price:
             print(f"   Entry: {snap.entry_price} | Target High: {snap.target_high} | Target Low: {snap.target_low}")
     
@@ -158,7 +158,7 @@ def simulate_tokyo_open():
             missing.append("weight")
         if snap.low_24h is None or snap.high_24h is None:
             missing.append("24h_range")
-        if snap.week_52_low is None and snap.week_52_high is None:
+        if snap.low_52w is None and snap.high_52w is None:
             missing.append("52w_range")
         
         if missing:
