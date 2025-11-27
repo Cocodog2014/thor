@@ -43,3 +43,69 @@
 .marketsession-top-scroll .marketsession-top-scroll-spacer {
     height: 1px;
 }
+
+/* Row highlighting styles */
+.highlight-cell {
+    position: sticky;
+    left: 0;
+    z-index: 5;
+    background: #f6f6f6 !important;
+    padding: 8px !important;
+    text-align: center !important;
+    border-right: 2px solid #ddd !important;
+    min-width: 40px;
+}
+
+.highlight-header {
+    position: sticky;
+    left: 0;
+    z-index: 11 !important;
+    background: #f6f6f6 !important;
+    padding: 8px !important;
+    text-align: center !important;
+    border-right: 2px solid #ddd !important;
+    min-width: 40px;
+    font-size: 16px;
+}
+
+.row-highlight-checkbox {
+    cursor: pointer;
+    width: 18px;
+    height: 18px;
+    margin: 0;
+}
+
+/* Highlighted row styling */
+.highlighted-row {
+    background-color: #fff3cd !important;
+    border-top: 2px solid #ffc107 !important;
+    border-bottom: 2px solid #ffc107 !important;
+}
+
+.highlighted-row td {
+    background-color: #fff3cd !important;
+    font-weight: 600;
+}
+
+.highlighted-row .highlight-cell {
+    background-color: #ffe69c !important;
+}
+
+/* Hover effect for easier tracking */
+.hover-highlight {
+    background-color: #e8f4f8 !important;
+}
+
+.hover-highlight td {
+    background-color: #e8f4f8 !important;
+}
+
+.hover-highlight .highlight-cell {
+    background-color: #d1ecf1 !important;
+}
+
+/* Ensure alternating row colors still work */
+.change-list #result_list tbody tr:nth-child(even):not(.highlighted-row):not(.hover-highlight) {
+    background: #f9f9f9;
+}
+
