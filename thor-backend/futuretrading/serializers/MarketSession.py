@@ -59,7 +59,7 @@ class MarketSessionDetailSerializer(MarketSessionBaseSerializer):
             'spread',
             'prev_close_24h', 'open_price_24h', 'open_prev_diff_24h', 'open_prev_pct_24h',
             'low_24h', 'high_24h', 'range_diff_24h', 'range_pct_24h',
-            'low_52w', 'low_pct_52w', 'high_52w', 'high_pct_52', 'range_52w', 'range_pct_52w',
+            'low_52w', 'low_pct_52w', 'high_52w', 'high_pct_52w', 'range_52w', 'range_pct_52w',
             'entry_price', 'target_high', 'target_low',
             'target_hit_at', 'target_hit_price', 'target_hit_type',
             'weighted_average', 'instrument_count'

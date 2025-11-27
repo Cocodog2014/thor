@@ -101,7 +101,7 @@ class MarketOpenCaptureService:
             'high_52w': self.safe_decimal(ext.get('high_52w')),
             'range_52w': self.safe_decimal(ext.get('range_52w') or ext.get('week_52_range_high_low')),
             'range_pct_52w': self.safe_decimal(ext.get('range_pct_52w') or ext.get('week_52_range_percent')),
-            'high_pct_52': self.safe_decimal(ext.get('high_pct_52')),
+            'high_pct_52w': self.safe_decimal(ext.get('high_pct_52w') or ext.get('high_pct_52')),
             
             # Signal (individual future's signal from HBS)
             'bhs': (ext.get('signal') or '').upper() if ext.get('signal') else '',
@@ -142,7 +142,7 @@ class MarketOpenCaptureService:
         if whigh is not None:
             try:
                 if last_price:
-                    data['high_pct_52'] = ((whigh - last_price) / last_price) * Decimal('100')
+                    data['high_pct_52w'] = ((whigh - last_price) / last_price) * Decimal('100')
             except Exception:
                 pass
 

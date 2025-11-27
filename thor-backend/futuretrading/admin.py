@@ -162,8 +162,7 @@ class MarketSessionAdmin(admin.ModelAdmin):
             "low_52w",
             "low_pct_52w",
             "high_52w",
-            "high_pct_52",
-            "high_pct_52",
+            "high_pct_52w",
             "range_52w",
             "range_pct_52w",
         ),
@@ -229,6 +228,7 @@ class MarketSessionAdmin(admin.ModelAdmin):
             "low_52w",
             "low_pct_52w",
             "high_52w",
+            "high_pct_52w",
             "range_52w",
             "range_pct_52w",
             "volume",
@@ -285,7 +285,7 @@ class MarketSessionAdmin(admin.ModelAdmin):
         ('Range Data', {
             'fields': (
                 'low_24h', 'high_24h', 'range_diff_24h', 'range_pct_24h',
-                'low_52w', 'low_pct_52w', 'high_52w', 'high_pct_52', 'range_52w', 'range_pct_52w'
+                'low_52w', 'low_pct_52w', 'high_52w', 'high_pct_52w', 'range_52w', 'range_pct_52w'
             ),
             'classes': ('collapse',)
         }),

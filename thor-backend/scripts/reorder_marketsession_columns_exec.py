@@ -66,7 +66,7 @@ CREATE TABLE "FutureTrading_marketsession_new" (
     "low_52w" numeric(14, 4),
     "low_pct_52w" numeric(14, 4),
     "high_52w" numeric(14, 4),
-    "high_pct_52" numeric(14, 4),
+    "high_pct_52w" numeric(14, 4),
     "range_52w" numeric(14, 4),
     "range_pct_52w" numeric(14, 6),
     "weighted_average" numeric(14, 6),
@@ -103,7 +103,7 @@ SELECT
     market_close_percentage_high, market_close_percentage_low, market_close_vs_open_percentage,
     market_range_number, market_range_percentage, prev_close_24h, open_price_24h,
     open_prev_diff_24h, open_prev_pct_24h, low_24h, high_24h,
-    range_diff_24h, range_pct_24h, low_52w, low_pct_52w, high_52w, high_pct_52,
+    range_diff_24h, range_pct_24h, low_52w, low_pct_52w, high_52w, high_pct_52w,
     range_52w, range_pct_52w, weighted_average, instrument_count,
     strong_buy_worked, strong_buy_worked_percentage, strong_buy_didnt_work, strong_buy_didnt_work_percentage,
     buy_worked, buy_worked_percentage, buy_didnt_work, buy_didnt_work_percentage,
@@ -139,7 +139,7 @@ SELECT column_name, ordinal_position
 FROM information_schema.columns
 WHERE table_schema = 'public'
     AND table_name = 'FutureTrading_marketsession'
-    AND column_name IN ('low_52w', 'low_pct_52w', 'high_52w', 'high_pct_52', 'range_52w')
+    AND column_name IN ('low_52w', 'low_pct_52w', 'high_52w', 'high_pct_52w', 'range_52w')
 ORDER BY ordinal_position;
 """
 
