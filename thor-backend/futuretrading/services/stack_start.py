@@ -6,6 +6,8 @@ import sys
 import threading
 import time
 
+from django.core.management import call_command
+
 logger = logging.getLogger(__name__)
 
 
@@ -15,28 +17,23 @@ logger = logging.getLogger(__name__)
 def start_excel_poller_supervisor():
     """
     Supervisor wrapper for the existing TOS Excel poller.
-    Uses the Django management command: poll_tos_excel
+
+    Equivalent of repeatedly running:
+        python manage.py poll_tos_excel
+
+    Using Django's call_command so we don't care which app defines it.
     """
     logger.info("📄 Excel Poller Supervisor: starting...")
 
-    try:
-        # NOTE: poll_tos_excel lives in LiveData, not FutureTrading
-        from LiveData.management.commands.poll_tos_excel import Command
-
-        poller = Command()
-
-        while True:
-            try:
-                logger.info("🚀 Excel Poller: running...")
-                # This will block and poll Excel → Redis
-                poller.handle()
-                logger.debug("💓 [Excel Poller] alive")
-            except Exception:
-                logger.exception("❌ Excel Poller crashed — restarting in 3 seconds...")
-                time.sleep(3)
-
-    except Exception:
-        logger.exception("❌ Failed to initialize Excel Poller Supervisor")
+    while True:
+        try:
+            logger.info("🚀 Excel Poller: running via call_command('poll_tos_excel')...")
+            # This will block while the command's main loop runs
+            call_command("poll_tos_excel")
+            logger.debug("💓 [Excel Poller] exited normally, will restart...")
+        except Exception:
+            logger.exception("❌ Excel Poller crashed — restarting in 3 seconds...")
+            time.sleep(3)
 
 
 # =====================================================================
