@@ -66,23 +66,23 @@ class MarketHighMetricTests(TestCase):
         ym = MarketSession.objects.get(country="USA", future="YM", session_number=2)
         es = MarketSession.objects.get(country="USA", future="ES", session_number=2)
         self.assertEqual(ym.market_high_open, Decimal("101"))
-        self.assertEqual(ym.market_high_drawdown_pct, Decimal("0"))
+        self.assertEqual(ym.market_high_pct_open, Decimal("1"))
         self.assertEqual(es.market_high_open, Decimal("199"))
-        self.assertEqual(es.market_high_drawdown_pct, Decimal("0"))
+        self.assertEqual(es.market_high_pct_open, Decimal("0"))
 
-        # New high for YM resets pct, ES drawdown grows
+        # New high for YM updates pct, ES remains zero because high < open
         MarketHighMetric.update_from_quotes("USA", self._enriched(103, 198))
         ym.refresh_from_db(); es.refresh_from_db()
         self.assertEqual(ym.market_high_open, Decimal("103"))
-        self.assertEqual(ym.market_high_drawdown_pct, Decimal("0"))
-        # Drawdown for ES: (199-198)/199*100 ≈ 0.5025
-        self.assertTrue(es.market_high_drawdown_pct > Decimal("0"))
+        self.assertEqual(ym.market_high_pct_open, Decimal("3"))  # (103-100)/100*100
+        self.assertEqual(es.market_high_open, Decimal("199"))
+        self.assertEqual(es.market_high_pct_open, Decimal("0"))
 
-        # Below high for YM computes drawdown
+        # Below high for YM keeps peak percentage intact
         MarketHighMetric.update_from_quotes("USA", self._enriched(102, 197))
         ym.refresh_from_db()
         self.assertEqual(ym.market_high_open, Decimal("103"))  # unchanged
-        self.assertTrue(ym.market_high_drawdown_pct > Decimal("0"))
+        self.assertEqual(ym.market_high_pct_open, Decimal("3"))
 
     def test_high_metric_updates_total_composite(self):
         """TOTAL rows track highs separately from individual futures."""
@@ -91,7 +91,7 @@ class MarketHighMetricTests(TestCase):
         MarketHighMetric.update_from_quotes("USA", enriched)
         total = MarketSession.objects.get(country="USA", future="TOTAL", session_number=3)
         self.assertEqual(total.market_high_open, Decimal("155"))
-        self.assertEqual(total.market_high_drawdown_pct, Decimal("0"))
+        self.assertEqual(total.market_high_pct_open, Decimal("3.3333"))
 
 
 class MarketLowMetricTests(TestCase):
@@ -170,8 +170,8 @@ class MarketCloseAndRangeMetricTests(TestCase):
         self.assertTrue(Decimal("7.0706") < ym.market_low_pct_close < Decimal("7.0708"))
         self.assertTrue(Decimal("6.5656") < es.market_low_pct_close < Decimal("6.5658"))
         # Close vs open percentage stored separately
-        self.assertEqual(ym.market_close_vs_open_percentage, Decimal("6"))  # (106-100)/100*100
-        self.assertEqual(es.market_close_vs_open_percentage, Decimal("5.5"))  # (211-200)/200*100
+        self.assertEqual(ym.market_close_vs_open_pct, Decimal("6"))  # (106-100)/100*100
+        self.assertEqual(es.market_close_vs_open_pct, Decimal("5.5"))  # (211-200)/200*100
 
     def test_range_metric(self):
         # First run close metric so highs/lows considered final
@@ -179,10 +179,10 @@ class MarketCloseAndRangeMetricTests(TestCase):
         MarketRangeMetric.update_for_country_on_close("USA")
         ym = MarketSession.objects.get(country="USA", future="YM", session_number=4)
         es = MarketSession.objects.get(country="USA", future="ES", session_number=4)
-        self.assertEqual(ym.market_range, Decimal("105") - Decimal("99"))
+        self.assertEqual(ym.market_range, Decimal("106") - Decimal("99"))
         self.assertEqual(es.market_range, Decimal("212") - Decimal("198"))
         # Range percentage = range / open * 100
-        self.assertEqual(ym.market_range_pct, (Decimal("105") - Decimal("99")) / Decimal("100") * Decimal("100"))
+        self.assertEqual(ym.market_range_pct, (Decimal("106") - Decimal("99")) / Decimal("100") * Decimal("100"))
         self.assertEqual(es.market_range_pct, (Decimal("212") - Decimal("198")) / Decimal("200") * Decimal("100"))
 
     def test_close_and_range_for_total_composite(self):
@@ -197,7 +197,7 @@ class MarketCloseAndRangeMetricTests(TestCase):
         self.assertEqual(total.market_high_pct_close, Decimal("3.1250"))
         self.assertTrue(Decimal("6.8965") < total.market_low_pct_close < Decimal("6.8967"))
         # (155-150)/150*100 = 3.333...
-        self.assertTrue(Decimal("3.33") < total.market_close_vs_open_percentage < Decimal("3.34"))
+        self.assertTrue(Decimal("3.33") < total.market_close_vs_open_pct < Decimal("3.34"))
         self.assertEqual(total.market_range, Decimal("15"))  # 160-145
         self.assertEqual(total.market_range_pct, Decimal("10"))  # 15/150*100
 
@@ -252,9 +252,9 @@ class MarketMetricEdgeCaseTests(TestCase):
         self.assertEqual(nq.market_high_pct_close, Decimal("0"))
         self.assertEqual(nq.market_low_pct_close, Decimal("0"))
         # Close vs open still computed when open present
-        self.assertTrue(Decimal("0.66") < ym.market_close_vs_open_percentage < Decimal("0.67"))
-        self.assertTrue(Decimal("0.39") < es.market_close_vs_open_percentage < Decimal("0.41"))
-        self.assertEqual(nq.market_close_vs_open_percentage, Decimal("0"))
+        self.assertTrue(Decimal("0.66") < ym.market_close_vs_open_pct < Decimal("0.67"))
+        self.assertTrue(Decimal("0.39") < es.market_close_vs_open_pct < Decimal("0.41"))
+        self.assertEqual(nq.market_close_vs_open_pct, Decimal("0"))
 
     def test_range_metric_skips_when_missing_high_or_low(self):
         # Missing low

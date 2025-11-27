@@ -25,13 +25,13 @@ interface MarketOpenSession {
   vwap?: string | null;
   market_open?: string | null;
   market_high_open?: string | null;
-  market_high_drawdown_pct?: string | null;
+  market_high_pct_open?: string | null;
   market_low_open?: string | null;
   market_low_pct_open?: string | null;
   market_close?: string | null;
   market_high_pct_close?: string | null;
   market_low_pct_close?: string | null;
-  market_close_vs_open_percentage?: string | null;
+  market_close_vs_open_pct?: string | null;
   market_range?: string | null;
   market_range_pct?: string | null;
   spread?: string | null;
@@ -320,10 +320,10 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl }) => {
           const totalInstrumentCount = snap?.instrument_count ?? 11;
           const totalCapture = snap?.captured_at ? new Date(snap.captured_at).toLocaleTimeString() : "—";
           const closeDeltaValue = formatSignedValue(snap?.market_close);
-          const closeDeltaPercent = formatPercentValue(snap?.market_close_vs_open_percentage);
+          const closeDeltaPercent = formatPercentValue(snap?.market_close_vs_open_pct);
           const closeDeltaClass = getDeltaClass(
             snap?.market_close
-              ?? snap?.market_close_vs_open_percentage
+              ?? snap?.market_close_vs_open_pct
               ?? snap?.market_high_pct_close
               ?? snap?.market_low_pct_close
           );
@@ -337,8 +337,8 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl }) => {
             {
               label: "High Δ",
               primary: formatSignedValue(snap?.market_high_open),
-              secondary: formatPercentValue(snap?.market_high_drawdown_pct),
-              className: getDeltaClass(snap?.market_high_open ?? snap?.market_high_drawdown_pct),
+              secondary: formatPercentValue(snap?.market_high_pct_open),
+              className: getDeltaClass(snap?.market_high_open ?? snap?.market_high_pct_open),
             },
             {
               label: "Low Δ",
@@ -432,7 +432,7 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl }) => {
                         </div>
                         <div className={`pct ${closeDeltaClass}`}>
                             {closeDeltaPercent
-                              ?? (isZero(snap?.market_close_vs_open_percentage) ? "0%" : "—")}
+                              ?? (isZero(snap?.market_close_vs_open_pct) ? "0%" : "—")}
                         </div>
                         <div className="label">Close Δ</div>
                       </div>

@@ -903,18 +903,18 @@ Thor maintains two continuously updating intraday extrema metrics per `(country,
 | Field | Meaning | Update Condition | Percentage Formula |
 |-------|---------|------------------|--------------------|
 | `market_high_open` | Highest `last_price` seen so far in the current session | New tick above prior high | — (stores raw price) |
-| `market_high_drawdown_pct` | Percent drawdown from current intraday high | Tick below the stored high | `(high - last_price) / high * 100` |
+| `market_high_pct_open` | Percent move from market open up to the intraday high | New tick above the stored high | `(high - open) / open * 100` |
 | `market_low_open` | Lowest `last_price` seen so far in the current session | New tick below prior low | — (stores raw price) |
 | `market_low_pct_open` | Percent run-up from current intraday low | Tick above the stored low | `(last_price - low) / low * 100` |
 
 Key characteristics:
-- Both percentages are exactly `0.0000` at the moment a new high/low is set (we reset on new extrema).
-- They remain zero until price moves away from the extreme in the corresponding direction (down from the high, up from the low).
+- `market_high_pct_open` is `0.0000` at the open and updates ONLY when a new higher high is set (it represents peak move versus the open price; it does **not** fall back when price retraces).
+- `market_low_pct_open` is `0.0000` at the open and updates when price trades above the recorded low (run-up from the trough).
 - Percentages are quantized to FOUR decimal places in the update functions and stored with `decimal_places=4` (migration `0062_alter_percentage_precision`).
 - If `market_open` is not yet set or `last_price` is missing, the metric update for that future is skipped defensively.
 
 Zero percentage diagnostics:
-- High stays `0.0000`: price has either not fallen below the recorded high or a new higher high keeps resetting the drawdown.
+- High stays `0.0000`: market has not printed a value above the open yet.
 - Low stays `0.0000`: price has not traded above the recorded low, or successive lower lows keep resetting run-up to zero.
 
 Supervisor integration changes (recent):
@@ -922,7 +922,7 @@ Supervisor integration changes (recent):
 - Diagnostic debug logs (`[DIAG High]`, `[DIAG Low]`) were temporarily added in `FutureTrading/services/market_metrics.py` to trace skip reasons and formula application; remove or downgrade once stable.
 
 Precision change summary:
-- Previous schema stored percentages with `decimal_places=6`; now `decimal_places=4` for: `market_high_drawdown_pct`, `market_low_pct_open`, `market_high_pct_close`, `market_low_pct_close`, `market_range_pct`, `range_percent`, `range_pct_52w`.
+- Previous schema stored percentages with `decimal_places=6`; now `decimal_places=4` for: `market_high_pct_open`, `market_low_pct_open`, `market_high_pct_close`, `market_low_pct_close`, `market_range_pct`, `range_percent`, `range_pct_52w`.
 - Runtime quantization enforces four decimals BEFORE saving to avoid unnecessary rounding drift.
 
 Operational guidance:
@@ -932,10 +932,10 @@ Operational guidance:
 
 Example progression (high side):
 ```
-Tick1 last=6719.50 → market_high_open=6719.50, market_high_drawdown_pct=0.0000
-Tick2 last=6719.25 → drawdown=(6719.50-6719.25)=0.25; pct=0.25/6719.50*100=0.0037
-Tick3 last=6720.00 → NEW HIGH resets: market_high_open=6720.00, market_high_drawdown_pct=0.0000
-```
+Tick1 last=6719.50 → market_high_open=6719.50, market_high_pct_open=0.0000
+Tick2 last=6719.25 → no new high, percent stays 0.0000 (still equal to open)
+Tick3 last=6720.00 → NEW HIGH: market_high_open=6720.00, market_high_pct_open=(6720.00-6719.50)/6719.50*100=0.0074
+``` 
 
 Example progression (low side):
 ```

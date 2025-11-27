@@ -18,6 +18,6 @@ print('Updates High:', upd_h, 'Low:', upd_l, 'Session:', latest)
 if latest:
     s = MarketSession.objects.filter(country=country, session_number=latest, future='YM').first()
     if s:
-        print('YM post-update: high_num', s.market_high_open, 'high_pct', s.market_high_drawdown_pct, 'low_num', s.market_low_open, 'low_pct', s.market_low_pct_open)
+        print('YM post-update: high_num', s.market_high_open, 'high_pct', s.market_high_pct_open, 'low_num', s.market_low_open, 'low_pct', s.market_low_pct_open)
     else:
         print('No YM session row found.')

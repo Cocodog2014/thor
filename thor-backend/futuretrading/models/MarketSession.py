@@ -211,12 +211,12 @@ class MarketSession(models.Model):
         blank=True,
         help_text="High move from open (number)",
     )
-    market_high_drawdown_pct = models.DecimalField(
+    market_high_pct_open = models.DecimalField(
         max_digits=14,
         decimal_places=4,
         null=True,
         blank=True,
-        help_text="Percent drawdown from the session high",
+        help_text="High move from open (percent)",
     )
     market_low_open = models.DecimalField(
         max_digits=14,
@@ -253,7 +253,7 @@ class MarketSession(models.Model):
         blank=True,
         help_text="Percent distance above intraday low",
     )
-    market_close_vs_open_percentage = models.DecimalField(
+    market_close_vs_open_pct = models.DecimalField(
         max_digits=14,
         decimal_places=4,
         null=True,
