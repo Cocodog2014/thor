@@ -343,7 +343,7 @@ class MarketSession(models.Model):
         blank=True,
         help_text="52-week low",
     )
-    low_pct_52 = models.DecimalField(
+    low_pct_52w = models.DecimalField(
         max_digits=14,
         decimal_places=4,
         null=True,

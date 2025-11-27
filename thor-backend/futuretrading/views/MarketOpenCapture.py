@@ -97,7 +97,7 @@ class MarketOpenCaptureService:
             'range_diff_24h': self.safe_decimal(row.get('range_diff')),
             'range_pct_24h': self.safe_decimal(row.get('range_pct')),
             'low_52w': self.safe_decimal(ext.get('low_52w')),
-            'low_pct_52': self.safe_decimal(ext.get('low_pct_52')),
+            'low_pct_52w': self.safe_decimal(ext.get('low_pct_52w') or ext.get('low_pct_52')),
             'high_52w': self.safe_decimal(ext.get('high_52w')),
             'high_pct_52': self.safe_decimal(ext.get('high_pct_52')),
             
@@ -133,7 +133,7 @@ class MarketOpenCaptureService:
             try:
                 if last_price:
                     # Percent distance from current price down to the 52w low
-                    data['low_pct_52'] = ((last_price - wlow) / last_price) * Decimal('100')
+                    data['low_pct_52w'] = ((last_price - wlow) / last_price) * Decimal('100')
             except Exception:
                 pass
 
