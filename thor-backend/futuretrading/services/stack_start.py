@@ -18,17 +18,17 @@ def start_excel_poller_supervisor():
     """
     Supervisor wrapper for the existing TOS Excel poller.
 
-    Equivalent of repeatedly running:
+    Equivalent of:
         python manage.py poll_tos_excel
 
-    Using Django's call_command so we don't care which app defines it.
+    Uses Django's call_command so we don't care which app defines it.
     """
     logger.info("📄 Excel Poller Supervisor: starting...")
 
     while True:
         try:
             logger.info("🚀 Excel Poller: running via call_command('poll_tos_excel')...")
-            # This will block while the command's main loop runs
+            # This blocks while the command's poll loop runs
             call_command("poll_tos_excel")
             logger.debug("💓 [Excel Poller] exited normally, will restart...")
         except Exception:
@@ -42,21 +42,21 @@ def start_excel_poller_supervisor():
 def start_market_open_grader_supervisor():
     """
     Supervisor wrapper for the existing Market Open Grader command.
+
     Normally run via:
         python manage.py start_market_grader --interval 0.5
-
-    We simulate that call and auto-restart on crash.
     """
     logger.info("📊 Market Open Grader Supervisor: starting...")
 
     try:
         from FutureTrading.management.commands.start_market_grader import Command
+
         grader = Command()
 
         while True:
             try:
                 logger.info("🚀 Market Open Grader: running...")
-                # Provide interval, since the command expects options['interval']
+                # Provide interval explicitly; the command expects options['interval']
                 grader.handle(interval=0.5)
                 logger.debug("💓 [Market Open Grader] alive")
             except Exception:
@@ -68,28 +68,34 @@ def start_market_open_grader_supervisor():
 
 
 # =====================================================================
-#  INTRADAY SUPERVISOR
-# =====================================================================
-    
-# =====================================================================
 #  MARKET OPEN CAPTURE SUPERVISOR
 # =====================================================================
 def start_market_open_capture_supervisor_wrapper():
     """
     Supervisor wrapper for the Market Open Capture logic.
-    Auto-restarts and paces itself using returned sleep intervals.
+
+    Expects:
+        FutureTrading.services.MarketOpenCapture.check_for_market_opens_and_capture()
+
+    That function should:
+      - Run one capture/evaluation cycle
+      - Return a sleep interval in seconds before next check
     """
     logger.info("🌎 Market Open Capture Supervisor: starting...")
 
     try:
-        from FutureTrading.services.MarketOpenCapture import check_for_market_opens_and_capture
+        from FutureTrading.services.MarketOpenCapture import (
+            check_for_market_opens_and_capture,
+        )
 
         while True:
             try:
                 interval = check_for_market_opens_and_capture()
                 logger.debug("💓 [Market Open Capture] waiting for next open...")
             except Exception:
-                logger.exception("❌ Market Open Capture crashed — restarting in 5 seconds...")
+                logger.exception(
+                    "❌ Market Open Capture crashed — restarting in 5 seconds..."
+                )
                 interval = 5
             time.sleep(interval)
 
@@ -98,18 +104,63 @@ def start_market_open_capture_supervisor_wrapper():
 
 
 # =====================================================================
-#  MASTER STACK — starts ALL supervisors (Excel, Grader, Capture)
+#  52-WEEK EXTREMES SUPERVISOR (folded into stack)
+# =====================================================================
+def start_52w_supervisor_wrapper():
+    """
+    Wrapper for the 52-week extremes supervisor.
+
+    The underlying module already manages its own internal supervisor thread
+    and has guards against duplicate starts, so we just call it once.
+    """
+    logger.info("📈 52-week supervisor (stack) starting...")
+
+    try:
+        from FutureTrading.services.Week52Superviror import start_52w_monitor_supervisor
+
+        start_52w_monitor_supervisor()
+        logger.info("📈 52-week supervisor started from stack.")
+    except Exception:
+        logger.exception("❌ Failed to start 52-week supervisor from stack")
+
+
+# =====================================================================
+#  PRE-OPEN BACKTEST SUPERVISOR (folded into stack)
+# =====================================================================
+def start_preopen_backtest_supervisor_wrapper():
+    """
+    Wrapper for the Pre-open Backtest supervisor.
+
+    As with 52w, the underlying module manages its own loop and state,
+    so we just invoke its start function once.
+    """
+    logger.info("⏰ Pre-open backtest supervisor (stack) starting...")
+
+    try:
+        from FutureTrading.services.PreOpenBacktestSupervisor import (
+            start_preopen_backtest_supervisor,
+        )
+
+        start_preopen_backtest_supervisor()
+        logger.info("⏰ Pre-open backtest supervisor started from stack.")
+    except Exception:
+        logger.exception("❌ Failed to start Pre-open backtest supervisor from stack")
+
+
+# =====================================================================
+#  MASTER STACK — starts ALL supervisors
 # =====================================================================
 def start_thor_background_stack():
     """
     Safely starts all background supervisors for Thor.
-    Prevents:
-        • Multiple launches (autoreload duplicates)
-        • Starting during migrations / admin commands
-        • Starting outside Django runserver main thread
+
+    Protects against:
+      • Multiple launches (autoreload duplicates)
+      • Running during management commands like migrate/test
+      • Running in the wrong (non-main) runserver process
     """
 
-    # Prevent duplicate startup
+    # Prevent duplicate startup in the same process
     if getattr(start_thor_background_stack, "_started", False):
         logger.info("🟡 Thor background stack already started — skipping.")
         return
@@ -128,12 +179,12 @@ def start_thor_background_stack():
             logger.info("⏭️ Skipping Thor stack during management command.")
             return
 
-    # Skip duplicate startup from Django's autoreload parent process
+    # Avoid launching from Django's autoreload parent
     if os.environ.get("RUN_MAIN") != "true":
         logger.info("⏭️ Not main thread — skipping background tasks.")
         return
 
-    # Mark stack as started
+    # Mark as started for this process
     start_thor_background_stack._started = True
 
     logger.info("🚀 Starting Thor Background Stack now...")
@@ -179,6 +230,34 @@ def start_thor_background_stack():
         logger.info("🌎 Market Open Capture Supervisor started.")
     except Exception:
         logger.exception("❌ Failed to start Market Open Capture Supervisor")
+
+    # ----------------------------------------
+    # 4. 52-WEEK EXTREMES SUPERVISOR
+    # ----------------------------------------
+    try:
+        t4 = threading.Thread(
+            target=start_52w_supervisor_wrapper,
+            name="Week52Supervisor",
+            daemon=True,
+        )
+        t4.start()
+        logger.info("📈 52-week Supervisor thread started.")
+    except Exception:
+        logger.exception("❌ Failed to start 52-week Supervisor thread")
+
+    # ----------------------------------------
+    # 5. PRE-OPEN BACKTEST SUPERVISOR
+    # ----------------------------------------
+    try:
+        t5 = threading.Thread(
+            target=start_preopen_backtest_supervisor_wrapper,
+            name="PreOpenBacktestSupervisor",
+            daemon=True,
+        )
+        t5.start()
+        logger.info("⏰ Pre-open Backtest Supervisor thread started.")
+    except Exception:
+        logger.exception("❌ Failed to start Pre-open Backtest Supervisor thread")
 
     logger.info("🚀 Thor Background Stack initialized.")
 
