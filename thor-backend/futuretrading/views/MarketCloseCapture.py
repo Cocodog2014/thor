@@ -43,11 +43,11 @@ class MarketCloseCaptureView(APIView):
         if latest_session is None:
             return Response({"error": f"No sessions found for country '{country}'"}, status=status.HTTP_404_NOT_FOUND)
 
-        # Idempotency check: if any row has market_close_number set, assume closed
+        # Idempotency check: if any row has market_close set, assume closed
         already_closed = MarketSession.objects.filter(
             country=country,
             session_number=latest_session,
-            market_close_number__isnull=False,
+            market_close__isnull=False,
         ).exists()
         if already_closed and not force:
             return Response(

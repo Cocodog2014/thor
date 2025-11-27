@@ -902,10 +902,10 @@ Thor maintains two continuously updating intraday extrema metrics per `(country,
 
 | Field | Meaning | Update Condition | Percentage Formula |
 |-------|---------|------------------|--------------------|
-| `market_high_number` | Highest `last_price` seen so far in the current session | New tick above prior high | — (stores raw price) |
-| `market_high_percentage` | Percent drawdown from current intraday high | Tick below the stored high | `(high - last_price) / high * 100` |
-| `market_low_number` | Lowest `last_price` seen so far in the current session | New tick below prior low | — (stores raw price) |
-| `market_low_percentage` | Percent run-up from current intraday low | Tick above the stored low | `(last_price - low) / low * 100` |
+| `market_high_open` | Highest `last_price` seen so far in the current session | New tick above prior high | — (stores raw price) |
+| `market_high_pct_open` | Percent drawdown from current intraday high | Tick below the stored high | `(high - last_price) / high * 100` |
+| `market_low_open` | Lowest `last_price` seen so far in the current session | New tick below prior low | — (stores raw price) |
+| `market_low_pct_open` | Percent run-up from current intraday low | Tick above the stored low | `(last_price - low) / low * 100` |
 
 Key characteristics:
 - Both percentages are exactly `0.0000` at the moment a new high/low is set (we reset on new extrema).
@@ -922,7 +922,7 @@ Supervisor integration changes (recent):
 - Diagnostic debug logs (`[DIAG High]`, `[DIAG Low]`) were temporarily added in `FutureTrading/services/market_metrics.py` to trace skip reasons and formula application; remove or downgrade once stable.
 
 Precision change summary:
-- Previous schema stored percentages with `decimal_places=6`; now `decimal_places=4` for: `market_high_percentage`, `market_low_percentage`, `market_close_percentage_high`, `market_close_percentage_low`, `market_range_percentage`, `range_percent`, `range_pct_52w`.
+- Previous schema stored percentages with `decimal_places=6`; now `decimal_places=4` for: `market_high_pct_open`, `market_low_pct_open`, `market_high_pct_close`, `market_low_pct_close`, `market_range_pct`, `range_percent`, `range_pct_52w`.
 - Runtime quantization enforces four decimals BEFORE saving to avoid unnecessary rounding drift.
 
 Operational guidance:
@@ -932,16 +932,16 @@ Operational guidance:
 
 Example progression (high side):
 ```
-Tick1 last=6719.50 → market_high_number=6719.50, market_high_percentage=0.0000
+Tick1 last=6719.50 → market_high_open=6719.50, market_high_pct_open=0.0000
 Tick2 last=6719.25 → drawdown=(6719.50-6719.25)=0.25; pct=0.25/6719.50*100=0.0037
-Tick3 last=6720.00 → NEW HIGH resets: market_high_number=6720.00, market_high_percentage=0.0000
+Tick3 last=6720.00 → NEW HIGH resets: market_high_open=6720.00, market_high_pct_open=0.0000
 ```
 
 Example progression (low side):
 ```
-Tick1 last=6719.50 → market_low_number=6719.50, market_low_percentage=0.0000
+Tick1 last=6719.50 → market_low_open=6719.50, market_low_pct_open=0.0000
 Tick2 last=6719.75 → runup=(6719.75-6719.50)=0.25; pct=0.25/6719.50*100=0.0037
-Tick3 last=6719.10 → NEW LOWER LOW resets: market_low_number=6719.10, market_low_percentage=0.0000
+Tick3 last=6719.10 → NEW LOWER LOW resets: market_low_open=6719.10, market_low_pct_open=0.0000
 ```
 
 Planned future adjustments:
@@ -961,7 +961,7 @@ GET /api/future-trading/market-close/capture?country=United%20States&force=1  # 
 
 Behavior:
 1. Locates latest `session_number` for the country.
-2. Skips if `market_close_number` already populated (unless `force=1`).
+2. Skips if `market_close` already populated (unless `force=1`).
 3. Fetches a fresh enriched quote snapshot.
 4. Runs:
   - `MarketCloseMetric.update_for_country_on_close(country, enriched)`

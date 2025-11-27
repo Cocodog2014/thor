@@ -24,16 +24,16 @@ interface MarketOpenSession {
   volume?: number | null;
   vwap?: string | null;
   market_open?: string | null;
-  market_high_number?: string | null;
-  market_high_percentage?: string | null;
-  market_low_number?: string | null;
-  market_low_percentage?: string | null;
-  market_close_number?: string | null;
-  market_close_percentage_high?: string | null;
-  market_close_percentage_low?: string | null;
+  market_high_open?: string | null;
+  market_high_pct_open?: string | null;
+  market_low_open?: string | null;
+  market_low_pct_open?: string | null;
+  market_close?: string | null;
+  market_high_pct_close?: string | null;
+  market_low_pct_close?: string | null;
   market_close_vs_open_percentage?: string | null;
-  market_range_number?: string | null;
-  market_range_percentage?: string | null;
+  market_range?: string | null;
+  market_range_pct?: string | null;
   spread?: string | null;
   prev_close_24h?: string | null;
   open_price_24h?: string | null;
@@ -319,13 +319,13 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl }) => {
           const totalSumValue = formatNum(totalSumRaw) ?? (isZero(totalSumRaw) ? 0 : "—");
           const totalInstrumentCount = snap?.instrument_count ?? 11;
           const totalCapture = snap?.captured_at ? new Date(snap.captured_at).toLocaleTimeString() : "—";
-          const closeDeltaValue = formatSignedValue(snap?.market_close_number);
+          const closeDeltaValue = formatSignedValue(snap?.market_close);
           const closeDeltaPercent = formatPercentValue(snap?.market_close_vs_open_percentage);
           const closeDeltaClass = getDeltaClass(
-            snap?.market_close_number
+            snap?.market_close
               ?? snap?.market_close_vs_open_percentage
-              ?? snap?.market_close_percentage_high
-              ?? snap?.market_close_percentage_low
+              ?? snap?.market_high_pct_close
+              ?? snap?.market_low_pct_close
           );
           const marketDeltaMetrics = [
             {
@@ -336,21 +336,21 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl }) => {
             },
             {
               label: "High Δ",
-              primary: formatSignedValue(snap?.market_high_number),
-              secondary: formatPercentValue(snap?.market_high_percentage),
-              className: getDeltaClass(snap?.market_high_number ?? snap?.market_high_percentage),
+              primary: formatSignedValue(snap?.market_high_open),
+              secondary: formatPercentValue(snap?.market_high_pct_open),
+              className: getDeltaClass(snap?.market_high_open ?? snap?.market_high_pct_open),
             },
             {
               label: "Low Δ",
-              primary: formatSignedValue(snap?.market_low_number),
-              secondary: formatPercentValue(snap?.market_low_percentage),
-              className: getDeltaClass(snap?.market_low_number ?? snap?.market_low_percentage),
+              primary: formatSignedValue(snap?.market_low_open),
+              secondary: formatPercentValue(snap?.market_low_pct_open),
+              className: getDeltaClass(snap?.market_low_open ?? snap?.market_low_pct_open),
             },
             {
               label: "Range Δ",
-              primary: formatSignedValue(snap?.market_range_number),
-              secondary: formatPercentValue(snap?.market_range_percentage),
-              className: getDeltaClass(snap?.market_range_number ?? snap?.market_range_percentage),
+              primary: formatSignedValue(snap?.market_range),
+              secondary: formatPercentValue(snap?.market_range_pct),
+              className: getDeltaClass(snap?.market_range ?? snap?.market_range_pct),
             },
           ];
           const hasDeltaData = marketDeltaMetrics.some(metric => metric.primary || metric.secondary);
@@ -428,7 +428,7 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl }) => {
                       </div>
                       <div className="mo-rt-change">
                         <div className={`val ${closeDeltaClass}`}>
-                          {closeDeltaValue ?? (isZero(snap?.market_close_number) ? "0" : "—")}
+                          {closeDeltaValue ?? (isZero(snap?.market_close) ? "0" : "—")}
                         </div>
                         <div className={`pct ${closeDeltaClass}`}>
                             {closeDeltaPercent
