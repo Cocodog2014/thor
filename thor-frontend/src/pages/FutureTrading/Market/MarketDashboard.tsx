@@ -35,8 +35,10 @@ interface MarketOpenSession {
   market_range_number?: string | null;
   market_range_percentage?: string | null;
   spread?: string | null;
-  session_close?: string | null;
-  session_open?: string | null;
+  prev_close_24h?: string | null;
+  open_price_24h?: string | null;
+  open_prev_diff_24h?: string | null;
+  open_prev_pct_24h?: string | null;
   day_24h_low?: string | null;
   day_24h_high?: string | null;
   range_high_low?: string | null;
@@ -495,12 +497,12 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl }) => {
                       <div className="stat-value">{formatNum(snap?.vwap) ?? (isZero(snap?.vwap) ? 0 : "—")}</div>
                     </div>
                     <div className="stat">
-                      <div className="stat-label">Close</div>
-                      <div className="stat-value">{formatNum(snap?.session_close) ?? (isZero(snap?.session_close) ? 0 : "—")}</div>
+                      <div className="stat-label">Prev Close (24h)</div>
+                      <div className="stat-value">{formatNum(snap?.prev_close_24h) ?? (isZero(snap?.prev_close_24h) ? 0 : "—")}</div>
                     </div>
                     <div className="stat">
-                      <div className="stat-label">Open</div>
-                      <div className="stat-value">{formatNum(snap?.session_open) ?? (isZero(snap?.session_open) ? 0 : "—")}</div>
+                      <div className="stat-label">Open (24h)</div>
+                      <div className="stat-value">{formatNum(snap?.open_price_24h) ?? (isZero(snap?.open_price_24h) ? 0 : "—")}</div>
                     </div>
                     <div className="stat">
                       <div className="stat-label">24h Low</div>
