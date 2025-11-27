@@ -151,10 +151,10 @@ class MarketSessionAdmin(admin.ModelAdmin):
             "captured_at",
             "country",
             "future",
-            "session_open",
-            "session_close",
-            "open_vs_prev_number",
-            "open_vs_prev_percent",
+            "open_price_24h",
+            "prev_close_24h",
+            "open_prev_diff_24h",
+            "open_prev_pct_24h",
             "day_24h_low",
             "day_24h_high",
             "range_high_low",
@@ -215,10 +215,10 @@ class MarketSessionAdmin(admin.ModelAdmin):
             "market_close_vs_open_percentage",
             "market_range_number",
             "market_range_percentage",
-            "session_open",
-            "session_close",
-            "open_vs_prev_number",
-            "open_vs_prev_percent",
+            "prev_close_24h",
+            "open_price_24h",
+            "open_prev_diff_24h",
+            "open_prev_pct_24h",
             "day_24h_low",
             "day_24h_high",
             "range_high_low",
@@ -266,7 +266,7 @@ class MarketSessionAdmin(admin.ModelAdmin):
                       'bid_price', 'bid_size', 'volume', 'vwap', 'spread')
         }),
         ('Session Price Data', {
-            'fields': ('session_close', 'session_open', 'open_vs_prev_number', 'open_vs_prev_percent')
+            'fields': ('prev_close_24h', 'open_price_24h', 'open_prev_diff_24h', 'open_prev_pct_24h')
         }),
         ('Range Data', {
             'fields': ('day_24h_low', 'day_24h_high', 'range_high_low', 'range_percent',

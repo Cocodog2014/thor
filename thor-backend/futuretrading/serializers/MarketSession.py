@@ -1,7 +1,4 @@
-"""
-Market Open Serializers for API responses
-Single-table design: each session row represents one future
-"""
+"""Serializers for MarketSession with renamed 24h fields."""
 
 from rest_framework import serializers
 from FutureTrading.models.MarketSession import MarketSession
@@ -34,7 +31,6 @@ class MarketSessionListSerializer(MarketSessionBaseSerializer):
             'market_close_number', 'market_close_percentage_high', 'market_close_percentage_low', 'market_close_vs_open_percentage',
             'market_range_number', 'market_range_percentage',
             'entry_price', 'target_high', 'target_low',
-            # NEW: target hit tracking
             'target_hit_at', 'target_hit_price', 'target_hit_type',
         ]
 
@@ -61,17 +57,15 @@ class MarketSessionDetailSerializer(MarketSessionBaseSerializer):
             'market_close_number', 'market_close_percentage_high', 'market_close_percentage_low', 'market_close_vs_open_percentage',
             'market_range_number', 'market_range_percentage',
             'spread',
-            'session_close', 'session_open', 'open_vs_prev_number', 'open_vs_prev_percent',
+            'prev_close_24h', 'open_price_24h', 'open_prev_diff_24h', 'open_prev_pct_24h',
             'day_24h_low', 'day_24h_high', 'range_high_low', 'range_percent',
             'week_52_low', 'week_52_high', 'week_52_range_high_low', 'week_52_range_percent',
             'entry_price', 'target_high', 'target_low',
-            # NEW: target hit tracking
             'target_hit_at', 'target_hit_price', 'target_hit_type',
             'weighted_average', 'instrument_count'
         ]
 
 
-# Backwards compatibility aliases
 MarketOpenSessionListSerializer = MarketSessionListSerializer
 MarketOpenSessionDetailSerializer = MarketSessionDetailSerializer
 

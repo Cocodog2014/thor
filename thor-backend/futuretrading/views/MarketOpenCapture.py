@@ -85,11 +85,11 @@ class MarketOpenCaptureService:
             'vwap': self.safe_decimal(row.get('vwap')),
             'spread': self.safe_decimal(row.get('spread')),
             
-            # Session price data
-            'session_open': self.safe_decimal(row.get('open_price')),
-            'session_close': self.safe_decimal(row.get('close_price') or row.get('previous_close')),
-            'open_vs_prev_number': self.safe_decimal(row.get('open_prev_diff')),
-            'open_vs_prev_percent': self.safe_decimal(row.get('open_prev_pct')),
+            # 24h price data (renamed)
+            'open_price_24h': self.safe_decimal(row.get('open_price')),
+            'prev_close_24h': self.safe_decimal(row.get('close_price') or row.get('previous_close')),
+            'open_prev_diff_24h': self.safe_decimal(row.get('open_prev_diff')),
+            'open_prev_pct_24h': self.safe_decimal(row.get('open_prev_pct')),
             
             # Range data
             'day_24h_low': self.safe_decimal(row.get('low_price')),

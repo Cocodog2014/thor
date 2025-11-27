@@ -274,33 +274,37 @@ class MarketSession(models.Model):
         blank=True,
         help_text="Intraday range (percent)",
     )
-    session_close = models.DecimalField(
+    # Renamed from session_close -> prev_close_24h
+    prev_close_24h = models.DecimalField(
         max_digits=14,
         decimal_places=4,
         null=True,
         blank=True,
-        help_text="Previous close price",
+        help_text="Previous 24h close price",
     )
-    session_open = models.DecimalField(
+    # Renamed from session_open -> open_price_24h
+    open_price_24h = models.DecimalField(
         max_digits=14,
         decimal_places=4,
         null=True,
         blank=True,
-        help_text="Open price",
+        help_text="Current 24h open price",
     )
-    open_vs_prev_number = models.DecimalField(
+    # Renamed from open_vs_prev_number -> open_prev_diff_24h
+    open_prev_diff_24h = models.DecimalField(
         max_digits=14,
         decimal_places=4,
         null=True,
         blank=True,
-        help_text="Open vs Prev (Number)",
+        help_text="24h Open − Prev 24h Close (number)",
     )
-    open_vs_prev_percent = models.DecimalField(
+    # Renamed from open_vs_prev_percent -> open_prev_pct_24h
+    open_prev_pct_24h = models.DecimalField(
         max_digits=14,
         decimal_places=4,
         null=True,
         blank=True,
-        help_text="Open vs Prev (%)",
+        help_text="24h Open − Prev 24h Close (%)",
     )
     day_24h_low = models.DecimalField(
         max_digits=14,
@@ -509,6 +513,8 @@ class MarketSession(models.Model):
 
     def __str__(self):
         return f"{self.country} - {self.future} - {self.year}/{self.month}/{self.date} - {self.bhs}"
+
+    # Legacy attribute names removed (use new 24h field names directly)
 
 
 __all__ = ['MarketSession']
