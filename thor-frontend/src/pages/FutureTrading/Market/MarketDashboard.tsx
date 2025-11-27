@@ -45,6 +45,7 @@ interface MarketOpenSession {
   range_pct_24h?: string | null;
   low_52w?: string | null;
   high_52w?: string | null;
+  range_52w?: string | null;
   entry_price?: string | null;
   target_high?: string | null;
   target_low?: string | null;

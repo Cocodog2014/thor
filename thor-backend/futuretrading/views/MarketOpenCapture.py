@@ -99,6 +99,8 @@ class MarketOpenCaptureService:
             'low_52w': self.safe_decimal(ext.get('low_52w')),
             'low_pct_52w': self.safe_decimal(ext.get('low_pct_52w') or ext.get('low_pct_52')),
             'high_52w': self.safe_decimal(ext.get('high_52w')),
+            'range_52w': self.safe_decimal(ext.get('range_52w') or ext.get('week_52_range_high_low')),
+            'range_pct_52w': self.safe_decimal(ext.get('range_pct_52w') or ext.get('week_52_range_percent')),
             'high_pct_52': self.safe_decimal(ext.get('high_pct_52')),
             
             # Signal (individual future's signal from HBS)
@@ -146,10 +148,10 @@ class MarketOpenCaptureService:
 
         if wlow is not None and whigh is not None:
             try:
-                data['week_52_range_high_low'] = (whigh - wlow)
+                data['range_52w'] = (whigh - wlow)
                 if last_price:
                     # Percent of current price occupied by 52w range
-                    data['week_52_range_percent'] = ((whigh - wlow) / last_price) * Decimal('100')
+                    data['range_pct_52w'] = ((whigh - wlow) / last_price) * Decimal('100')
             except Exception:
                 # Leave unset on any arithmetic issues
                 pass

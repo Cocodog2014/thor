@@ -164,8 +164,8 @@ class MarketSessionAdmin(admin.ModelAdmin):
             "high_52w",
             "high_pct_52",
             "high_pct_52",
-            "week_52_range_high_low",
-            "week_52_range_percent",
+            "range_52w",
+            "range_pct_52w",
         ),
         "backtest": (
             "captured_at",
@@ -229,8 +229,8 @@ class MarketSessionAdmin(admin.ModelAdmin):
             "low_52w",
             "low_pct_52w",
             "high_52w",
-            "week_52_range_high_low",
-            "week_52_range_percent",
+            "range_52w",
+            "range_pct_52w",
             "volume",
             "vwap",
             "bid_price",
@@ -283,8 +283,10 @@ class MarketSessionAdmin(admin.ModelAdmin):
             'fields': ('prev_close_24h', 'open_price_24h', 'open_prev_diff_24h', 'open_prev_pct_24h')
         }),
         ('Range Data', {
-            'fields': ('low_24h', 'high_24h', 'range_diff_24h', 'range_pct_24h',
-                      'low_52w', 'low_pct_52w', 'high_52w', 'high_pct_52', 'week_52_range_high_low', 'week_52_range_percent'),
+            'fields': (
+                'low_24h', 'high_24h', 'range_diff_24h', 'range_pct_24h',
+                'low_52w', 'low_pct_52w', 'high_52w', 'high_pct_52', 'range_52w', 'range_pct_52w'
+            ),
             'classes': ('collapse',)
         }),
         ('Entry & Targets', {
