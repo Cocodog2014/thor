@@ -211,12 +211,12 @@ class MarketSession(models.Model):
         blank=True,
         help_text="High move from open (number)",
     )
-    market_high_pct_open = models.DecimalField(
+    market_high_drawdown_pct = models.DecimalField(
         max_digits=14,
         decimal_places=4,
         null=True,
         blank=True,
-        help_text="High move from open (percent)",
+        help_text="Percent drawdown from the session high",
     )
     market_low_open = models.DecimalField(
         max_digits=14,

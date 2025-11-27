@@ -25,7 +25,7 @@ interface MarketOpenSession {
   vwap?: string | null;
   market_open?: string | null;
   market_high_open?: string | null;
-  market_high_pct_open?: string | null;
+  market_high_drawdown_pct?: string | null;
   market_low_open?: string | null;
   market_low_pct_open?: string | null;
   market_close?: string | null;
@@ -337,8 +337,8 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl }) => {
             {
               label: "High Δ",
               primary: formatSignedValue(snap?.market_high_open),
-              secondary: formatPercentValue(snap?.market_high_pct_open),
-              className: getDeltaClass(snap?.market_high_open ?? snap?.market_high_pct_open),
+              secondary: formatPercentValue(snap?.market_high_drawdown_pct),
+              className: getDeltaClass(snap?.market_high_open ?? snap?.market_high_drawdown_pct),
             },
             {
               label: "Low Δ",

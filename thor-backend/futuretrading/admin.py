@@ -208,7 +208,7 @@ class MarketSessionAdmin(admin.ModelAdmin):
             "target_hit_type",
             "market_open",
             "market_high_open",
-            "market_high_pct_open",
+            "market_high_drawdown_pct",
             "market_low_open",
             "market_low_pct_open",
             "market_close",

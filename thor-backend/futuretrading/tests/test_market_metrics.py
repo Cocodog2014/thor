@@ -66,23 +66,23 @@ class MarketHighMetricTests(TestCase):
         ym = MarketSession.objects.get(country="USA", future="YM", session_number=2)
         es = MarketSession.objects.get(country="USA", future="ES", session_number=2)
         self.assertEqual(ym.market_high_open, Decimal("101"))
-        self.assertEqual(ym.market_high_pct_open, Decimal("0"))
+        self.assertEqual(ym.market_high_drawdown_pct, Decimal("0"))
         self.assertEqual(es.market_high_open, Decimal("199"))
-        self.assertEqual(es.market_high_pct_open, Decimal("0"))
+        self.assertEqual(es.market_high_drawdown_pct, Decimal("0"))
 
         # New high for YM resets pct, ES drawdown grows
         MarketHighMetric.update_from_quotes("USA", self._enriched(103, 198))
         ym.refresh_from_db(); es.refresh_from_db()
         self.assertEqual(ym.market_high_open, Decimal("103"))
-        self.assertEqual(ym.market_high_pct_open, Decimal("0"))
+        self.assertEqual(ym.market_high_drawdown_pct, Decimal("0"))
         # Drawdown for ES: (199-198)/199*100 ≈ 0.5025
-        self.assertTrue(es.market_high_pct_open > Decimal("0"))
+        self.assertTrue(es.market_high_drawdown_pct > Decimal("0"))
 
         # Below high for YM computes drawdown
         MarketHighMetric.update_from_quotes("USA", self._enriched(102, 197))
         ym.refresh_from_db()
         self.assertEqual(ym.market_high_open, Decimal("103"))  # unchanged
-        self.assertTrue(ym.market_high_pct_open > Decimal("0"))
+        self.assertTrue(ym.market_high_drawdown_pct > Decimal("0"))
 
     def test_high_metric_updates_total_composite(self):
         """TOTAL rows track highs separately from individual futures."""
@@ -91,7 +91,7 @@ class MarketHighMetricTests(TestCase):
         MarketHighMetric.update_from_quotes("USA", enriched)
         total = MarketSession.objects.get(country="USA", future="TOTAL", session_number=3)
         self.assertEqual(total.market_high_open, Decimal("155"))
-        self.assertEqual(total.market_high_pct_open, Decimal("0"))
+        self.assertEqual(total.market_high_drawdown_pct, Decimal("0"))
 
 
 class MarketLowMetricTests(TestCase):

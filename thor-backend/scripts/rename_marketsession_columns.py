@@ -21,7 +21,8 @@ if str(BASE_DIR) not in sys.path:
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "thor_project.settings")
 
 FIELD_RENAMES: tuple[tuple[str, str], ...] = (
-    ("market_high_percentage", "market_high_pct_open"),
+    ("market_high_percentage", "market_high_drawdown_pct"),
+    ("market_high_pct_open", "market_high_drawdown_pct"),
     ("market_low_number", "market_low_open"),
     ("market_low_percentage", "market_low_pct_open"),
     ("market_close_number", "market_close"),
