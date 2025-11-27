@@ -97,6 +97,7 @@ class MarketOpenCaptureService:
             'range_diff_24h': self.safe_decimal(row.get('range_diff')),
             'range_pct_24h': self.safe_decimal(row.get('range_pct')),
             'week_52_low': self.safe_decimal(ext.get('low_52w')),
+            'low_pct_52': self.safe_decimal(ext.get('low_pct_52')),
             'week_52_high': self.safe_decimal(ext.get('high_52w')),
             
             # Signal (individual future's signal from HBS)
@@ -127,6 +128,14 @@ class MarketOpenCaptureService:
         wlow = data.get('week_52_low')
         whigh = data.get('week_52_high')
         last_price = data.get('last_price')
+        if wlow is not None:
+            try:
+                if last_price:
+                    # Percent distance from current price down to the 52w low
+                    data['low_pct_52'] = ((last_price - wlow) / last_price) * Decimal('100')
+            except Exception:
+                pass
+
         if wlow is not None and whigh is not None:
             try:
                 data['week_52_range_high_low'] = (whigh - wlow)

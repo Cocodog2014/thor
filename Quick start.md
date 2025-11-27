@@ -24,9 +24,7 @@ python manage.py runserver
 3. Run frontend (new shell)
 
 ```powershell
-cd A:\Thor\thor-frontend
-#npm install       # first time only
-npm run dev       # http://localhost:5173
+       # http://localhost:5173
 ```
 
 4. Start Excel → Redis poller (new shell)
