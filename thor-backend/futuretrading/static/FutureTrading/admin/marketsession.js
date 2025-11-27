@@ -67,11 +67,8 @@
             return;
         }
 
-        var params = new URLSearchParams(window.location.search);
-        var colset = params.get("colset") || "basic";
-        if (colset === "full") {
-            enableTopScrollbar(results, table);
-        }
+        // Always enable top scrollbar for horizontal scrolling
+        enableTopScrollbar(results, table);
     });
 
     window.addEventListener("resize", setStickyOffset);

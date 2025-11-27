@@ -7,6 +7,12 @@
     max-height: calc(100vh - 180px);
     overflow-y: auto;
     overflow-x: auto;
+    width: 100%;
+}
+
+/* Ensure table doesn't collapse */
+.change-list #result_list {
+    min-width: max-content;
 }
 
 /* 2) Sticky header inside that scroll container */
@@ -31,12 +37,9 @@
     overflow-x: auto;
     overflow-y: hidden;
     margin-bottom: 4px;
+    width: 100%;
 }
 
 .marketsession-top-scroll .marketsession-top-scroll-spacer {
     height: 1px;
-}
-
-.marketsession-top-scroll.is-hidden {
-    display: none;
 }
