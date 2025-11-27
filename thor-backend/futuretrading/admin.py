@@ -253,7 +253,17 @@ class MarketSessionAdmin(admin.ModelAdmin):
         colset = request.GET.get("colset", self.DEFAULT_COLUMN_SET)
         return self.COLUMN_SETS.get(colset, self.COLUMN_SETS[self.DEFAULT_COLUMN_SET])
 
-    list_filter = [ColumnSetFilter, 'country', 'future', 'day', 'bhs', 'year', 'month', 'date']
+    list_filter = [
+        ColumnSetFilter,
+        'country',
+        'future',
+        'day',
+        'bhs',
+        'wndw',  # filter by Worked / Didn't Work / Neutral labels
+        'year',
+        'month',
+        'date',
+    ]
     search_fields = ['country', 'session_number', 'future']
     readonly_fields = ['captured_at']
     
