@@ -10,14 +10,6 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RenameField(
-            model_name="marketsession",
-            old_name="range_high_low",
-            new_name="range_diff_24h",
-        ),
-        migrations.RenameField(
-            model_name="marketsession",
-            old_name="range_percent",
-            new_name="range_pct_24h",
-        ),
+        # Intentionally left blank.
+        # Renames handled in 0069_rename_marketsession_range_fields to avoid conflicts.
     ]
