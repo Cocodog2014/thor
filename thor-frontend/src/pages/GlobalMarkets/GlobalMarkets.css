@@ -73,6 +73,7 @@
    background: transparent;
    border-radius: 0;
    padding: 0;
+   -webkit-backdrop-filter: none; /* Safari */
    backdrop-filter: none;
    border: none;
    overflow-x: auto;
@@ -112,6 +113,17 @@
    min-width: 326px; /* Further reduced: 383px * 0.85 = 325.55px ≈ 326px */
    table-layout: fixed; /* keeps columns lined up with colgroup widths */
 }
+
+/* Column width helpers to keep JSX free of inline styles */
+.col-market { width: 10%; }
+.col-year { width: 6.8%; }
+.col-month { width: 6.8%; }
+.col-date { width: 6.8%; }
+.col-day { width: 8.5%; }
+.col-open { width: 10.2%; }
+.col-close { width: 10.2%; }
+.col-time { width: 11.9%; }
+.col-status { width: 10%; }
 
 /* Make all columns equal width */
 .markets-table th,
@@ -233,12 +245,11 @@
    background: rgba(0, 0, 0, 0.3);
    border-radius: 12px;
    padding: 15px;
+   -webkit-backdrop-filter: blur(10px); /* Safari */
    backdrop-filter: blur(10px);
    border: 1px solid rgba(255, 255, 255, 0.2);
    max-height: 400px;
    overflow-y: auto;
-   scrollbar-width: thin;
-   scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
 }
 
 .markets-sidebar::-webkit-scrollbar {
@@ -332,6 +343,7 @@
    border-radius: 12px;
    text-align: center;
    border: 2px solid;
+   -webkit-backdrop-filter: blur(10px); /* Safari */
    backdrop-filter: blur(10px);
    transition: all 0.3s ease;
    cursor: pointer;

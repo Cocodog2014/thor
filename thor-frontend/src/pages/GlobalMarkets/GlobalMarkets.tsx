@@ -118,15 +118,15 @@ const GlobalMarkets: React.FC = () => {
         <table className="markets-table">
           {/* Define proportional column widths for better readability */}
           <colgroup>
-            <col style={{ width: '10%' }} /> {/* MARKET */}
-            <col style={{ width: '6.8%' }} />  {/* YEAR */}
-            <col style={{ width: '6.8%' }} />  {/* MONTH */}
-            <col style={{ width: '6.8%' }} />  {/* DATE */}
-            <col style={{ width: '8.5%' }} /> {/* DAY */}
-            <col style={{ width: '10.2%' }} /> {/* OPEN */}
-            <col style={{ width: '10.2%' }} /> {/* CLOSE */}
-            <col style={{ width: '11.9%' }} /> {/* CURRENT TIME */}
-            <col style={{ width: '10%' }} /> {/* STATUS */}
+            <col className="col-market" /> {/* MARKET */}
+            <col className="col-year" />  {/* YEAR */}
+            <col className="col-month" />  {/* MONTH */}
+            <col className="col-date" />  {/* DATE */}
+            <col className="col-day" /> {/* DAY */}
+            <col className="col-open" /> {/* OPEN */}
+            <col className="col-close" /> {/* CLOSE */}
+            <col className="col-time" /> {/* CURRENT TIME */}
+            <col className="col-status" /> {/* STATUS */}
           </colgroup>
           <thead>
             <tr>
