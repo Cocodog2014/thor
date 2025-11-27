@@ -17,7 +17,7 @@ class FuturetradingConfig(AppConfig):
 
         # 52-week extremes supervisor
         try:
-            from FutureTrading.services.Week52Monitor import start_52w_monitor_supervisor
+            from FutureTrading.services.Week52Superviror import start_52w_monitor_supervisor
             start_52w_monitor_supervisor()
         except Exception:
             logger.exception("Failed to start 52w supervisor")

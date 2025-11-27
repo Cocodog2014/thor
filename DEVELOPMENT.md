@@ -1028,7 +1028,7 @@ Both the supervisor and monitor start automatically via `FutureTrading/apps.py`:
 class FuturetradingConfig(AppConfig):
     def ready(self):
         # Starts supervisor which manages the monitor based on market status
-        from FutureTrading.services.Week52Monitor import start_52w_monitor_supervisor
+        from FutureTrading.services.Week52Superviror import start_52w_monitor_supervisor
         start_52w_monitor_supervisor()
 ```
 

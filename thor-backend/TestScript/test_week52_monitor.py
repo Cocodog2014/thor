@@ -14,13 +14,13 @@ print("Testing Week 52 Monitor")
 print("=" * 60)
 
 # Import and test
-from FutureTrading.services.Week52Monitor import start_52w_monitor
+from FutureTrading.services.Week52Superviror import start_52w_monitor
 
 print("\n1. Attempting to start monitor...")
 start_52w_monitor()
 
 print("\n2. Checking if monitor thread is running...")
-from FutureTrading.services.Week52Monitor import get_52w_monitor
+from FutureTrading.services.Week52Superviror import get_52w_monitor
 monitor = get_52w_monitor()
 print(f"   Monitor running: {monitor._running}")
 print(f"   Monitor thread: {monitor._thread}")
