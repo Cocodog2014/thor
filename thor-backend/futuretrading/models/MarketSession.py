@@ -320,19 +320,19 @@ class MarketSession(models.Model):
         blank=True,
         help_text="24 hour high",
     )
-    range_high_low = models.DecimalField(
+    range_diff_24h = models.DecimalField(
         max_digits=14,
         decimal_places=4,
         null=True,
         blank=True,
-        help_text="Range (24h High - 24h Low)",
+        help_text="24h range difference (High - Low)",
     )
-    range_percent = models.DecimalField(
+    range_pct_24h = models.DecimalField(
         max_digits=14,
         decimal_places=4,
         null=True,
         blank=True,
-        help_text="Range as % of previous close",
+        help_text="24h range as % of previous close",
     )
 
     # 52-Week Range Data
