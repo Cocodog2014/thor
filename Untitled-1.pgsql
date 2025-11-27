@@ -1,0 +1,1 @@
+SELECT * FROM "FutureTrading_marketsession" LIMIT 1000;

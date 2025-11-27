@@ -1,9 +1,19 @@
--- Script to reorder FutureTrading_marketsession columns
--- Moves target_hit_* columns to appear after entry_price
+"""Reorder FutureTrading_marketsession to keep 52-week columns in desired order."""
 
-BEGIN;
+import os
+import sys
+from pathlib import Path
 
--- Create new table with desired column order
+BASE_DIR = Path(__file__).resolve().parent.parent
+if str(BASE_DIR) not in sys.path:
+    sys.path.insert(0, str(BASE_DIR))
+
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "thor_project.settings")
+
+import django  # noqa: E402
+from django.db import connection, transaction  # noqa: E402
+
+CREATE_TABLE_SQL = """
 CREATE TABLE "FutureTrading_marketsession_new" (
     "id" serial NOT NULL PRIMARY KEY,
     "session_number" integer NOT NULL,
@@ -79,10 +89,11 @@ CREATE TABLE "FutureTrading_marketsession_new" (
     "sell_didnt_work" numeric(14, 4),
     "sell_didnt_work_percentage" numeric(14, 4)
 );
+"""
 
--- Copy data from old table to new table
-INSERT INTO "FutureTrading_marketsession_new" 
-SELECT 
+INSERT_SQL = """
+INSERT INTO "FutureTrading_marketsession_new"
+SELECT
     id, session_number, capture_group, year, month, date, day, captured_at,
     country, future, country_future, weight, bhs, wndw, country_future_wndw_total,
     bid_price, bid_size, last_price, spread, ask_price, ask_size,
@@ -100,31 +111,55 @@ SELECT
     strong_sell_didnt_work, strong_sell_didnt_work_percentage, sell_worked, sell_worked_percentage,
     sell_didnt_work, sell_didnt_work_percentage
 FROM "FutureTrading_marketsession";
+"""
 
--- Drop old table
-DROP TABLE "FutureTrading_marketsession";
+DROP_TABLE_SQL = 'DROP TABLE "FutureTrading_marketsession";'
+RENAME_SQL = 'ALTER TABLE "FutureTrading_marketsession_new" RENAME TO "FutureTrading_marketsession";'
 
--- Rename new table to original name
-ALTER TABLE "FutureTrading_marketsession_new" RENAME TO "FutureTrading_marketsession";
+INDEX_SQL = [
+    'CREATE INDEX "FutureTrading_marke_capture_group_ef5816_idx" ON "FutureTrading_marketsession" ("capture_group");',
+    'CREATE INDEX "FutureTrading_marketsession_country_idx" ON "FutureTrading_marketsession" ("country");',
+    'CREATE INDEX "FutureTrading_marketsession_future_idx" ON "FutureTrading_marketsession" ("future");',
+    'CREATE INDEX "FutureTrading_marketsession_session_number_idx" ON "FutureTrading_marketsession" ("session_number");',
+    'CREATE INDEX "FutureTrading_marketsession_captured_at_idx" ON "FutureTrading_marketsession" ("captured_at");',
+    'CREATE INDEX "FutureTrading_marketsession_bhs_idx" ON "FutureTrading_marketsession" ("bhs");',
+    'CREATE INDEX "FutureTrading_marketsession_wndw_idx" ON "FutureTrading_marketsession" ("wndw");',
+]
 
--- Recreate indexes
-CREATE INDEX "FutureTrading_marke_capture_group_ef5816_idx" ON "FutureTrading_marketsession" ("capture_group");
-CREATE INDEX "FutureTrading_marketsession_country_idx" ON "FutureTrading_marketsession" ("country");
-CREATE INDEX "FutureTrading_marketsession_future_idx" ON "FutureTrading_marketsession" ("future");
-CREATE INDEX "FutureTrading_marketsession_session_number_idx" ON "FutureTrading_marketsession" ("session_number");
-CREATE INDEX "FutureTrading_marketsession_captured_at_idx" ON "FutureTrading_marketsession" ("captured_at");
-CREATE INDEX "FutureTrading_marketsession_bhs_idx" ON "FutureTrading_marketsession" ("bhs");
-CREATE INDEX "FutureTrading_marketsession_wndw_idx" ON "FutureTrading_marketsession" ("wndw");
+SETVAL_SQL = """
+SELECT setval(
+    pg_get_serial_sequence('"FutureTrading_marketsession"', 'id'),
+    GREATEST(1, COALESCE((SELECT MAX(id) FROM "FutureTrading_marketsession"), 0)),
+    true
+);
+"""
 
--- Reset sequence
-SELECT setval(pg_get_serial_sequence('"FutureTrading_marketsession"', 'id'), 
-              GREATEST(1, COALESCE((SELECT MAX(id) FROM "FutureTrading_marketsession"), 0)), 
-              true);
-
-COMMIT;
-
--- Verify column order
-SELECT column_name, ordinal_position, data_type 
-FROM information_schema.columns 
-WHERE table_name = 'FutureTrading_marketsession' 
+COLUMN_ORDER_SQL = """
+SELECT column_name, ordinal_position
+FROM information_schema.columns
+WHERE table_schema = 'public'
+    AND table_name = 'FutureTrading_marketsession'
+    AND column_name IN ('low_52w', 'low_pct_52w', 'high_52w', 'high_pct_52', 'range_52w')
 ORDER BY ordinal_position;
+"""
+
+
+def main() -> None:
+    django.setup()
+    statements = [CREATE_TABLE_SQL, INSERT_SQL, DROP_TABLE_SQL, RENAME_SQL, *INDEX_SQL, SETVAL_SQL]
+    with transaction.atomic():
+        with connection.cursor() as cursor:
+            for sql in statements:
+                cursor.execute(sql)
+    with connection.cursor() as cursor:
+        cursor.execute(COLUMN_ORDER_SQL)
+        rows = cursor.fetchall()
+    print("Column order confirmation (position, name):")
+    for name_order in rows:
+        name = name_order[0]
+        position = name_order[1]
+        print(f"  {position:03d} -> {name}")
+
+
+if __name__ == "__main__":
+    main()

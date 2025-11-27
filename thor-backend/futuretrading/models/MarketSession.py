@@ -274,86 +274,104 @@ class MarketSession(models.Model):
         blank=True,
         help_text="Intraday range (percent)",
     )
-    session_close = models.DecimalField(
+    # Renamed from session_close -> prev_close_24h
+    prev_close_24h = models.DecimalField(
         max_digits=14,
         decimal_places=4,
         null=True,
         blank=True,
-        help_text="Previous close price",
+        help_text="Previous 24h close price",
     )
-    session_open = models.DecimalField(
+    # Renamed from session_open -> open_price_24h
+    open_price_24h = models.DecimalField(
         max_digits=14,
         decimal_places=4,
         null=True,
         blank=True,
-        help_text="Open price",
+        help_text="Current 24h open price",
     )
-    open_vs_prev_number = models.DecimalField(
+    # Renamed from open_vs_prev_number -> open_prev_diff_24h
+    open_prev_diff_24h = models.DecimalField(
         max_digits=14,
         decimal_places=4,
         null=True,
         blank=True,
-        help_text="Open vs Prev (Number)",
+        help_text="24h Open − Prev 24h Close (number)",
     )
-    open_vs_prev_percent = models.DecimalField(
+    # Renamed from open_vs_prev_percent -> open_prev_pct_24h
+    open_prev_pct_24h = models.DecimalField(
         max_digits=14,
         decimal_places=4,
         null=True,
         blank=True,
-        help_text="Open vs Prev (%)",
+        help_text="24h Open − Prev 24h Close (%)",
     )
-    day_24h_low = models.DecimalField(
+    low_24h = models.DecimalField(
         max_digits=14,
         decimal_places=4,
         null=True,
         blank=True,
         help_text="24 hour low",
     )
-    day_24h_high = models.DecimalField(
+    high_24h = models.DecimalField(
         max_digits=14,
         decimal_places=4,
         null=True,
         blank=True,
         help_text="24 hour high",
     )
-    range_high_low = models.DecimalField(
+    range_diff_24h = models.DecimalField(
         max_digits=14,
         decimal_places=4,
         null=True,
         blank=True,
-        help_text="Range (24h High - 24h Low)",
+        help_text="24h range difference (High - Low)",
     )
-    range_percent = models.DecimalField(
+    range_pct_24h = models.DecimalField(
         max_digits=14,
         decimal_places=4,
         null=True,
         blank=True,
-        help_text="Range as % of previous close",
+        help_text="24h range as % of previous close",
     )
 
     # 52-Week Range Data
-    week_52_low = models.DecimalField(
+    low_52w = models.DecimalField(
         max_digits=14,
         decimal_places=4,
         null=True,
         blank=True,
         help_text="52-week low",
     )
-    week_52_high = models.DecimalField(
+    low_pct_52w = models.DecimalField(
+        max_digits=14,
+        decimal_places=4,
+        null=True,
+        blank=True,
+        help_text="Percent above 52-week low relative to current price",
+    )
+    high_52w = models.DecimalField(
         max_digits=14,
         decimal_places=4,
         null=True,
         blank=True,
         help_text="52-week high",
     )
-    week_52_range_high_low = models.DecimalField(
+    high_pct_52 = models.DecimalField(
+        max_digits=14,
+        decimal_places=4,
+        null=True,
+        blank=True,
+        help_text="Percent below 52-week high relative to current price",
+    )
+    range_52w = models.DecimalField(
         max_digits=14,
         decimal_places=4,
         null=True,
         blank=True,
         help_text="52-week range (High - Low)",
     )
-    week_52_range_percent = models.DecimalField(
+    range_pct_52w = models.DecimalField(
         max_digits=14,
         decimal_places=4,
         null=True,
@@ -442,13 +460,6 @@ class MarketSession(models.Model):
         blank=True,
         help_text="Hold signals count",
     )
-    hold_percentage = models.DecimalField(
-        max_digits=14,
-        decimal_places=4,
-        null=True,
-        blank=True,
-        help_text="Percent of holds",
-    )
     strong_sell_worked = models.DecimalField(
         max_digits=14,
         decimal_places=4,
@@ -516,6 +527,8 @@ class MarketSession(models.Model):
 
     def __str__(self):
         return f"{self.country} - {self.future} - {self.year}/{self.month}/{self.date} - {self.bhs}"
+
+    # Legacy attribute names removed (use new 24h field names directly)
 
 
 __all__ = ['MarketSession']

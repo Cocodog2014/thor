@@ -151,18 +151,21 @@ class MarketSessionAdmin(admin.ModelAdmin):
             "captured_at",
             "country",
             "future",
-            "session_open",
-            "session_close",
-            "open_vs_prev_number",
-            "open_vs_prev_percent",
-            "day_24h_low",
-            "day_24h_high",
-            "range_high_low",
-            "range_percent",
-            "week_52_low",
-            "week_52_high",
-            "week_52_range_high_low",
-            "week_52_range_percent",
+            "open_price_24h",
+            "prev_close_24h",
+            "open_prev_diff_24h",
+            "open_prev_pct_24h",
+            "low_24h",
+            "high_24h",
+            "range_diff_24h",
+            "range_pct_24h",
+            "low_52w",
+            "low_pct_52w",
+            "high_52w",
+            "high_pct_52",
+            "high_pct_52",
+            "range_52w",
+            "range_pct_52w",
         ),
         "backtest": (
             "captured_at",
@@ -174,7 +177,7 @@ class MarketSessionAdmin(admin.ModelAdmin):
             "strong_buy_didnt_work", "strong_buy_didnt_work_percentage",
             "buy_worked", "buy_worked_percentage",
             "buy_didnt_work", "buy_didnt_work_percentage",
-            "hold", "hold_percentage",
+            "hold",
             "strong_sell_worked", "strong_sell_worked_percentage",
             "strong_sell_didnt_work", "strong_sell_didnt_work_percentage",
             "sell_worked", "sell_worked_percentage",
@@ -215,18 +218,19 @@ class MarketSessionAdmin(admin.ModelAdmin):
             "market_close_vs_open_percentage",
             "market_range_number",
             "market_range_percentage",
-            "session_open",
-            "session_close",
-            "open_vs_prev_number",
-            "open_vs_prev_percent",
-            "day_24h_low",
-            "day_24h_high",
-            "range_high_low",
-            "range_percent",
-            "week_52_low",
-            "week_52_high",
-            "week_52_range_high_low",
-            "week_52_range_percent",
+            "prev_close_24h",
+            "open_price_24h",
+            "open_prev_diff_24h",
+            "open_prev_pct_24h",
+            "low_24h",
+            "high_24h",
+            "range_diff_24h",
+            "range_pct_24h",
+            "low_52w",
+            "low_pct_52w",
+            "high_52w",
+            "range_52w",
+            "range_pct_52w",
             "volume",
             "vwap",
             "bid_price",
@@ -238,7 +242,7 @@ class MarketSessionAdmin(admin.ModelAdmin):
             "strong_buy_didnt_work", "strong_buy_didnt_work_percentage",
             "buy_worked", "buy_worked_percentage",
             "buy_didnt_work", "buy_didnt_work_percentage",
-            "hold", "hold_percentage",
+            "hold",
             "strong_sell_worked", "strong_sell_worked_percentage",
             "strong_sell_didnt_work", "strong_sell_didnt_work_percentage",
             "sell_worked", "sell_worked_percentage",
@@ -253,7 +257,17 @@ class MarketSessionAdmin(admin.ModelAdmin):
         colset = request.GET.get("colset", self.DEFAULT_COLUMN_SET)
         return self.COLUMN_SETS.get(colset, self.COLUMN_SETS[self.DEFAULT_COLUMN_SET])
 
-    list_filter = [ColumnSetFilter, 'country', 'future', 'day', 'bhs', 'year', 'month']
+    list_filter = [
+        ColumnSetFilter,
+        'country',
+        'future',
+        'day',
+        'bhs',
+        'wndw',  # filter by Worked / Didn't Work / Neutral labels
+        'year',
+        'month',
+        'date',
+    ]
     search_fields = ['country', 'session_number', 'future']
     readonly_fields = ['captured_at']
     
@@ -262,15 +276,17 @@ class MarketSessionAdmin(admin.ModelAdmin):
             'fields': ('session_number', 'country', 'future', 'country_future', 'year', 'month', 'date', 'day', 'captured_at')
         }),
         ('Live Price Data (Open)', {
-            'fields': ('last_price', 'change', 'change_percent', 'ask_price', 'ask_size', 
+            'fields': ('last_price', 'ask_price', 'ask_size',
                       'bid_price', 'bid_size', 'volume', 'vwap', 'spread')
         }),
         ('Session Price Data', {
-            'fields': ('session_close', 'session_open', 'open_vs_prev_number', 'open_vs_prev_percent')
+            'fields': ('prev_close_24h', 'open_price_24h', 'open_prev_diff_24h', 'open_prev_pct_24h')
         }),
         ('Range Data', {
-            'fields': ('day_24h_low', 'day_24h_high', 'range_high_low', 'range_percent',
-                      'week_52_low', 'week_52_high', 'week_52_range_high_low', 'week_52_range_percent'),
+            'fields': (
+                'low_24h', 'high_24h', 'range_diff_24h', 'range_pct_24h',
+                'low_52w', 'low_pct_52w', 'high_52w', 'high_pct_52', 'range_52w', 'range_pct_52w'
+            ),
             'classes': ('collapse',)
         }),
         ('Entry & Targets', {
@@ -282,7 +298,7 @@ class MarketSessionAdmin(admin.ModelAdmin):
                 'strong_buy_worked', 'strong_buy_worked_percentage',
                 'strong_buy_didnt_work', 'strong_buy_didnt_work_percentage',
                 'buy_worked', 'buy_worked_percentage', 'buy_didnt_work', 'buy_didnt_work_percentage',
-                'hold', 'hold_percentage',
+                'hold',
                 'strong_sell_worked', 'strong_sell_worked_percentage',
                 'strong_sell_didnt_work', 'strong_sell_didnt_work_percentage',
                     'sell_worked', 'sell_worked_percentage',

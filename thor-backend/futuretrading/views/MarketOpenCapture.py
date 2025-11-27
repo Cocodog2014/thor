@@ -18,7 +18,9 @@ from FutureTrading.services.country_future_wndw_counts import (
 from FutureTrading.services.market_metrics import MarketOpenMetric
 from FutureTrading.services.quotes import get_enriched_quotes_with_composite
 from FutureTrading.services.TargetHighLow import compute_targets_for_symbol
-from FutureTrading.services.backtest_stats import compute_backtest_stats_for_future
+from FutureTrading.services.backtest_stats import (
+    compute_backtest_stats_for_country_future,
+)
 
 
 
@@ -83,19 +85,23 @@ class MarketOpenCaptureService:
             'vwap': self.safe_decimal(row.get('vwap')),
             'spread': self.safe_decimal(row.get('spread')),
             
-            # Session price data
-            'session_open': self.safe_decimal(row.get('open_price')),
-            'session_close': self.safe_decimal(row.get('close_price') or row.get('previous_close')),
-            'open_vs_prev_number': self.safe_decimal(row.get('open_prev_diff')),
-            'open_vs_prev_percent': self.safe_decimal(row.get('open_prev_pct')),
+            # 24h price data (renamed)
+            'open_price_24h': self.safe_decimal(row.get('open_price')),
+            'prev_close_24h': self.safe_decimal(row.get('close_price') or row.get('previous_close')),
+            'open_prev_diff_24h': self.safe_decimal(row.get('open_prev_diff')),
+            'open_prev_pct_24h': self.safe_decimal(row.get('open_prev_pct')),
             
             # Range data
-            'day_24h_low': self.safe_decimal(row.get('low_price')),
-            'day_24h_high': self.safe_decimal(row.get('high_price')),
-            'range_high_low': self.safe_decimal(row.get('range_diff')),
-            'range_percent': self.safe_decimal(row.get('range_pct')),
-            'week_52_low': self.safe_decimal(ext.get('low_52w')),
-            'week_52_high': self.safe_decimal(ext.get('high_52w')),
+            'low_24h': self.safe_decimal(row.get('low_price')),
+            'high_24h': self.safe_decimal(row.get('high_price')),
+            'range_diff_24h': self.safe_decimal(row.get('range_diff')),
+            'range_pct_24h': self.safe_decimal(row.get('range_pct')),
+            'low_52w': self.safe_decimal(ext.get('low_52w')),
+            'low_pct_52w': self.safe_decimal(ext.get('low_pct_52w') or ext.get('low_pct_52')),
+            'high_52w': self.safe_decimal(ext.get('high_52w')),
+            'range_52w': self.safe_decimal(ext.get('range_52w') or ext.get('week_52_range_high_low')),
+            'range_pct_52w': self.safe_decimal(ext.get('range_pct_52w') or ext.get('week_52_range_percent')),
+            'high_pct_52': self.safe_decimal(ext.get('high_pct_52')),
             
             # Signal (individual future's signal from HBS)
             'bhs': (ext.get('signal') or '').upper() if ext.get('signal') else '',
@@ -122,22 +128,41 @@ class MarketOpenCaptureService:
                 data['target_low'] = low
 
         # Populate 52-week range derivative fields if both ends available
-        wlow = data.get('week_52_low')
-        whigh = data.get('week_52_high')
+        wlow = data.get('low_52w')
+        whigh = data.get('high_52w')
         last_price = data.get('last_price')
+        if wlow is not None:
+            try:
+                if last_price:
+                    # Percent distance from current price down to the 52w low
+                    data['low_pct_52w'] = ((last_price - wlow) / last_price) * Decimal('100')
+            except Exception:
+                pass
+
+        if whigh is not None:
+            try:
+                if last_price:
+                    data['high_pct_52'] = ((whigh - last_price) / last_price) * Decimal('100')
+            except Exception:
+                pass
+
         if wlow is not None and whigh is not None:
             try:
-                data['week_52_range_high_low'] = (whigh - wlow)
+                data['range_52w'] = (whigh - wlow)
                 if last_price:
                     # Percent of current price occupied by 52w range
-                    data['week_52_range_percent'] = ((whigh - wlow) / last_price) * Decimal('100')
+                    data['range_pct_52w'] = ((whigh - wlow) / last_price) * Decimal('100')
             except Exception:
                 # Leave unset on any arithmetic issues
                 pass
         
         # ---------- Backtest stats: use existing service ----------
         try:
-            stats = compute_backtest_stats_for_future(symbol)
+            stats = compute_backtest_stats_for_country_future(
+                country=country,
+                future=symbol,
+                as_of=data['captured_at'],
+            )
             data.update(stats)
         except Exception as e:
             logger.warning("Backtest stats failed for %s: %s", symbol, e)
@@ -184,7 +209,11 @@ class MarketOpenCaptureService:
 
         # ---------- Backtest stats: use existing service ----------
         try:
-            stats = compute_backtest_stats_for_future('TOTAL')
+            stats = compute_backtest_stats_for_country_future(
+                country=country,
+                future='TOTAL',
+                as_of=data['captured_at'],
+            )
             data.update(stats)
         except Exception as e:
             logger.warning("Backtest stats failed for TOTAL: %s", e)

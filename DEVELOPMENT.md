@@ -922,7 +922,7 @@ Supervisor integration changes (recent):
 - Diagnostic debug logs (`[DIAG High]`, `[DIAG Low]`) were temporarily added in `FutureTrading/services/market_metrics.py` to trace skip reasons and formula application; remove or downgrade once stable.
 
 Precision change summary:
-- Previous schema stored percentages with `decimal_places=6`; now `decimal_places=4` for: `market_high_percentage`, `market_low_percentage`, `market_close_percentage_high`, `market_close_percentage_low`, `market_range_percentage`, `range_percent`, `week_52_range_percent`.
+- Previous schema stored percentages with `decimal_places=6`; now `decimal_places=4` for: `market_high_percentage`, `market_low_percentage`, `market_close_percentage_high`, `market_close_percentage_low`, `market_range_percentage`, `range_percent`, `range_pct_52w`.
 - Runtime quantization enforces four decimals BEFORE saving to avoid unnecessary rounding drift.
 
 Operational guidance:

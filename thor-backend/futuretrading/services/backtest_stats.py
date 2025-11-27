@@ -1,139 +1,95 @@
 # FutureTrading/services/backtest_stats.py
 
-"""
-Backtest statistics for MarketSession trades.
+"""Historical backtest statistics for MarketSession rows."""
 
-For a given future symbol (YM, ES, NQ, ..., TOTAL) this module
-computes how often each signal WORKED or DIDN'T WORK based on
-historical MarketSession rows and returns values that can be copied
-into the strong_buy_* / buy_* / hold_* / sell_* fields on a new row.
+from __future__ import annotations
 
-Usage:
-    stats = compute_backtest_stats_for_future('YM')
-    # returns a dict ready to merge into MarketSession(**data)
-"""
-
-from decimal import Decimal
-from typing import Dict
-
-from django.db.models import Count, Q
+from datetime import datetime
+from typing import Any, Dict, Optional
 
 from FutureTrading.models.MarketSession import MarketSession
 
+# Canonical signal/outcome values so callers avoid typos
+BHS_STRONG_BUY = "STRONG_BUY"
+BHS_BUY = "BUY"
+BHS_HOLD = "HOLD"
+BHS_SELL = "SELL"
+BHS_STRONG_SELL = "STRONG_SELL"
 
-# Optional: change this to limit to the last N sessions per future
-BACKTEST_MAX_SESSIONS = None  # e.g. 200, or None for "all history"
+WNDW_WORKED = "WORKED"
+WNDW_DIDNT_WORK = "DIDNT_WORK"
 
-
-def _base_queryset(future: str):
-    """
-    Base queryset of historical rows for a given future, excluding
-    PENDING / NEUTRAL outcomes.
-
-    We only care about rows where a trade has actually resolved.
-    """
-    qs = MarketSession.objects.filter(
-        future=future,
-        wndw__in=['WORKED', 'DIDNT_WORK'],
-    )
-
-    if BACKTEST_MAX_SESSIONS:
-        # Limit to the last N sessions for this future (optional)
-        latest_sessions = (
-            MarketSession.objects
-            .filter(future=future)
-            .order_by('-session_number')
-            .values_list('session_number', flat=True)
-            .distinct()[:BACKTEST_MAX_SESSIONS]
-        )
-        qs = qs.filter(session_number__in=list(latest_sessions))
-
+def _base_queryset(country: str, future: str, as_of: Optional[datetime]):
+    qs = MarketSession.objects.filter(country=country, future=future)
+    if as_of is not None:
+        qs = qs.filter(captured_at__lt=as_of)
     return qs
 
 
-def _signal_stats(qs, signal: str):
-    """
-    Return (worked_count, didnt_work_count, worked_pct, didnt_work_pct)
-    for a given signal within the queryset.
-    """
-    worked = qs.filter(bhs=signal, wndw='WORKED').count()
-    didnt = qs.filter(bhs=signal, wndw='DIDNT_WORK').count()
-    total = worked + didnt
+def _signal_counts(qs, signal: str):
+    signal_qs = qs.filter(bhs=signal)
+    worked = signal_qs.filter(wndw=WNDW_WORKED).count()
+    didnt = signal_qs.filter(wndw=WNDW_DIDNT_WORK).count()
+    trades = worked + didnt
 
-    if total > 0:
-        worked_pct = (Decimal(worked) / Decimal(total)) * Decimal('100')
-        didnt_pct = (Decimal(didnt) / Decimal(total)) * Decimal('100')
+    if trades > 0:
+        worked_pct = (worked / trades) * 100.0
+        didnt_pct = (didnt / trades) * 100.0
     else:
-        worked_pct = None
-        didnt_pct = None
+        worked_pct = 0.0
+        didnt_pct = 0.0
 
-    return worked, didnt, worked_pct, didnt_pct
+    return worked, worked_pct, didnt, didnt_pct
 
 
-def compute_backtest_stats_for_future(future: str) -> Dict[str, Decimal | None]:
-    """
-    Compute backtest statistics for a single future symbol.
+def compute_backtest_stats_for_country_future(
+    *,
+    country: str,
+    future: str,
+    as_of: Optional[datetime] = None,
+) -> Dict[str, Any]:
+    """Compute per-signal historical accuracy for the given (country, future)."""
 
-    Returns a dict whose keys line up with the MarketSession fields:
-      - strong_buy_worked
-      - strong_buy_worked_percentage
-      - strong_buy_didnt_work
-      - strong_buy_didnt_work_percentage
-      - buy_worked
-      - buy_worked_percentage
-      - buy_didnt_work
-      - buy_didnt_work_percentage
-      - hold
-      - hold_percentage
-      - strong_sell_worked
-      - strong_sell_worked_percentage
-      - strong_sell_didnt_work
-      - strong_sell_didnt_work_percentage
-      - sell_worked
-      - sell_worked_percentage
-      - sell_didnt_work
-      - sell_didnt_work_percentage
-    """
+    qs = _base_queryset(country=country, future=future, as_of=as_of)
 
-    qs = _base_queryset(future)
+    stats: Dict[str, Any] = {}
 
-    # Strong Buy
-    sb_w, sb_d, sb_wp, sb_dp = _signal_stats(qs, 'STRONG_BUY')
-    # Buy
-    b_w, b_d, b_wp, b_dp = _signal_stats(qs, 'BUY')
-    # Hold: we just care about count and percentage of all graded rows
-    hold_count = qs.filter(bhs='HOLD').count()
-    graded_total = qs.count()
-    hold_pct = (
-        (Decimal(hold_count) / Decimal(graded_total)) * Decimal('100')
-        if graded_total > 0 else None
+    sb_w, sb_wp, sb_d, sb_dp = _signal_counts(qs, BHS_STRONG_BUY)
+    b_w, b_wp, b_d, b_dp = _signal_counts(qs, BHS_BUY)
+    s_w, s_wp, s_d, s_dp = _signal_counts(qs, BHS_SELL)
+    ss_w, ss_wp, ss_d, ss_dp = _signal_counts(qs, BHS_STRONG_SELL)
+    hold_count = qs.filter(bhs=BHS_HOLD).count()
+
+    stats.update(
+        strong_buy_worked=sb_w,
+        strong_buy_worked_percentage=sb_wp,
+        strong_buy_didnt_work=sb_d,
+        strong_buy_didnt_work_percentage=sb_dp,
+        buy_worked=b_w,
+        buy_worked_percentage=b_wp,
+        buy_didnt_work=b_d,
+        buy_didnt_work_percentage=b_dp,
+        hold=hold_count,
+        strong_sell_worked=ss_w,
+        strong_sell_worked_percentage=ss_wp,
+        strong_sell_didnt_work=ss_d,
+        strong_sell_didnt_work_percentage=ss_dp,
+        sell_worked=s_w,
+        sell_worked_percentage=s_wp,
+        sell_didnt_work=s_d,
+        sell_didnt_work_percentage=s_dp,
     )
-    # Strong Sell
-    ss_w, ss_d, ss_wp, ss_dp = _signal_stats(qs, 'STRONG_SELL')
-    # Sell
-    s_w, s_d, s_wp, s_dp = _signal_stats(qs, 'SELL')
 
-    return {
-        'strong_buy_worked': sb_w or None,
-        'strong_buy_worked_percentage': sb_wp,
-        'strong_buy_didnt_work': sb_d or None,
-        'strong_buy_didnt_work_percentage': sb_dp,
+    return stats
 
-        'buy_worked': b_w or None,
-        'buy_worked_percentage': b_wp,
-        'buy_didnt_work': b_d or None,
-        'buy_didnt_work_percentage': b_dp,
 
-        'hold': hold_count or None,
-        'hold_percentage': hold_pct,
-
-        'strong_sell_worked': ss_w or None,
-        'strong_sell_worked_percentage': ss_wp,
-        'strong_sell_didnt_work': ss_d or None,
-        'strong_sell_didnt_work_percentage': ss_dp,
-
-        'sell_worked': s_w or None,
-        'sell_worked_percentage': s_wp,
-        'sell_didnt_work': s_d or None,
-        'sell_didnt_work_percentage': s_dp,
-    }
+__all__ = [
+    "compute_backtest_stats_for_country_future",
+    "BHS_STRONG_BUY",
+    "BHS_BUY",
+    "BHS_HOLD",
+    "BHS_SELL",
+    "BHS_STRONG_SELL",
+    "WNDW_WORKED",
+    "WNDW_DIDNT_WORK",
+]

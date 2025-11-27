@@ -24,9 +24,12 @@ import os
 from typing import Optional
 
 from django.conf import settings
+from django.utils import timezone
 
 from FutureTrading.constants import FUTURES_SYMBOLS
-from FutureTrading.services.backtest_stats import compute_backtest_stats_for_future
+from FutureTrading.services.backtest_stats import (
+    compute_backtest_stats_for_country_future,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -101,7 +104,11 @@ class _PreOpenBacktestSupervisor:
 
                     for sym in FUTURES_SYMBOLS + ["TOTAL"]:
                         try:
-                            stats = compute_backtest_stats_for_future(sym)
+                            stats = compute_backtest_stats_for_country_future(
+                                country=m.country,
+                                future=sym,
+                                as_of=timezone.now(),
+                            )
                             # For now we simply log. The actual copy into the DB row
                             # occurs in MarketOpenCapture via data.update(stats).
                             logger.debug(

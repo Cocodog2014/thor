@@ -1,4 +1,3 @@
-
 /** RTD.tSX */
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -171,11 +170,7 @@ function signalColor(sig?: SignalKey): ChipProps["color"] {
   }
 }
 
-// ----------------------------- Mocking ---------------------------
-
 // ----------------------------- UI Pieces -------------------------
-
-//
 
 function SignalBox({sig}:{sig?: SignalKey}){
   return (
@@ -316,7 +311,14 @@ function TotalCard({totalData, theme}:{totalData: TotalData | null; theme: Theme
   );
 }
 
-function L1Card({row, onSample, hist: _hist, theme, getQty, setQty}:{
+function L1Card({
+  row,
+  onSample,
+  hist: _hist,
+  theme,
+  getQty,
+  setQty
+}:{
   row: MarketData; 
   onSample:(value:number)=>void; 
   hist:number[]; 
@@ -618,88 +620,156 @@ function L1Card({row, onSample, hist: _hist, theme, getQty, setQty}:{
             </Box>
           </Box>
 
-          {/* Stats rows - reformatted to header rows with values underneath */}
-          <Box mt={2}>
-            {/* Row group: Close (prev) and Open */}
-            <Box>
-              {/* Headers */}
-              <Box display="flex" justifyContent="space-between" alignItems="baseline">
-                <Typography variant="caption" color="text.secondary">Close</Typography>
-                <Typography variant="caption" color="text.secondary">Open</Typography>
-              </Box>
-              {/* Values */}
-              <Box display="flex" justifyContent="space-between" alignItems="center" mt={0.5}>
-                <Typography variant="caption" fontWeight="medium">{fmt(row.previous_close, row.instrument.display_precision)}</Typography>
-                <Typography variant="caption" fontWeight="medium">{fmt(row.open_price, row.instrument.display_precision)}</Typography>
-              </Box>
-            </Box>
+          {/* Stats rows - compact 3-column layout: base / diff / percent */}
+<Box mt={2} className="data-grid">
 
-            {/* Row group: Open vs Previous — number and percent */}
-            <Box mt={1}>
-              <Box display="flex" justifyContent="space-between" alignItems="baseline">
-                <Typography variant="caption" color="text.secondary">Open vs Prev (Number)</Typography>
-                <Typography variant="caption" color="text.secondary">Open vs Prev (%)</Typography>
-              </Box>
-              <Box display="flex" justifyContent="space-between" alignItems="center" mt={0.5}>
-                <Typography variant="caption" fontWeight="medium">{fmt((row as any).open_prev_diff as any, row.instrument.display_precision)}</Typography>
-                <Typography variant="caption" fontWeight="medium">{`${fmt((row as any).open_prev_pct as any, 2)}%`}</Typography>
-              </Box>
-            </Box>
+  {/* --- Group 1: Close / Open --- */}
+  <Box className="stat-row" mb={1} pt={0.5}>
+    <Box display="grid" gridTemplateColumns="1.4fr 0.8fr 0.8fr" columnGap={1}>
+      {/* Col 1: Close / Open pair */}
+      <Box>
+        <Typography
+          variant="caption"
+          color="text.secondary"
+          sx={{ whiteSpace: 'nowrap' }}
+        >
+          Close / Open
+        </Typography>
+        <Typography variant="caption" fontWeight="medium" display="block">
+          {fmt(row.previous_close, row.instrument.display_precision)} / {fmt(row.open_price, row.instrument.display_precision)}
+        </Typography>
+      </Box>
 
-            {/* Row group: 24 hour Low/High */}
-            <Box mt={1}>
-              <Box display="flex" justifyContent="space-between" alignItems="baseline">
-                <Typography variant="caption" color="text.secondary">24 hour Low</Typography>
-                <Typography variant="caption" color="text.secondary">24 hour High</Typography>
-              </Box>
-              <Box display="flex" justifyContent="space-between" alignItems="center" mt={0.5}>
-                <Typography variant="caption" fontWeight="medium">{fmt(row.low_price, row.instrument.display_precision)}</Typography>
-                <Typography variant="caption" fontWeight="medium">{fmt(row.high_price, row.instrument.display_precision)}</Typography>
-              </Box>
-            </Box>
+      {/* Col 2: numeric diff (Open − Close) */}
+      <Box textAlign="right">
+        <Typography
+          variant="caption"
+          color="text.secondary"
+          sx={{ whiteSpace: 'nowrap' }}
+        >
+          Open Δ
+        </Typography>
+        <Typography variant="caption" fontWeight="medium" display="block">
+          {fmt((row as any).open_prev_diff as any, row.instrument.display_precision)}
+        </Typography>
+      </Box>
 
-            {/* Row group: Range number and percent */}
-            <Box mt={1}>
-              <Box display="flex" justifyContent="space-between" alignItems="baseline">
-                <Typography variant="caption" color="text.secondary">Range (High - Low)</Typography>
-                <Typography variant="caption" color="text.secondary">Range % (vs Prev)</Typography>
-              </Box>
-              <Box display="flex" justifyContent="space-between" alignItems="center" mt={0.5}>
-                <Typography variant="caption" fontWeight="medium">{fmt((row as any).range_diff as any)}</Typography>
-                <Typography variant="caption" fontWeight="medium">{fmt((row as any).range_pct as any)}</Typography>
-              </Box>
-            </Box>
+      {/* Col 3: percent diff */}
+      <Box textAlign="right">
+        <Typography
+          variant="caption"
+          color="text.secondary"
+          sx={{ whiteSpace: 'nowrap' }}
+        >
+          Open Δ%
+        </Typography>
+        <Typography variant="caption" fontWeight="medium" display="block">
+          {`${fmt((row as any).open_prev_pct as any, 2)}%`}
+        </Typography>
+      </Box>
+    </Box>
+  </Box>
 
-            {/* Row group: 52-week Low/High */}
-            <Box mt={1}>
-              <Box display="flex" justifyContent="space-between" alignItems="baseline">
-                <Typography variant="caption" color="text.secondary">52-week Low</Typography>
-                <Typography variant="caption" color="text.secondary">52-week High</Typography>
-              </Box>
-              <Box display="flex" justifyContent="space-between" alignItems="center" mt={0.5}>
-                <Typography variant="caption" fontWeight="medium">{fmt((row.extended_data as any)?.low_52w as any, row.instrument.display_precision)}</Typography>
-                <Typography variant="caption" fontWeight="medium">{fmt((row.extended_data as any)?.high_52w as any, row.instrument.display_precision)}</Typography>
-              </Box>
-              {/* Distances from 52w bounds using Last */}
-              <Box display="flex" justifyContent="space-between" alignItems="center" mt={0.25}>
-                <Typography variant="caption" color="text.disabled">
-                  {aboveLow == null ? '—' : `${fmt(aboveLow, row.instrument.display_precision)} (${fmt(aboveLowPct, 2)}%)`}
-                </Typography>
-                <Typography variant="caption" color="text.disabled" textAlign="right">
-                  {belowHigh == null ? '—' : `${fmt(belowHigh, row.instrument.display_precision)} (${fmt(belowHighPct, 2)}%)`}
-                </Typography>
-              </Box>
-            </Box>
+  {/* --- Group 2: 24h Low / High & Range --- */}
+  <Box className="stat-row" mb={1} pt={0.5}>
+    <Box display="grid" gridTemplateColumns="1.4fr 0.8fr 0.8fr" columnGap={1}>
+      {/* Col 1: 24h Low / High */}
+      <Box>
+        <Typography
+          variant="caption"
+          color="text.secondary"
+          sx={{ whiteSpace: 'nowrap' }}
+        >
+          24h L / H
+        </Typography>
+        <Typography variant="caption" fontWeight="medium" display="block">
+          {fmt(row.low_price, row.instrument.display_precision)} / {fmt(row.high_price, row.instrument.display_precision)}
+        </Typography>
+      </Box>
 
-            <Box display="flex" justifyContent="space-between" mt={1} mb={2}>
-              <Typography variant="caption" color="text.disabled">
-                {new Date(row.timestamp).toLocaleTimeString()}
-              </Typography>
-              <Typography variant="caption" color="text.disabled" sx={{ textTransform: 'uppercase' }}>
-                {row.market_status}
-              </Typography>
-            </Box>
-          </Box>
+      {/* Col 2: range points */}
+      <Box textAlign="right">
+        <Typography
+          variant="caption"
+          color="text.secondary"
+          sx={{ whiteSpace: 'nowrap' }}
+        >
+          Range (pts)
+        </Typography>
+        <Typography variant="caption" fontWeight="medium" display="block">
+          {fmt((row as any).range_diff as any, row.instrument.display_precision)}
+        </Typography>
+      </Box>
+
+      {/* Col 3: range percent */}
+      <Box textAlign="right">
+        <Typography
+          variant="caption"
+          color="text.secondary"
+          sx={{ whiteSpace: 'nowrap' }}
+        >
+          Range %
+        </Typography>
+        <Typography variant="caption" fontWeight="medium" display="block">
+          {`${fmt((row as any).range_pct as any, 2)}%`}
+        </Typography>
+      </Box>
+    </Box>
+  </Box>
+
+  {/* --- Group 3: 52-week Low / High & distances --- */}
+  <Box className="stat-row" mb={1} pt={0.5}>
+    <Box display="grid" gridTemplateColumns="1.4fr 0.8fr 0.8fr" columnGap={1}>
+      {/* Col 1: 52w Low / High */}
+      <Box>
+        <Typography
+          variant="caption"
+          color="text.secondary"
+          sx={{ whiteSpace: 'nowrap' }}
+        >
+          52w L / H
+        </Typography>
+        <Typography variant="caption" fontWeight="medium" display="block">
+          {fmt((row.extended_data as any)?.low_52w as any, row.instrument.display_precision)} / {fmt((row.extended_data as any)?.high_52w as any, row.instrument.display_precision)}
+        </Typography>
+      </Box>
+
+      {/* Col 2: above 52w low */}
+      <Box textAlign="right">
+        <Typography
+          variant="caption"
+          color="text.secondary"
+          sx={{ whiteSpace: 'nowrap' }}
+        >
+          Above 52w L
+        </Typography>
+        <Typography variant="caption" fontWeight="medium" display="block">
+          {aboveLow == null ? "—" : fmt(aboveLow, row.instrument.display_precision)}
+        </Typography>
+        <Typography variant="caption" color="text.disabled" display="block">
+          {aboveLowPct == null ? "" : `${fmt(aboveLowPct, 2)}%`}
+        </Typography>
+      </Box>
+
+      {/* Col 3: below 52w high */}
+      <Box textAlign="right">
+        <Typography
+          variant="caption"
+          color="text.secondary"
+          sx={{ whiteSpace: 'nowrap' }}
+        >
+          Below 52w H
+        </Typography>
+        <Typography variant="caption" fontWeight="medium" display="block">
+          {belowHigh == null ? "—" : fmt(belowHigh, row.instrument.display_precision)}
+        </Typography>
+        <Typography variant="caption" color="text.disabled" display="block">
+          {belowHighPct == null ? "" : `${fmt(belowHighPct, 2)}%`}
+        </Typography>
+      </Box>
+    </Box>
+  </Box>
+</Box>
         </Box>
       </Paper>
     </motion.div>
@@ -870,7 +940,7 @@ export default function FutureTrading({ onToggleMarketOpen, showMarketOpen }: Fu
       change_percent: null,
       vwap: null,
       volume: null,
-  market_status: "CLOSED",
+      market_status: "CLOSED",
       data_source: "none",
       is_real_time: false,
       delay_minutes: 0,
@@ -958,7 +1028,7 @@ export default function FutureTrading({ onToggleMarketOpen, showMarketOpen }: Fu
       <Box 
         sx={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(6, 320px)', // Fixed 6 columns, 320px each
+          gridTemplateColumns: 'repeat(6, 380px)', // widened
           gridTemplateRows: 'repeat(2, auto)', // 2 rows
           gap: 2,
           width: 'fit-content', // Grid only as wide as needed
@@ -990,3 +1060,4 @@ export default function FutureTrading({ onToggleMarketOpen, showMarketOpen }: Fu
     </Container>
   );
 }
+

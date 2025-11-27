@@ -16,7 +16,7 @@ django.setup()
 
 from GlobalMarkets.models import Market
 from FutureTrading.views.MarketOpenCapture import capture_market_open
-from FutureTrading.models.MarketOpen import MarketOpenSession, FutureSnapshot
+from FutureTrading.models.MarketSession import MarketSession
 
 
 def simulate_tokyo_open():
@@ -43,33 +43,41 @@ def simulate_tokyo_open():
     print(f"   Current Status: {tokyo.status}")
     print(f"   Market Hours: {tokyo.market_open_time} - {tokyo.market_close_time}")
     
-    # Check for existing sessions today
+    # Check for existing sessions today (single-table MarketSession rows)
     from django.utils import timezone
-    from datetime import datetime
     
     today = timezone.now().date()
-    existing = MarketOpenSession.objects.filter(
-        country='Japan',
-        captured_at__date=today
-    ).order_by('-captured_at')
-    
-    print(f"\n📊 Existing sessions today: {existing.count()}")
-    if existing.exists():
+    session_numbers = list(
+        MarketSession.objects
+        .filter(country='Japan', captured_at__date=today)
+        .values_list('session_number', flat=True)
+        .distinct()
+        .order_by('-session_number')
+    )
+
+    print(f"\n📊 Existing sessions today: {len(session_numbers)}")
+    if session_numbers:
         print("   Recent sessions:")
-        for s in existing[:3]:
-            print(f"   - Session #{s.session_number}: {s.captured_at.strftime('%H:%M:%S')} - Signal: {s.bhs}")
-        
-        # Ask to delete existing session
+        for num in session_numbers[:3]:
+            latest_row = (
+                MarketSession.objects
+                .filter(country='Japan', session_number=num)
+                .order_by('-captured_at')
+                .first()
+            )
+            captured = latest_row.captured_at.strftime('%H:%M:%S') if latest_row else '—'
+            signal = latest_row.bhs if latest_row else '—'
+            print(f"   - Session #{num}: {captured} - Signal: {signal}")
+
         print("\n⚠️  A session already exists for today!")
-        print("   This is due to unique constraint: one session per market per day")
-        response = input("\n   Delete existing session and create new one? (y/N): ").strip().lower()
-        
+        response = input("\n   Delete existing session(s) and create new one? (y/N): ").strip().lower()
+
         if response == 'y':
-            for s in existing:
-                # Delete snapshots first
-                FutureSnapshot.objects.filter(session=s).delete()
-                s.delete()
-            print("   ✅ Deleted existing sessions")
+            MarketSession.objects.filter(
+                country='Japan',
+                session_number__in=session_numbers
+            ).delete()
+            print("   ✅ Deleted existing MarketSession rows for today")
         else:
             print("\n   ℹ️  Keeping existing session. Exiting test.")
             return
@@ -93,42 +101,37 @@ def simulate_tokyo_open():
     print(f"   Session Number: #{session.session_number}")
     print(f"   Country: {session.country}")
     print(f"   Captured At: {session.captured_at.strftime('%Y-%m-%d %H:%M:%S')}")
-    print(f"   Total Signal: {session.bhs}")
-    print(f"   FW Weight: {session.fw_weight}")
-    print(f"   YM Last: {session.ym_last}")
     
-    # Get snapshots
-    snapshots = FutureSnapshot.objects.filter(session=session).order_by('symbol')
-    
-    print(f"\n📊 CAPTURED {snapshots.count()} SNAPSHOTS:")
+    # Fetch all MarketSession rows for this session number
+    capture_rows = MarketSession.objects.filter(
+        country=session.country,
+        session_number=session.session_number
+    )
+
+    print(f"\n📊 CAPTURED {capture_rows.count()} ROWS:")
     print("-" * 80)
     
-    # Find TOTAL first
-    total_snap = snapshots.filter(symbol='TOTAL').first()
-    if total_snap:
+    total_row = capture_rows.filter(future='TOTAL').first()
+    if total_row:
         print(f"\n🎯 TOTAL COMPOSITE:")
-        print(f"   Signal: {total_snap.signal}")
-        print(f"   Weight: {total_snap.weight}")
-        print(f"   Weighted Average: {total_snap.weighted_average}")
-        print(f"   Sum Weighted: {total_snap.sum_weighted}")
-        print(f"   Instrument Count: {total_snap.instrument_count}")
-        print(f"   Status: {total_snap.status}")
+        print(f"   Signal: {total_row.bhs}")
+        print(f"   Weight: {total_row.weight}")
+        print(f"   Weighted Average: {total_row.weighted_average}")
+        print(f"   Instrument Count: {total_row.instrument_count}")
     
-    # Display individual futures
     print(f"\n📈 INDIVIDUAL FUTURES:")
     print("-" * 80)
     
-    futures = snapshots.exclude(symbol='TOTAL')
+    futures = capture_rows.exclude(future='TOTAL').order_by('future')
     for snap in futures:
-        print(f"\n{snap.symbol}:")
+        print(f"\n{snap.future}:")
         print(f"   Last: {snap.last_price}")
-        print(f"   Change: {snap.change} ({snap.change_percent}%)")
-        print(f"   Signal: {snap.signal} (Weight: {snap.weight})")
-        print(f"   Bid: {snap.bid} x {snap.bid_size}  |  Ask: {snap.ask} x {snap.ask_size}")
-        print(f"   24h Range: {snap.day_24h_low} - {snap.day_24h_high} (Range: {snap.range_high_low}, {snap.range_percent}%)")
-        print(f"   52w Range: {snap.week_52_low} - {snap.week_52_high}")
+        print(f"   Signal: {snap.bhs} (Weight: {snap.weight})")
+        print(f"   Bid: {snap.bid_price} x {snap.bid_size}  |  Ask: {snap.ask_price} x {snap.ask_size}")
+        print(f"   24h Range: {snap.low_24h} - {snap.high_24h} (Range: {snap.range_diff_24h}, {snap.range_pct_24h}%)")
+        print(f"   52w Range: {snap.low_52w} - {snap.high_52w}")
         if snap.entry_price:
-            print(f"   Entry: {snap.entry_price} | Dynamic High: {snap.high_dynamic} | Dynamic Low: {snap.low_dynamic}")
+            print(f"   Entry: {snap.entry_price} | Target High: {snap.target_high} | Target Low: {snap.target_low}")
     
     # Verification summary
     print("\n" + "=" * 80)
@@ -138,30 +141,28 @@ def simulate_tokyo_open():
     issues = []
     
     # Check TOTAL
-    if not total_snap:
+    if not total_row:
         issues.append("❌ No TOTAL snapshot found")
     else:
-        if not total_snap.signal or total_snap.signal == '':
+        if not total_row.bhs:
             issues.append("❌ TOTAL signal is empty")
-        if total_snap.weighted_average is None:
+        if total_row.weighted_average is None:
             issues.append("❌ TOTAL weighted_average is None")
     
     # Check individual futures
     for snap in futures:
         missing = []
-        if not snap.signal or snap.signal == '':
+        if not snap.bhs:
             missing.append("signal")
         if snap.weight is None:
             missing.append("weight")
-        if snap.change_percent is None:
-            missing.append("change_percent")
-        if snap.day_24h_low is None or snap.day_24h_high is None:
+        if snap.low_24h is None or snap.high_24h is None:
             missing.append("24h_range")
-        if snap.week_52_low is None and snap.week_52_high is None:
+        if snap.low_52w is None and snap.high_52w is None:
             missing.append("52w_range")
         
         if missing:
-            issues.append(f"❌ {snap.symbol} missing: {', '.join(missing)}")
+            issues.append(f"❌ {snap.future} missing: {', '.join(missing)}")
     
     if not issues:
         print("\n✅ ALL CHECKS PASSED!")

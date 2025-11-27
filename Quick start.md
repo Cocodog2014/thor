@@ -21,12 +21,11 @@ $env:REDIS_URL        = 'redis://localhost:6379/0'
 python manage.py runserver
 ```
 
-3. Run frontend (new shell)
-
-```powershell
+3. Run frontend 
+```  
 cd A:\Thor\thor-frontend
-#npm install       # first time only
-npm run dev       # http://localhost:5173
+npm run dev
+     
 ```
 
 4. Start Excel → Redis poller (new shell)
