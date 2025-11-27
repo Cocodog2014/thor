@@ -99,6 +99,7 @@ class MarketOpenCaptureService:
             'week_52_low': self.safe_decimal(ext.get('low_52w')),
             'low_pct_52': self.safe_decimal(ext.get('low_pct_52')),
             'week_52_high': self.safe_decimal(ext.get('high_52w')),
+            'high_pct_52': self.safe_decimal(ext.get('high_pct_52')),
             
             # Signal (individual future's signal from HBS)
             'bhs': (ext.get('signal') or '').upper() if ext.get('signal') else '',
@@ -133,6 +134,13 @@ class MarketOpenCaptureService:
                 if last_price:
                     # Percent distance from current price down to the 52w low
                     data['low_pct_52'] = ((last_price - wlow) / last_price) * Decimal('100')
+            except Exception:
+                pass
+
+        if whigh is not None:
+            try:
+                if last_price:
+                    data['high_pct_52'] = ((whigh - last_price) / last_price) * Decimal('100')
             except Exception:
                 pass
 

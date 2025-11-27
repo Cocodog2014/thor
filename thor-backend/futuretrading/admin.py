@@ -162,6 +162,8 @@ class MarketSessionAdmin(admin.ModelAdmin):
             "week_52_low",
             "low_pct_52",
             "week_52_high",
+            "high_pct_52",
+            "high_pct_52",
             "week_52_range_high_low",
             "week_52_range_percent",
         ),
@@ -282,7 +284,7 @@ class MarketSessionAdmin(admin.ModelAdmin):
         }),
         ('Range Data', {
             'fields': ('low_24h', 'high_24h', 'range_diff_24h', 'range_pct_24h',
-                      'week_52_low', 'low_pct_52', 'week_52_high', 'week_52_range_high_low', 'week_52_range_percent'),
+                      'week_52_low', 'low_pct_52', 'week_52_high', 'high_pct_52', 'week_52_range_high_low', 'week_52_range_percent'),
             'classes': ('collapse',)
         }),
         ('Entry & Targets', {

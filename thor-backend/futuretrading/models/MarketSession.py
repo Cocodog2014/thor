@@ -357,6 +357,13 @@ class MarketSession(models.Model):
         blank=True,
         help_text="52-week high",
     )
+    high_pct_52 = models.DecimalField(
+        max_digits=14,
+        decimal_places=4,
+        null=True,
+        blank=True,
+        help_text="Percent below 52-week high relative to current price",
+    )
     week_52_range_high_low = models.DecimalField(
         max_digits=14,
         decimal_places=4,
