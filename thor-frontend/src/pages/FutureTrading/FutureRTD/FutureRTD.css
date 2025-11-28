@@ -48,8 +48,7 @@
 .market-closed { color: #f44336; }
 .market-premarket, .market-afterhours { color: #ff9800; }
 .market-halt { color: #e91e63; animation: pulse 1s infinite; }
-@keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; }
-}
+@keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
 
 .chart-container { min-height: 64px; height: 64px; }
 .price-display { font-variant-numeric: tabular-nums; letter-spacing: 0.025em; }
