@@ -716,6 +716,49 @@ After enabling/disabling flags:
 
 `enable_close_capture` is reserved; adding a symmetric `_on_market_close` hook will allow end-of-session snapshots (e.g., realized range vs targets). That code path intentionally omitted for now per project priority.
 
+### 7.7 Market Open Capture: Session Number vs Date Fields
+
+The Market Open snapshot (12 rows: 11 futures + TOTAL) is keyed by a monotonic `session_number` rather than the trio of `year`/`month`/`date` integers when grouping or validating a capture event.
+
+Why `session_number` is authoritative:
+- Timezone Safety: Markets (e.g., Japan, China) open on a local calendar day that can differ from the server's date rollover window. Relying on naive `date` comparisons produced false negatives in validation scripts.
+- Atomicity: All 12 rows are created inside one logical capture transaction; they share exactly the same `session_number`, even if the open straddles midnight UTC boundaries.
+- Sequential Integrity: `session_number` is incremented once per successful open capture per country, creating a simple ordered history without gaps (unless a market was disabled).
+
+Date Fields Still Stored:
+- Each `MarketSession` row still records `year`, `month`, `date` for human-readable audit and UI display.
+- These fields should NOT be used as the primary grouping key for programmatic verification, reconciliation, or backfills.
+
+Recommended Query Patterns:
+```sql
+-- Latest complete open snapshot for USA
+SELECT * FROM future_trading_marketsession
+WHERE country = 'USA' AND session_number = (
+  SELECT MAX(session_number) FROM future_trading_marketsession WHERE country = 'USA'
+);
+
+-- Validate row count (expect 12)
+SELECT COUNT(*) FROM future_trading_marketsession
+WHERE country = 'USA' AND session_number = 42;  -- replace 42 with discovered latest
+
+-- Fetch TOTAL composite row only
+SELECT * FROM future_trading_marketsession
+WHERE country = 'USA' AND session_number = 42 AND future = 'TOTAL';
+```
+
+Verification Scripts:
+- `TestScript/test_capture_fix.py` (single-market) and `TestScript/verify_all_market_open_capture.py` (multi-market) have been updated to pivot on `session_number`.
+- If a market is disabled (`enable_futures_capture=False`), its `session_number` will not increment—scripts skip those countries to avoid noise.
+
+Legacy Field Note:
+- The deprecated `vwap` column was removed from `MarketSession` and must not be passed during row creation. Attempting to include it caused silent drop of per-future rows prior to this fix.
+
+Operational Guidance:
+- When diagnosing a suspected missing future row, first capture the latest `session_number`; never infer grouping by matching on today's `date`.
+- For backfill or data repair, operate in ascending `session_number` order to preserve chronological logic across timezone boundaries.
+
+In short: treat `session_number` as the single source of truth for an open snapshot; treat `date` as metadata.
+
 ---
 
 ## 8. Thor Background Stack (`stack_start.py`)
