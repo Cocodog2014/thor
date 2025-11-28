@@ -59,6 +59,13 @@ interface MarketOpenSession {
   fw_exit_percent?: string | null;
 }
 
+type MarketLiveStatus = {
+  next_event?: string;
+  seconds_to_next_event?: number;
+  current_state?: string;
+  local_date_key?: string;
+};
+
 // Control markets must use exact country strings from backend sessions.
 // Backend currently stores: Japan, China, India, Germany, United Kingdom, Pre_USA, USA, Canada, Mexico
 const CONTROL_MARKETS = [
@@ -157,6 +164,18 @@ const getDeltaClass = (value?: string | number | null) => {
 // Helper to check if a value is zero (number or string)
 const isZero = (v: any) => v === 0 || v === "0";
 
+const buildDateKey = (year?: number | null, month?: number | null, day?: number | null) => {
+  if (!year || !month || !day) return undefined;
+  const paddedMonth = String(month).padStart(2, "0");
+  const paddedDay = String(day).padStart(2, "0");
+  return `${year}-${paddedMonth}-${paddedDay}`;
+};
+
+const getSessionDateKey = (session?: Pick<MarketOpenSession, "year" | "month" | "date"> | null) => {
+  if (!session) return undefined;
+  return buildDateKey(session.year, session.month, session.date);
+};
+
 // Allow API URL to be set via environment variable or prop, fallback to relative path
 const getApiUrl = () => {
   return import.meta.env.VITE_MARKET_OPENS_API_URL || "http://127.0.0.1:8000/api/market-opens/latest/";
@@ -165,7 +184,7 @@ const getApiUrl = () => {
 const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl }) => {
   const resolvedApiUrl = apiUrl || getApiUrl();
   const [sessions, setSessions] = useState<MarketOpenSession[] | null>(null);
-  const [liveStatus, setLiveStatus] = useState<Record<string, { next_event?: string; seconds_to_next_event?: number }>>({});
+  const [liveStatus, setLiveStatus] = useState<Record<string, MarketLiveStatus>>({});
 
   // 🔹 Default future per market = TOTAL (per-country composite)
   const [selected, setSelected] = useState<Record<string, string>>(() => {
@@ -198,13 +217,17 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl }) => {
       try {
         const res = await fetch("http://127.0.0.1:8000/api/global-markets/markets/live_status/");
         const data = await res.json();
-        const map: Record<string, { next_event?: string; seconds_to_next_event?: number }> = {};
+        const map: Record<string, MarketLiveStatus> = {};
         if (data && Array.isArray(data.markets)) {
           for (const m of data.markets) {
             if (m && m.country) {
+              const ct = m.current_time;
+              const localDateKey = ct ? buildDateKey(ct.year, ct.month, ct.date) : undefined;
               map[String(m.country)] = {
                 next_event: m.next_event,
                 seconds_to_next_event: typeof m.seconds_to_next_event === "number" ? m.seconds_to_next_event : undefined,
+                current_state: m.current_state,
+                local_date_key: localDateKey,
               };
             }
           }
@@ -272,7 +295,14 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl }) => {
           const seconds = status?.seconds_to_next_event ?? undefined;
           const nextEvent = status?.next_event;
 
-          const isPriorDay = latestRow?.captured_at ? !isToday(latestRow.captured_at) : false;
+          const sessionDateKey = latestRow ? getSessionDateKey(latestRow) : undefined;
+          const marketDateKey = status?.local_date_key;
+          let isPriorDay = false;
+          if (sessionDateKey && marketDateKey) {
+            isPriorDay = sessionDateKey !== marketDateKey;
+          } else if (latestRow?.captured_at) {
+            isPriorDay = !isToday(latestRow.captured_at);
+          }
           const hidePriorNow = isPriorDay && nextEvent === "open" && typeof seconds === "number" && seconds <= 300;
           if (hidePriorNow) {
             return (
