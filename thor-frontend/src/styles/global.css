@@ -4,7 +4,6 @@
 @import '../App.css';
 @import '../components/GlobalHeader.css';
 @import '../pages/GlobalMarkets/GlobalMarkets.css';
-@import '../pages/FutureTrading/FutureTrading.css';
 @import '../pages/FutureTrading/Market/MarketDashboard.css';
 @import '../pages/ActivityPositions/ActivityPositions.css';
 @import '../pages/AccountStatement/AccountStatement.css';

@@ -60,12 +60,12 @@ class Command(BaseCommand):
                     if last_minute_per_symbol.get(sym) == current_minute:
                         continue
                     # Persist row
+                    # Model no longer has bid_price / ask_price fields (removed in migration 0061).
+                    # Persist only the fields that exist: last_price, cumulative_volume.
                     row = VwapMinute.objects.create(
                         symbol=sym,
                         timestamp_minute=current_minute,
                         last_price=_dec(quote.get("last")),
-                        bid_price=_dec(quote.get("bid")),
-                        ask_price=_dec(quote.get("ask")),
                         cumulative_volume=_int(quote.get("volume")),
                     )
                     last_minute_per_symbol[sym] = current_minute
