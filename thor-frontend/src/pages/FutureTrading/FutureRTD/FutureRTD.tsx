@@ -1,4 +1,5 @@
 /** RTD.tSX */
+import './FutureRTD.css';
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
@@ -32,7 +33,7 @@ import type { ChipProps } from "@mui/material";
  * with one of: STRONG_BUY | BUY | HOLD | SELL | STRONG_SELL.
  */
 
-interface FutureTradingProps {
+interface FutureRTDProps {
   onToggleMarketOpen?: () => void;
   showMarketOpen?: boolean;
 }
@@ -778,7 +779,7 @@ function L1Card({
 
 // -------------------------- Main Component -----------------------
 
-export default function FutureTrading({ onToggleMarketOpen, showMarketOpen }: FutureTradingProps = {}){
+export default function FutureRTD({ onToggleMarketOpen, showMarketOpen }: FutureRTDProps = {}){
   const theme = useTheme();
   const [pollMs, setPollMs] = useState(2000);
   const [rows, setRows] = useState<MarketData[]>([]);
