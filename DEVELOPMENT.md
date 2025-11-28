@@ -666,3 +666,20 @@ Logic:
 ## 12. Futures Capture Control (Canada/Mexico Skip Logic)
 
 See also Section 3 (GlobalMarkets) for how open events trigger capture. This section documents per-market enable flags.
+
+---
+
+## 13. Docs & Seeds
+
+- Detailed app docs: `docs/dev/` (GlobalMarkets, FutureTrading, data contracts, env vars, metrics).
+- Canonical constants: `docs/dev/SEED_DATA.md`.
+- Machine-readable fixtures: `thor-backend/data/*.json`.
+- Rebuild baseline after a DB wipe:
+
+```powershell
+cd A:\Thor\thor-backend
+python manage.py migrate
+python manage.py thor_seed_all
+```
+
+This seeds control markets; futures/weights will be applied as models are wired.
