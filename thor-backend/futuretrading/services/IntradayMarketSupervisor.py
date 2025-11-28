@@ -152,13 +152,13 @@ class IntradayMarketSupervisor:
                     except Exception as vw_err:
                         logger.debug("Rolling VWAP calc failed for %s: %s", sym, vw_err)
                         vwap_payload[sym] = None
-                live_data_redis.set(
+                live_data_redis.set_json(
                     f"rolling_vwap:{window_minutes}",
-                    json.dumps({
+                    {
                         'window_minutes': window_minutes,
                         'as_of': now_dt.isoformat(),
                         'values': vwap_payload,
-                    }),
+                    },
                     ex=120,
                 )
 

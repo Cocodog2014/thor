@@ -1,3 +1,9 @@
+cd A:\Thor
+.\thor_dev.ps1
+
+http://localhost:5173/
+
+
 1. Start databases & cache
 
 ```powershell
