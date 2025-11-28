@@ -140,10 +140,7 @@ const CollapsibleDrawer: React.FC<CollapsibleDrawerProps> = ({
 
       <List>
         {navigationItems.map((item) => {
-          const isFutures = item.text === 'Futures';
-          const selected = isFutures
-            ? showFuturesOnHome && location.pathname.startsWith('/app/home')
-            : (!item.external && location.pathname === item.path);
+          const selected = !item.external && location.pathname.startsWith(item.path);
           return (
             <ListItem key={item.text} disablePadding sx={{ display: 'block' }}>
               <ListItemButton
@@ -151,13 +148,6 @@ const CollapsibleDrawer: React.FC<CollapsibleDrawerProps> = ({
                 onClick={() => {
                   if (item.external) {
                     window.open(item.path, '_blank', 'noopener,noreferrer');
-                    return;
-                  }
-                  if (isFutures) {
-                    onFuturesOnHomeToggle?.();
-                    if (!location.pathname.startsWith('/app/home')) {
-                      navigate('/app/home');
-                    }
                     return;
                   }
                   navigate(item.path);
@@ -205,6 +195,31 @@ const CollapsibleDrawer: React.FC<CollapsibleDrawerProps> = ({
               <PublicIcon />
             </ListItemIcon>
             <ListItemText primary="Global Market" sx={{ opacity: open ? 1 : 0, color: '#fff' }} />
+          </ListItemButton>
+        </ListItem>
+
+        {/* Futures card toggle for home dashboard */}
+        <ListItem disablePadding sx={{ display: 'block' }}>
+          <ListItemButton
+            selected={showFuturesOnHome}
+            onClick={onFuturesOnHomeToggle}
+            sx={{
+              minHeight: 48,
+              justifyContent: open ? 'initial' : 'center',
+              px: 2.5,
+              '&.Mui-selected': {
+                backgroundColor: 'rgba(25, 118, 210, 0.2)',
+                borderRight: '3px solid #1976d2',
+              },
+              '&:hover': {
+                backgroundColor: 'rgba(25, 118, 210, 0.1)',
+              },
+            }}
+          >
+            <ListItemIcon sx={{ minWidth: 0, mr: open ? 3 : 'auto', justifyContent: 'center', color: '#1976d2' }}>
+              <TrendingUpIcon />
+            </ListItemIcon>
+            <ListItemText primary="Futures on Home" sx={{ opacity: open ? 1 : 0, color: '#fff' }} />
           </ListItemButton>
         </ListItem>
 
