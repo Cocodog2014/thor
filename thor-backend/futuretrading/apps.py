@@ -2,31 +2,40 @@ from django.apps import AppConfig
 
 
 class FuturetradingConfig(AppConfig):
-    default_auto_field = 'django.db.models.BigAutoField'
-    name = 'FutureTrading'
+    default_auto_field = "django.db.models.BigAutoField"
+    name = "FutureTrading"
 
     def ready(self):
-        """Start FutureTrading background services when Django app registry is ready.
+        """
+        Kick off Thor background stack via a short delayed thread.
 
-        - Starts the 52-week extremes monitor in the background.
-        - Starts the pre-open backtest supervisor.
-        - If startup fails, logs the exception but does not block Django.
+        This prevents database access during app initialization and ensures
+        all supervisors are orchestrated by services.stack_start.
         """
         import logging
+        import threading
+        import time
+
         logger = logging.getLogger(__name__)
 
-        # 52-week extremes supervisor
         try:
-            from FutureTrading.services.Week52Monitor import start_52w_monitor_supervisor
-            start_52w_monitor_supervisor()
+            from FutureTrading.services.stack_start import start_thor_background_stack
         except Exception:
-            logger.exception("Failed to start 52w supervisor")
+            logger.exception("❌ Failed to import Thor background stack")
+            return
 
-        # Pre-open backtest supervisor (T-minus 60s)
-        try:
-            from FutureTrading.services.PreOpenBacktestSupervisor import (
-                start_preopen_backtest_supervisor,
-            )
-            start_preopen_backtest_supervisor()
-        except Exception:
-            logger.exception("Failed to start pre-open backtest supervisor")
+        def _delayed_start():
+            time.sleep(1.0)
+            try:
+                logger.info("🔥 FutureTrading app ready: initializing background stack (delayed)...")
+                start_thor_background_stack()
+                logger.info("🚀 Thor master stack started successfully.")
+            except Exception:
+                logger.exception("❌ Failed to start Thor master stack")
+
+        threading.Thread(
+            target=_delayed_start,
+            name="ThorStackDelayedStart",
+            daemon=True,
+        ).start()
+

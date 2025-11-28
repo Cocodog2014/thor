@@ -132,7 +132,6 @@ class MarketSessionAdmin(admin.ModelAdmin):
             "ask_price",
             "ask_size",
             "volume",
-            "vwap",
             "spread",
         ),
         "targets": (
@@ -162,8 +161,7 @@ class MarketSessionAdmin(admin.ModelAdmin):
             "low_52w",
             "low_pct_52w",
             "high_52w",
-            "high_pct_52",
-            "high_pct_52",
+            "high_pct_52w",
             "range_52w",
             "range_pct_52w",
         ),
@@ -208,16 +206,16 @@ class MarketSessionAdmin(admin.ModelAdmin):
             "target_hit_price",
             "target_hit_type",
             "market_open",
-            "market_high_number",
-            "market_high_percentage",
-            "market_low_number",
-            "market_low_percentage",
-            "market_close_number",
-            "market_close_percentage_high",
-            "market_close_percentage_low",
-            "market_close_vs_open_percentage",
-            "market_range_number",
-            "market_range_percentage",
+            "market_high_open",
+            "market_high_pct_open",
+            "market_low_open",
+            "market_low_pct_open",
+            "market_close",
+            "market_high_pct_close",
+            "market_low_pct_close",
+            "market_close_vs_open_pct",
+            "market_range",
+            "market_range_pct",
             "prev_close_24h",
             "open_price_24h",
             "open_prev_diff_24h",
@@ -229,10 +227,10 @@ class MarketSessionAdmin(admin.ModelAdmin):
             "low_52w",
             "low_pct_52w",
             "high_52w",
+            "high_pct_52w",
             "range_52w",
             "range_pct_52w",
             "volume",
-            "vwap",
             "bid_price",
             "bid_size",
             "ask_price",
@@ -277,7 +275,7 @@ class MarketSessionAdmin(admin.ModelAdmin):
         }),
         ('Live Price Data (Open)', {
             'fields': ('last_price', 'ask_price', 'ask_size',
-                      'bid_price', 'bid_size', 'volume', 'vwap', 'spread')
+                      'bid_price', 'bid_size', 'volume', 'spread')
         }),
         ('Session Price Data', {
             'fields': ('prev_close_24h', 'open_price_24h', 'open_prev_diff_24h', 'open_prev_pct_24h')
@@ -285,7 +283,7 @@ class MarketSessionAdmin(admin.ModelAdmin):
         ('Range Data', {
             'fields': (
                 'low_24h', 'high_24h', 'range_diff_24h', 'range_pct_24h',
-                'low_52w', 'low_pct_52w', 'high_52w', 'high_pct_52', 'range_52w', 'range_pct_52w'
+                'low_52w', 'low_pct_52w', 'high_52w', 'high_pct_52w', 'range_52w', 'range_pct_52w'
             ),
             'classes': ('collapse',)
         }),

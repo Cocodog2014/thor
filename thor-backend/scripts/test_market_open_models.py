@@ -59,7 +59,6 @@ try:
         ask=Decimal("47388.00"),
         ask_size=2,
         volume=150000,
-        vwap=Decimal("47385.50"),
         spread=Decimal("8.00"),
         close=Decimal("47396.00"),
         entry_price=Decimal("47388.00"),

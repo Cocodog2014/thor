@@ -190,13 +190,6 @@ class MarketSession(models.Model):
 
     # Additional market data
     volume = models.BigIntegerField(null=True, blank=True, help_text="Trading volume")
-    vwap = models.DecimalField(
-        max_digits=14,
-        decimal_places=4,
-        null=True,
-        blank=True,
-        help_text="Volume Weighted Average Price",
-    )
     market_open = models.DecimalField(
         max_digits=14,
         decimal_places=4,
@@ -204,70 +197,70 @@ class MarketSession(models.Model):
         blank=True,
         help_text="Market open move (number)",
     )
-    market_high_number = models.DecimalField(
+    market_high_open = models.DecimalField(
         max_digits=14,
         decimal_places=4,
         null=True,
         blank=True,
         help_text="High move from open (number)",
     )
-    market_high_percentage = models.DecimalField(
+    market_high_pct_open = models.DecimalField(
         max_digits=14,
         decimal_places=4,
         null=True,
         blank=True,
         help_text="High move from open (percent)",
     )
-    market_low_number = models.DecimalField(
+    market_low_open = models.DecimalField(
         max_digits=14,
         decimal_places=4,
         null=True,
         blank=True,
         help_text="Low move from open (number)",
     )
-    market_low_percentage = models.DecimalField(
+    market_low_pct_open = models.DecimalField(
         max_digits=14,
         decimal_places=4,
         null=True,
         blank=True,
         help_text="Low move from open (percent)",
     )
-    market_close_number = models.DecimalField(
+    market_close = models.DecimalField(
         max_digits=14,
         decimal_places=4,
         null=True,
         blank=True,
         help_text="Close move from open (number)",
     )
-    market_close_percentage_high = models.DecimalField(
+    market_high_pct_close = models.DecimalField(
         max_digits=14,
         decimal_places=4,
         null=True,
         blank=True,
         help_text="Percent distance from intraday high",
     )
-    market_close_percentage_low = models.DecimalField(
+    market_low_pct_close = models.DecimalField(
         max_digits=14,
         decimal_places=4,
         null=True,
         blank=True,
         help_text="Percent distance above intraday low",
     )
-    market_close_vs_open_percentage = models.DecimalField(
+    market_close_vs_open_pct = models.DecimalField(
         max_digits=14,
         decimal_places=4,
         null=True,
         blank=True,
         help_text="Close vs open change (percent)",
     )
-    market_range_number = models.DecimalField(
+    market_range = models.DecimalField(
         max_digits=14,
         decimal_places=4,
         null=True,
         blank=True,
         help_text="Intraday range (number)",
     )
-    market_range_percentage = models.DecimalField(
+    market_range_pct = models.DecimalField(
         max_digits=14,
         decimal_places=4,
         null=True,
@@ -357,7 +350,7 @@ class MarketSession(models.Model):
         blank=True,
         help_text="52-week high",
     )
-    high_pct_52 = models.DecimalField(
+    high_pct_52w = models.DecimalField(
         max_digits=14,
         decimal_places=4,
         null=True,

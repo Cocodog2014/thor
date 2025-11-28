@@ -85,7 +85,6 @@ class Command(BaseCommand):
                     'session_ask': ask,
                     'ask_size': random.randint(1, 10),
                     'volume': random.randint(1000, 2_000_000),
-                    'vwap': base,
                     'spread': (ask - bid).quantize(Decimal('0.0001')),
                     'open_price_24h': (base - chg).quantize(Decimal('0.01')),
                     'prev_close_24h': (base - chg).quantize(Decimal('0.01')),

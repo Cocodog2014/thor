@@ -22,18 +22,17 @@ interface MarketOpenSession {
   bid_price?: string | null;
   bid_size?: number | null;
   volume?: number | null;
-  vwap?: string | null;
   market_open?: string | null;
-  market_high_number?: string | null;
-  market_high_percentage?: string | null;
-  market_low_number?: string | null;
-  market_low_percentage?: string | null;
-  market_close_number?: string | null;
-  market_close_percentage_high?: string | null;
-  market_close_percentage_low?: string | null;
-  market_close_vs_open_percentage?: string | null;
-  market_range_number?: string | null;
-  market_range_percentage?: string | null;
+  market_high_open?: string | null;
+  market_high_pct_open?: string | null;
+  market_low_open?: string | null;
+  market_low_pct_open?: string | null;
+  market_close?: string | null;
+  market_high_pct_close?: string | null;
+  market_low_pct_close?: string | null;
+  market_close_vs_open_pct?: string | null;
+  market_range?: string | null;
+  market_range_pct?: string | null;
   spread?: string | null;
   prev_close_24h?: string | null;
   open_price_24h?: string | null;
@@ -58,6 +57,13 @@ interface MarketOpenSession {
   fw_exit_value?: string | null;
   fw_exit_percent?: string | null;
 }
+
+type MarketLiveStatus = {
+  next_event?: string;
+  seconds_to_next_event?: number;
+  current_state?: string;
+  local_date_key?: string;
+};
 
 // Control markets must use exact country strings from backend sessions.
 // Backend currently stores: Japan, China, India, Germany, United Kingdom, Pre_USA, USA, Canada, Mexico
@@ -157,15 +163,33 @@ const getDeltaClass = (value?: string | number | null) => {
 // Helper to check if a value is zero (number or string)
 const isZero = (v: any) => v === 0 || v === "0";
 
-// Allow API URL to be set via environment variable or prop, fallback to relative path
+const buildDateKey = (year?: number | null, month?: number | null, day?: number | null) => {
+  if (!year || !month || !day) return undefined;
+  const paddedMonth = String(month).padStart(2, "0");
+  const paddedDay = String(day).padStart(2, "0");
+  return `${year}-${paddedMonth}-${paddedDay}`;
+};
+
+const getSessionDateKey = (session?: Pick<MarketOpenSession, "year" | "month" | "date"> | null) => {
+  if (!session) return undefined;
+  return buildDateKey(session.year, session.month, session.date);
+};
+
+// Allow API URLs to be set via environment variables or props, fallback to local dev endpoints
 const getApiUrl = () => {
   return import.meta.env.VITE_MARKET_OPENS_API_URL || "http://127.0.0.1:8000/api/market-opens/latest/";
 };
 
+const getLiveStatusApiUrl = () => {
+  return import.meta.env.VITE_GLOBAL_MARKETS_LIVE_STATUS_API_URL
+    || "http://127.0.0.1:8000/api/global-markets/markets/live_status/";
+};
+
 const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl }) => {
   const resolvedApiUrl = apiUrl || getApiUrl();
+  const resolvedLiveStatusUrl = getLiveStatusApiUrl();
   const [sessions, setSessions] = useState<MarketOpenSession[] | null>(null);
-  const [liveStatus, setLiveStatus] = useState<Record<string, { next_event?: string; seconds_to_next_event?: number }>>({});
+  const [liveStatus, setLiveStatus] = useState<Record<string, MarketLiveStatus>>({});
 
   // 🔹 Default future per market = TOTAL (per-country composite)
   const [selected, setSelected] = useState<Record<string, string>>(() => {
@@ -196,21 +220,31 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl }) => {
 
     async function loadLiveStatus() {
       try {
-        const res = await fetch("http://127.0.0.1:8000/api/global-markets/markets/live_status/");
+        const res = await fetch(resolvedLiveStatusUrl);
+        if (!res.ok) {
+          console.error("MarketDashboard: live status API error", res.status, res.statusText);
+          if (!cancelled) setLiveStatus({});
+          return;
+        }
         const data = await res.json();
-        const map: Record<string, { next_event?: string; seconds_to_next_event?: number }> = {};
+        const map: Record<string, MarketLiveStatus> = {};
         if (data && Array.isArray(data.markets)) {
           for (const m of data.markets) {
             if (m && m.country) {
+              const ct = m.current_time;
+              const localDateKey = ct ? buildDateKey(ct.year, ct.month, ct.date) : undefined;
               map[String(m.country)] = {
                 next_event: m.next_event,
                 seconds_to_next_event: typeof m.seconds_to_next_event === "number" ? m.seconds_to_next_event : undefined,
+                current_state: m.current_state,
+                local_date_key: localDateKey,
               };
             }
           }
         }
         if (!cancelled) setLiveStatus(map);
       } catch (e) {
+        console.error("MarketDashboard: live status fetch failed", e);
         if (!cancelled) setLiveStatus({});
       }
     }
@@ -228,7 +262,7 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl }) => {
     tick();
     const id = setInterval(tick, 1000);
     return () => { cancelled = true; clearInterval(id); };
-  }, [resolvedApiUrl]);
+  }, [resolvedApiUrl, resolvedLiveStatusUrl]);
 
   const normalizeCountry = (c?: string) => (c || "").trim().toLowerCase();
 
@@ -272,7 +306,14 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl }) => {
           const seconds = status?.seconds_to_next_event ?? undefined;
           const nextEvent = status?.next_event;
 
-          const isPriorDay = latestRow?.captured_at ? !isToday(latestRow.captured_at) : false;
+          const sessionDateKey = latestRow ? getSessionDateKey(latestRow) : undefined;
+          const marketDateKey = status?.local_date_key;
+          let isPriorDay = false;
+          if (sessionDateKey && marketDateKey) {
+            isPriorDay = sessionDateKey !== marketDateKey;
+          } else if (latestRow?.captured_at) {
+            isPriorDay = !isToday(latestRow.captured_at);
+          }
           const hidePriorNow = isPriorDay && nextEvent === "open" && typeof seconds === "number" && seconds <= 300;
           if (hidePriorNow) {
             return (
@@ -319,13 +360,13 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl }) => {
           const totalSumValue = formatNum(totalSumRaw) ?? (isZero(totalSumRaw) ? 0 : "—");
           const totalInstrumentCount = snap?.instrument_count ?? 11;
           const totalCapture = snap?.captured_at ? new Date(snap.captured_at).toLocaleTimeString() : "—";
-          const closeDeltaValue = formatSignedValue(snap?.market_close_number);
-          const closeDeltaPercent = formatPercentValue(snap?.market_close_vs_open_percentage);
+          const closeDeltaValue = formatSignedValue(snap?.market_close);
+          const closeDeltaPercent = formatPercentValue(snap?.market_close_vs_open_pct);
           const closeDeltaClass = getDeltaClass(
-            snap?.market_close_number
-              ?? snap?.market_close_vs_open_percentage
-              ?? snap?.market_close_percentage_high
-              ?? snap?.market_close_percentage_low
+            snap?.market_close
+              ?? snap?.market_close_vs_open_pct
+              ?? snap?.market_high_pct_close
+              ?? snap?.market_low_pct_close
           );
           const marketDeltaMetrics = [
             {
@@ -336,21 +377,21 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl }) => {
             },
             {
               label: "High Δ",
-              primary: formatSignedValue(snap?.market_high_number),
-              secondary: formatPercentValue(snap?.market_high_percentage),
-              className: getDeltaClass(snap?.market_high_number ?? snap?.market_high_percentage),
+              primary: formatSignedValue(snap?.market_high_open),
+              secondary: formatPercentValue(snap?.market_high_pct_open),
+              className: getDeltaClass(snap?.market_high_open ?? snap?.market_high_pct_open),
             },
             {
               label: "Low Δ",
-              primary: formatSignedValue(snap?.market_low_number),
-              secondary: formatPercentValue(snap?.market_low_percentage),
-              className: getDeltaClass(snap?.market_low_number ?? snap?.market_low_percentage),
+              primary: formatSignedValue(snap?.market_low_open),
+              secondary: formatPercentValue(snap?.market_low_pct_open),
+              className: getDeltaClass(snap?.market_low_open ?? snap?.market_low_pct_open),
             },
             {
               label: "Range Δ",
-              primary: formatSignedValue(snap?.market_range_number),
-              secondary: formatPercentValue(snap?.market_range_percentage),
-              className: getDeltaClass(snap?.market_range_number ?? snap?.market_range_percentage),
+              primary: formatSignedValue(snap?.market_range),
+              secondary: formatPercentValue(snap?.market_range_pct),
+              className: getDeltaClass(snap?.market_range ?? snap?.market_range_pct),
             },
           ];
           const hasDeltaData = marketDeltaMetrics.some(metric => metric.primary || metric.secondary);
@@ -428,11 +469,11 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl }) => {
                       </div>
                       <div className="mo-rt-change">
                         <div className={`val ${closeDeltaClass}`}>
-                          {closeDeltaValue ?? (isZero(snap?.market_close_number) ? "0" : "—")}
+                          {closeDeltaValue ?? (isZero(snap?.market_close) ? "0" : "—")}
                         </div>
                         <div className={`pct ${closeDeltaClass}`}>
                             {closeDeltaPercent
-                              ?? (isZero(snap?.market_close_vs_open_percentage) ? "0%" : "—")}
+                              ?? (isZero(snap?.market_close_vs_open_pct) ? "0%" : "—")}
                         </div>
                         <div className="label">Close Δ</div>
                       </div>
@@ -492,10 +533,6 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl }) => {
                     <div className="stat">
                       <div className="stat-label">Volume</div>
                       <div className="stat-value">{snap?.volume !== undefined && snap?.volume !== null ? formatNum(snap?.volume, 0) : "—"}</div>
-                    </div>
-                    <div className="stat">
-                      <div className="stat-label">VWAP</div>
-                      <div className="stat-value">{formatNum(snap?.vwap) ?? (isZero(snap?.vwap) ? 0 : "—")}</div>
                     </div>
                     <div className="stat">
                       <div className="stat-label">Prev Close (24h)</div>

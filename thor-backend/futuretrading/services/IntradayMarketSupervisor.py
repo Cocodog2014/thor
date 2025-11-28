@@ -49,6 +49,11 @@ class IntradayMarketSupervisor:
         # How often to refresh highs/lows while market is open
         self.interval_seconds = interval_seconds
 
+        # Allow migrations/maintenance to disable the background workers entirely
+        self.disabled = os.getenv("INTRADAY_SUPERVISOR_DISABLED", "").lower() in {"1", "true", "yes"}
+        if self.disabled:
+            logger.warning("IntradayMarketSupervisor disabled via INTRADAY_SUPERVISOR_DISABLED")
+
         # Map: market.id -> (thread, stop_event)
         self._workers = {}
         self._lock = threading.RLock()
@@ -59,6 +64,9 @@ class IntradayMarketSupervisor:
 
     def on_market_open(self, market):
         """Start intraday metric updates for this market (if not already running)."""
+        if self.disabled:
+            logger.info("Intraday metrics disabled; skipping worker start for %s", market.country)
+            return
         with self._lock:
             if market.id in self._workers:
                 logger.info("Intraday worker already active for %s", market.country)
@@ -80,6 +88,9 @@ class IntradayMarketSupervisor:
 
     def on_market_close(self, market):
         """Stop intraday updates and finalize market_close & market_range metrics."""
+        if self.disabled:
+            logger.info("Intraday metrics disabled; skipping close handling for %s", market.country)
+            return
         with self._lock:
             worker = self._workers.pop(market.id, None)
             if worker:
@@ -116,6 +127,9 @@ class IntradayMarketSupervisor:
         Loop that runs while market is OPEN.
         Updates intraday metrics repeatedly until closed.
         """
+        if self.disabled:
+            logger.info("Intraday worker requested for %s but supervisor is disabled", market.country)
+            return
         country = market.country
         logger.info("Intraday worker loop started for %s", country)
 
@@ -138,13 +152,13 @@ class IntradayMarketSupervisor:
                     except Exception as vw_err:
                         logger.debug("Rolling VWAP calc failed for %s: %s", sym, vw_err)
                         vwap_payload[sym] = None
-                live_data_redis.set(
+                live_data_redis.set_json(
                     f"rolling_vwap:{window_minutes}",
-                    json.dumps({
+                    {
                         'window_minutes': window_minutes,
                         'as_of': now_dt.isoformat(),
                         'values': vwap_payload,
-                    }),
+                    },
                     ex=120,
                 )
 
