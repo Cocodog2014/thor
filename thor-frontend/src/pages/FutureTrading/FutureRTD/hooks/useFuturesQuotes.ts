@@ -33,6 +33,7 @@ export function useFuturesQuotes(pollMs: number) {
     setError(null);
 
     try {
+      console.log("useFuturesQuotes: fetching /api/quotes/latest", new Date().toISOString());
       const response = await fetch("/api/quotes/latest?consumer=futures_trading");
       if (!response.ok) {
         throw new Error(`Quote request failed (${response.status})`);
@@ -40,6 +41,10 @@ export function useFuturesQuotes(pollMs: number) {
 
       const data: ApiResponse = await response.json();
       let enrichedRows: MarketData[] = data.rows;
+      console.log("useFuturesQuotes: quotes response", {
+        rowCount: enrichedRows.length,
+        totalKeys: Object.keys(data.total ?? {}).length,
+      });
 
       const symbols = data.rows.map((row) => row.instrument.symbol).filter(Boolean);
       if (symbols.length > 0) {
