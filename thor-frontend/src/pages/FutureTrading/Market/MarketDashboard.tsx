@@ -22,7 +22,6 @@ interface MarketOpenSession {
   bid_price?: string | null;
   bid_size?: number | null;
   volume?: number | null;
-  vwap?: string | null;
   market_open?: string | null;
   market_high_open?: string | null;
   market_high_pct_open?: string | null;
@@ -176,13 +175,19 @@ const getSessionDateKey = (session?: Pick<MarketOpenSession, "year" | "month" | 
   return buildDateKey(session.year, session.month, session.date);
 };
 
-// Allow API URL to be set via environment variable or prop, fallback to relative path
+// Allow API URLs to be set via environment variables or props, fallback to local dev endpoints
 const getApiUrl = () => {
   return import.meta.env.VITE_MARKET_OPENS_API_URL || "http://127.0.0.1:8000/api/market-opens/latest/";
 };
 
+const getLiveStatusApiUrl = () => {
+  return import.meta.env.VITE_GLOBAL_MARKETS_LIVE_STATUS_API_URL
+    || "http://127.0.0.1:8000/api/global-markets/markets/live_status/";
+};
+
 const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl }) => {
   const resolvedApiUrl = apiUrl || getApiUrl();
+  const resolvedLiveStatusUrl = getLiveStatusApiUrl();
   const [sessions, setSessions] = useState<MarketOpenSession[] | null>(null);
   const [liveStatus, setLiveStatus] = useState<Record<string, MarketLiveStatus>>({});
 
@@ -215,7 +220,12 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl }) => {
 
     async function loadLiveStatus() {
       try {
-        const res = await fetch("http://127.0.0.1:8000/api/global-markets/markets/live_status/");
+        const res = await fetch(resolvedLiveStatusUrl);
+        if (!res.ok) {
+          console.error("MarketDashboard: live status API error", res.status, res.statusText);
+          if (!cancelled) setLiveStatus({});
+          return;
+        }
         const data = await res.json();
         const map: Record<string, MarketLiveStatus> = {};
         if (data && Array.isArray(data.markets)) {
@@ -234,6 +244,7 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl }) => {
         }
         if (!cancelled) setLiveStatus(map);
       } catch (e) {
+        console.error("MarketDashboard: live status fetch failed", e);
         if (!cancelled) setLiveStatus({});
       }
     }
@@ -251,7 +262,7 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl }) => {
     tick();
     const id = setInterval(tick, 1000);
     return () => { cancelled = true; clearInterval(id); };
-  }, [resolvedApiUrl]);
+  }, [resolvedApiUrl, resolvedLiveStatusUrl]);
 
   const normalizeCountry = (c?: string) => (c || "").trim().toLowerCase();
 
@@ -522,10 +533,6 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl }) => {
                     <div className="stat">
                       <div className="stat-label">Volume</div>
                       <div className="stat-value">{snap?.volume !== undefined && snap?.volume !== null ? formatNum(snap?.volume, 0) : "—"}</div>
-                    </div>
-                    <div className="stat">
-                      <div className="stat-label">VWAP</div>
-                      <div className="stat-value">{formatNum(snap?.vwap) ?? (isZero(snap?.vwap) ? 0 : "—")}</div>
                     </div>
                     <div className="stat">
                       <div className="stat-label">Prev Close (24h)</div>

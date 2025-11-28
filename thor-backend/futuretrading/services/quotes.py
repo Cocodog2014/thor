@@ -100,7 +100,6 @@ def build_enriched_rows(raw_quotes: Dict[str, Dict]) -> List[Dict]:
             'previous_close': _to_str(quote.get('close')),
             'change': _to_str(quote.get('change')),
             'change_percent': None,
-            'vwap': None,
             'bid_size': quote.get('bid_size'),
             'ask_size': quote.get('ask_size'),
             'extended_data': {

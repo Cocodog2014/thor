@@ -190,13 +190,6 @@ class MarketSession(models.Model):
 
     # Additional market data
     volume = models.BigIntegerField(null=True, blank=True, help_text="Trading volume")
-    vwap = models.DecimalField(
-        max_digits=14,
-        decimal_places=4,
-        null=True,
-        blank=True,
-        help_text="Volume Weighted Average Price",
-    )
     market_open = models.DecimalField(
         max_digits=14,
         decimal_places=4,
