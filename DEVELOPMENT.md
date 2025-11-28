@@ -20,6 +20,8 @@ Its core goal:
 Thor lives under `A:\Thor`.
 
 ### 1.1 Backend (`thor-backend`)
+`FutureTrading/views/MarketOpenCapture.py` implements the single-table market open snapshot. Recent refactor removed an obsolete `vwap` field that was still being passed into `MarketSession.objects.create()`; this silently caused per-future row creation failures (only the TOTAL row succeeded). The service has been updated and validated across all enabled markets.
+
 
 ```text
 thor-backend/
