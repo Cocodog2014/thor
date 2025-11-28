@@ -4,7 +4,7 @@ import { Container } from '@mui/material'
 // GlobalHeader is used inside AppLayout only
 import GlobalMarkets from './pages/GlobalMarkets/GlobalMarkets'
 import MarketDashboard from './pages/FutureTrading/Market/MarketDashboard'
-import FutureTrading from './pages/FutureTrading'
+import FutureRTD from './pages/FutureTrading'
 import ActivityPositions from './pages/ActivityPositions'
 import AccountStatement from './pages/AccountStatement/AccountStatement'
 import ProtectedRoute from './components/ProtectedRoute'
@@ -79,7 +79,7 @@ function App() {
         {/* Futures Trading Section */}
         {showFuturesOnHome && (
           <section className="dashboard-card future-trading" aria-label="Futures Trading">
-            <FutureTrading 
+            <FutureRTD 
               onToggleMarketOpen={toggleMarketOpenDashboard}
               showMarketOpen={showMarketOpenDashboard}
             />
@@ -142,7 +142,7 @@ function App() {
               {isFullWidth ? (
                 <Routes>
                   <Route path="home" element={<HomeContent />} />
-                  <Route path="futures" element={<FutureTrading />} />
+                  <Route path="futures" element={<FutureRTD />} />
                   {/* Stock trading removed */}
                   <Route path="user" element={<User />} />
                   <Route path="*" element={<Navigate to="home" replace />} />
@@ -151,7 +151,7 @@ function App() {
                 <Container maxWidth="xl" sx={{ mt: 4, mb: 4 }}>
                   <Routes>
                     <Route path="home" element={<HomeContent />} />
-                    <Route path="futures" element={<FutureTrading />} />
+                    <Route path="futures" element={<FutureRTD />} />
                     {/* Stock trading removed */}
                     <Route path="user" element={<User />} />
                     <Route path="*" element={<Navigate to="home" replace />} />

@@ -82,7 +82,6 @@ class MarketOpenCaptureService:
             'bid_price': self.safe_decimal(row.get('bid')),
             'bid_size': self.safe_int(row.get('bid_size')),
             'volume': self.safe_int(row.get('volume')),
-            'vwap': self.safe_decimal(row.get('vwap')),
             'spread': self.safe_decimal(row.get('spread')),
             
             # 24h price data (renamed)
@@ -251,6 +250,26 @@ class MarketOpenCaptureService:
             composite_signal = (composite.get('composite_signal') or 'HOLD').upper()
             
             time_info = market.get_current_market_time()
+            try:
+                sym_list = [r.get('instrument', {}).get('symbol') for r in enriched]
+                logger.info(
+                    "MarketOpenCapture %s %04d-%02d-%02d – enriched count=%s, symbols=%s",
+                    market.country,
+                    time_info['year'],
+                    time_info['month'],
+                    time_info['date'],
+                    len(enriched),
+                    sym_list,
+                )
+            except Exception:
+                logger.info(
+                    "MarketOpenCapture %s %04d-%02d-%02d – enriched count=%s",
+                    market.country,
+                    time_info['year'],
+                    time_info['month'],
+                    time_info['date'],
+                    len(enriched),
+                )
             session_number = self.get_next_session_number()
             # Derive next capture_group (reuse session_number if desired, but keep independent for flexibility)
             last_group = MarketSession.objects.exclude(capture_group__isnull=True).order_by('-capture_group').first()
@@ -258,6 +277,7 @@ class MarketOpenCaptureService:
             
             # Create 11 future sessions
             sessions_created = []
+            failures = []
             ym_entry_price = None
             for row in enriched:
                 symbol = row['instrument']['symbol']
@@ -266,6 +286,8 @@ class MarketOpenCaptureService:
                 )
                 if session:
                     sessions_created.append(session)
+                else:
+                    failures.append(symbol)
                 base_symbol = symbol.lstrip('/').upper()
                 if base_symbol == 'YM' and composite_signal not in ['HOLD', '']:
                     if composite_signal in ['BUY', 'STRONG_BUY']:
@@ -309,7 +331,12 @@ class MarketOpenCaptureService:
                     exc_info=True,
                 )
             
-            logger.info(f"Capture complete: Session #{session_number}, {len(sessions_created)} rows created")
+            logger.info(
+                "Capture complete: Session #%s, created=%s%s",
+                session_number,
+                len(sessions_created),
+                (f", failures={failures}" if failures else ""),
+            )
             return sessions_created[0] if sessions_created else None
             
         except Exception as e:
