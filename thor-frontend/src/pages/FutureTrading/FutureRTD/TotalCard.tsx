@@ -12,7 +12,7 @@ type TotalCardProps = {
 };
 
 export default function TotalCard({ total, theme }: TotalCardProps) {
-  const count = total?.count ?? 0;
+  const count = (total as any)?.count ?? (total as any)?.instrument_count ?? 0;
   const weightedAvg = total?.avg_weighted ? fmt(total.avg_weighted, 3) : "—";
   const sumWeighted = total?.sum_weighted ? fmt(total.sum_weighted, 2) : "—";
   const signalWeight =

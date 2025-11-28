@@ -65,7 +65,8 @@ export type ApiResponse = {
   total: {
     sum_weighted: string;
     avg_weighted: string | null;
-    count: number;
+    count?: number;
+    instrument_count?: number;
     denominator: string;
     as_of: string;
     signal_weight_sum?: number;

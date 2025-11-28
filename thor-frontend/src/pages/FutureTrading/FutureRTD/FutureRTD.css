@@ -1,4 +1,4 @@
-/* FutureRTD.css (renamed from FutureTrading.css) - styles for 12-futures RTD dashboard */
+/* FutureRTD.css - styles for 12-futures RTD dashboard */
 
 /* Scrollable body for each L1 card (restore internal scrollbar) */
 .l1-body {
@@ -7,80 +7,236 @@
 }
 
 @media (min-width: 1600px) {
-  .l1-body { max-height: 360px; }
+  .l1-body {
+    max-height: 360px;
+  }
 }
 
-.l1-body::-webkit-scrollbar { width: 12px; }
-.l1-body::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.08); }
-.l1-body::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.25); border-radius: 6px; }
-.l1-body::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.4); }
+.l1-body::-webkit-scrollbar {
+  width: 12px;
+}
+.l1-body::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.08);
+}
+.l1-body::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.25);
+  border-radius: 6px;
+}
+.l1-body::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.4);
+}
 
 /* Animation support for motion components */
-.motion-container { will-change: transform, opacity; }
+.motion-container {
+  will-change: transform, opacity;
+}
 
 /* Custom scrollbar for containers if needed */
-.futures-container::-webkit-scrollbar { width: 12px; }
-.futures-container::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.1); }
-.futures-container::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.3); border-radius: 4px; }
-.futures-container::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.5); }
+.futures-container::-webkit-scrollbar {
+  width: 12px;
+}
+.futures-container::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+}
+.futures-container::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 4px;
+}
+.futures-container::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.5);
+}
 
 /* Ensure consistent card heights */
-.futures-card { height: 100%; min-height: 300px; }
+.futures-card {
+  height: 100%;
+  min-height: 300px;
+}
 
-@keyframes priceFlash { 0% { background-color: rgba(76, 175, 80, 0.3); } 100% { background-color: transparent; } }
-.price-flash { animation: priceFlash 0.5s ease-out; }
+@keyframes priceFlash {
+  0% {
+    background-color: rgba(76, 175, 80, 0.3);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+.price-flash {
+  animation: priceFlash 0.5s ease-out;
+}
 
-@keyframes signalPulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
-.signal-updated { animation: signalPulse 0.3s ease-out; }
+@keyframes signalPulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+.signal-updated {
+  animation: signalPulse 0.3s ease-out;
+}
 
 .loading-shimmer {
-  background: linear-gradient(90deg,
-    rgba(255,255,255,0.05) 25%,
-    rgba(255,255,255,0.12) 50%,
-    rgba(255,255,255,0.05) 75%
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.05) 25%,
+    rgba(255, 255, 255, 0.12) 50%,
+    rgba(255, 255, 255, 0.05) 75%
   );
   background-size: 200% 100%;
   animation: shimmer 1.2s linear infinite;
 }
-@keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
 
-.market-open { color: #4caf50; }
-.market-closed { color: #f44336; }
-.market-premarket, .market-afterhours { color: #ff9800; }
-.market-halt { color: #e91e63; animation: pulse 1s infinite; }
-@keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+.market-open {
+  color: #4caf50;
+}
+.market-closed {
+  color: #f44336;
+}
+.market-premarket,
+.market-afterhours {
+  color: #ff9800;
+}
+.market-halt {
+  color: #e91e63;
+  animation: pulse 1s infinite;
+}
+@keyframes pulse {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+  100% {
+    opacity: 1;
+  }
+}
 
-.chart-container { min-height: 64px; height: 64px; }
-.price-display { font-variant-numeric: tabular-nums; letter-spacing: 0.025em; }
+.chart-container {
+  min-height: 64px;
+  height: 64px;
+}
+.price-display {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.025em;
+}
 
-.dashboard-header { background: linear-gradient(135deg, rgba(25,118,210,0.1) 0%, rgba(245,0,87,0.1) 100%); border-radius: 8px; padding: 16px; margin-bottom: 24px; }
+.dashboard-header {
+  background: linear-gradient(
+    135deg,
+    rgba(25, 118, 210, 0.1) 0%,
+    rgba(245, 0, 87, 0.1) 100%
+  );
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 24px;
+}
 
-.control-panel { background: rgba(255,255,255,0.05); border-radius: 8px; padding: 12px; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
+.control-panel {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  padding: 12px;
+}
 
-.futures-card:hover { transform: translateY(-2px); transition: transform 0.2s ease-out; box-shadow: 0 8px 24px rgba(0,0,0,0.3); }
+/* Only apply blur if the browser actually supports it */
+@supports (backdrop-filter: blur(10px)) or (-webkit-backdrop-filter: blur(10px)) {
+  .control-panel {
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+}
 
-.data-grid { font-size: 0.75rem; }
-.data-grid .stat-row { border-bottom: 1px solid rgba(255,255,255,0.1); }
-.data-grid .stat-row:last-child { border-bottom: none; }
+.futures-card:hover {
+  transform: translateY(-2px);
+  transition: transform 0.2s ease-out;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
 
-.price-box { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; padding: 8px; text-align: center; transition: background-color 0.2s ease; }
-.price-box:hover { background: rgba(255,255,255,0.08); }
+.data-grid {
+  font-size: 0.75rem;
+}
+.data-grid .stat-row {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+.data-grid .stat-row:last-child {
+  border-bottom: none;
+}
 
-.signal-strong-buy { background: linear-gradient(135deg, #4caf50, #66bb6a); color: white; }
-.signal-buy { background: linear-gradient(135deg, #66bb6a, #81c784); color: white; }
-.signal-hold { background: linear-gradient(135deg, #ff9800, #ffb74d); color: black; }
-.signal-sell { background: linear-gradient(135deg, #f44336, #ef5350); color: white; }
-.signal-strong-sell { background: linear-gradient(135deg, #d32f2f, #f44336); color: white; }
+.price-box {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  padding: 8px;
+  text-align: center;
+  transition: background-color 0.2s ease;
+}
+.price-box:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.signal-strong-buy {
+  background: linear-gradient(135deg, #4caf50, #66bb6a);
+  color: white;
+}
+.signal-buy {
+  background: linear-gradient(135deg, #66bb6a, #81c784);
+  color: white;
+}
+.signal-hold {
+  background: linear-gradient(135deg, #ff9800, #ffb74d);
+  color: black;
+}
+.signal-sell {
+  background: linear-gradient(135deg, #f44336, #ef5350);
+  color: white;
+}
+.signal-strong-sell {
+  background: linear-gradient(135deg, #d32f2f, #f44336);
+  color: white;
+}
 
 @media (prefers-reduced-motion: reduce) {
-  .futures-card, .price-flash, .signal-updated, .loading-shimmer { animation: none; transition: none; }
+  .futures-card,
+  .price-flash,
+  .signal-updated,
+  .loading-shimmer {
+    animation: none;
+    transition: none;
+  }
 }
 
 @media (prefers-contrast: high) {
-  .futures-card { border: 2px solid; }
-  .price-box { border: 1px solid; }
+  .futures-card {
+    border: 2px solid;
+  }
+  .price-box {
+    border: 1px solid;
+  }
 }
 
-.futures-card:focus-within { outline: 2px solid #1976d2; outline-offset: 2px; }
+.futures-card:focus-within {
+  outline: 2px solid #1976d2;
+  outline-offset: 2px;
+}
 
-@media print { .control-panel { display: none; } .futures-card { break-inside: avoid; margin-bottom: 20px; } }
+@media print {
+  .control-panel {
+    display: none;
+  }
+  .futures-card {
+    break-inside: avoid;
+    margin-bottom: 20px;
+  }
+}

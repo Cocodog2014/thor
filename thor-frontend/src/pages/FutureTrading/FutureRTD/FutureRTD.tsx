@@ -95,8 +95,22 @@ export default function FutureRTD({ onToggleMarketOpen, showMarketOpen }: Future
   }, []);
 
   const orderedRows = useMemo(() => {
-    const map = new Map(rows.map((row) => [normalizeSymbol(row.instrument.symbol), row]));
-    return FUTURES_11.map((sym, idx) => map.get(normalizeSymbol(sym)) ?? makePlaceholder(sym, idx));
+    // Build a map from base symbol letters (e.g., YM, ES) to the first row
+    const byBase = new Map<string, MarketData>();
+
+    rows.forEach((row) => {
+      const norm = normalizeSymbol(row.instrument.symbol); // e.g., "/YMZ25" -> "YMZ25"
+      const base = norm.match(/^[A-Z]+/)?.[0] ?? norm; // "YM"
+      if (!byBase.has(base)) {
+        byBase.set(base, row);
+      }
+    });
+
+    return FUTURES_11.map((sym, idx) => {
+      const norm = normalizeSymbol(sym); // "/YM" -> "YM"
+      const base = norm.match(/^[A-Z]+/)?.[0] ?? norm;
+      return byBase.get(base) ?? makePlaceholder(sym, idx);
+    });
   }, [rows]);
 
   const handlePollCycle = () => {
