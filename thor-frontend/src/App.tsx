@@ -25,7 +25,7 @@ function App() {
   const [showTradingActivity, setShowTradingActivity] = useState(false);
   const [showAccountStatement, setShowAccountStatement] = useState(false);
   const [showGlobalMarket, setShowGlobalMarket] = useState(true); // Show by default
-  const [showFuturesOnHome, setShowFuturesOnHome] = useState(false); // Toggle for split view
+  const [showFuturesOnHome, setShowFuturesOnHome] = useState(true); // Toggle for split view
   const [showMarketOpenDashboard, setShowMarketOpenDashboard] = useState(false); // Market Open Dashboard toggle
   
   // Routes that should have full-width layout (no Container)
