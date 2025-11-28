@@ -51,7 +51,7 @@ class MarketSessionDetailSerializer(MarketSessionBaseSerializer):
             'sell_didnt_work', 'sell_didnt_work_percentage',
             'last_price',
             'ask_price', 'ask_size', 'bid_price', 'bid_size',
-            'volume', 'vwap',
+            'volume',
             'market_open', 'market_high_open', 'market_high_pct_open',
             'market_low_open', 'market_low_pct_open',
             'market_close', 'market_high_pct_close', 'market_low_pct_close', 'market_close_vs_open_pct',

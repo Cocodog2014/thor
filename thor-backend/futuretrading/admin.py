@@ -132,7 +132,6 @@ class MarketSessionAdmin(admin.ModelAdmin):
             "ask_price",
             "ask_size",
             "volume",
-            "vwap",
             "spread",
         ),
         "targets": (
@@ -232,7 +231,6 @@ class MarketSessionAdmin(admin.ModelAdmin):
             "range_52w",
             "range_pct_52w",
             "volume",
-            "vwap",
             "bid_price",
             "bid_size",
             "ask_price",
@@ -277,7 +275,7 @@ class MarketSessionAdmin(admin.ModelAdmin):
         }),
         ('Live Price Data (Open)', {
             'fields': ('last_price', 'ask_price', 'ask_size',
-                      'bid_price', 'bid_size', 'volume', 'vwap', 'spread')
+                      'bid_price', 'bid_size', 'volume', 'spread')
         }),
         ('Session Price Data', {
             'fields': ('prev_close_24h', 'open_price_24h', 'open_prev_diff_24h', 'open_prev_pct_24h')

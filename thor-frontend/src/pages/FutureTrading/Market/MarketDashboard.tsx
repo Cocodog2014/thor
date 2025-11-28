@@ -22,7 +22,6 @@ interface MarketOpenSession {
   bid_price?: string | null;
   bid_size?: number | null;
   volume?: number | null;
-  vwap?: string | null;
   market_open?: string | null;
   market_high_open?: string | null;
   market_high_pct_open?: string | null;
@@ -212,10 +211,6 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl }) => {
         if (!cancelled) setSessions([]);
       }
     }
-
-    async function loadLiveStatus() {
-      try {
-        const res = await fetch("http://127.0.0.1:8000/api/global-markets/markets/live_status/");
         const data = await res.json();
         const map: Record<string, MarketLiveStatus> = {};
         if (data && Array.isArray(data.markets)) {
@@ -522,10 +517,6 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl }) => {
                     <div className="stat">
                       <div className="stat-label">Volume</div>
                       <div className="stat-value">{snap?.volume !== undefined && snap?.volume !== null ? formatNum(snap?.volume, 0) : "—"}</div>
-                    </div>
-                    <div className="stat">
-                      <div className="stat-label">VWAP</div>
-                      <div className="stat-value">{formatNum(snap?.vwap) ?? (isZero(snap?.vwap) ? 0 : "—")}</div>
                     </div>
                     <div className="stat">
                       <div className="stat-label">Prev Close (24h)</div>
