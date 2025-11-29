@@ -78,6 +78,7 @@ export default function FutureRTD({ onToggleMarketOpen, showMarketOpen }: Future
   const [totalData, setTotalData] = useState<TotalData | null>(null);
 
   const [loading, setLoading] = useState<boolean>(true);
+  const [hasLoadedOnce, setHasLoadedOnce] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
   const [routingPlan, setRoutingPlan] = useState<RoutingPlanResponse | null>(null);
@@ -163,6 +164,7 @@ export default function FutureRTD({ onToggleMarketOpen, showMarketOpen }: Future
       setError(message);
     } finally {
       setLoading(false);
+      setHasLoadedOnce(true);
     }
   }
 
@@ -225,25 +227,35 @@ export default function FutureRTD({ onToggleMarketOpen, showMarketOpen }: Future
           <Typography variant="caption" color="text.secondary">
             Feed: {routingPlan.primary_feed?.display_name ?? "Not configured"}
           </Typography>
-          {onToggleMarketOpen && (
-            <Button
-              variant="text"
-              size="small"
-              onClick={onToggleMarketOpen}
-              sx={{
-                color: "white",
-                "&:hover": {
-                  backgroundColor: "rgba(255, 255, 255, 0.1)",
-                },
-              }}
-            >
-              {showMarketOpen ? "📊 Hide" : "📊 Show"} Market Open Sessions
-            </Button>
-          )}
+          <Box display="flex" alignItems="center" gap={1}>
+            {hasLoadedOnce && loading && (
+              <Box display="flex" alignItems="center" gap={1}>
+                <CircularProgress size={12} thickness={5} />
+                <Typography variant="caption" color="text.secondary">
+                  Refreshing…
+                </Typography>
+              </Box>
+            )}
+            {onToggleMarketOpen && (
+              <Button
+                variant="text"
+                size="small"
+                onClick={onToggleMarketOpen}
+                sx={{
+                  color: "white",
+                  "&:hover": {
+                    backgroundColor: "rgba(255, 255, 255, 0.1)",
+                  },
+                }}
+              >
+                {showMarketOpen ? "📊 Hide" : "📊 Show"} Market Open Sessions
+              </Button>
+            )}
+          </Box>
         </Box>
       )}
 
-      {loading && (
+      {loading && !hasLoadedOnce && (
         <Box mb={2} display="flex" alignItems="center" gap={1}>
           <CircularProgress size={20} />
           <Typography variant="body2">Refreshing quotes…</Typography>
