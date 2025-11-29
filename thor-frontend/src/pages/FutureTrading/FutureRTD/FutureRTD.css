@@ -223,7 +223,8 @@
   }
 }
 
-@media (prefers-contrast: high) {
+/* High contrast/forced colors accessibility */
+@media (prefers-contrast: more), (forced-colors: active) {
   .futures-card {
     border: 2px solid;
   }
