@@ -3,7 +3,6 @@ import { Box, Button, Chip, Paper, Typography } from "@mui/material";
 import type { Theme } from "@mui/material/styles";
 
 import type { MarketData } from "./types";
-import "./L1Card.css";
 import { fmt } from "./utils/format";
 import { signalChipColor, signalLabel } from "./utils/signals";
 

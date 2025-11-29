@@ -5,7 +5,6 @@ import type { Theme } from "@mui/material/styles";
 import type { TotalData } from "./types";
 import { fmt } from "./utils/format";
 import { signalChipColor, signalLabel } from "./utils/signals";
-import "./TotalCard.css";
 
 type TotalCardProps = {
   total: TotalData | null;
