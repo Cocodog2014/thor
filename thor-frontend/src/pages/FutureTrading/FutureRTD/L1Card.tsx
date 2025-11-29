@@ -1,14 +1,9 @@
 import { motion } from "framer-motion";
-import {
-  Box,
-  Button,
-  Chip,
-  Paper,
-  Typography,
-} from "@mui/material";
+import { Box, Button, Chip, Paper, Typography } from "@mui/material";
 import type { Theme } from "@mui/material/styles";
 
 import type { MarketData } from "./types";
+import "./L1Card.css";
 import { fmt } from "./utils/format";
 import { signalChipColor, signalLabel } from "./utils/signals";
 
@@ -129,30 +124,8 @@ export default function L1Card({ row, theme, quantity, onQuantityChange }: L1Car
 
   return (
     <motion.div layout initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
-      <Paper
-        className="futures-card"
-        elevation={3}
-        sx={{
-          width: 500,
-          minHeight: 420,
-          display: "flex",
-          flexDirection: "column",
-          borderRadius: 2,
-          background: theme.palette.background.paper,
-          border: `1px solid ${theme.palette.divider}`,
-        }}
-      >
-        <Box
-          sx={{
-            px: 2,
-            py: 1,
-            background: theme.palette.primary.main,
-            color: theme.palette.primary.contrastText,
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-          }}
-        >
+      <Paper className="futures-card l1card-root" elevation={3} sx={{ background: theme.palette.background.paper, border: `1px solid ${theme.palette.divider}` }}>
+        <Box className="l1card-header" sx={{ background: theme.palette.primary.main, color: theme.palette.primary.contrastText }}>
           <Typography variant="body2" fontWeight="bold">
             {row.instrument.symbol}
           </Typography>
@@ -219,7 +192,7 @@ export default function L1Card({ row, theme, quantity, onQuantityChange }: L1Car
                   </Typography>
                 </Box>
                 <Box textAlign="right">
-                  <Box display="flex" justifyContent="flex-end" gap={1}>
+                  <Box className="l1card-price-row">
                     <Typography
                       variant="h6"
                       fontWeight="bold"
@@ -241,14 +214,7 @@ export default function L1Card({ row, theme, quantity, onQuantityChange }: L1Car
                 </Box>
               </Box>
 
-              <Box
-                sx={{
-                  mt: 0.75,
-                  display: "grid",
-                  gridTemplateColumns: "repeat(2, 1fr)",
-                  gap: 1,
-                }}
-              >
+              <Box className="l1card-bidask-grid">
                 <Box
                   component="button"
                   sx={{
@@ -308,15 +274,7 @@ export default function L1Card({ row, theme, quantity, onQuantityChange }: L1Car
                 </Box>
               </Box>
 
-              <Paper
-                variant="outlined"
-                sx={{
-                  mt: 1,
-                  p: 1.5,
-                  bgcolor: "rgba(255, 255, 255, 0.02)",
-                  borderColor: "rgba(255, 255, 255, 0.1)",
-                }}
-              >
+              <Paper variant="outlined" className="l1card-qty-panel">
                 <Box display="flex" alignItems="center" justifyContent="space-between" mb={1}>
                   <Typography variant="caption" fontWeight="medium" color="text.secondary">
                     Qty:
@@ -369,14 +327,7 @@ export default function L1Card({ row, theme, quantity, onQuantityChange }: L1Car
                 </Box>
               </Paper>
 
-              <Box
-                sx={{
-                  mt: 1,
-                  display: "grid",
-                  gridTemplateColumns: "repeat(2, 1fr)",
-                  gap: 1,
-                }}
-              >
+              <Box className="l1card-mini-grid">
                 <Paper variant="outlined" sx={{ p: 1, textAlign: "center", minHeight: 70 }}>
                   <Typography variant="caption" color="text.secondary">
                     Volume
@@ -400,8 +351,8 @@ export default function L1Card({ row, theme, quantity, onQuantityChange }: L1Car
             </Box>
           </Box>
 
-          <Box mt={2} className="data-grid">
-            <Box className="stat-header" mb={0.5} pb={0.5}>
+          <Box className="data-grid l1card-data-grid">
+            <Box className="stat-header l1card-stat-header">
               <Box display="grid" gridTemplateColumns={GRID_TEMPLATE} columnGap={1}>
                 <Typography variant="caption" fontWeight="bold" color="text.secondary">
                   Metric
@@ -439,7 +390,7 @@ export default function L1Card({ row, theme, quantity, onQuantityChange }: L1Car
               const deltaPctDisplay = metric.deltaPct == null ? "—" : `${fmt(metric.deltaPct, 2)}%`;
 
               return (
-                <Box key={metric.label} className="stat-row" pt={0.5} mb={1}>
+                <Box key={metric.label} className="stat-row l1card-stat-row">
                   <Box display="grid" gridTemplateColumns={GRID_TEMPLATE} columnGap={1}>
                     <Box>
                       <Typography variant="caption" color="text.secondary">
