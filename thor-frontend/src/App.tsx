@@ -25,14 +25,14 @@ function App() {
   const [showTradingActivity, setShowTradingActivity] = useState(false);
   const [showAccountStatement, setShowAccountStatement] = useState(false);
   const [showGlobalMarket, setShowGlobalMarket] = useState(true); // Show by default
-  const [showFuturesOnHome, setShowFuturesOnHome] = useState(false); // Toggle for split view
+  const [showFuturesOnHome, setShowFuturesOnHome] = useState(true); // Toggle for split view
   const [showMarketOpenDashboard, setShowMarketOpenDashboard] = useState(false); // Market Open Dashboard toggle
   
   // Routes that should have full-width layout (no Container)
   // Ensure both bare paths and /app/* variants are treated as full width
   const fullWidthRoutes = [
-    '/', '/home', '/futures',
-    '/app/home', '/app/futures'
+    '/', '/home',
+    '/app/home'
   ];
   const isFullWidth = fullWidthRoutes.some((p) => location.pathname.startsWith(p));
 
@@ -142,7 +142,6 @@ function App() {
               {isFullWidth ? (
                 <Routes>
                   <Route path="home" element={<HomeContent />} />
-                  <Route path="futures" element={<FutureRTD />} />
                   {/* Stock trading removed */}
                   <Route path="user" element={<User />} />
                   <Route path="*" element={<Navigate to="home" replace />} />
@@ -151,7 +150,6 @@ function App() {
                 <Container maxWidth="xl" sx={{ mt: 4, mb: 4 }}>
                   <Routes>
                     <Route path="home" element={<HomeContent />} />
-                    <Route path="futures" element={<FutureRTD />} />
                     {/* Stock trading removed */}
                     <Route path="user" element={<User />} />
                     <Route path="*" element={<Navigate to="home" replace />} />
