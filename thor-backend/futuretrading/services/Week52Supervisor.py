@@ -4,12 +4,7 @@ Week 52 (52-Week) Extremes Monitor
 Continuously reads latest quotes from Redis and updates
 `FutureTrading.models.Rolling52WeekStats` when new highs/lows occur.
 
-Design:
-- Started once via `FutureTrading.apps.FuturetradingConfig.ready()`.
-- Singleton guard + thread lock to avoid duplicate starts under autoreload.
-- Configurable via settings/env:
-  * FUTURETRADING_ENABLE_52W_MONITOR (default: True)
-  * FUTURETRADING_52W_MONITOR_INTERVAL (seconds, default: 1.0)
+Note: This file was renamed from a previous misspelling to fix a typo.
 """
 
 from __future__ import annotations
@@ -29,13 +24,11 @@ logger = logging.getLogger(__name__)
 class _ExtremesMonitor:
     """Background thread that updates 52-week extremes from Redis quotes."""
 
-    # Normalized symbols we track in DB
     SYMBOLS: List[str] = ['YM', 'ES', 'NQ', 'RTY', 'CL', 'SI', 'HG', 'GC', 'VX', 'DX', 'ZB']
 
-    # Map normalized symbols to Redis quote keys (Excel RTD naming differences)
     SYMBOL_MAP: Dict[str, str] = {
-        'RTY': 'RT',       # Russell 2000 appears as RT in Excel/Redis
-        'ZB': '30YRBOND',  # 30-Year Bond appears as 30YRBOND
+        'RTY': 'RT',
+        'ZB': '30YRBOND',
     }
 
     def __init__(self, interval_seconds: float = 1.0):
@@ -43,10 +36,9 @@ class _ExtremesMonitor:
         self._lock = threading.RLock()
         self._thread: threading.Thread | None = None
         self._running = False
-        # Heartbeat tracking
         self._tick = 0
         self._last_update_symbol: str | None = None
-        self._last_update_time: str | None = None  # ISO string
+        self._last_update_time: str | None = None
 
     def start(self):
         with self._lock:
@@ -54,7 +46,6 @@ class _ExtremesMonitor:
                 logger.debug("52w monitor already running; skipping start")
                 return
             self._running = True
-
             t = threading.Thread(target=self._run, name="Week52ExtremesMonitor", daemon=True)
             self._thread = t
             t.start()
@@ -66,7 +57,6 @@ class _ExtremesMonitor:
         logger.info("🛑 52-Week Extremes monitor stop requested")
 
     def _run(self):
-        # Lazy imports to avoid app registry issues at module import time
         from LiveData.shared.redis_client import live_data_redis
         from FutureTrading.models.extremes import Rolling52WeekStats
         from django.utils import timezone
@@ -111,16 +101,13 @@ class _ExtremesMonitor:
                             stats.low_52w,
                             stats.low_52w_date,
                         )
-                        # Update heartbeat metadata
                         self._last_update_symbol = sym
                         self._last_update_time = timezone.now().isoformat(timespec='seconds')
             except Exception:
                 logger.exception("[52w] Monitor iteration failed")
 
-            # Sleep outside try so exceptions don't block schedule
             time.sleep(self._interval)
 
-            # Heartbeat logging every ~60 iterations (roughly 60 seconds @1s)
             self._tick += 1
             if self._tick % 60 == 0:
                 logger.info(
@@ -132,7 +119,6 @@ class _ExtremesMonitor:
                 )
 
 
-# Module-level singleton
 __monitor_instance: _ExtremesMonitor | None = None
 
 
@@ -162,7 +148,6 @@ def _is_enabled() -> bool:
 
 
 def start_52w_monitor() -> None:
-    # Guard against duplicate thread under autoreloader by scanning existing threads
     for t in threading.enumerate():
         if t.name == "Week52ExtremesMonitor":
             logger.debug("Duplicate 52w monitor thread detected; skipping new start")
@@ -181,9 +166,6 @@ def stop_52w_monitor() -> None:
     mon.stop()
 
 
-# ------------------------------
-# Market-Aware Supervisor Thread
-# ------------------------------
 _supervisor_thread: threading.Thread | None = None
 _supervisor_running = False
 _supervisor_lock = threading.RLock()
@@ -198,18 +180,10 @@ def _get_supervisor_interval() -> float:
 
 
 def _any_control_markets_open() -> bool:
-    """Return True if ANY control market is currently OPEN per status field.
-
-    Uses the persisted `status` field (maintained by GlobalMarkets.monitor) to avoid
-    recomputing trading-hour logic here. Falls back to real-time evaluation if
-    status records are stale or empty.
-    """
     try:
         from GlobalMarkets.models import Market
-        # Fast path: check status field
         if Market.objects.filter(is_control_market=True, is_active=True, status='OPEN').exists():
             return True
-        # Fallback: compute dynamically in case scheduler hasn't reconciled yet
         for m in Market.objects.filter(is_control_market=True, is_active=True):
             try:
                 if m.is_market_open_now():
@@ -224,7 +198,6 @@ def _any_control_markets_open() -> bool:
 def _supervisor_loop(interval: float, is_market_open_fn: Callable[[], bool]):
     global _supervisor_running
     logger.info("🛰️ 52w supervisor started (interval=%.1fs)", interval)
-    # Initial immediate evaluation so we don't wait a full cycle
     _evaluate_and_toggle(is_market_open_fn)
     while True:
         with _supervisor_lock:
@@ -242,26 +215,18 @@ def _evaluate_and_toggle(is_market_open_fn: Callable[[], bool]):
     open_any = is_market_open_fn()
     mon = get_52w_monitor()
     if not _is_enabled():
-        # Hard disabled; ensure stopped regardless of market state
         if mon._running:
             mon.stop()
         logger.debug("[52w supervisor] monitor disabled by config; forced stopped")
         return
     if open_any:
-        mon.start()  # idempotent
+        mon.start()
     else:
         mon.stop()
     logger.debug("[52w supervisor] markets_open=%s monitor_running=%s", open_any, mon._running)
 
 
 def start_52w_monitor_supervisor() -> None:
-    """Start the supervisor that auto-starts/stops the 52w monitor based on global markets.
-
-    Logic:
-    - If ANY control market (Tokyo, Shanghai, Bombay, Frankfurt, London, Pre_USA, USA, Toronto, Mexico) is OPEN -> monitor runs.
-    - If ALL are CLOSED -> monitor is stopped to conserve resources.
-    - Evaluated on an interval (default 60s) and immediately on startup.
-    """
     global _supervisor_thread, _supervisor_running
     with _supervisor_lock:
         if _supervisor_running:
@@ -283,5 +248,4 @@ def stop_52w_monitor_supervisor() -> None:
     global _supervisor_running
     with _supervisor_lock:
         _supervisor_running = False
-    # Thread will exit on next loop iteration
     logger.info("🛑 52w supervisor stop requested")
