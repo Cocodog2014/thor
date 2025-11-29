@@ -138,6 +138,14 @@ class LiveDataRedis:
         # Cache snapshot
         self.set_latest_quote(symbol, payload)
         return result
+
+    def set_json(self, key: str, value: Dict[str, Any], ex: int | None = None) -> None:
+        """Store JSON payload at a Redis key (helper for background workers)."""
+        try:
+            payload = json.dumps(value, default=str)
+            self.client.set(name=key, value=payload, ex=ex)
+        except Exception as e:
+            logger.error(f"Failed to set Redis key {key}: {e}")
     
     def publish_position(self, account_id: str, data: Dict[str, Any]) -> int:
         """

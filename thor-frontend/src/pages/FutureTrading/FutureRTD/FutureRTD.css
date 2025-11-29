@@ -1,3 +1,5 @@
+/* FutureRTD.css - styles for 12-futures RTD dashboard */
+
 /* Scrollable body for each L1 card (restore internal scrollbar) */
 .l1-body {
   max-height: 300px;
@@ -5,29 +7,24 @@
 }
 
 @media (min-width: 1600px) {
-  .l1-body { max-height: 360px; }
+  .l1-body {
+    max-height: 360px;
+  }
 }
 
 .l1-body::-webkit-scrollbar {
   width: 12px;
 }
-
 .l1-body::-webkit-scrollbar-track {
   background: rgba(255, 255, 255, 0.08);
 }
-
 .l1-body::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.25);
   border-radius: 6px;
 }
-
 .l1-body::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.4);
 }
-
-/* removed pair-row alignment helpers (reverted to StatRow layout) */
-
-/* FutureTrading.css - Custom styles for the futures trading dashboard */
 
 /* Animation support for motion components */
 .motion-container {
@@ -38,16 +35,13 @@
 .futures-container::-webkit-scrollbar {
   width: 12px;
 }
-
 .futures-container::-webkit-scrollbar-track {
   background: rgba(255, 255, 255, 0.1);
 }
-
 .futures-container::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.3);
   border-radius: 4px;
 }
-
 .futures-container::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.5);
 }
@@ -58,84 +52,91 @@
   min-height: 300px;
 }
 
-/* Price animations */
 @keyframes priceFlash {
-  0% { background-color: rgba(76, 175, 80, 0.3); }
-  100% { background-color: transparent; }
+  0% {
+    background-color: rgba(76, 175, 80, 0.3);
+  }
+  100% {
+    background-color: transparent;
+  }
 }
-
 .price-flash {
   animation: priceFlash 0.5s ease-out;
 }
 
-/* Signal badge animations */
 @keyframes signalPulse {
-  0% { transform: scale(1); }
-  50% { transform: scale(1.05); }
-  100% { transform: scale(1); }
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1);
+  }
 }
-
 .signal-updated {
   animation: signalPulse 0.3s ease-out;
 }
 
-/* Loading states */
 .loading-shimmer {
-  background: linear-gradient(90deg,
-    rgba(255,255,255,0.05) 25%,
-    rgba(255,255,255,0.12) 50%,
-    rgba(255,255,255,0.05) 75%
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.05) 25%,
+    rgba(255, 255, 255, 0.12) 50%,
+    rgba(255, 255, 255, 0.05) 75%
   );
   background-size: 200% 100%;
   animation: shimmer 1.2s linear infinite;
 }
-
 @keyframes shimmer {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
 }
 
-/* Market status indicators */
 .market-open {
   color: #4caf50;
 }
-
 .market-closed {
   color: #f44336;
 }
-
 .market-premarket,
 .market-afterhours {
   color: #ff9800;
 }
-
 .market-halt {
   color: #e91e63;
   animation: pulse 1s infinite;
 }
-
 @keyframes pulse {
-  0% { opacity: 1; }
-  50% { opacity: 0.5; }
-  100% { opacity: 1; }
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+  100% {
+    opacity: 1;
+  }
 }
 
-/* Chart container responsive height */
 .chart-container {
   min-height: 64px;
   height: 64px;
 }
-
-/* Custom typography for numbers */
 .price-display {
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.025em;
 }
 
-/* Header styling */
 .dashboard-header {
-  background: linear-gradient(135deg, 
-    rgba(25, 118, 210, 0.1) 0%, 
+  background: linear-gradient(
+    135deg,
+    rgba(25, 118, 210, 0.1) 0%,
     rgba(245, 0, 87, 0.1) 100%
   );
   border-radius: 8px;
@@ -143,36 +144,32 @@
   margin-bottom: 24px;
 }
 
-/* Control panel styling */
+/* Control panel base styles */
 .control-panel {
   background: rgba(255, 255, 255, 0.05);
   border-radius: 8px;
   padding: 12px;
-  -webkit-backdrop-filter: blur(10px);
-  backdrop-filter: blur(10px);
 }
 
-/* Card hover effects */
+/* Note: backdrop-filter blur removed to avoid editor warnings.
+   The control panel keeps its translucent background without frosted-glass. */
+
 .futures-card:hover {
   transform: translateY(-2px);
   transition: transform 0.2s ease-out;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
 }
 
-/* Data grid styling */
 .data-grid {
   font-size: 0.75rem;
 }
-
 .data-grid .stat-row {
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
-
 .data-grid .stat-row:last-child {
   border-bottom: none;
 }
 
-/* Bid/Ask/VWAP boxes */
 .price-box {
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.1);
@@ -181,38 +178,31 @@
   text-align: center;
   transition: background-color 0.2s ease;
 }
-
 .price-box:hover {
   background: rgba(255, 255, 255, 0.08);
 }
 
-/* Signal indicators */
 .signal-strong-buy {
   background: linear-gradient(135deg, #4caf50, #66bb6a);
   color: white;
 }
-
 .signal-buy {
   background: linear-gradient(135deg, #66bb6a, #81c784);
   color: white;
 }
-
 .signal-hold {
   background: linear-gradient(135deg, #ff9800, #ffb74d);
   color: black;
 }
-
 .signal-sell {
   background: linear-gradient(135deg, #f44336, #ef5350);
   color: white;
 }
-
 .signal-strong-sell {
   background: linear-gradient(135deg, #d32f2f, #f44336);
   color: white;
 }
 
-/* Accessibility improvements */
 @media (prefers-reduced-motion: reduce) {
   .futures-card,
   .price-flash,
@@ -223,31 +213,28 @@
   }
 }
 
-/* High contrast mode support */
-@media (prefers-contrast: high) {
+/* High contrast/forced colors accessibility */
+@media (prefers-contrast: more), (forced-colors: active) {
   .futures-card {
     border: 2px solid;
   }
-  
   .price-box {
     border: 1px solid;
   }
 }
 
-/* Focus indicators for keyboard navigation */
 .futures-card:focus-within {
   outline: 2px solid #1976d2;
   outline-offset: 2px;
 }
 
-/* Print styles */
 @media print {
   .control-panel {
     display: none;
   }
-  
   .futures-card {
     break-inside: avoid;
     margin-bottom: 20px;
   }
 }
+

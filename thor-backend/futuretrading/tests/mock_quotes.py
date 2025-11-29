@@ -91,7 +91,6 @@ class MockQuoteGenerator:
             "bid_size": 10,
             "ask_size": 10,
             "volume": 50000 + int(last_price),
-            "vwap": str(last_price * Decimal("0.999")),
             "spread": str(spread),
             "open_price": str(open_price),
             "close_price": str(prev_close),

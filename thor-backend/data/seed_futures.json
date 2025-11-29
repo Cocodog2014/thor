@@ -1,0 +1,14 @@
+[
+  {"symbol":"TOTAL","name":"TOTAL Composite"},
+  {"symbol":"YM","name":"Dow Jones (YM)"},
+  {"symbol":"ES","name":"S&P 500 (ES)"},
+  {"symbol":"NQ","name":"NASDAQ (NQ)"},
+  {"symbol":"RTY","name":"Russell 2000 (RTY)"},
+  {"symbol":"CL","name":"Crude Oil (CL)"},
+  {"symbol":"SI","name":"Silver (SI)"},
+  {"symbol":"HG","name":"Copper (HG)"},
+  {"symbol":"GC","name":"Gold (GC)"},
+  {"symbol":"VX","name":"Volatility (VX)"},
+  {"symbol":"DX","name":"Dollar Index (DX)"},
+  {"symbol":"ZB","name":"Bonds (ZB)"}
+]
