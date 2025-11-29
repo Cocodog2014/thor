@@ -7,7 +7,8 @@ import { RefreshCw } from "lucide-react";
 
 import L1Card from "./L1Card";
 import TotalCard from "./TotalCard";
-import type { ApiResponse, FutureRTDProps, MarketData, RoutingPlanResponse, TotalData } from "./types";
+import { useFuturesQuotes } from "./hooks/useFuturesQuotes";
+import type { FutureRTDProps, MarketData, RoutingPlanResponse } from "./types";
 
 // ----------------------------- Config ----------------------------
 
@@ -74,12 +75,9 @@ export default function FutureRTD({ onToggleMarketOpen, showMarketOpen }: Future
   const theme = useTheme();
 
   const [pollMs, setPollMs] = useState(2000);
-  const [rows, setRows] = useState<MarketData[]>([]);
-  const [totalData, setTotalData] = useState<TotalData | null>(null);
 
-  const [loading, setLoading] = useState<boolean>(true);
-  const [hasLoadedOnce, setHasLoadedOnce] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
+  // ✅ Single source of truth for quotes
+  const { rows, total, loading, error, hasLoadedOnce } = useFuturesQuotes(pollMs);
 
   const [routingPlan, setRoutingPlan] = useState<RoutingPlanResponse | null>(null);
   const [routingError, setRoutingError] = useState<string | null>(null);
@@ -110,76 +108,6 @@ export default function FutureRTD({ onToggleMarketOpen, showMarketOpen }: Future
       feeds: [],
     });
   }, []);
-
-  // ---------------- Data Fetch (old working logic) ---------------
-
-  async function fetchQuotes() {
-    const endpoint = "/api/quotes/latest?consumer=futures_trading";
-
-    try {
-      setLoading(true);
-      setError(null);
-
-      console.log("[FutureRTD] fetching quotes:", endpoint, "at", new Date().toISOString());
-
-      const r = await fetch(endpoint);
-      if (!r.ok) {
-        throw new Error(`Quote request failed (${r.status})`);
-      }
-
-      const data: ApiResponse = await r.json();
-      console.log("[FutureRTD] quotes response:", {
-        rowCount: data.rows.length,
-        totalKeys: Object.keys(data.total ?? {}).length,
-      });
-
-      let enrichedRows: MarketData[] = data.rows;
-
-      // Fetch VWAPs for same symbols (same as before)
-      const symbols = data.rows.map((row) => row.instrument.symbol).filter(Boolean);
-      if (symbols.length > 0) {
-        try {
-          const vwapResponse = await fetch(`/api/vwap/rolling?symbols=${symbols.join(",")}&minutes=30`);
-          if (vwapResponse.ok) {
-            const vwapData: { symbol: string; vwap: string | null }[] = await vwapResponse.json();
-            enrichedRows = data.rows.map((row) => {
-              const found = vwapData.find((vw) => vw.symbol === row.instrument.symbol);
-              return found ? { ...row, vwap: found.vwap } : row;
-            });
-          }
-        } catch (vwErr) {
-          console.warn("[FutureRTD] VWAP fetch failed", vwErr);
-        }
-      }
-
-      if (!enrichedRows.length) {
-        console.warn("[FutureRTD] quotes response contained 0 rows");
-      }
-
-      setRows(enrichedRows);
-      setTotalData(data.total ?? null);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Unknown quotes error";
-      console.error("[FutureRTD] quotes fetch failed", err);
-      setError(message);
-    } finally {
-      setLoading(false);
-      setHasLoadedOnce(true);
-    }
-  }
-
-  // Initial load
-  useEffect(() => {
-    fetchQuotes();
-  }, []);
-
-  // Polling
-  useEffect(() => {
-    const id = setInterval(() => {
-      fetchQuotes();
-    }, pollMs);
-    return () => clearInterval(id);
-  }, [pollMs]);
 
   // ---------------- Map to fixed 11 cards ------------------------
 
@@ -300,7 +228,7 @@ export default function FutureRTD({ onToggleMarketOpen, showMarketOpen }: Future
         >
           {/* Total Composite Card - appears first */}
           <Box>
-            <TotalCard total={totalData} theme={theme} />
+            <TotalCard total={total} theme={theme} />
           </Box>
 
           {/* Individual Futures Cards */}

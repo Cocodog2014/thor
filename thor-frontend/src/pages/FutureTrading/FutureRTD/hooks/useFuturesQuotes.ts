@@ -6,13 +6,23 @@ type RollingVwapResponse = {
   vwap: string | null;
 };
 
-export function useFuturesQuotes(pollMs: number) {
+type UseFuturesQuotesResult = {
+  rows: MarketData[];
+  total: ApiResponse["total"] | null;
+  loading: boolean;
+  error: string | null;
+  hasLoadedOnce: boolean;
+};
+
+export function useFuturesQuotes(pollMs: number): UseFuturesQuotesResult {
   console.log("useFuturesQuotes mounted with poll", pollMs);
+
   const [rows, setRows] = useState<MarketData[]>([]);
   const [total, setTotal] = useState<ApiResponse["total"] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
+
   const abortRef = useRef(false);
 
   useEffect(() => {
@@ -41,6 +51,7 @@ export function useFuturesQuotes(pollMs: number) {
 
       const data: ApiResponse = await response.json();
       let enrichedRows: MarketData[] = data.rows;
+
       console.log("useFuturesQuotes: quotes response", {
         rowCount: enrichedRows.length,
         totalKeys: Object.keys(data.total ?? {}).length,
@@ -96,5 +107,5 @@ export function useFuturesQuotes(pollMs: number) {
     return () => clearInterval(id);
   }, [fetchQuotes, pollMs]);
 
-  return { rows, total, loading, error };
+  return { rows, total, loading, error, hasLoadedOnce };
 }

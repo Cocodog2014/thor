@@ -90,6 +90,8 @@ export default function L1Card({ row, theme, quantity, onQuantityChange }: L1Car
       ? (high24 !== 0 ? (belowHigh24 / high24) * 100 : null)
       : null;
 
+      
+
   const above52 = toNumber((row as any).last_52w_above_low_diff);
   const above52Pct = toNumber((row as any).last_52w_above_low_pct);
   const below52 = toNumber((row as any).last_52w_below_high_diff);
@@ -130,6 +132,12 @@ export default function L1Card({ row, theme, quantity, onQuantityChange }: L1Car
       deltaPct: belowHigh24Pct,
     },
     {
+      label: "24h Range",
+      value: rangeValue,
+      delta: null,
+      deltaPct: null,
+    },
+    {
       label: "52w Low",
       value: low52,
       delta: above52,
@@ -141,12 +149,7 @@ export default function L1Card({ row, theme, quantity, onQuantityChange }: L1Car
       delta: below52,
       deltaPct: below52Pct,
     },
-    {
-      label: "24h Range",
-      value: rangeValue,
-      delta: null,
-      deltaPct: null,
-    },
+    
   ];
 
   return (
