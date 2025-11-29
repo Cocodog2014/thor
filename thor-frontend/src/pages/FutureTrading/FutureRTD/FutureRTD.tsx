@@ -7,7 +7,7 @@ import { RefreshCw } from "lucide-react";
 
 import L1Card from "./L1Card";
 import TotalCard from "./TotalCard";
-import { useFuturesQuotes } from "./hooks/useFuturesQuotes";
+import { useFuturesQuotes } from "./hooks";
 import type { FutureRTDProps, MarketData, RoutingPlanResponse } from "./types";
 
 // ----------------------------- Config ----------------------------

@@ -22,19 +22,16 @@ export function useFuturesQuotes(pollMs: number): UseFuturesQuotesResult {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
-
-  const abortRef = useRef(false);
-
+  // Prevent state updates after unmount (handles React StrictMode double-mount in dev)
+  const mountedRef = useRef(true);
   useEffect(() => {
+    mountedRef.current = true;
     return () => {
-      abortRef.current = true;
+      mountedRef.current = false;
     };
   }, []);
 
   const fetchQuotes = useCallback(async () => {
-    if (abortRef.current) {
-      return;
-    }
 
     if (!hasLoadedOnce) {
       setLoading(true);
@@ -75,7 +72,7 @@ export function useFuturesQuotes(pollMs: number): UseFuturesQuotesResult {
         }
       }
 
-      if (!abortRef.current) {
+      if (mountedRef.current) {
         if (!enrichedRows.length) {
           console.warn("useFuturesQuotes: quotes response contained 0 rows");
         }
@@ -83,13 +80,13 @@ export function useFuturesQuotes(pollMs: number): UseFuturesQuotesResult {
         setTotal(data.total ?? null);
       }
     } catch (err) {
-      if (!abortRef.current) {
+      if (mountedRef.current) {
         const message = err instanceof Error ? err.message : "Unknown quotes error";
         console.error("useFuturesQuotes: quotes fetch failed", err);
         setError(message);
       }
     } finally {
-      if (!abortRef.current) {
+      if (mountedRef.current) {
         setHasLoadedOnce(true);
         setLoading(false);
       }
