@@ -6,8 +6,8 @@ http://localhost:5173/
 
 1. Start databases & cache
 
-```powershell
-cd A:\Thor
+```powershellcd A:\Thor
+
 docker compose up -d postgres
 docker compose up -d redis
 ```
