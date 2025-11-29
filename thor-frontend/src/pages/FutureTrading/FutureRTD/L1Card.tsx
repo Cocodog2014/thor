@@ -1,11 +1,5 @@
 import { motion } from "framer-motion";
-import {
-  Box,
-  Button,
-  Chip,
-  Paper,
-  Typography,
-} from "@mui/material";
+import { Box, Button, Chip, Paper, Typography } from "@mui/material";
 import type { Theme } from "@mui/material/styles";
 
 import type { MarketData } from "./types";
@@ -41,7 +35,7 @@ const deltaColor = (value: number | null, theme: Theme) => {
 export default function L1Card({ row, theme, quantity, onQuantityChange }: L1CardProps) {
   const precision = row.instrument.display_precision ?? 2;
 
-  const price = toNumber(row.price);
+  // Direct backend-provided metrics (no frontend recomputation)
   const prevClose = toNumber(row.previous_close);
   const openPrice = toNumber(row.open_price);
   const bid = toNumber(row.bid);
@@ -51,53 +45,28 @@ export default function L1Card({ row, theme, quantity, onQuantityChange }: L1Car
   const low52 = toNumber((row.extended_data as any)?.low_52w);
   const high52 = toNumber((row.extended_data as any)?.high_52w);
 
-  const netChange =
-    toNumber(row.change) ??
-    toNumber((row as any).last_prev_diff) ??
-    (price !== null && prevClose !== null ? price - prevClose : null);
-  const changePct =
-    toNumber(row.change_percent) ??
-    toNumber((row as any).last_prev_pct) ??
-    (netChange !== null && prevClose
-      ? (prevClose !== 0 ? (netChange / prevClose) * 100 : null)
-      : null);
-
-  const spread = bid !== null && ask !== null ? ask - bid : null;
+  const netChange = toNumber((row as any).last_prev_diff);
+  const changePct = toNumber((row as any).last_prev_pct);
+  const spread = toNumber((row as any).spread) ?? (bid !== null && ask !== null ? ask - bid : null);
   const signalWeight = (row.extended_data as any)?.signal_weight ?? null;
   const statValue = (row.extended_data as any)?.stat_value ?? null;
-
-  const closeDelta =
-    toNumber((row as any).last_prev_diff) ??
-    (price !== null && prevClose !== null ? price - prevClose : null);
-  const closeDeltaPct =
-    toNumber((row as any).last_prev_pct) ??
-    (closeDelta !== null && prevClose
-      ? (prevClose !== 0 ? (closeDelta / prevClose) * 100 : null)
-      : null);
+  const closeDelta = netChange;
+  const closeDeltaPct = changePct;
 
   const openDelta = toNumber((row as any).open_prev_diff);
   const openDeltaPct = toNumber((row as any).open_prev_pct);
 
-  const aboveLow24 = price !== null && low24 !== null ? price - low24 : null;
-  const aboveLow24Pct =
-    aboveLow24 !== null && low24
-      ? (low24 !== 0 ? (aboveLow24 / low24) * 100 : null)
-      : null;
-
-  const belowHigh24 = price !== null && high24 !== null ? high24 - price : null;
-  const belowHigh24Pct =
-    belowHigh24 !== null && high24
-      ? (high24 !== 0 ? (belowHigh24 / high24) * 100 : null)
-      : null;
-
-      
+  const lowDelta = toNumber((row as any).low_prev_diff); // low - prevClose
+  const lowDeltaPct = toNumber((row as any).low_prev_pct);
+  const highDelta = toNumber((row as any).high_prev_diff); // high - prevClose
+  const highDeltaPct = toNumber((row as any).high_prev_pct);
 
   const above52 = toNumber((row as any).last_52w_above_low_diff);
   const above52Pct = toNumber((row as any).last_52w_above_low_pct);
   const below52 = toNumber((row as any).last_52w_below_high_diff);
   const below52Pct = toNumber((row as any).last_52w_below_high_pct);
 
-  const rangeValue = low24 !== null && high24 !== null ? high24 - low24 : null;
+  const rangeValue = toNumber((row as any).range_diff) ?? (low24 !== null && high24 !== null ? high24 - low24 : null);
 
   const tickValue = toNumber(row.instrument.tick_value);
   const marginRequirement = toNumber(row.instrument.margin_requirement);
@@ -122,20 +91,20 @@ export default function L1Card({ row, theme, quantity, onQuantityChange }: L1Car
     {
       label: "24h Low",
       value: low24,
-      delta: aboveLow24,
-      deltaPct: aboveLow24Pct,
+      delta: lowDelta,
+      deltaPct: lowDeltaPct,
     },
     {
       label: "24h High",
       value: high24,
-      delta: belowHigh24,
-      deltaPct: belowHigh24Pct,
+      delta: highDelta,
+      deltaPct: highDeltaPct,
     },
     {
       label: "24h Range",
       value: rangeValue,
       delta: null,
-      deltaPct: null,
+      deltaPct: toNumber((row as any).range_pct),
     },
     {
       label: "52w Low",
@@ -154,30 +123,8 @@ export default function L1Card({ row, theme, quantity, onQuantityChange }: L1Car
 
   return (
     <motion.div layout initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
-      <Paper
-        className="futures-card"
-        elevation={3}
-        sx={{
-          width: 500,
-          minHeight: 420,
-          display: "flex",
-          flexDirection: "column",
-          borderRadius: 2,
-          background: theme.palette.background.paper,
-          border: `1px solid ${theme.palette.divider}`,
-        }}
-      >
-        <Box
-          sx={{
-            px: 2,
-            py: 1,
-            background: theme.palette.primary.main,
-            color: theme.palette.primary.contrastText,
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-          }}
-        >
+      <Paper className="futures-card l1card-root" elevation={3} sx={{ background: theme.palette.background.paper, border: `1px solid ${theme.palette.divider}` }}>
+        <Box className="l1card-header" sx={{ background: theme.palette.primary.main, color: theme.palette.primary.contrastText }}>
           <Typography variant="body2" fontWeight="bold">
             {row.instrument.symbol}
           </Typography>
@@ -244,7 +191,7 @@ export default function L1Card({ row, theme, quantity, onQuantityChange }: L1Car
                   </Typography>
                 </Box>
                 <Box textAlign="right">
-                  <Box display="flex" justifyContent="flex-end" gap={1}>
+                  <Box className="l1card-price-row">
                     <Typography
                       variant="h6"
                       fontWeight="bold"
@@ -266,14 +213,7 @@ export default function L1Card({ row, theme, quantity, onQuantityChange }: L1Car
                 </Box>
               </Box>
 
-              <Box
-                sx={{
-                  mt: 0.75,
-                  display: "grid",
-                  gridTemplateColumns: "repeat(2, 1fr)",
-                  gap: 1,
-                }}
-              >
+              <Box className="l1card-bidask-grid">
                 <Box
                   component="button"
                   sx={{
@@ -333,15 +273,7 @@ export default function L1Card({ row, theme, quantity, onQuantityChange }: L1Car
                 </Box>
               </Box>
 
-              <Paper
-                variant="outlined"
-                sx={{
-                  mt: 1,
-                  p: 1.5,
-                  bgcolor: "rgba(255, 255, 255, 0.02)",
-                  borderColor: "rgba(255, 255, 255, 0.1)",
-                }}
-              >
+              <Paper variant="outlined" className="l1card-qty-panel">
                 <Box display="flex" alignItems="center" justifyContent="space-between" mb={1}>
                   <Typography variant="caption" fontWeight="medium" color="text.secondary">
                     Qty:
@@ -394,14 +326,7 @@ export default function L1Card({ row, theme, quantity, onQuantityChange }: L1Car
                 </Box>
               </Paper>
 
-              <Box
-                sx={{
-                  mt: 1,
-                  display: "grid",
-                  gridTemplateColumns: "repeat(2, 1fr)",
-                  gap: 1,
-                }}
-              >
+              <Box className="l1card-mini-grid">
                 <Paper variant="outlined" sx={{ p: 1, textAlign: "center", minHeight: 70 }}>
                   <Typography variant="caption" color="text.secondary">
                     Volume
@@ -425,8 +350,8 @@ export default function L1Card({ row, theme, quantity, onQuantityChange }: L1Car
             </Box>
           </Box>
 
-          <Box mt={2} className="data-grid">
-            <Box className="stat-header" mb={0.5} pb={0.5}>
+          <Box className="data-grid l1card-data-grid">
+            <Box className="stat-header l1card-stat-header">
               <Box display="grid" gridTemplateColumns={GRID_TEMPLATE} columnGap={1}>
                 <Typography variant="caption" fontWeight="bold" color="text.secondary">
                   Metric
@@ -464,7 +389,7 @@ export default function L1Card({ row, theme, quantity, onQuantityChange }: L1Car
               const deltaPctDisplay = metric.deltaPct == null ? "—" : `${fmt(metric.deltaPct, 2)}%`;
 
               return (
-                <Box key={metric.label} className="stat-row" pt={0.5} mb={1}>
+                <Box key={metric.label} className="stat-row l1card-stat-row">
                   <Box display="grid" gridTemplateColumns={GRID_TEMPLATE} columnGap={1}>
                     <Box>
                       <Typography variant="caption" color="text.secondary">

@@ -28,26 +28,14 @@ export default function TotalCard({ total, theme }: TotalCardProps) {
     <motion.div layout initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
       <Paper
         elevation={5}
+        className="totalcard-root"
         sx={{
-          width: 500,
-          height: "100%",
-          overflow: "hidden",
-          borderRadius: 2,
           background: `linear-gradient(135deg, ${theme.palette.warning.main}, ${theme.palette.warning.dark})`,
           border: `2px solid ${theme.palette.warning.light}`,
           color: theme.palette.warning.contrastText,
         }}
       >
-        <Box
-          sx={{
-            px: 2,
-            py: 1,
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            background: theme.palette.warning.dark,
-          }}
-        >
+        <Box className="totalcard-header" sx={{ background: theme.palette.warning.dark }}>
           <Typography variant="body2" fontWeight="bold">
             TOTAL
           </Typography>
@@ -56,12 +44,8 @@ export default function TotalCard({ total, theme }: TotalCardProps) {
           </Typography>
         </Box>
 
-        <Box p={2}>
-          <Box
-            display="grid"
-            gridTemplateColumns="repeat(2, 1fr)"
-            gap={1.5}
-          >
+        <Box className="totalcard-body">
+          <Box className="totalcard-grid">
             <Tile label="Weighted Avg" value={weightedAvg} />
             <Tile label="Sum Weighted" value={sumWeighted} />
             <Tile
@@ -83,7 +67,7 @@ export default function TotalCard({ total, theme }: TotalCardProps) {
             <Tile label="Signal Weight" value={signalWeight} />
           </Box>
 
-          <Box mt={2} display="flex" justifyContent="space-between" alignItems="center">
+          <Box className="totalcard-footer">
             <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.8)" }}>
               Updated {updatedTime}
             </Typography>
@@ -104,20 +88,7 @@ type TileProps = {
 
 function Tile({ label, value }: TileProps) {
   return (
-    <Paper
-      variant="outlined"
-      sx={{
-        p: 1.5,
-        bgcolor: "rgba(255,255,255,0.1)",
-        borderColor: "rgba(255,255,255,0.2)",
-        textAlign: "center",
-        color: "white",
-        minHeight: 88,
-        display: "flex",
-        flexDirection: "column",
-        justifyContent: "center",
-      }}
-    >
+    <Paper variant="outlined" className="totalcard-tile">
       <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.8)", mb: 0.5 }}>
         {label}
       </Typography>

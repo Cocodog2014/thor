@@ -419,11 +419,11 @@ Return Enriched JSON Response
 
 ---
 
-#### services/metrics.py
+#### services/metrics (package)
 
 **Function:**
 
-- `compute_row_metrics(row)`: Calculates derived numeric fields
+- `compute_row_metrics(row)`: Calculates derived numeric fields (exposed via `services/metrics/__init__.py`)
 
 **Session & Previous Close Metrics:**
   - `last_prev_diff`: Last price - Previous close

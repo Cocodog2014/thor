@@ -1,0 +1,44 @@
+/* TotalCard.css - extracted static layout styles from inline sx */
+
+.totalcard-root {
+  width: 500px;
+  height: 100%;
+  overflow: hidden;
+  border-radius: 8px;
+}
+
+.totalcard-header {
+  padding: 4px 16px; /* px:2 py:1 */
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.totalcard-body {
+  padding: 16px;
+}
+
+.totalcard-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.totalcard-footer {
+  margin-top: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.totalcard-tile {
+  padding: 12px;
+  background: rgba(255,255,255,0.1);
+  border-color: rgba(255,255,255,0.2);
+  text-align: center;
+  color: white;
+  min-height: 88px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
