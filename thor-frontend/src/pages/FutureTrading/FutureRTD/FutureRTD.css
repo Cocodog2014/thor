@@ -144,6 +144,7 @@
   margin-bottom: 24px;
 }
 
+/* Control panel base styles */
 .control-panel {
   background: rgba(255, 255, 255, 0.05);
   border-radius: 8px;
@@ -151,9 +152,14 @@
 }
 
 /* Only apply blur if the browser actually supports it */
-@supports (backdrop-filter: blur(10px)) or (-webkit-backdrop-filter: blur(10px)) {
+@supports (backdrop-filter: blur(10px)) {
   .control-panel {
     backdrop-filter: blur(10px);
+  }
+}
+
+@supports (-webkit-backdrop-filter: blur(10px)) {
+  .control-panel {
     -webkit-backdrop-filter: blur(10px);
   }
 }
@@ -240,3 +246,4 @@
     margin-bottom: 20px;
   }
 }
+

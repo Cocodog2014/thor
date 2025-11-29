@@ -7,27 +7,29 @@ import { RefreshCw } from "lucide-react";
 
 import L1Card from "./L1Card";
 import TotalCard from "./TotalCard";
-import { useFuturesQuotes } from "./hooks/useFuturesQuotes";
-import type { FutureRTDProps, MarketData, RoutingPlanResponse } from "./types";
+import type { ApiResponse, FutureRTDProps, MarketData, RoutingPlanResponse, TotalData } from "./types";
+
+// ----------------------------- Config ----------------------------
 
 const FUTURES_11 = [
   "/YM",
   "/ES",
   "/NQ",
-  "RTY",
+  "RTY", // equity index futures
   "CL",
   "SI",
   "HG",
-  "GC",
+  "GC", // energy & metals
   "VX",
   "DX",
-  "ZB",
+  "ZB", // vol, dollar, 30Y
 ];
 
 const POLL_STEPS = [2000, 1000, 5000];
 
 const normalizeSymbol = (symbol: string) => symbol.replace(/^\//, "").toUpperCase();
 
+// Helper to create an empty placeholder row for missing symbols
 function makePlaceholder(symbol: string, index: number): MarketData {
   return {
     instrument: {
@@ -66,18 +68,30 @@ function makePlaceholder(symbol: string, index: number): MarketData {
   } as MarketData;
 }
 
+// -------------------------- Main Component -----------------------
+
 export default function FutureRTD({ onToggleMarketOpen, showMarketOpen }: FutureRTDProps = {}) {
   const theme = useTheme();
+
   const [pollMs, setPollMs] = useState(2000);
-  const { rows, total, loading, error } = useFuturesQuotes(pollMs);
-  // TEMP DEBUG: toggle to render backend rows directly (bypass mapping)
-  const [debugDirectRows, setDebugDirectRows] = useState(false);
+  const [rows, setRows] = useState<MarketData[]>([]);
+  const [totalData, setTotalData] = useState<TotalData | null>(null);
+
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
 
   const [routingPlan, setRoutingPlan] = useState<RoutingPlanResponse | null>(null);
-  const [routingLoading, setRoutingLoading] = useState(true);
   const [routingError, setRoutingError] = useState<string | null>(null);
+  const [routingLoading, setRoutingLoading] = useState(true);
 
   const [quantities, setQuantities] = useState<Record<string, number>>({});
+
+  const getQty = (symbol: string) => quantities[symbol] ?? 1;
+  const setQty = (symbol: string, qty: number) => {
+    setQuantities((prev) => ({ ...prev, [symbol]: Math.max(1, qty) }));
+  };
+
+  // ---------------- Routing setup (same behavior as before) -------
 
   useEffect(() => {
     setRoutingLoading(false);
@@ -96,26 +110,92 @@ export default function FutureRTD({ onToggleMarketOpen, showMarketOpen }: Future
     });
   }, []);
 
-  const orderedRows = useMemo(() => {
-    // Build a map from base symbol letters (e.g., YM, ES) to the first row
-    const byBase = new Map<string, MarketData>();
+  // ---------------- Data Fetch (old working logic) ---------------
 
-    rows.forEach((row) => {
-      const norm = normalizeSymbol(row.instrument.symbol); // e.g., "/YMZ25" -> "YMZ25"
-      const base = norm.match(/^[A-Z]+/)?.[0] ?? norm; // "YM"
-      if (!byBase.has(base)) {
-        byBase.set(base, row);
+  async function fetchQuotes() {
+    const endpoint = "/api/quotes/latest?consumer=futures_trading";
+
+    try {
+      setLoading(true);
+      setError(null);
+
+      console.log("[FutureRTD] fetching quotes:", endpoint, "at", new Date().toISOString());
+
+      const r = await fetch(endpoint);
+      if (!r.ok) {
+        throw new Error(`Quote request failed (${r.status})`);
       }
-    });
 
-    return FUTURES_11.map((sym, idx) => {
-      const norm = normalizeSymbol(sym); // "/YM" -> "YM"
-      const base = norm.match(/^[A-Z]+/)?.[0] ?? norm;
-      return byBase.get(base) ?? makePlaceholder(sym, idx);
-    });
-  }, [rows]);
+      const data: ApiResponse = await r.json();
+      console.log("[FutureRTD] quotes response:", {
+        rowCount: data.rows.length,
+        totalKeys: Object.keys(data.total ?? {}).length,
+      });
 
-  const rowsToRender = debugDirectRows ? rows : orderedRows;
+      let enrichedRows: MarketData[] = data.rows;
+
+      // Fetch VWAPs for same symbols (same as before)
+      const symbols = data.rows.map((row) => row.instrument.symbol).filter(Boolean);
+      if (symbols.length > 0) {
+        try {
+          const vwapResponse = await fetch(`/api/vwap/rolling?symbols=${symbols.join(",")}&minutes=30`);
+          if (vwapResponse.ok) {
+            const vwapData: { symbol: string; vwap: string | null }[] = await vwapResponse.json();
+            enrichedRows = data.rows.map((row) => {
+              const found = vwapData.find((vw) => vw.symbol === row.instrument.symbol);
+              return found ? { ...row, vwap: found.vwap } : row;
+            });
+          }
+        } catch (vwErr) {
+          console.warn("[FutureRTD] VWAP fetch failed", vwErr);
+        }
+      }
+
+      if (!enrichedRows.length) {
+        console.warn("[FutureRTD] quotes response contained 0 rows");
+      }
+
+      setRows(enrichedRows);
+      setTotalData(data.total ?? null);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Unknown quotes error";
+      console.error("[FutureRTD] quotes fetch failed", err);
+      setError(message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // Initial load
+  useEffect(() => {
+    fetchQuotes();
+  }, []);
+
+  // Polling
+  useEffect(() => {
+    const id = setInterval(() => {
+      fetchQuotes();
+    }, pollMs);
+    return () => clearInterval(id);
+  }, [pollMs]);
+
+  // ---------------- Map to fixed 11 cards ------------------------
+
+  const effective = rows;
+
+  const ordered: MarketData[] = useMemo(() => {
+    const map = new Map(effective.map((r) => [normalizeSymbol(r.instrument.symbol), r]));
+    return FUTURES_11.map((sym: string, idx: number) => {
+      const normalized = normalizeSymbol(sym);
+      const found = map.get(normalized);
+      if (!found) {
+        console.warn("[FutureRTD] No data for symbol", sym, "-> using placeholder");
+      }
+      return found ?? makePlaceholder(sym, idx);
+    });
+  }, [effective]);
+
+  const displayRows: MarketData[] = useMemo(() => ordered, [ordered]);
 
   const handlePollCycle = () => {
     const currentIndex = POLL_STEPS.findIndex((step) => step === pollMs);
@@ -123,10 +203,7 @@ export default function FutureRTD({ onToggleMarketOpen, showMarketOpen }: Future
     setPollMs(POLL_STEPS[nextIndex]);
   };
 
-  const getQty = (symbol: string) => quantities[symbol] ?? 1;
-  const setQty = (symbol: string, qty: number) => {
-    setQuantities((prev) => ({ ...prev, [symbol]: Math.max(1, qty) }));
-  };
+  // ---------------------------- Render ---------------------------
 
   return (
     <Container maxWidth={false} sx={{ py: 3 }}>
@@ -196,22 +273,6 @@ export default function FutureRTD({ onToggleMarketOpen, showMarketOpen }: Future
         >
           {pollMs / 1000}s
         </Button>
-        <Button
-          variant="outlined"
-          onClick={() => setDebugDirectRows((v) => !v)}
-          title="Debug: render backend rows directly"
-          sx={{
-            ml: 1,
-            borderColor: debugDirectRows ? theme.palette.warning.light : "white",
-            color: debugDirectRows ? theme.palette.warning.light : "white",
-            "&:hover": {
-              borderColor: "rgba(255, 255, 255, 0.8)",
-              backgroundColor: "rgba(255, 255, 255, 0.1)",
-            },
-          }}
-        >
-          {debugDirectRows ? "Debug: Direct Rows" : "Debug: Mapped Rows"}
-        </Button>
       </Box>
 
       <Box sx={{ overflowX: "auto", pb: 2 }}>
@@ -225,11 +286,13 @@ export default function FutureRTD({ onToggleMarketOpen, showMarketOpen }: Future
             minWidth: "100%",
           }}
         >
+          {/* Total Composite Card - appears first */}
           <Box>
-            <TotalCard total={total} theme={theme} />
+            <TotalCard total={totalData} theme={theme} />
           </Box>
 
-          {rowsToRender.slice(0, 11).map((row) => (
+          {/* Individual Futures Cards */}
+          {displayRows.slice(0, 11).map((row) => (
             <Box key={row.instrument.symbol}>
               <L1Card
                 row={row}
