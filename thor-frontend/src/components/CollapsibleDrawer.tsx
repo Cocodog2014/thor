@@ -110,27 +110,27 @@ const CollapsibleDrawer: React.FC<CollapsibleDrawerProps> = ({
             <Box sx={{ fontSize: '0.75rem', color: 'text.secondary' }}>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
                 <span>Option Buying Power</span>
-                <span style={{ color: '#4caf50' }}>$301.95</span>
+                <Box component="span" sx={{ color: '#4caf50' }}>$301.95</Box>
               </Box>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
                 <span>Net Liq & Day Trades</span>
-                <span style={{ color: '#4caf50' }}>$86,081.37</span>
+                <Box component="span" sx={{ color: '#4caf50' }}>$86,081.37</Box>
               </Box>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
                 <span>Day Trading Buying Power</span>
-                <span style={{ color: '#4caf50' }}>$301.95</span>
+                <Box component="span" sx={{ color: '#4caf50' }}>$301.95</Box>
               </Box>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
                 <span>Day Trades Left</span>
-                <span style={{ color: '#ff9800' }}>3</span>
+                <Box component="span" sx={{ color: '#ff9800' }}>3</Box>
               </Box>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
                 <span>Cash & Sweep Vehicle</span>
-                <span style={{ color: '#4caf50' }}>$301.95</span>
+                <Box component="span" sx={{ color: '#4caf50' }}>$301.95</Box>
               </Box>
               <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span>Available Funds For Trading</span>
-                <span style={{ color: '#4caf50' }}>$301.95</span>
+                <Box component="span" sx={{ color: '#4caf50' }}>$301.95</Box>
               </Box>
             </Box>
           </Box>
