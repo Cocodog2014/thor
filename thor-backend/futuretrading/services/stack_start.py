@@ -116,7 +116,7 @@ def start_52w_supervisor_wrapper():
     logger.info("📈 52-week supervisor (stack) starting...")
 
     try:
-        from FutureTrading.services.Week52Superviror import start_52w_monitor_supervisor
+        from FutureTrading.services.Week52Supervisor import start_52w_monitor_supervisor
 
         start_52w_monitor_supervisor()
         logger.info("📈 52-week supervisor started from stack.")

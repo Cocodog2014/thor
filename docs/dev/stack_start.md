@@ -65,7 +65,7 @@ class FuturetradingConfig(AppConfig):
 
         # 52-week and Pre-open supervisors are still started here separately
         try:
-            from FutureTrading.services.Week52Superviror import start_52w_monitor_supervisor
+            from FutureTrading.services.Week52Supervisor import start_52w_monitor_supervisor
             start_52w_monitor_supervisor()
             logger.info("📈 52-week supervisor started.")
         except Exception:
