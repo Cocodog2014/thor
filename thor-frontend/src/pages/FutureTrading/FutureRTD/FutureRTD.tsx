@@ -70,6 +70,8 @@ export default function FutureRTD({ onToggleMarketOpen, showMarketOpen }: Future
   const theme = useTheme();
   const [pollMs, setPollMs] = useState(2000);
   const { rows, total, loading, error } = useFuturesQuotes(pollMs);
+  // TEMP DEBUG: toggle to render backend rows directly (bypass mapping)
+  const [debugDirectRows, setDebugDirectRows] = useState(false);
 
   const [routingPlan, setRoutingPlan] = useState<RoutingPlanResponse | null>(null);
   const [routingLoading, setRoutingLoading] = useState(true);
@@ -112,6 +114,8 @@ export default function FutureRTD({ onToggleMarketOpen, showMarketOpen }: Future
       return byBase.get(base) ?? makePlaceholder(sym, idx);
     });
   }, [rows]);
+
+  const rowsToRender = debugDirectRows ? rows : orderedRows;
 
   const handlePollCycle = () => {
     const currentIndex = POLL_STEPS.findIndex((step) => step === pollMs);
@@ -192,6 +196,22 @@ export default function FutureRTD({ onToggleMarketOpen, showMarketOpen }: Future
         >
           {pollMs / 1000}s
         </Button>
+        <Button
+          variant="outlined"
+          onClick={() => setDebugDirectRows((v) => !v)}
+          title="Debug: render backend rows directly"
+          sx={{
+            ml: 1,
+            borderColor: debugDirectRows ? theme.palette.warning.light : "white",
+            color: debugDirectRows ? theme.palette.warning.light : "white",
+            "&:hover": {
+              borderColor: "rgba(255, 255, 255, 0.8)",
+              backgroundColor: "rgba(255, 255, 255, 0.1)",
+            },
+          }}
+        >
+          {debugDirectRows ? "Debug: Direct Rows" : "Debug: Mapped Rows"}
+        </Button>
       </Box>
 
       <Box sx={{ overflowX: "auto", pb: 2 }}>
@@ -209,7 +229,7 @@ export default function FutureRTD({ onToggleMarketOpen, showMarketOpen }: Future
             <TotalCard total={total} theme={theme} />
           </Box>
 
-          {orderedRows.slice(0, 11).map((row) => (
+          {rowsToRender.slice(0, 11).map((row) => (
             <Box key={row.instrument.symbol}>
               <L1Card
                 row={row}
