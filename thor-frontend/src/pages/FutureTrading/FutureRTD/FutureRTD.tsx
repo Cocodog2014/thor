@@ -1,5 +1,3 @@
-import "./FutureRTD.css";
-
 import { useEffect, useMemo, useState } from "react";
 import { Alert, Box, Button, CircularProgress, Container, Typography } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
