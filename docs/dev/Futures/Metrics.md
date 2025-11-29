@@ -17,16 +17,16 @@ Calculated per quote (in memory) for `/api/quotes/latest` and the dashboard.
 
 | Metric | Meaning | Where Calculated | Notes |
 |--------|---------|------------------|-------|
-| `last_prev_diff` | last − previous close | `FutureTrading/services/metrics.py` | Live only |
-| `last_prev_pct` | % change from previous close | `FutureTrading/services/metrics.py` | Shown as % Change |
-| `open_prev_diff` / `open_prev_pct` | open vs previous close | `FutureTrading/services/metrics.py` |  |
-| `high_prev_diff` / `high_prev_pct` | daily high vs previous close | `FutureTrading/services/metrics.py` |  |
-| `low_prev_diff` / `low_prev_pct` | daily low vs previous close | `FutureTrading/services/metrics.py` |  |
-| `range_diff` | high − low (intraday) | `FutureTrading/services/metrics.py` |  |
-| `range_pct` | intraday range / previous close | `FutureTrading/services/metrics.py` |  |
-| `spread` | ask − bid | `FutureTrading/services/metrics.py` |  |
-| `last_52w_above_low_diff` / `last_52w_above_low_pct` | distance above 52w low | `FutureTrading/services/metrics.py` |  |
-| `last_52w_below_high_diff` / `last_52w_below_high_pct` | distance below 52w high | `FutureTrading/services/metrics.py` |  |
+| `last_prev_diff` | last − previous close | `FutureTrading/services/metrics (compute_row_metrics)` | Live only |
+| `last_prev_pct` | % change from previous close | `FutureTrading/services/metrics (compute_row_metrics)` | Shown as % Change |
+| `open_prev_diff` / `open_prev_pct` | open vs previous close | `FutureTrading/services/metrics (compute_row_metrics)` |  |
+| `high_prev_diff` / `high_prev_pct` | daily high vs previous close | `FutureTrading/services/metrics (compute_row_metrics)` |  |
+| `low_prev_diff` / `low_prev_pct` | daily low vs previous close | `FutureTrading/services/metrics (compute_row_metrics)` |  |
+| `range_diff` | high − low (intraday) | `FutureTrading/services/metrics (compute_row_metrics)` |  |
+| `range_pct` | intraday range / previous close | `FutureTrading/services/metrics (compute_row_metrics)` |  |
+| `spread` | ask − bid | `FutureTrading/services/metrics (compute_row_metrics)` |  |
+| `last_52w_above_low_diff` / `last_52w_above_low_pct` | distance above 52w low | `FutureTrading/services/metrics (compute_row_metrics)` |  |
+| `last_52w_below_high_diff` / `last_52w_below_high_pct` | distance below 52w high | `FutureTrading/services/metrics (compute_row_metrics)` |  |
 | `extended_data.high_52w` / `extended_data.low_52w` | 52-week extremes added to row | `FutureTrading/services/quotes.build_enriched_rows` | Pulled from DB |
 
 ➡️ Frontend should consume these directly (no re‑calculation in components).
@@ -81,7 +81,7 @@ Calculated and written during each control market's open/close lifecycle.
 
 ## Separation of Responsibility
 
-- `services/metrics.py` → Live / transient per‑row math (frontend enrichment)
+- `services/metrics` (package) → Live / transient per‑row math (`compute_row_metrics`)
 - `services/quotes.py` → Builds enriched rows + composite totals
 - `Week52Supervisor.py` → Updates rolling 52w highs/lows (DB)
 - `services/market_metrics.py` → Intraday session math (persisted)
@@ -102,7 +102,7 @@ This document explains how all numeric and derived metrics in Thor are wired tog
 
 It also clarifies role boundaries:
 
-- `FutureTrading/services/metrics.py`  → live frontend math
+- `FutureTrading/services/metrics` (package) → live frontend math
 - `FutureTrading/services/market_metrics.py` → intraday DB session math
 
 ---
@@ -122,7 +122,7 @@ flowchart LR
     subgraph DjangoBackend[Django Backend]
         Poller[poll_tos_excel\n(management command)]
         QuotesSvc[services/quotes.py\n(fetch_raw_quotes + build_enriched_rows)]
-        MetricsSvc[services/metrics.py\ncompute_row_metrics]
+        MetricsSvc[services/metrics (package)\ncompute_row_metrics]
         MarketMetrics[services/market_metrics.py\nopen/high/low/close/range]
         Week52Sup[Week52Supervisor.py\n52w monitor + supervisor]
         PreOpenSup[PreOpenBacktestSupervisor.py]
@@ -161,10 +161,10 @@ Frontend uses enriched rows computed on the fly (no DB writes).
 
 ---
 
-## 2. Live Quote Enrichment (`services/metrics.py`)
+## 2. Live Quote Enrichment (metrics package)
 
 ### 2.1 Purpose
-`FutureTrading/services/metrics.py` is a pure math helper used during quote enrichment.
+`FutureTrading/services/metrics` is a package exposing `compute_row_metrics` used during quote enrichment.
 Operates on in‑memory dicts. No database writes.
 
 ### 2.2 Data Flow for Live Metrics
@@ -174,7 +174,7 @@ sequenceDiagram
     participant Excel as Excel RTD
     participant Redis as Redis (live_data_redis)
     participant QuotesSvc as services/quotes.py
-    participant Metrics as services/metrics.py
+    participant Metrics as metrics.compute_row_metrics
     participant API as /api/quotes/latest
     participant React as FutureRTD.tsx
 
@@ -309,7 +309,7 @@ sequenceDiagram
 | Layer | File / Component | Responsibility |
 |-------|------------------|---------------|
 | Excel → Redis | `poll_tos_excel` mgmt command | Stream RTD sheet to Redis |
-| Live enrichment | `services/quotes.py` + `services/metrics.py` | Build enriched rows + live per‑row math |
+| Live enrichment | `services/quotes.py` + `services/metrics (package)` | Build enriched rows + live per‑row math |
 | Frontend | `FutureRTD.tsx`, `useFuturesQuotes` | Poll & render metrics, VWAP |
 | 52w monitor | `Week52Supervisor.py` | Maintain rolling highs/lows |
 | Market open capture | `MarketOpenCaptureService` | Create `MarketSession` rows |
