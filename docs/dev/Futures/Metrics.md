@@ -322,11 +322,39 @@ Key separation: **frontend/live math** vs **persisted session math**.
 
 ## 8. Implementation Guidelines
 
-1. Prefer adding new transient quote-derived metrics in `services/metrics.compute_row_metrics`.
-2. Persist only session lifecycle metrics (open/high/low/close/range) in `market_metrics`.
-3. Never recompute backend metrics in React — consume the API payload directly.
-4. When adding 52w dependent logic, update `Rolling52WeekStats` and expose via `quotes.build_enriched_rows`.
-5. Backtest expansions: extend `compute_backtest_stats_for_country_future` (keeps warm-up and open capture aligned).
+1. Transient (live-only) per-quote metrics: add to `row_metrics.py` (`compute_row_metrics`). Do NOT write them to the DB.
+2. Session lifecycle metrics (persisted): extend or create classes in `session_open.py`, `session_high_low.py`, `session_close_range.py` (never ad‑hoc logic outside these modules).
+3. Frontend rule: React components must only display backend-supplied metrics (no delta/pct recomputation).
+4. 52‑week dependent logic: update `Rolling52WeekStats` and let `quotes.build_enriched_rows` inject values consumed by `compute_row_metrics`.
+5. Backtest expansions: extend `compute_backtest_stats_for_country_future` so pre‑open warm‑up and session capture stay aligned.
+6. Naming consistency: new persisted fields follow `market_<aspect>[_pct]` (e.g. `market_close_vs_open_pct`). Avoid alternative naming.
+7. Persistence timing: only write open metrics at market OPEN, high/low while OPEN, close & range strictly after CLOSE.
+8. No cross-layer mutation: session metric classes must not modify already enriched live rows; enrichment reads, session writes.
+9. Dependency isolation: keep row metric math free of Django model imports (pure functions). Session metric classes may reference models.
+10. Testing: add unit tests for new row metrics (pure function assertions) and session metrics (simulate lifecycle) in backend test modules—never test metric math in frontend.
+
+### 8.1 Session Metrics Extension Pattern
+
+To introduce a new persisted session metric:
+- Identify lifecycle phase (OPEN / DURING / CLOSE).
+- Create or extend an appropriate class (e.g. add method on `MarketCloseMetric`).
+- Store value on `MarketSession` using consistent naming.
+- If it depends on rolling or historical data, ensure that data is available before the lifecycle hook runs (preload in capture service).
+- Add docstring + include in `FutureTrading.md` session table.
+
+### 8.2 Adding a New Live Metric
+
+For a new transient value (e.g. intraday volatility):
+- Compute in `compute_row_metrics` using existing primitives or a new helper.
+- Return as a top-level field (snake_case) or inside `extended_data` if experimental.
+- Update `Metrics.md` LIVE FRONTEND METRICS table.
+- Consume directly in frontend; do not derive variants unless formatting.
+
+### 8.3 Anti-Patterns (Avoid)
+- Recomputing `last_prev_pct` or `range_pct` in React.
+- Writing transient metrics (e.g. spread) into `MarketSession`.
+- Importing Django models inside `row_metrics.py`.
+- Ad‑hoc percentage calculations scattered across services—centralize.
 
 ---
 
