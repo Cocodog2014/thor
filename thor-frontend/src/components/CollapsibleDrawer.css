@@ -1,0 +1,70 @@
+/* CollapsibleDrawer.css - Drawer-specific styles wired through global.css */
+
+:root {
+  --drawer-open: 240px;
+  --drawer-closed: 72px;
+}
+
+/* Drawer root and paper */
+.thor-drawer {
+  width: var(--drawer-closed) !important; /* Ensure the root also shrinks */
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.thor-drawer.open { width: var(--drawer-open) !important; }
+
+/* Control the actual visible width on the Paper element */
+.thor-drawer .MuiDrawer-paper {
+  width: var(--drawer-closed) !important; /* Override MUI default 240px */
+  box-sizing: border-box;
+  overflow-x: hidden;
+  transition: width 200ms ease;
+  background: var(--thor-sidebar-gradient);
+  border-right: none;
+}
+.thor-drawer.open .MuiDrawer-paper { width: var(--drawer-open) !important; }
+.thor-drawer.closed .MuiDrawer-paper { width: var(--drawer-closed) !important; }
+
+/* Toolbar toggle button */
+.thor-drawer-toggle {
+  color: var(--thor-blue-primary);
+}
+
+/* Account info header */
+.thor-account-title {
+  color: var(--thor-blue-primary) !important;
+  font-weight: bold !important;
+}
+
+/* Navigation buttons */
+.thor-nav-button {
+  min-height: 48px;
+  justify-content: initial;
+  padding-left: 20px;
+  padding-right: 20px;
+}
+.thor-drawer.closed .thor-nav-button { justify-content: center; }
+
+.thor-nav-button.Mui-selected {
+  background-color: rgba(25, 118, 210, 0.2);
+  border-right: 3px solid #1976d2;
+}
+.thor-nav-button:hover {
+  background-color: rgba(25, 118, 210, 0.1);
+}
+
+/* Navigation icon/text */
+.thor-nav-icon {
+  min-width: 0;
+  margin-right: 24px;
+  justify-content: center;
+  color: var(--thor-blue-primary);
+}
+.thor-drawer.closed .thor-nav-icon { margin-right: auto; }
+
+.thor-nav-text {
+  color: #fff;
+  opacity: 1;
+  transition: opacity 150ms ease;
+}
+.thor-drawer.closed .thor-nav-text { opacity: 0; }
