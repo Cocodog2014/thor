@@ -41,6 +41,7 @@ const deltaColor = (value: number | null, theme: Theme) => {
 export default function L1Card({ row, theme, quantity, onQuantityChange }: L1CardProps) {
   const precision = row.instrument.display_precision ?? 2;
 
+  // Direct backend-provided metrics (no frontend recomputation)
   const price = toNumber(row.price);
   const prevClose = toNumber(row.previous_close);
   const openPrice = toNumber(row.open_price);
@@ -51,53 +52,28 @@ export default function L1Card({ row, theme, quantity, onQuantityChange }: L1Car
   const low52 = toNumber((row.extended_data as any)?.low_52w);
   const high52 = toNumber((row.extended_data as any)?.high_52w);
 
-  const netChange =
-    toNumber(row.change) ??
-    toNumber((row as any).last_prev_diff) ??
-    (price !== null && prevClose !== null ? price - prevClose : null);
-  const changePct =
-    toNumber(row.change_percent) ??
-    toNumber((row as any).last_prev_pct) ??
-    (netChange !== null && prevClose
-      ? (prevClose !== 0 ? (netChange / prevClose) * 100 : null)
-      : null);
-
-  const spread = bid !== null && ask !== null ? ask - bid : null;
+  const netChange = toNumber((row as any).last_prev_diff);
+  const changePct = toNumber((row as any).last_prev_pct);
+  const spread = toNumber((row as any).spread) ?? (bid !== null && ask !== null ? ask - bid : null);
   const signalWeight = (row.extended_data as any)?.signal_weight ?? null;
   const statValue = (row.extended_data as any)?.stat_value ?? null;
-
-  const closeDelta =
-    toNumber((row as any).last_prev_diff) ??
-    (price !== null && prevClose !== null ? price - prevClose : null);
-  const closeDeltaPct =
-    toNumber((row as any).last_prev_pct) ??
-    (closeDelta !== null && prevClose
-      ? (prevClose !== 0 ? (closeDelta / prevClose) * 100 : null)
-      : null);
+  const closeDelta = netChange;
+  const closeDeltaPct = changePct;
 
   const openDelta = toNumber((row as any).open_prev_diff);
   const openDeltaPct = toNumber((row as any).open_prev_pct);
 
-  const aboveLow24 = price !== null && low24 !== null ? price - low24 : null;
-  const aboveLow24Pct =
-    aboveLow24 !== null && low24
-      ? (low24 !== 0 ? (aboveLow24 / low24) * 100 : null)
-      : null;
-
-  const belowHigh24 = price !== null && high24 !== null ? high24 - price : null;
-  const belowHigh24Pct =
-    belowHigh24 !== null && high24
-      ? (high24 !== 0 ? (belowHigh24 / high24) * 100 : null)
-      : null;
-
-      
+  const lowDelta = toNumber((row as any).low_prev_diff); // low - prevClose
+  const lowDeltaPct = toNumber((row as any).low_prev_pct);
+  const highDelta = toNumber((row as any).high_prev_diff); // high - prevClose
+  const highDeltaPct = toNumber((row as any).high_prev_pct);
 
   const above52 = toNumber((row as any).last_52w_above_low_diff);
   const above52Pct = toNumber((row as any).last_52w_above_low_pct);
   const below52 = toNumber((row as any).last_52w_below_high_diff);
   const below52Pct = toNumber((row as any).last_52w_below_high_pct);
 
-  const rangeValue = low24 !== null && high24 !== null ? high24 - low24 : null;
+  const rangeValue = toNumber((row as any).range_diff) ?? (low24 !== null && high24 !== null ? high24 - low24 : null);
 
   const tickValue = toNumber(row.instrument.tick_value);
   const marginRequirement = toNumber(row.instrument.margin_requirement);
@@ -122,20 +98,20 @@ export default function L1Card({ row, theme, quantity, onQuantityChange }: L1Car
     {
       label: "24h Low",
       value: low24,
-      delta: aboveLow24,
-      deltaPct: aboveLow24Pct,
+      delta: lowDelta,
+      deltaPct: lowDeltaPct,
     },
     {
       label: "24h High",
       value: high24,
-      delta: belowHigh24,
-      deltaPct: belowHigh24Pct,
+      delta: highDelta,
+      deltaPct: highDeltaPct,
     },
     {
       label: "24h Range",
       value: rangeValue,
       delta: null,
-      deltaPct: null,
+      deltaPct: toNumber((row as any).range_pct),
     },
     {
       label: "52w Low",
