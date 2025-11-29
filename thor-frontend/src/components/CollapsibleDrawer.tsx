@@ -52,8 +52,8 @@ const navigationItems = [
 const CollapsibleDrawer: React.FC<CollapsibleDrawerProps> = ({
   open,
   onToggle,
-  widthOpen = DEFAULT_WIDTH_OPEN,
-  widthClosed = DEFAULT_WIDTH_CLOSED,
+  // widthOpen = DEFAULT_WIDTH_OPEN,
+  // widthClosed = DEFAULT_WIDTH_CLOSED,
   onTradingActivityToggle,
   showTradingActivity = false,
   onAccountStatementToggle,
@@ -66,7 +66,7 @@ const CollapsibleDrawer: React.FC<CollapsibleDrawerProps> = ({
   const location = useLocation();
   const navigate = useNavigate();
 
-  const drawerWidth = open ? widthOpen : widthClosed;
+  // Width is now controlled via CSS classes; constants kept for GlobalHeader layout.
 
   const signOut = () => {
     try {
@@ -79,23 +79,11 @@ const CollapsibleDrawer: React.FC<CollapsibleDrawerProps> = ({
   return (
     <Drawer
       variant="permanent"
-      sx={{
-        width: drawerWidth,
-        flexShrink: 0,
-        whiteSpace: 'nowrap',
-        '& .MuiDrawer-paper': {
-          width: drawerWidth,
-          boxSizing: 'border-box',
-          overflowX: 'hidden',
-          transition: 'width 200ms ease',
-          background: 'linear-gradient(180deg, #1a1f2e 0%, #0a0e13 100%)',
-          borderRight: 'none', // Remove default MUI paper right border/seam
-        },
-      }}
       anchor="left"
+      className={`thor-drawer ${open ? 'open' : 'closed'}`}
     >
       <Toolbar sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', px: 1 }}>
-        <IconButton onClick={onToggle} sx={{ color: '#1976d2' }} aria-label={open ? 'Collapse menu' : 'Expand menu'}>
+        <IconButton onClick={onToggle} className="thor-drawer-toggle" aria-label={open ? 'Collapse menu' : 'Expand menu'}>
           {open ? <ChevronLeftIcon /> : <ChevronRightIcon />}
         </IconButton>
       </Toolbar>
@@ -104,7 +92,7 @@ const CollapsibleDrawer: React.FC<CollapsibleDrawerProps> = ({
       {open && (
         <>
           <Box sx={{ px: 2, py: 1 }}>
-            <Typography variant="subtitle2" sx={{ color: '#1976d2', fontWeight: 'bold', mb: 1 }}>
+            <Typography variant="subtitle2" className="thor-account-title" sx={{ mb: 1 }}>
               Account Info
             </Typography>
             <Box sx={{ fontSize: '0.75rem', color: 'text.secondary' }}>
@@ -144,6 +132,7 @@ const CollapsibleDrawer: React.FC<CollapsibleDrawerProps> = ({
           return (
             <ListItem key={item.text} disablePadding sx={{ display: 'block' }}>
               <ListItemButton
+                className="thor-nav-button"
                 selected={selected}
                 onClick={() => {
                   if (item.external) {
@@ -152,23 +141,11 @@ const CollapsibleDrawer: React.FC<CollapsibleDrawerProps> = ({
                   }
                   navigate(item.path);
                 }}
-              sx={{
-                minHeight: 48,
-                justifyContent: open ? 'initial' : 'center',
-                px: 2.5,
-                '&.Mui-selected': {
-                  backgroundColor: 'rgba(25, 118, 210, 0.2)',
-                  borderRight: '3px solid #1976d2',
-                },
-                '&:hover': {
-                  backgroundColor: 'rgba(25, 118, 210, 0.1)',
-                },
-              }}
             >
-              <ListItemIcon sx={{ minWidth: 0, mr: open ? 3 : 'auto', justifyContent: 'center', color: '#1976d2' }}>
+              <ListItemIcon className="thor-nav-icon">
                 {item.icon}
               </ListItemIcon>
-              <ListItemText primary={item.text} sx={{ opacity: open ? 1 : 0, color: '#fff' }} />
+              <ListItemText primary={item.text} className="thor-nav-text" />
             </ListItemButton>
           </ListItem>
         );})}
@@ -176,100 +153,56 @@ const CollapsibleDrawer: React.FC<CollapsibleDrawerProps> = ({
         {/* Global Market (TimeZone) Toggle */}
         <ListItem disablePadding sx={{ display: 'block' }}>
           <ListItemButton
+            className="thor-nav-button"
             selected={showGlobalMarket}
             onClick={onGlobalMarketToggle}
-            sx={{
-              minHeight: 48,
-              justifyContent: open ? 'initial' : 'center',
-              px: 2.5,
-              '&.Mui-selected': {
-                backgroundColor: 'rgba(25, 118, 210, 0.2)',
-                borderRight: '3px solid #1976d2',
-              },
-              '&:hover': {
-                backgroundColor: 'rgba(25, 118, 210, 0.1)',
-              },
-            }}
           >
-            <ListItemIcon sx={{ minWidth: 0, mr: open ? 3 : 'auto', justifyContent: 'center', color: '#1976d2' }}>
+            <ListItemIcon className="thor-nav-icon">
               <PublicIcon />
             </ListItemIcon>
-            <ListItemText primary="Global Market" sx={{ opacity: open ? 1 : 0, color: '#fff' }} />
+            <ListItemText primary="Global Market" className="thor-nav-text" />
           </ListItemButton>
         </ListItem>
 
         {/* Futures card toggle for home dashboard */}
         <ListItem disablePadding sx={{ display: 'block' }}>
           <ListItemButton
+            className="thor-nav-button"
             selected={showFuturesOnHome}
             onClick={onFuturesOnHomeToggle}
-            sx={{
-              minHeight: 48,
-              justifyContent: open ? 'initial' : 'center',
-              px: 2.5,
-              '&.Mui-selected': {
-                backgroundColor: 'rgba(25, 118, 210, 0.2)',
-                borderRight: '3px solid #1976d2',
-              },
-              '&:hover': {
-                backgroundColor: 'rgba(25, 118, 210, 0.1)',
-              },
-            }}
           >
-            <ListItemIcon sx={{ minWidth: 0, mr: open ? 3 : 'auto', justifyContent: 'center', color: '#1976d2' }}>
+            <ListItemIcon className="thor-nav-icon">
               <TrendingUpIcon />
             </ListItemIcon>
-            <ListItemText primary="Futures on Home" sx={{ opacity: open ? 1 : 0, color: '#fff' }} />
+            <ListItemText primary="Futures on Home" className="thor-nav-text" />
           </ListItemButton>
         </ListItem>
 
         {/* Accounts & Statements Toggle (appears high in the list) */}
         <ListItem disablePadding sx={{ display: 'block' }}>
           <ListItemButton
+            className="thor-nav-button"
             selected={showAccountStatement}
             onClick={onAccountStatementToggle}
-            sx={{
-              minHeight: 48,
-              justifyContent: open ? 'initial' : 'center',
-              px: 2.5,
-              '&.Mui-selected': {
-                backgroundColor: 'rgba(25, 118, 210, 0.2)',
-                borderRight: '3px solid #1976d2',
-              },
-              '&:hover': {
-                backgroundColor: 'rgba(25, 118, 210, 0.1)',
-              },
-            }}
           >
-            <ListItemIcon sx={{ minWidth: 0, mr: open ? 3 : 'auto', justifyContent: 'center', color: '#1976d2' }}>
+            <ListItemIcon className="thor-nav-icon">
               <ReceiptLongIcon />
             </ListItemIcon>
-            <ListItemText primary="Accounts & Statements" sx={{ opacity: open ? 1 : 0, color: '#fff' }} />
+            <ListItemText primary="Accounts & Statements" className="thor-nav-text" />
           </ListItemButton>
         </ListItem>
         
   {/* Trading Activity Toggle */}
         <ListItem disablePadding sx={{ display: 'block' }}>
           <ListItemButton
+            className="thor-nav-button"
             selected={showTradingActivity}
             onClick={onTradingActivityToggle}
-            sx={{
-              minHeight: 48,
-              justifyContent: open ? 'initial' : 'center',
-              px: 2.5,
-              '&.Mui-selected': {
-                backgroundColor: 'rgba(25, 118, 210, 0.2)',
-                borderRight: '3px solid #1976d2',
-              },
-              '&:hover': {
-                backgroundColor: 'rgba(25, 118, 210, 0.1)',
-              },
-            }}
           >
-            <ListItemIcon sx={{ minWidth: 0, mr: open ? 3 : 'auto', justifyContent: 'center', color: '#1976d2' }}>
+            <ListItemIcon className="thor-nav-icon">
               <TradingActivityIcon />
             </ListItemIcon>
-            <ListItemText primary="Trading Activity" sx={{ opacity: open ? 1 : 0, color: '#fff' }} />
+            <ListItemText primary="Trading Activity" className="thor-nav-text" />
           </ListItemButton>
         </ListItem>
       </List>
@@ -280,19 +213,12 @@ const CollapsibleDrawer: React.FC<CollapsibleDrawerProps> = ({
         <ListItem disablePadding sx={{ display: 'block' }}>
           <ListItemButton
             onClick={signOut}
-            sx={{
-              minHeight: 48,
-              justifyContent: open ? 'initial' : 'center',
-              px: 2.5,
-              '&:hover': {
-                backgroundColor: 'rgba(25, 118, 210, 0.1)',
-              },
-            }}
+            className="thor-nav-button"
           >
-            <ListItemIcon sx={{ minWidth: 0, mr: open ? 3 : 'auto', justifyContent: 'center', color: '#1976d2' }}>
+            <ListItemIcon className="thor-nav-icon">
               <LogoutIcon />
             </ListItemIcon>
-            <ListItemText primary="Sign out" sx={{ opacity: open ? 1 : 0, color: '#fff' }} />
+            <ListItemText primary="Sign out" className="thor-nav-text" />
           </ListItemButton>
         </ListItem>
       </List>
