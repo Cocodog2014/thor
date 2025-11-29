@@ -42,7 +42,6 @@ export default function L1Card({ row, theme, quantity, onQuantityChange }: L1Car
   const precision = row.instrument.display_precision ?? 2;
 
   // Direct backend-provided metrics (no frontend recomputation)
-  const price = toNumber(row.price);
   const prevClose = toNumber(row.previous_close);
   const openPrice = toNumber(row.open_price);
   const bid = toNumber(row.bid);
