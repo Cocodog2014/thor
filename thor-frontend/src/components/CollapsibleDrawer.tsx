@@ -45,7 +45,7 @@ export const DEFAULT_WIDTH_CLOSED = 72;
 
 const navigationItems = [
   { text: 'Home', icon: <HomeIcon />, path: '/app/home' },
-  { text: 'Futures', icon: <TrendingUpIcon />, path: '/app/futures' },
+  // Removed problematic 'Futures' direct route; use 'Futures on Home' toggle below instead
   { text: 'Django Admin', icon: <AdminPanelSettingsIcon />, path: 'http://127.0.0.1:8000/admin/', external: true },
 ];
 
