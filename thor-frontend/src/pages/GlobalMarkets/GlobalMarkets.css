@@ -104,12 +104,11 @@
 .markets-table td:last-child { border-right: none; }
 .markets-table tbody tr:last-child td { border-bottom: none; }
 
-.market-name { font-weight: 600; color: #fff; }
-.market-year, .market-month, .market-date, .market-day { font-family: 'Courier New', monospace; font-variant-numeric: tabular-nums; color:#d0d0d0; }
-.market-open { font-family: 'Courier New', monospace; font-variant-numeric: tabular-nums; color:#00e07a; }
-.market-close { font-family: 'Courier New', monospace; font-variant-numeric: tabular-nums; color:#ff5b5b; }
-.market-time { font-family: 'Courier New', monospace; font-weight:600; color:#00e07a; }
-.market-status { text-align: center; }
+.market-name { font-weight:600; color:#fff; }
+.market-year, .market-month, .market-date, .market-day { font-family:'Courier New', monospace; font-variant-numeric:tabular-nums; color:#d0d0d0; }
+.market-open { font-family:'Courier New', monospace; font-variant-numeric:tabular-nums; color:#00e07a; }
+.market-close { font-family:'Courier New', monospace; font-variant-numeric:tabular-nums; color:#ff5b5b; }
+.market-time { font-family:'Courier New', monospace; font-weight:600; color:#00e07a; }
 
 .status-indicator {
   display: inline-block;

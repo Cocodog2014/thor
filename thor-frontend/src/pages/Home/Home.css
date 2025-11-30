@@ -246,13 +246,17 @@
 /* Scrollable variant for embedded content (GlobalMarkets) without resizing grid */
 .home-tile-body--scroll {
   flex: 1;
-  min-height: 0;
-  overflow: auto;            /* internal scroll */
+  min-height: 0;             /* allow vertical scroll without enlarging tile */
   display: flex;
   flex-direction: column;
+  align-items: stretch;       /* full width content */
+  justify-content: flex-start;
   text-align: left;
   padding: 0;
+  overflow-y: auto;           /* vertical scroll only */
+  overflow-x: hidden;         /* prevent horizontal scroll */
   scrollbar-width: thin;
+  overscroll-behavior: contain;
 }
 
 
