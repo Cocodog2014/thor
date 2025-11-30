@@ -1,12 +1,23 @@
 // src/pages/Home/Home.tsx
-import React, { useRef } from "react";
+import React, { useLayoutEffect, useRef } from "react";
 import HomeRibbon from "./HomeRibbon";
 import GlobalMarkets from "../GlobalMarkets/GlobalMarkets";
 
 const Home: React.FC = () => {
   const topStripRef = useRef<HTMLDivElement | null>(null);
 
-  // Removed dynamic CSS variable height measurement; flex layout handles remaining height.
+  // Reintroduced dynamic CSS variable for top strip height so calc() can shrink body reliably.
+  useLayoutEffect(() => {
+    const setVar = () => {
+      if (topStripRef.current) {
+        const h = topStripRef.current.offsetHeight;
+        document.documentElement.style.setProperty("--home-top-strip-h", h + "px");
+      }
+    };
+    setVar();
+    window.addEventListener("resize", setVar);
+    return () => window.removeEventListener("resize", setVar);
+  }, []);
 
   return (
     <div className="home-screen">

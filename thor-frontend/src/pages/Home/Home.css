@@ -171,15 +171,17 @@
 /* ========== BODY ========== */
 
 .home-content {
-  flex: 1 1 auto;           /* occupy remaining viewport below top strip */
+  flex: 0 0 auto;            /* explicit height again (calc below) */
   display: grid;
   grid-template-rows: 1fr 28px; /* tiles + ribbon */
-  padding: 0 0.75rem 0;     /* slimmer horizontal padding */
+  padding: 0 0.75rem 0;      /* slimmer horizontal padding */
   margin: 0;
-  min-height: 0;            /* allow grid rows to size without overflow */
+  /* Shrink usable area by an extra ~5% (from 93% to 88%) */
+  height: calc((100vh - var(--home-top-strip-h)) * 0.935);
+  min-height: 0;             /* allow grid rows to size without overflow */
   background: linear-gradient(180deg, #171717 0%, #0a0a0a 65%);
   box-sizing: border-box;
-  overflow: hidden;         /* prevent document scroll; internal elements manage overflow */
+  overflow: hidden;          /* prevent document scroll; internal elements manage overflow */
 }
 
 /* ========== GRID BODY ========== */
