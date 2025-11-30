@@ -171,12 +171,11 @@
 /* ========== BODY ========== */
 
 .home-content {
-  flex: 0 0 auto;
-  display: grid;
-  grid-template-rows: 1fr 28px; /* tiles + ribbon */
+  flex: 1 1 auto;             /* fill remaining vertical space below top strip */
+  display: flex;
+  flex-direction: column;
   padding: 0 0.75rem 0;
   margin: 0;
-  height: calc((100vh - var(--home-top-strip-h)) * 0.935); /* previous shrink factor */
   min-height: 0;
   background: linear-gradient(180deg, #171717 0%, #0a0a0a 65%);
   box-sizing: border-box;
@@ -190,8 +189,8 @@
   grid-template-rows: repeat(3, 1fr);
   gap: 0.3125rem;
   width: 100%;
-  min-height: 0;
-  height: 100%;
+  flex: 1 1 auto;  /* occupy all space above ribbon */
+  min-height: 0;   /* allow grid rows to shrink */
 }
 
 /* Ticker styles moved to HomeRibbon.css */
@@ -246,9 +245,8 @@
 
 /* Ribbon fixed height flex row */
 .home-ribbon {
-  height: 28px;
+  flex: 0 0 28px;
   min-height: 28px;
-  width: 100%;
   overflow: hidden;
 }
 
