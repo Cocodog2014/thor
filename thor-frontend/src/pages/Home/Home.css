@@ -1,17 +1,13 @@
-/* Home screen layout */
-
-/* Home screen layout */
 .home-screen {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
   background-color: #0a0a0a; /* neutral-950 */
   color: #f5f5f5;           /* neutral-100 */
-
-  /* NEW: break out of centered MUI container and span viewport */
-  width: 100vw;
-  margin-left: calc(50% - 50vw);
+  width: 100%;              /* just fill the main content area */
+  margin: 0;                /* no extra shifting */
 }
+
 
 
 /* Top strip: 3 rows (row1, balances, tabs) */
