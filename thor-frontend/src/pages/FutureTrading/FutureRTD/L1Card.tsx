@@ -102,8 +102,9 @@ export default function L1Card({ row, theme, quantity, onQuantityChange }: L1Car
     },
     {
       label: "24h Range",
-      value: rangeValue,
-      delta: null,
+      // Show range in the Δ column instead of Value per new spec
+      value: null,
+      delta: rangeValue,
       deltaPct: toNumber((row as any).range_pct),
     },
     {
