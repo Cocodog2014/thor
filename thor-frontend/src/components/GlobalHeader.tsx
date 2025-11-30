@@ -92,14 +92,16 @@ const GlobalHeader: React.FC<LayoutProps> = ({ children, onTradingActivityToggle
         component="main"
         sx={{
           flexGrow: 1,
+          display: 'flex',
+          flexDirection: 'column',
           bgcolor: 'background.default',
           p: 0,
-          minHeight: '100vh',
-          maxHeight: '100vh', // Constrain to viewport height
-          overflowY: 'auto', // Enable vertical scroll for all app content
+          height: 'calc(100vh - 64px)',
+          minHeight: 'calc(100vh - 64px)',
+          maxHeight: 'calc(100vh - 64px)',
+          overflow: 'hidden', // eliminate page scrollbar; internal components manage own overflow
           transition: 'margin 200ms ease',
-          pt: '64px', // Clear fixed header height
-          // Removed dynamic left margin so content sits flush against drawer
+          mt: '64px', // offset below fixed header without increasing total scroll height
           ml: 0,
         }}
       >

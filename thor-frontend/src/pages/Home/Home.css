@@ -1,5 +1,5 @@
 .home-screen {
-  height: 100vh;            /* full viewport */
+  height: 100%;             /* fill parent main box (already sized below header) */
   display: flex;
   flex-direction: column;
   background-color: #0a0a0a; /* neutral-950 */
@@ -171,17 +171,15 @@
 /* ========== BODY ========== */
 
 .home-content {
-  flex: 0 0 auto;            /* explicit height again (calc below) */
-  display: grid;
-  grid-template-rows: 1fr 28px; /* tiles + ribbon */
-  padding: 0 0.75rem 0;      /* slimmer horizontal padding */
+  flex: 1 1 auto;             /* fill remaining vertical space below top strip */
+  display: flex;
+  flex-direction: column;
+  padding: 0 0.75rem 0;       /* slimmer horizontal padding */
   margin: 0;
-  /* Shrink usable area by an extra ~5% (from 93% to 88%) */
-  height: calc((100vh - var(--home-top-strip-h)) * 0.935);
-  min-height: 0;             /* allow grid rows to size without overflow */
+  min-height: 0;              /* allow children to shrink */
   background: linear-gradient(180deg, #171717 0%, #0a0a0a 65%);
   box-sizing: border-box;
-  overflow: hidden;          /* prevent document scroll; internal elements manage overflow */
+  overflow: hidden;           /* contain internal overflow */
 }
 
 /* ========== GRID BODY ========== */
@@ -191,8 +189,8 @@
   grid-template-rows: repeat(3, 1fr);
   gap: 0.3125rem;
   width: 100%;
-  min-height: 0;
-  height: 100%;
+  flex: 1 1 auto;  /* occupy all space above ribbon */
+  min-height: 0;   /* allow grid rows to shrink */
 }
 
 /* Ticker styles moved to HomeRibbon.css */
@@ -242,8 +240,18 @@
   text-align: center;
   opacity: 0.85;
   min-height: 0;
-  overflow: hidden;         /* default: no scroll */
+  overflow: hidden;          /* prevent internal scroll enlarging parent */
 }
+
+/* Ribbon fixed height flex row */
+.home-ribbon {
+  flex: 0 0 28px;
+  min-height: 28px;
+  overflow: hidden;
+}
+
+/* Ensure root elements never produce scrollbars for this layout */
+html, body, #root { overflow: hidden; }
 
 /* Scrollable variant for embedded content (GlobalMarkets) without resizing grid */
 /* Removed scroll variant: all tiles locked to uniform height */
