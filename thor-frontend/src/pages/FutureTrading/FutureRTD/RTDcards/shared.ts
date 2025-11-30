@@ -2,6 +2,26 @@
 import type { Theme } from "@mui/material/styles";
 import type { MarketData } from "../types";
 
+// Optional backend-provided metric fields present on MarketData
+type MetricsFields = {
+  low_52w?: number | string | null;
+  high_52w?: number | string | null;
+  last_prev_diff?: number | string | null;
+  last_prev_pct?: number | string | null;
+  open_prev_diff?: number | string | null;
+  open_prev_pct?: number | string | null;
+  low_prev_diff?: number | string | null;
+  low_prev_pct?: number | string | null;
+  high_prev_diff?: number | string | null;
+  high_prev_pct?: number | string | null;
+  last_52w_above_low_diff?: number | string | null;
+  last_52w_above_low_pct?: number | string | null;
+  last_52w_below_high_diff?: number | string | null;
+  last_52w_below_high_pct?: number | string | null;
+  range_diff?: number | string | null;
+  range_pct?: number | string | null;
+};
+
 export const GRID_TEMPLATE = "1.5fr 1fr 1fr 1fr";
 
 export const toNumber = (value: unknown): number | null => {
@@ -29,31 +49,31 @@ export type MetricRow = {
 };
 
 export const buildMetricRows = (row: MarketData): MetricRow[] => {
+  const r = row as MarketData & { extended_data?: MetricsFields } & MetricsFields;
   const prevClose = toNumber(row.previous_close);
   const openPrice = toNumber(row.open_price);
   const low24 = toNumber(row.low_price);
   const high24 = toNumber(row.high_price);
-  const low52 = toNumber((row.extended_data as any)?.low_52w);
-  const high52 = toNumber((row.extended_data as any)?.high_52w);
+  const low52 = toNumber(r.extended_data?.low_52w);
+  const high52 = toNumber(r.extended_data?.high_52w);
+  const closeDelta = toNumber(r.last_prev_diff);
+  const closeDeltaPct = toNumber(r.last_prev_pct);
 
-  const closeDelta = toNumber((row as any).last_prev_diff);
-  const closeDeltaPct = toNumber((row as any).last_prev_pct);
+  const openDelta = toNumber(r.open_prev_diff);
+  const openDeltaPct = toNumber(r.open_prev_pct);
 
-  const openDelta = toNumber((row as any).open_prev_diff);
-  const openDeltaPct = toNumber((row as any).open_prev_pct);
+  const lowDelta = toNumber(r.low_prev_diff);
+  const lowDeltaPct = toNumber(r.low_prev_pct);
+  const highDelta = toNumber(r.high_prev_diff);
+  const highDeltaPct = toNumber(r.high_prev_pct);
 
-  const lowDelta = toNumber((row as any).low_prev_diff);
-  const lowDeltaPct = toNumber((row as any).low_prev_pct);
-  const highDelta = toNumber((row as any).high_prev_diff);
-  const highDeltaPct = toNumber((row as any).high_prev_pct);
+  const above52 = toNumber(r.last_52w_above_low_diff);
+  const above52Pct = toNumber(r.last_52w_above_low_pct);
+  const below52 = toNumber(r.last_52w_below_high_diff);
+  const below52Pct = toNumber(r.last_52w_below_high_pct);
 
-  const above52 = toNumber((row as any).last_52w_above_low_diff);
-  const above52Pct = toNumber((row as any).last_52w_above_low_pct);
-  const below52 = toNumber((row as any).last_52w_below_high_diff);
-  const below52Pct = toNumber((row as any).last_52w_below_high_pct);
-
-  const rangeValue = toNumber((row as any).range_diff);
-  const rangePct = toNumber((row as any).range_pct);
+  const rangeValue = toNumber(r.range_diff);
+  const rangePct = toNumber(r.range_pct);
 
   return [
     {

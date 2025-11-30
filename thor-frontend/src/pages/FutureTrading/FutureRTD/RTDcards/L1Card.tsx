@@ -22,9 +22,15 @@ export default function L1Card({ row, theme, quantity, onQuantityChange }: L1Car
   const precision = row.instrument.display_precision ?? 2;
 
   // Backend-provided metrics
-  const netChange = toNumber((row as any).last_prev_diff);
-  const changePct = toNumber((row as any).last_prev_pct);
-  const spread = toNumber((row as any).spread);
+  type InlineMetrics = {
+    last_prev_diff?: number | string | null;
+    last_prev_pct?: number | string | null;
+    spread?: number | string | null;
+  };
+  const r = row as MarketData & InlineMetrics;
+  const netChange = toNumber(r.last_prev_diff);
+  const changePct = toNumber(r.last_prev_pct);
+  const spread = toNumber(r.spread);
 
   const tickValue = toNumber(row.instrument.tick_value);
   const marginRequirement = toNumber(row.instrument.margin_requirement);

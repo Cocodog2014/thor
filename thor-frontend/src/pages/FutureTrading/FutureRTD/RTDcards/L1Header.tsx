@@ -12,10 +12,18 @@ type L1HeaderProps = {
   theme: Theme;
 };
 
+type ExtendedFields = {
+  signal?: string | number | null;
+  signal_weight?: number | string | null;
+  stat_value?: number | string | null;
+  last_prev_pct?: number | string | null;
+};
+
 export function L1Header({ row, theme }: L1HeaderProps) {
-  const changePct = toNumber((row as any).last_prev_pct);
-  const signalWeight = (row.extended_data as any)?.signal_weight ?? null;
-  const statValue = (row.extended_data as any)?.stat_value ?? null;
+  const r = row as MarketData & { extended_data?: ExtendedFields } & ExtendedFields;
+  const changePct = toNumber(r.last_prev_pct);
+  const signalWeight = r.extended_data?.signal_weight ?? null;
+  const statValue = r.extended_data?.stat_value ?? null;
 
   return (
     <Box
@@ -27,8 +35,8 @@ export function L1Header({ row, theme }: L1HeaderProps) {
       </Typography>
       <Box display="flex" alignItems="center" gap={1}>
         <Chip
-          label={signalLabel(row.extended_data?.signal as any)}
-          color={signalChipColor(row.extended_data?.signal as any)}
+          label={signalLabel(r.extended_data?.signal ?? null)}
+          color={signalChipColor(r.extended_data?.signal ?? null)}
           size="small"
           variant="filled"
           sx={{ fontSize: "0.65rem", fontWeight: "bold" }}
