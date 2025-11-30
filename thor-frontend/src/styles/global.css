@@ -4,6 +4,7 @@
 @import '../App.css';
 @import '../components/GlobalHeader.css';
 @import '../components/CollapsibleDrawer.css';
+@import '../pages/Home/Home.css';
 @import '../pages/GlobalMarkets/GlobalMarkets.css';
 @import '../pages/FutureTrading/Market/MarketDashboard.css';
 @import '../pages/FutureTrading/FutureRTD/FutureRTD.css';
