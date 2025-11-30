@@ -317,7 +317,7 @@ class IntradayMarketSupervisor:
             if twentyfour.high_24h is not None and twentyfour.low_24h is not None and twentyfour.open_price_24h not in (None, 0):
                 try:
                     rng = twentyfour.high_24h - twentyfour.low_24h
-                    pct = (rng / twentyfour.open_price_24h) * Decimal('100')
+                    pct = (rng / twentyfour.open_price_24h) * self._safe_decimal('100')
                     twentyfour.range_diff_24h = rng
                     twentyfour.range_pct_24h = pct
                     updated = True
