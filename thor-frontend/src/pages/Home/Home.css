@@ -171,11 +171,13 @@
 /* ========== BODY ========== */
 
 .home-content {
-  flex: 1 1 auto;           /* fill remaining vertical space */
+  flex: 0 0 auto;           /* explicit height instead of flex-grow */
   display: grid;
   grid-template-rows: 1fr 28px; /* tiles + ribbon */
   padding: 0 0.75rem 0;     /* slimmer horizontal padding */
   margin: 0;
+  /* Reduce canvas (tiles + ribbon) height by 5% of remaining viewport below top strip */
+  height: calc((100vh - var(--home-top-strip-h)) * 0.93);
   min-height: 0;            /* enable internal scroll containment */
   background: linear-gradient(180deg, #171717 0%, #0a0a0a 65%);
   box-sizing: border-box;
@@ -244,20 +246,7 @@
 }
 
 /* Scrollable variant for embedded content (GlobalMarkets) without resizing grid */
-.home-tile-body--scroll {
-  flex: 1;
-  min-height: 0;             /* allow vertical scroll without enlarging tile */
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;       /* full width content */
-  justify-content: flex-start;
-  text-align: left;
-  padding: 0;
-  overflow-y: auto;           /* vertical scroll only */
-  overflow-x: hidden;         /* prevent horizontal scroll */
-  scrollbar-width: thin;
-  overscroll-behavior: contain;
-}
+/* Removed scroll variant: all tiles locked to uniform height */
 
 
 /* Global resets to remove default body margin impacting viewport calculations */

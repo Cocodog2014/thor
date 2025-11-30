@@ -2,7 +2,6 @@
 
 /* Dashboard Grid Layout for Home Content */
 /* Home wrapper: force left alignment against the drawer */
-/* 
 .home-screen {
   display: flex !important;
   justify-content: flex-start !important;
@@ -11,8 +10,6 @@
   margin: 0 !important;
   padding: 0 !important;
 }
-*/
-
 
 .home-screen div.dashboard-grid {
   display: grid !important;

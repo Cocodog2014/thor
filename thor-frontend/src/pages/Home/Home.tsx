@@ -107,7 +107,7 @@ const Home: React.FC = () => {
                 <span className="home-tile-title">{tile.title}</span>
                 {tile.id !== "global" && (<span className="home-tile-slot">Slot {idx + 1}</span>)}
               </header>
-              <div className={"home-tile-body" + (tile.id === "global" ? " home-tile-body--scroll" : "")}>
+              <div className="home-tile-body">
                 {tile.id === "global" ? (
                   <GlobalMarkets />
                 ) : (
