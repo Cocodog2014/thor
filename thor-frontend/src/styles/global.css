@@ -7,7 +7,7 @@
 @import '../pages/GlobalMarkets/GlobalMarkets.css';
 @import '../pages/FutureTrading/Market/MarketDashboard.css';
 @import '../pages/FutureTrading/FutureRTD/FutureRTD.css';
-@import '../pages/FutureTrading/FutureRTD/L1Card.css';
+@import '../pages/FutureTrading/FutureRTD/RTDcards/L1Card.css';
 @import '../pages/FutureTrading/FutureRTD/TotalCard.css';
 @import '../pages/ActivityPositions/ActivityPositions.css';
 @import '../pages/AccountStatement/AccountStatement.css';
