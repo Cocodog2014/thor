@@ -75,9 +75,35 @@ const Home: React.FC = () => {
         </nav>
       </div>
 
-      {/* BLANK BODY – we’ll add widgets here later */}
+      {/* BODY: grid + bottom ticker ribbon */}
       <main className="home-content">
-        {/* Blank home canvas – widgets will be added here later */}
+        <div className="home-grid">
+          {[ 
+            { id: "nyse", title: "NYSE Opens In", hint: "Countdown / session clock" },
+            { id: "pl", title: "P/L Open", hint: "Account profit / loss summary" },
+            { id: "news", title: "Schwab Network / News", hint: "Video / headlines" },
+            { id: "watchlist", title: "Heat Map / Watchlist", hint: "Top movers, sectors" },
+            { id: "events", title: "Today’s Events", hint: "Economic calendar / orders" },
+            { id: "system", title: "System Status", hint: "Feeds, jobs, alerts" },
+          ].map((tile, idx) => (
+            <section key={tile.id} className={`home-tile home-tile-${idx + 1}`}>
+              <header className="home-tile-header">
+                <span className="home-tile-title">{tile.title}</span>
+                <span className="home-tile-slot">Slot {idx + 1}</span>
+              </header>
+              <div className="home-tile-body">
+                <p className="home-tile-hint">{tile.hint}</p>
+              </div>
+            </section>
+          ))}
+        </div>
+        <div className="home-ticker" aria-label="Market ticker">
+          <div className="home-ticker-track">
+            {/* Placeholder scrolling content – replace with live data later */}
+            🔔 Futures: ES +0.28% • NQ +0.34% • RTY +0.12% • CL -0.45% • GC +0.15% • DXY 104.6 • VIX 12.8 • BTC 98,450 • ETH 5,230 • AAPL 198.32 • MSFT 374.55 • NVDA 487.21 • TSLA 234.10 • AMZN 152.40 • META 328.02 • GOOG 138.25 • SPY 471.31 • QQQ 404.17 • IWM 186.42 • 10Y 4.27% • 2Y 4.52% •
+            🔔 Futures: ES +0.28% • NQ +0.34% • RTY +0.12% • CL -0.45% • GC +0.15% • DXY 104.6 • VIX 12.8 • BTC 98,450 • ETH 5,230 • AAPL 198.32 • MSFT 374.55 • NVDA 487.21 • TSLA 234.10 • AMZN 152.40 • META 328.02 • GOOG 138.25 • SPY 471.31 • QQQ 404.17 • IWM 186.42 • 10Y 4.27% • 2Y 4.52% •
+          </div>
+        </div>
       </main>
     </div>
   );
