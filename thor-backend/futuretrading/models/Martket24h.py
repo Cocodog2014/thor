@@ -18,6 +18,7 @@ class FutureTrading24Hour(models.Model):
     range_diff_24h = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True)
     range_pct_24h = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True)
     close_24h = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True)
+    volume_24h = models.BigIntegerField(null=True, blank=True, help_text="Cumulative volume across JP→US window")
     finalized = models.BooleanField(default=False, help_text="True when US close is reached")
 
     class Meta:

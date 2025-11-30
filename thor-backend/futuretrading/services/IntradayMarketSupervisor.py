@@ -2,16 +2,52 @@
 
 """
 Intraday Market Supervisor
+=========================
 
-Runs all intraday metrics while a market is OPEN:
-    - MarketHighMetric.update_from_quotes(...)
-    - MarketLowMetric.update_from_quotes(...)
+Purpose
+-------
+Continuously process live quotes for each OPEN market and update:
 
-Runs closing metrics when a market transitions to CLOSED:
-    - MarketCloseMetric.update_for_country_on_close(...)
-    - MarketRangeMetric.update_for_country_on_close(...)
+1) Intraday extremes (true session high/low) used by dashboards
+    - MarketHighMetric.update_from_quotes
+    - MarketLowMetric.update_from_quotes
 
-This supervisor is started/stopped by the global MarketMonitor.
+2) Rolling 24-hour session stats (JP→US window)
+    - FutureTrading24Hour (low_24h, high_24h, range_diff_24h, range_pct_24h, volume_24h)
+    - Finalized later at US close by MarketCloseMetric
+
+3) 1-minute OHLCV bars per instrument
+    - MarketIntraday (open_1m, high_1m, low_1m, close_1m, volume_1m)
+    - Bars are persisted once per minute per symbol and are linked to the current 24h row
+
+4) Session cumulative volume
+    - MarketSession.session_volume accumulates while the market is OPEN
+
+Lifecycle
+---------
+- The Global MarketMonitor calls on_market_open(market) → starts a worker thread for that country.
+- The worker loop fetches enriched quotes, updates metrics and tables, then sleeps for `interval_seconds` (default 10s).
+- On market close: on_market_close(market) stops the worker and runs close/range metrics once.
+
+Performance & Write Strategy
+----------------------------
+- Reads many ticks per second from Redis (via get_enriched_quotes_with_composite).
+- Writes sparingly:
+  * 24h row only when a new extreme appears or on volume increments.
+  * 1-minute bars are created per minute bucket (get_or_create), not per tick.
+  * Session volume increments per loop using the latest MarketSession.
+
+Key Concepts
+------------
+- "24h" fields reflect the broker-provided rolling 24-hour window (not the intraday session).
+- "market_*_open" fields reflect intraday session extremes (initialized at session open using last_price).
+- capture_group ties MarketSession and 24h records together; latest capture_group per country is used.
+
+Notes for Developers
+--------------------
+- If you need true per-second persistence, don’t store ticks in Postgres; use Redis for the stream and aggregate to minute bars.
+- If no MarketSession exists yet for the country (no open capture), 24h/intraday updates are skipped until capture occurs.
+- Timezone: Use timezone-aware datetimes (timezone.now()); minute_bucket is computed with seconds/micros zeroed.
 """
 
 import logging
@@ -42,11 +78,13 @@ logger = logging.getLogger(__name__)
 
 class IntradayMarketSupervisor:
     """
-    Manages background metric updates for each open market (country).
+    Manages background metric updates for each OPEN market (country).
 
     Features:
         - Each OPEN market gets its own worker thread.
-        - High/Low metrics update on a repeating schedule.
+        - High/Low (intraday session) metrics update on a repeating schedule.
+        - Rolling 24h extremes & volume are updated as quotes evolve.
+        - 1-minute bars are persisted per symbol per minute.
         - When the market closes, the worker stops and close/range metrics run once.
     """
 
@@ -130,7 +168,15 @@ class IntradayMarketSupervisor:
     def _worker_loop(self, market, stop_event: threading.Event):
         """
         Loop that runs while market is OPEN.
-        Updates intraday metrics repeatedly until closed.
+
+        Processing per iteration:
+        - Fetch enriched quotes for tracked instruments (includes broker 24h highs/lows).
+        - Update intraday session highs/lows.
+        - Upsert the country’s 24h row per instrument (extremes, range, volume).
+        - Create/get the current minute’s OHLCV bar per instrument.
+        - Accumulate session volume on the latest MarketSession.
+
+        The loop sleeps for `self.interval_seconds` to control write cadence.
         """
         if self.disabled:
             logger.info("Intraday worker requested for %s but supervisor is disabled", market.country)
@@ -148,7 +194,14 @@ class IntradayMarketSupervisor:
 
                 # --- New: Feed 24h session and 1m intraday bars ---
                 try:
-                    self._update_24h_and_intraday(country, enriched)
+                    updated_counts = self._update_24h_and_intraday(country, enriched)
+                    logger.info(
+                        "Intraday loop %s → 24h-updated=%s, intraday-bars=%s, session-volume-updates=%s",
+                        country,
+                        updated_counts.get('twentyfour_updates', 0),
+                        updated_counts.get('intraday_bars', 0),
+                        updated_counts.get('session_volume_updates', 0),
+                    )
                 except Exception as feed_err:
                     logger.debug("24h/intraday feed failed for %s: %s", country, feed_err)
 
@@ -184,11 +237,20 @@ class IntradayMarketSupervisor:
     def _update_24h_and_intraday(self, country: str, enriched_rows):
         """Update rolling 24h stats and append 1-minute bars.
 
-        - 24h row: upsert per (capture_group,future) using latest capture_group for country.
-        - Intraday bar: create per (minute,future,country) linked to 24h row.
+        - 24h row: Upsert per (capture_group, future) using latest capture_group for `country`.
+            * Initialize extremes if missing, then roll forward when new highs/lows appear.
+            * Recompute range_diff_24h and range_pct_24h when either extreme changes.
+            * Increment volume_24h per pass using the current tick volume.
+
+        - Intraday bar: Create per (minute, future, country) linked to 24h row.
+            * This ensures exactly one OHLCV row per minute per instrument.
+            * Volume_1m holds the accumulated tick volume for the minute.
+
+        - Session volume: Accumulate on the latest MarketSession for this country/future.
+            * Provides per-market session volume for analytics.
         """
         if not enriched_rows:
-            return
+            return {'twentyfour_updates': 0, 'intraday_bars': 0, 'session_volume_updates': 0}
 
         latest_group = (
             MarketSession.objects
@@ -199,13 +261,15 @@ class IntradayMarketSupervisor:
             .first()
         )
         if latest_group is None:
-            # No session yet for this country; skip until a capture exists
-            return
+            # No session yet for this country; skip until a capture exists.
+            # MarketOpenCapture will set up MarketSession and capture_group.
+            return {'twentyfour_updates': 0, 'intraday_bars': 0, 'session_volume_updates': 0}
 
         # Minute bucket in UTC
         now_dt = timezone.now()
         minute_bucket = now_dt.replace(second=0, microsecond=0)
 
+        counts = {'twentyfour_updates': 0, 'intraday_bars': 0, 'session_volume_updates': 0}
         for row in enriched_rows:
             sym = row.get('instrument', {}).get('symbol')
             if not sym:
@@ -217,8 +281,9 @@ class IntradayMarketSupervisor:
             low_price = row.get('low_price')
             open_price = row.get('open_price')
             prev_close = row.get('previous_close') or row.get('close_price')
+            vol = int(row.get('volume') or 0)
 
-            # Upsert 24h session row
+            # Upsert 24h session row (linked by capture_group)
             twentyfour, _ = FutureTrading24Hour.objects.get_or_create(
                 session_group=str(latest_group),
                 future=future,
@@ -260,9 +325,19 @@ class IntradayMarketSupervisor:
                     pass
             if updated:
                 twentyfour.save(update_fields=['low_24h', 'high_24h', 'range_diff_24h', 'range_pct_24h'])
+                counts['twentyfour_updates'] += 1
 
-            # Append/create 1-minute bar
-            MarketIntraday.objects.get_or_create(
+            # Increment 24h volume
+            try:
+                current_vol = twentyfour.volume_24h or 0
+                twentyfour.volume_24h = current_vol + vol
+                twentyfour.save(update_fields=['volume_24h'])
+                counts['twentyfour_updates'] += 1
+            except Exception:
+                pass
+
+            # Append/create 1-minute bar (one per minute per instrument)
+            obj, created = MarketIntraday.objects.get_or_create(
                 timestamp_minute=minute_bucket,
                 country=country,
                 future=future,
@@ -273,9 +348,29 @@ class IntradayMarketSupervisor:
                     'high_1m': self._safe_decimal(last),
                     'low_1m': self._safe_decimal(last),
                     'close_1m': self._safe_decimal(last),
-                    'volume_1m': int(row.get('volume') or 0),
+                    'volume_1m': vol,
                 }
             )
+            if created:
+                counts['intraday_bars'] += 1
+
+            # Increment session volume on latest MarketSession row
+            session = (
+                MarketSession.objects
+                .filter(country=country, future=future)
+                .order_by('-session_number')
+                .first()
+            )
+            if session:
+                try:
+                    sv = session.session_volume or 0
+                    session.session_volume = sv + vol
+                    session.save(update_fields=['session_volume'])
+                    counts['session_volume_updates'] += 1
+                except Exception:
+                    pass
+
+        return counts
 
     @staticmethod
     def _safe_decimal(val):

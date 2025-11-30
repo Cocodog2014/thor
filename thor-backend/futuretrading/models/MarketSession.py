@@ -240,6 +240,11 @@ class MarketSession(models.Model):
         blank=True,
         help_text="Close move from open (number)",
     )
+    session_volume = models.BigIntegerField(
+        null=True,
+        blank=True,
+        help_text="Cumulative volume while this market is OPEN",
+    )
     market_high_pct_close = models.DecimalField(
         max_digits=14,
         decimal_places=4,
