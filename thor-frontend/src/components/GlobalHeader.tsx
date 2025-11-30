@@ -99,8 +99,8 @@ const GlobalHeader: React.FC<LayoutProps> = ({ children, onTradingActivityToggle
           overflowY: 'auto', // Enable vertical scroll for all app content
           transition: 'margin 200ms ease',
           pt: '64px', // Clear fixed header height
-          // Ensure content sits flush to the right of the drawer
-          ml: `${open ? DEFAULT_WIDTH_OPEN : DEFAULT_WIDTH_CLOSED}px`,
+          // Removed dynamic left margin so content sits flush against drawer
+          ml: 0,
         }}
       >
         {children}
