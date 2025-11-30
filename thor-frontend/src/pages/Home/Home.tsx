@@ -1,13 +1,27 @@
 // src/pages/Home/Home.tsx
-import React from "react";
+import React, { useLayoutEffect, useRef } from "react";
 import HomeRibbon from "./HomeRibbon";
 import GlobalMarkets from "../GlobalMarkets/GlobalMarkets";
 
 const Home: React.FC = () => {
+  const topStripRef = useRef<HTMLDivElement | null>(null);
+
+  useLayoutEffect(() => {
+    const setVar = () => {
+      if (topStripRef.current) {
+        const h = topStripRef.current.offsetHeight;
+        document.documentElement.style.setProperty("--home-top-strip-h", h + "px");
+      }
+    };
+    setVar();
+    window.addEventListener("resize", setVar);
+    return () => window.removeEventListener("resize", setVar);
+  }, []);
+
   return (
     <div className="home-screen">
       {/* TOP STRIP NAV (Thinkorswim / Schwab-style) */}
-      <div className="home-top-strip">
+      <div className="home-top-strip" ref={topStripRef}>
         {/* ROW 1: Connection + account + quick links */}
         <div className="home-top-row">
           {/* LEFT SIDE */}
