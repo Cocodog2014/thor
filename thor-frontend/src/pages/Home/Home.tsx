@@ -1,6 +1,6 @@
 // src/pages/Home/Home.tsx
 import React from "react";
-import HomeRibbon from "./HomeRibbon.tsx";
+import HomeRibbon from "./HomeRibbon";
 
 const Home: React.FC = () => {
   return (
