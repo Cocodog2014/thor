@@ -122,6 +122,14 @@ class MarketSession(models.Model):
         blank=True,
         help_text="Last traded price at market open",
     )
+    # Denormalized 24h close (copied from FutureTrading_24hour.close_24h at US close)
+    close_24h = models.DecimalField(
+        max_digits=14,
+        decimal_places=4,
+        null=True,
+        blank=True,
+        help_text="Global 24h close for this session (set at US close)",
+    )
     spread = models.DecimalField(
         max_digits=14,
         decimal_places=4,

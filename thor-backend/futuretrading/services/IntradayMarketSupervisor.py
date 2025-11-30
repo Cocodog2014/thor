@@ -23,6 +23,11 @@ from django.utils import timezone
 from LiveData.shared.redis_client import live_data_redis
 from FutureTrading.constants import FUTURES_SYMBOLS
 from FutureTrading.services.vwap import vwap_service
+from django.db import transaction
+from django.utils import timezone
+from FutureTrading.models.Martket24h import FutureTrading24Hour
+from FutureTrading.models.MarketIntraDay import MarketIntraday
+from FutureTrading.models.MarketSession import MarketSession
 
 from FutureTrading.services.quotes import get_enriched_quotes_with_composite
 from FutureTrading.services.market_metrics import (
@@ -141,6 +146,12 @@ class IntradayMarketSupervisor:
                 MarketHighMetric.update_from_quotes(country, enriched)
                 MarketLowMetric.update_from_quotes(country, enriched)
 
+                # --- New: Feed 24h session and 1m intraday bars ---
+                try:
+                    self._update_24h_and_intraday(country, enriched)
+                except Exception as feed_err:
+                    logger.debug("24h/intraday feed failed for %s: %s", country, feed_err)
+
                 # Rolling VWAP precomputation
                 window_minutes = int(os.getenv('ROLLING_VWAP_WINDOW_MINUTES', '30'))
                 now_dt = timezone.now().replace(second=0, microsecond=0)
@@ -168,6 +179,113 @@ class IntradayMarketSupervisor:
             stop_event.wait(self.interval_seconds)
 
         logger.info("Intraday worker loop EXITING for %s", country)
+
+    @transaction.atomic
+    def _update_24h_and_intraday(self, country: str, enriched_rows):
+        """Update rolling 24h stats and append 1-minute bars.
+
+        - 24h row: upsert per (capture_group,future) using latest capture_group for country.
+        - Intraday bar: create per (minute,future,country) linked to 24h row.
+        """
+        if not enriched_rows:
+            return
+
+        latest_group = (
+            MarketSession.objects
+            .filter(country=country)
+            .exclude(capture_group__isnull=True)
+            .order_by('-capture_group')
+            .values_list('capture_group', flat=True)
+            .first()
+        )
+        if latest_group is None:
+            # No session yet for this country; skip until a capture exists
+            return
+
+        # Minute bucket in UTC
+        now_dt = timezone.now()
+        minute_bucket = now_dt.replace(second=0, microsecond=0)
+
+        for row in enriched_rows:
+            sym = row.get('instrument', {}).get('symbol')
+            if not sym:
+                continue
+            future = sym.lstrip('/').upper()
+
+            last = row.get('last')
+            high_price = row.get('high_price')
+            low_price = row.get('low_price')
+            open_price = row.get('open_price')
+            prev_close = row.get('previous_close') or row.get('close_price')
+
+            # Upsert 24h session row
+            twentyfour, _ = FutureTrading24Hour.objects.get_or_create(
+                session_group=str(latest_group),
+                future=future,
+                defaults={
+                    'session_date': now_dt.date(),
+                    'country': country,
+                    'open_price_24h': self._safe_decimal(open_price),
+                    'prev_close_24h': self._safe_decimal(prev_close),
+                }
+            )
+            updated = False
+            # Initialize extremes if missing
+            if twentyfour.low_24h is None and low_price is not None:
+                twentyfour.low_24h = self._safe_decimal(low_price)
+                updated = True
+            if twentyfour.high_24h is None and high_price is not None:
+                twentyfour.high_24h = self._safe_decimal(high_price)
+                updated = True
+            # Roll extremes forward
+            if high_price is not None:
+                hp = self._safe_decimal(high_price)
+                if hp is not None and (twentyfour.high_24h is None or hp > twentyfour.high_24h):
+                    twentyfour.high_24h = hp
+                    updated = True
+            if low_price is not None:
+                lp = self._safe_decimal(low_price)
+                if lp is not None and (twentyfour.low_24h is None or lp < twentyfour.low_24h):
+                    twentyfour.low_24h = lp
+                    updated = True
+            # Recompute range
+            if twentyfour.high_24h is not None and twentyfour.low_24h is not None and twentyfour.open_price_24h not in (None, 0):
+                try:
+                    rng = twentyfour.high_24h - twentyfour.low_24h
+                    pct = (rng / twentyfour.open_price_24h) * Decimal('100')
+                    twentyfour.range_diff_24h = rng
+                    twentyfour.range_pct_24h = pct
+                    updated = True
+                except Exception:
+                    pass
+            if updated:
+                twentyfour.save(update_fields=['low_24h', 'high_24h', 'range_diff_24h', 'range_pct_24h'])
+
+            # Append/create 1-minute bar
+            MarketIntraday.objects.get_or_create(
+                timestamp_minute=minute_bucket,
+                country=country,
+                future=future,
+                defaults={
+                    'market_code': country,
+                    'twentyfour': twentyfour,
+                    'open_1m': self._safe_decimal(last),
+                    'high_1m': self._safe_decimal(last),
+                    'low_1m': self._safe_decimal(last),
+                    'close_1m': self._safe_decimal(last),
+                    'volume_1m': int(row.get('volume') or 0),
+                }
+            )
+
+    @staticmethod
+    def _safe_decimal(val):
+        from decimal import Decimal as D
+        if val in (None, '', ' '):
+            return None
+        try:
+            return D(str(val))
+        except Exception:
+            return None
 
 
 # Global singleton used by MarketMonitor
