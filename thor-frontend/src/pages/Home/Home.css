@@ -191,30 +191,7 @@
   min-height: 0;               /* allow rows to shrink to avoid overflow */
 }
 
-/* Bottom ticker ribbon */
-.home-ticker {
-  height: 28px;                 /* fixed ribbon height */
-  min-height: 28px;
-  width: 100%;
-  display: flex;
-  align-items: center;
-  overflow: hidden;             /* clip moving text */
-  border-top: 1px solid #262626;/* subtle divider from grid */
-  background: #0c0c0c;          /* dark background */
-}
-
-.home-ticker-track {
-  display: inline-block;
-  white-space: nowrap;
-  animation: ticker-scroll 20s linear infinite;
-  color: #d4d4d4;
-  font-size: 0.75rem;
-}
-
-@keyframes ticker-scroll {
-  0% { transform: translateX(0); }
-  100% { transform: translateX(-50%); }
-}
+/* Ticker styles moved to HomeRibbon.css */
 
 .home-tile {
   border-radius: 0.625rem; /* 10px */
