@@ -1,6 +1,7 @@
 // src/pages/Home/Home.tsx
 import React from "react";
 import HomeRibbon from "./HomeRibbon";
+import GlobalMarkets from "../GlobalMarkets/GlobalMarkets";
 
 const Home: React.FC = () => {
   return (
@@ -79,8 +80,8 @@ const Home: React.FC = () => {
       {/* BODY: grid + bottom ticker ribbon */}
       <main className="home-content">
         <div className="home-grid">
-          {[ 
-            { id: "nyse", title: "NYSE Opens In", hint: "Countdown / session clock" },
+          {[
+            { id: "global", title: "", hint: "" },
             { id: "pl", title: "P/L Open", hint: "Account profit / loss summary" },
             { id: "news", title: "Schwab Network / News", hint: "Video / headlines" },
             { id: "watchlist", title: "Heat Map / Watchlist", hint: "Top movers, sectors" },
@@ -90,10 +91,14 @@ const Home: React.FC = () => {
             <section key={tile.id} className={`home-tile home-tile-${idx + 1}`}>
               <header className="home-tile-header">
                 <span className="home-tile-title">{tile.title}</span>
-                <span className="home-tile-slot">Slot {idx + 1}</span>
+                {tile.id !== "global" && (<span className="home-tile-slot">Slot {idx + 1}</span>)}
               </header>
-              <div className="home-tile-body">
-                <p className="home-tile-hint">{tile.hint}</p>
+              <div className={"home-tile-body" + (tile.id === "global" ? " home-tile-body--scroll" : "")}>
+                {tile.id === "global" ? (
+                  <GlobalMarkets />
+                ) : (
+                  <p className="home-tile-hint">{tile.hint}</p>
+                )}
               </div>
             </section>
           ))}

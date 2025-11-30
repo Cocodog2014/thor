@@ -1,5 +1,64 @@
-/* GlobalMarkets Component Styles (renamed from TimeZone.css) */
-/* Copied 1:1 from TimeZone.css to avoid any behavioral change */
+/* GlobalMarkets Component Styles (extended) */
+/* Added constrained layout + scroll classes to prevent parent grid row expansion */
+
+/* Constrained flex root fills tile but never forces height growth */
+.gm-root {
+   display: flex;
+   flex-direction: column;
+   height: 100%;
+   width: 100%;
+   min-height: 0; /* allow internal scroll without enlarging parent */
+   font-size: 0.65rem;
+   color: #d4d4d4;
+}
+
+/* Internal vertical scroll area */
+.gm-scroll {
+   flex: 1;
+   min-height: 0;
+   overflow: auto;
+   display: flex;
+   flex-direction: column;
+   gap: 0.25rem;
+   scrollbar-width: thin;
+}
+.gm-scroll::-webkit-scrollbar { width: 6px; }
+.gm-scroll::-webkit-scrollbar-track { background: #0a0a0a; }
+.gm-scroll::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+.gm-scroll::-webkit-scrollbar-thumb:hover { background: #444; }
+
+/* Header */
+.gm-header { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; flex: 0 0 auto; }
+.gm-title { margin: 0; font-weight: 600; font-size: 0.75rem; }
+.gm-last-update { display: flex; align-items: center; gap: 0.35rem; opacity: 0.8; font-size: 0.6rem; }
+.gm-live { font-size: 0.65rem; }
+.gm-loading { padding: 0.5rem 0; }
+.gm-error { padding: 0.25rem 0.4rem; background: rgba(220,38,38,0.15); border:1px solid rgba(220,38,38,0.4); border-radius:4px; font-size:0.6rem; }
+
+/* Table */
+.gm-table { width:100%; border-collapse:collapse; table-layout:fixed; font-size:0.6rem; background:#111; border:1px solid rgba(255,255,255,0.06); border-radius:4px; }
+.gm-table thead th { position:sticky; top:0; background:#1a1a1a; font-weight:600; padding:0.3rem 0.25rem; text-align:left; font-size:0.55rem; border-bottom:1px solid rgba(255,255,255,0.08); }
+.gm-table thead th:not(:last-child) { border-right:1px solid rgba(255,255,255,0.08); }
+.gm-row { transition: background-color 0.15s ease; }
+.gm-row.open { color:#d4fcd4; }
+.gm-row.closed { color:#d4d4d4; }
+.gm-row:hover { background: rgba(255,255,255,0.05); }
+.gm-cell { padding:0.28rem 0.25rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; text-align:center; }
+.gm-cell.gm-market { font-weight:600; text-align:left; }
+.gm-status { padding:2px 6px; border-radius:10px; font-size:0.5rem; font-weight:600; letter-spacing:0.5px; display:inline-block; }
+.gm-status.open { background:rgba(76,175,80,0.25); color:#4CAF50; border:1px solid #4CAF50; }
+.gm-status.closed { background:rgba(244,67,54,0.25); color:#f44336; border:1px solid #f44336; }
+
+/* Column width hints */
+.gm-col-market { width:22%; }
+.gm-col-year { width:8%; }
+.gm-col-month { width:8%; }
+.gm-col-date { width:8%; }
+.gm-col-day { width:10%; }
+.gm-col-open { width:12%; }
+.gm-col-close { width:12%; }
+.gm-col-time { width:12%; }
+.gm-col-status { width:8%; }
 
 /* TimeZone Component Styles */
 .timezone-container {
