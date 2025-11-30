@@ -1,12 +1,23 @@
 // src/pages/Home/Home.tsx
-import React, { useRef } from "react";
+import React, { useLayoutEffect, useRef } from "react";
 import HomeRibbon from "./HomeRibbon";
 import GlobalMarkets from "../GlobalMarkets/GlobalMarkets";
 
 const Home: React.FC = () => {
   const topStripRef = useRef<HTMLDivElement | null>(null);
 
-  // Removed height calc + measurement: pure flex layout eliminates viewport overflow.
+  // Restore dynamic top strip height measurement for calc() based layout.
+  useLayoutEffect(() => {
+    const setVar = () => {
+      if (topStripRef.current) {
+        const h = topStripRef.current.offsetHeight;
+        document.documentElement.style.setProperty("--home-top-strip-h", h + "px");
+      }
+    };
+    setVar();
+    window.addEventListener("resize", setVar);
+    return () => window.removeEventListener("resize", setVar);
+  }, []);
 
   return (
     <div className="home-screen">
@@ -81,7 +92,7 @@ const Home: React.FC = () => {
         </nav>
       </div>
 
-      {/* BODY: flex column (grid grows, ribbon fixed) */}
+      {/* BODY: grid + ribbon row (original layout) */}
       <main className="home-content">
         <div className="home-grid">
           {[
@@ -107,9 +118,7 @@ const Home: React.FC = () => {
             </section>
           ))}
         </div>
-        <div className="home-ribbon">
-          <HomeRibbon />
-        </div>
+        <HomeRibbon />
       </main>
     </div>
   );
