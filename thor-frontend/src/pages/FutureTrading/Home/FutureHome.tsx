@@ -1,31 +1,27 @@
 import React from "react";
-import GlobalMarkets from "../../GlobalMarkets/GlobalMarkets";
 import TwoByThreeGrid from "../../../components/Grid/TwoByThreeGrid";
 import type { DashboardTile } from "../../../components/Grid/TwoByThreeGrid";
+import "./FutureHome.css";
 
-const HOME_TILES: DashboardTile[] = [
-  { 
-    id: "global", 
-    title: "", 
-    slotLabel: "", 
-    children: <GlobalMarkets /> 
-  },
-  { id: "pl", title: "RTD", slotLabel: "Slot 2", hint: "Real Time Data" },
-  { id: "news", title: "Schwab Network / News", slotLabel: "Slot 3", hint: "Video / headlines" },
-  { id: "watchlist", title: "Heat Map / Watchlist", slotLabel: "Slot 4", hint: "Top movers, sectors" },
-  { id: "events", title: "Today's Events", slotLabel: "Slot 5", hint: "Economic calendar / orders" },
-  { id: "system", title: "System Status", slotLabel: "Slot 6", hint: "Feeds, jobs, alerts" },
+// Blank 2×3 grid for Futures Home
+const FUTURE_TILES: DashboardTile[] = [
+  { id: "slot-1", title: "" },
+  { id: "slot-2", title: "" },
+  { id: "slot-3", title: "" },
+  { id: "slot-4", title: "" },
+  { id: "slot-5", title: "" },
+  { id: "slot-6", title: "" },
 ];
 
-const Home: React.FC = () => {
+const FutureHome: React.FC = () => {
   return (
-    <div className="home-screen">
-      <main className="home-content">
-        <TwoByThreeGrid tiles={HOME_TILES} />
+    <div className="future-home-screen">
+      <main className="future-home-content">
+        <TwoByThreeGrid tiles={FUTURE_TILES} />
       </main>
     </div>
   );
 };
 
-export default Home;
+export default FutureHome;
 
