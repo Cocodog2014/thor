@@ -92,13 +92,15 @@ const GlobalHeader: React.FC<LayoutProps> = ({ children, onTradingActivityToggle
         component="main"
         sx={{
           flexGrow: 1,
+          display: 'flex',
+          flexDirection: 'column',
           bgcolor: 'background.default',
           p: 0,
-          minHeight: '100vh',
-          maxHeight: '100vh',
-          overflowY: 'auto', // original scrolling container
+          minHeight: 'calc(100vh - 64px)',
+          maxHeight: 'calc(100vh - 64px)',
+          overflow: 'hidden',
           transition: 'margin 200ms ease',
-          pt: '64px', // clear fixed header space
+          mt: '64px',
           ml: 0,
         }}
       >

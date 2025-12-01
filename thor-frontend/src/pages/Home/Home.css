@@ -1,12 +1,12 @@
 .home-screen {
-  height: 100vh;             /* original full viewport for legacy calc layout */
+  min-height: 100%;          /* Use available height instead of forcing 100vh */
   display: flex;
   flex-direction: column;
   background-color: #0a0a0a;
   color: #f5f5f5;
   width: 100%;
   margin: 0;
-  overflow: hidden;
+  overflow: hidden;          /* keeps home from scrolling itself */
 }
 
 /* Removed unused --home-top-strip-h variable and dependent calc */
@@ -171,16 +171,15 @@
 /* ========== BODY ========== */
 
 .home-content {
-  flex: 0 0 auto;
-  display: grid;
-  grid-template-rows: 1fr 28px; /* tiles + ribbon */
+  flex: 1 1 auto;             /* fill remaining vertical space below top strip */
+  display: flex;
+  flex-direction: column;
   padding: 0 0.75rem 0;
   margin: 0;
-  height: calc((100vh - var(--home-top-strip-h)) * 0.935); /* previous shrink factor */
   min-height: 0;
   background: linear-gradient(180deg, #171717 0%, #0a0a0a 65%);
   box-sizing: border-box;
-  overflow: hidden;
+  overflow: hidden;           /* prevent scroll on home-content */
 }
 
 /* ========== GRID BODY ========== */
@@ -190,8 +189,8 @@
   grid-template-rows: repeat(3, 1fr);
   gap: 0.3125rem;
   width: 100%;
-  min-height: 0;
-  height: 100%;
+  flex: 1 1 auto;  /* occupy all space above ribbon */
+  min-height: 0;   /* allow grid rows to shrink properly */
 }
 
 /* Ticker styles moved to HomeRibbon.css */
@@ -244,13 +243,7 @@
   overflow: hidden;          /* prevent internal scroll enlarging parent */
 }
 
-/* Ribbon fixed height flex row */
-.home-ribbon {
-  height: 28px;
-  min-height: 28px;
-  width: 100%;
-  overflow: hidden;
-}
+/* Ribbon styles moved to HomeRibbon.css - HomeRibbon component is rendered directly */
 
 /* Ensure root elements never produce scrollbars for this layout */
 html, body, #root { overflow: hidden; }
