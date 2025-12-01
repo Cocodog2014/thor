@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import TwoByThreeGridSortable from "../../components/Grid/TwoByThreeGridSortable";
 import type { DashboardTile } from "../../components/Grid/TwoByThreeGridSortable";
 import GlobalMarkets from "../GlobalMarkets/GlobalMarkets";
@@ -12,8 +12,36 @@ const INITIAL_TILES: DashboardTile[] = [
   { id: "system", title: "System Status" },
 ];
 
+const STORAGE_KEY = "thor.homeSortable.order";
+
 const HomeSortableDemo: React.FC = () => {
-  const [tiles, setTiles] = useState<DashboardTile[]>(INITIAL_TILES);
+  const tileMap = useMemo(() => new Map(INITIAL_TILES.map((tile) => [tile.id, tile])), []);
+
+  const [tiles, setTiles] = useState<DashboardTile[]>(() => {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (!stored) return INITIAL_TILES;
+      const storedIds: string[] = JSON.parse(stored);
+      const ordered: DashboardTile[] = [];
+      storedIds.forEach((id) => {
+        const tile = tileMap.get(id);
+        if (tile) ordered.push(tile);
+      });
+      const remaining = INITIAL_TILES.filter((tile) => !storedIds.includes(tile.id));
+      return [...ordered, ...remaining];
+    } catch {
+      return INITIAL_TILES;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(tiles.map((tile) => tile.id)));
+    } catch {
+      // Ignore storage errors (private mode, etc.)
+    }
+  }, [tiles]);
+
   return (
     <div className="home-screen">
       <main className="home-content">
