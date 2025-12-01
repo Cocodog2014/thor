@@ -1,12 +1,14 @@
 /* src/components/Grid/TwoByThreeGrid.css */
 
-/* 2 columns × 3 rows fixed layout */
+/* 2 columns × 3 rows, identical structure to legacy home grid */
 .tbt-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  grid-template-rows: repeat(3, 1fr);
+  grid-template-rows: repeat(3, minmax(0, 1fr));
+  grid-auto-flow: row;
   gap: 0.3125rem;
   width: 100%;
+  height: 100%;
   flex: 1 1 auto;
   min-height: 0;
 }
