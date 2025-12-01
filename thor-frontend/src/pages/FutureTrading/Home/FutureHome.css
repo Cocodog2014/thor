@@ -1,13 +1,6 @@
-.home-screen {
-  min-height: 100%;          /* Use available height instead of forcing 100vh */
-  display: flex;
-  flex-direction: column;
-  background-color: #0a0a0a;
-  color: #f5f5f5;
-  width: 100%;
-  margin: 0;
-  overflow: hidden;          /* keeps home from scrolling itself */
-}
+/* Futures Home: intentionally empty.
+   All layout and grid sizing come from components/Grid/TwoByThreeGrid.css.
+   This file is kept to satisfy global.css import without overriding anything. */
 
 /* Removed unused --home-top-strip-h variable and dependent calc */
 

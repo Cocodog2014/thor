@@ -1,7 +1,7 @@
 import React from "react";
 import TwoByThreeGrid from "../../../components/Grid/TwoByThreeGrid";
 import type { DashboardTile } from "../../../components/Grid/TwoByThreeGrid";
-import "./FutureHome.css";
+// No local CSS; layout handled by shared grid styles
 
 // Blank 2×3 grid for Futures Home
 const FUTURE_TILES: DashboardTile[] = [
@@ -14,13 +14,7 @@ const FUTURE_TILES: DashboardTile[] = [
 ];
 
 const FutureHome: React.FC = () => {
-  return (
-    <div className="future-home-screen">
-      <main className="future-home-content">
-        <TwoByThreeGrid tiles={FUTURE_TILES} />
-      </main>
-    </div>
-  );
+  return <TwoByThreeGrid tiles={FUTURE_TILES} />;
 };
 
 export default FutureHome;
