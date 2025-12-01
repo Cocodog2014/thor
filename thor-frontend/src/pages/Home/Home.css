@@ -243,13 +243,7 @@
   overflow: hidden;          /* prevent internal scroll enlarging parent */
 }
 
-/* Ribbon fixed height flex row - reserve exactly 28px at bottom */
-.home-ribbon {
-  flex: 0 0 28px;    /* do not grow or shrink, exactly 28px */
-  min-height: 28px;
-  max-height: 28px;  /* enforce maximum height */
-  overflow: hidden;
-}
+/* Ribbon styles moved to HomeRibbon.css - HomeRibbon component is rendered directly */
 
 /* Ensure root elements never produce scrollbars for this layout */
 html, body, #root { overflow: hidden; }

@@ -107,9 +107,7 @@ const Home: React.FC = () => {
             </section>
           ))}
         </div>
-        <div className="home-ribbon">
-          <HomeRibbon />
-        </div>
+        <HomeRibbon />
       </main>
     </div>
   );
