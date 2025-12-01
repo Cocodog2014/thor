@@ -34,7 +34,7 @@ function App() {
 
   // Routes that should have full-width layout (no Container)
   // Only /app/home needs to be full-width for the Schwab-style dashboard.
-  const fullWidthRoutes = ['/app/home'];
+  const fullWidthRoutes = ['/app/home', '/app/futures'];
   const isFullWidth = fullWidthRoutes.includes(location.pathname);
 
   const toggleTradingActivity = () => {
@@ -97,13 +97,14 @@ function App() {
                   // Full-width routes (no MUI Container)
                   <Routes>
                     <Route path="home" element={<Home />} />
+                    <Route path="futures" element={<FutureHome />} />
                     {/* Stock trading removed */}
                     <Route path="user" element={<User />} />
                     <Route path="*" element={<Navigate to="home" replace />} />
                   </Routes>
                 ) : (
                   // Standard routes wrapped in Container
-                  <Container maxWidth="xl" sx={{ mt: 4, mb: 4 }}>
+                  <Container maxWidth={false} sx={{ p: 0 }}>
                     <Routes>
                       <Route path="home" element={<Home />} />
                       <Route path="futures" element={<FutureHome />} />

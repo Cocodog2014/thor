@@ -1,42 +1,28 @@
 // src/pages/Home/Home.tsx
-import React, { useRef } from "react";
-// Ribbon now global; local import removed.
+import React from "react";
 import GlobalMarkets from "../GlobalMarkets/GlobalMarkets";
+import TwoByThreeGrid from "../../components/Grid/TwoByThreeGrid";
+import type { DashboardTile } from "../../components/Grid/TwoByThreeGrid";
+
+const HOME_TILES: DashboardTile[] = [
+  { 
+    id: "global", 
+    title: "", 
+    slotLabel: "", 
+    children: <GlobalMarkets /> 
+  },
+  { id: "pl", title: "RTD", slotLabel: "Slot 2", hint: "Real Time Data" },
+  { id: "news", title: "Schwab Network / News", slotLabel: "Slot 3", hint: "Video / headlines" },
+  { id: "watchlist", title: "Heat Map / Watchlist", slotLabel: "Slot 4", hint: "Top movers, sectors" },
+  { id: "events", title: "Today's Events", slotLabel: "Slot 5", hint: "Economic calendar / orders" },
+  { id: "system", title: "System Status", slotLabel: "Slot 6", hint: "Feeds, jobs, alerts" },
+];
 
 const Home: React.FC = () => {
-  const topStripRef = useRef<HTMLDivElement | null>(null);
-
-  // Pure flex layout: no dynamic height calc needed.
-
   return (
     <div className="home-screen">
-      {/* BODY: now just the tiles; banner & ribbon are global */}
       <main className="home-content">
-        <div className="home-grid">
-          {[
-            { id: "global", title: "", hint: "" },
-            { id: "pl", title: "RTD", hint: "Real Time Data" },
-            { id: "news", title: "Schwab Network / News", hint: "Video / headlines" },
-            { id: "watchlist", title: "Heat Map / Watchlist", hint: "Top movers, sectors" },
-            { id: "events", title: "Today’s Events", hint: "Economic calendar / orders" },
-            { id: "system", title: "System Status", hint: "Feeds, jobs, alerts" },
-          ].map((tile, idx) => (
-            <section key={tile.id} className={`home-tile home-tile-${idx + 1}`}>
-              <header className="home-tile-header">
-                <span className="home-tile-title">{tile.title}</span>
-                {tile.id !== "global" && (<span className="home-tile-slot">Slot {idx + 1}</span>)}
-              </header>
-              <div className="home-tile-body">
-                {tile.id === "global" ? (
-                  <GlobalMarkets />
-                ) : (
-                  <p className="home-tile-hint">{tile.hint}</p>
-                )}
-              </div>
-            </section>
-          ))}
-        </div>
-        {/* Ribbon globally mounted; removed local instance */}
+        <TwoByThreeGrid tiles={HOME_TILES} />
       </main>
     </div>
   );

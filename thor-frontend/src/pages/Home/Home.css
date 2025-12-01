@@ -182,67 +182,7 @@
   overflow: hidden;           /* prevent scroll on home-content */
 }
 
-/* ========== GRID BODY ========== */
-.home-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  grid-template-rows: repeat(3, 1fr);
-  gap: 0.3125rem;
-  width: 100%;
-  flex: 1 1 auto;  /* occupy all space above ribbon */
-  min-height: 0;   /* allow grid rows to shrink properly */
-}
-
-/* Ticker styles moved to HomeRibbon.css */
-
-.home-tile {
-  border-radius: 0.5rem; 
-  padding: 0.5rem 0.65rem;  /* slightly slimmer */
-  display: flex;
-  flex-direction: column;
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  box-shadow: 0 4px 16px rgba(0,0,0,0.35);
-  min-height: 0;            /* allow internal flex children to constrain */
-  overflow: hidden;         /* contain internal scroll */
-}
-
-.home-tile-1 { background: #181818; }
-.home-tile-2 { background: #141414; }
-.home-tile-3 { background: #101010; }
-.home-tile-4 { background: #0c0c0c; }
-.home-tile-5 { background: #080808; }
-.home-tile-6 { background: #050505; }
-
-.home-tile-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 0.25rem; /* reduced */
-  font-size: 0.65rem; /* slightly smaller */
-}
-
-.home-tile-title {
-  font-weight: 600;
-}
-
-.home-tile-slot {
-  font-size: 0.625rem; /* 10px */
-  opacity: 0.7;
-}
-
-.home-tile-body {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.75rem;
-  color: #d4d4d4;
-  text-align: center;
-  opacity: 0.85;
-  min-height: 0;
-  overflow: hidden;          /* prevent internal scroll enlarging parent */
-}
-
+/* Grid layout/styles are owned by components/Grid/TwoByThreeGrid.css */
 /* Ribbon styles moved to HomeRibbon.css - HomeRibbon component is rendered directly */
 
 /* Ensure root elements never produce scrollbars for this layout */
