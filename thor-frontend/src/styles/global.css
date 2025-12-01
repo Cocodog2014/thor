@@ -16,6 +16,8 @@
 @import '../pages/User/Login.css';
 @import '../pages/User/Register.css';
 @import '../components/HomeRibbon.css';
+@import '../components/Grid/TwoByThreeGrid.css';
+@import '../pages/FutureTrading/Home/FutureHome.css';
 
 /* ========================================= */
 /*                RESETS & BASE             */
