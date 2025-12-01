@@ -28,9 +28,8 @@ const TwoByThreeGrid: React.FC<TwoByThreeGridProps> = ({ tiles }) => {
   );
 
   return (
-    <section className="tbt-shell">
-      <div className="tbt-grid">
-        {paddedTiles.map((tile, idx) => (
+    <div className="tbt-grid">
+      {paddedTiles.map((tile, idx) => (
           <section
             key={tile.id}
             className={`tbt-tile tbt-tile-${idx + 1}`}
@@ -51,8 +50,7 @@ const TwoByThreeGrid: React.FC<TwoByThreeGridProps> = ({ tiles }) => {
             </div>
           </section>
         ))}
-      </div>
-    </section>
+    </div>
   );
 };
 

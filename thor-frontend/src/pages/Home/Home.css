@@ -33,7 +33,3 @@ html, body, #root { overflow: hidden; }
 
 /* Global resets to remove default body margin impacting viewport calculations */
 html, body { margin: 0; height: 100%; }
-
-.home-tile-hint {
-  margin: 0;
-}
