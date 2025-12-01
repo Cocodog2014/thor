@@ -1,24 +1,30 @@
 import React from 'react';
-import { Container, Box, Typography } from '@mui/material';
+import TwoByThreeGrid from '../../../components/Grid/TwoByThreeGrid';
+import type { DashboardTile } from '../../../components/Grid/TwoByThreeGrid';
 import FutureRTD from '../FutureRTD/FutureRTD';
 import './FutureHome.css';
 
-// Simple wrapper home for Futures area. Shows heading + embeds RTD grid.
+const FUTURES_TILES: DashboardTile[] = [
+  { 
+    id: "rtd", 
+    title: "", 
+    slotLabel: "", 
+    children: <FutureRTD /> 
+  },
+  { id: "analysis", title: "Technical Analysis", slotLabel: "Slot 2", hint: "Charts & indicators" },
+  { id: "positions", title: "Open Positions", slotLabel: "Slot 3", hint: "Active futures contracts" },
+  { id: "alerts", title: "Price Alerts", slotLabel: "Slot 4", hint: "Threshold notifications" },
+  { id: "history", title: "Trade History", slotLabel: "Slot 5", hint: "Past executions" },
+  { id: "research", title: "Market Research", slotLabel: "Slot 6", hint: "Reports & analysis" },
+];
+
 const FutureHome: React.FC = () => {
   return (
-    <Box className="future-home-root" sx={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
-      <Box className="future-home-header" sx={{ px: 3, py: 2, borderBottom: '1px solid rgba(255,255,255,0.15)' }}>
-        <Typography variant="h5" className="future-home-title">Futures Dashboard</Typography>
-        <Typography variant="body2" className="future-home-subtitle" color="text.secondary">
-          Real Time Data (RTD) feed cards (11 core contracts + composite total)
-        </Typography>
-      </Box>
-      <Box sx={{ flex: 1, overflow: 'auto' }} className="future-home-scroll">
-        <Container maxWidth={false} sx={{ pt: 3, pb: 6 }}>
-          <FutureRTD />
-        </Container>
-      </Box>
-    </Box>
+    <div className="future-home-screen">
+      <main className="future-home-content">
+        <TwoByThreeGrid tiles={FUTURES_TILES} />
+      </main>
+    </div>
   );
 };
 
