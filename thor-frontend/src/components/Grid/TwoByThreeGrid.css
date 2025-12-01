@@ -50,7 +50,7 @@
   opacity: 0.7;
 }
 
-/* Body */
+/* Body - scrollable container for tile content */
 .tbt-body {
   flex: 1;
   display: flex;
@@ -61,7 +61,14 @@
   text-align: center;
   opacity: 0.85;
   min-height: 0;
-  overflow: hidden;
+  overflow-x: hidden;  /* Never allow horizontal scroll - apps must fit width */
+  overflow-y: auto;    /* Allow vertical scroll when content is too tall */
+}
+
+/* When tile has custom content (not just hint text), adjust alignment */
+.tbt-body:has(> *:not(.tbt-hint)) {
+  align-items: stretch;
+  justify-content: stretch;
 }
 
 .tbt-hint {
