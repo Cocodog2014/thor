@@ -1,0 +1,67 @@
+/* src/components/Grid/TwoByThreeGrid.css */
+
+/* 2 columns × 3 rows fixed layout */
+.tbt-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: repeat(3, 1fr);
+  gap: 0.3125rem;
+  width: 100%;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* Each tile */
+.tbt-tile {
+  border-radius: 0.5rem;
+  padding: 0.5rem 0.65rem;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  min-height: 0;
+  overflow: hidden;
+}
+
+.tbt-tile-1 { background: #181818; }
+.tbt-tile-2 { background: #141414; }
+.tbt-tile-3 { background: #101010; }
+.tbt-tile-4 { background: #0c0c0c; }
+.tbt-tile-5 { background: #080808; }
+.tbt-tile-6 { background: #050505; }
+
+/* Header */
+.tbt-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.25rem;
+  font-size: 0.65rem;
+}
+
+.tbt-title {
+  font-weight: 600;
+}
+
+.tbt-slot {
+  font-size: 0.625rem;
+  opacity: 0.7;
+}
+
+/* Body */
+.tbt-body {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  color: #d4d4d4;
+  text-align: center;
+  opacity: 0.85;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.tbt-hint {
+  margin: 0;
+}
