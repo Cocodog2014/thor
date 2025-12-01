@@ -19,6 +19,8 @@ import { TradingModeProvider } from './context/TradingModeContext';
 
 // New Schwab-style homepage
 import Home from './pages/Home/Home';
+import { Suspense, lazy } from 'react';
+const HomeSortableDemo = lazy(() => import('./pages/Home/HomeSortableDemo'));
 
 // NOTE: This App.tsx is the top-level router.
 // The visual home page is handled by src/pages/Home/Home.tsx.
@@ -97,6 +99,14 @@ function App() {
                   // Full-width routes (no MUI Container)
                   <Routes>
                     <Route path="home" element={<Home />} />
+                    <Route
+                      path="home-sortable"
+                      element={
+                        <Suspense fallback={<div style={{ padding: 16 }}>Loading sortable demo…</div>}>
+                          <HomeSortableDemo />
+                        </Suspense>
+                      }
+                    />
                     <Route path="futures" element={<FutureHome />} />
                     {/* Stock trading removed */}
                     <Route path="user" element={<User />} />
@@ -107,6 +117,14 @@ function App() {
                   <Container maxWidth={false} sx={{ p: 0 }}>
                     <Routes>
                       <Route path="home" element={<Home />} />
+                      <Route
+                        path="home-sortable"
+                        element={
+                          <Suspense fallback={<div style={{ padding: 16 }}>Loading sortable demo…</div>}>
+                            <HomeSortableDemo />
+                          </Suspense>
+                        }
+                      />
                       <Route path="futures" element={<FutureHome />} />
                       <Route
                         path="futures/rtd"
