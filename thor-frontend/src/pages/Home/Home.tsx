@@ -86,7 +86,7 @@ const Home: React.FC = () => {
         <div className="home-grid">
           {[
             { id: "global", title: "", hint: "" },
-            { id: "pl", title: "P/L Open", hint: "Account profit / loss summary" },
+            { id: "pl", title: "RTD", hint: "Real Time Data" },
             { id: "news", title: "Schwab Network / News", hint: "Video / headlines" },
             { id: "watchlist", title: "Heat Map / Watchlist", hint: "Top movers, sectors" },
             { id: "events", title: "Today’s Events", hint: "Economic calendar / orders" },
