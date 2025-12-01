@@ -96,6 +96,7 @@ const GlobalHeader: React.FC<LayoutProps> = ({ children, onTradingActivityToggle
           flexDirection: 'column',
           bgcolor: 'background.default',
           p: 0,
+          // Adjust for AppBar + Banner + Ribbon heights (64 + ~80)
           minHeight: 'calc(100vh - 64px)',
           maxHeight: 'calc(100vh - 64px)',
           overflow: 'hidden',

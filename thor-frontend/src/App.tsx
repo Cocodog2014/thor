@@ -7,6 +7,7 @@ import { Container } from '@mui/material';
 import GlobalMarkets from './pages/GlobalMarkets/GlobalMarkets';
 // NOTE: MarketDashboard removed – no longer used on the home page
 import FutureRTD from './pages/FutureTrading';
+import FutureHome from './pages/FutureTrading/Home/FutureHome';
 import ActivityPositions from './pages/ActivityPositions';
 import AccountStatement from './pages/AccountStatement/AccountStatement';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -105,8 +106,9 @@ function App() {
                   <Container maxWidth="xl" sx={{ mt: 4, mb: 4 }}>
                     <Routes>
                       <Route path="home" element={<Home />} />
+                      <Route path="futures" element={<FutureHome />} />
                       <Route
-                        path="futures"
+                        path="futures/rtd"
                         element={
                           <FutureRTD
                             onToggleMarketOpen={toggleMarketOpenDashboard}

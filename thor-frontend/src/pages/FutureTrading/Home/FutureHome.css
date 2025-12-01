@@ -1,0 +1,45 @@
+/* FutureHome.css – scoped styles for Futures dashboard wrapper */
+
+.future-home-root {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  background:
+    radial-gradient(circle at top left, rgba(33, 150, 243, 0.12), transparent 70%),
+    radial-gradient(circle at bottom right, rgba(255, 193, 7, 0.10), transparent 70%),
+    linear-gradient(180deg, #121212 0%, #0a0a0a 65%);
+  color: #fff;
+  overflow: hidden; /* prevent double scrollbars */
+}
+
+.future-home-header {
+  background: rgba(20,20,20,0.75);
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+
+.future-home-title {
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  margin: 0;
+}
+
+.future-home-subtitle {
+  margin: 0;
+  opacity: 0.75;
+}
+
+.future-home-scroll {
+  flex: 1;
+  overflow: auto;
+  min-height: 0; /* allow child containers to size properly */
+}
+
+/* Custom scrollbar (WebKit) */
+.future-home-scroll::-webkit-scrollbar { width: 12px; }
+.future-home-scroll::-webkit-scrollbar-track { background: rgba(255,255,255,0.06); }
+.future-home-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.28); border-radius: 6px; }
+.future-home-scroll::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.42); }
+
+@media (prefers-reduced-motion: reduce) {
+  .future-home-root { background: linear-gradient(180deg, #121212 0%, #0a0a0a 65%); }
+}
