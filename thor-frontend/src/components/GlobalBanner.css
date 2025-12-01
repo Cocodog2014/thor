@@ -1,0 +1,34 @@
+.global-banner {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  background-color: #0a0a0a;
+  border-bottom: 1px solid #262626;
+  padding: 0.25rem 0.75rem 0;
+  gap: 0.2rem;
+  font-size: 0.675rem;
+  box-sizing: border-box;
+}
+
+.global-banner-row-top {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  width: 100%;
+  color: #d4d4d4;
+}
+
+.global-banner-left,
+.global-banner-right {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+.global-banner-left { justify-content: flex-start; }
+.global-banner-right { justify-content: flex-end; }
+
+.global-banner-balances { /* reuse existing classes for balance styling */ }
+.global-banner-tabs { /* reuse home-nav styling */ }
