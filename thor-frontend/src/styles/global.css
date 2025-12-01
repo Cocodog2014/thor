@@ -124,7 +124,7 @@ main,
 [role="main"] {
   background-color: #000000;
   color: white;
-  min-height: 100vh;
+  /* min-height: 100vh; */ /* Removed - was pushing content off-screen */
   width: 100%;
 }
 
