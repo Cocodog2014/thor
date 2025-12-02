@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import TwoByThreeGridSortable from "../../components/Grid/TwoByThreeGridSortable";
-import type { DashboardTile } from "../../components/Grid/TwoByThreeGridSortable";
+import type { DashboardTile } from "../../components/Grid/TwoByThreeGrid";
 import GlobalMarkets from "../GlobalMarkets/GlobalMarkets";
 
 const INITIAL_TILES: DashboardTile[] = [

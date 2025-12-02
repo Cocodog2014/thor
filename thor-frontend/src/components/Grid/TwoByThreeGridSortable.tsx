@@ -16,15 +16,8 @@ import {
 } from "@dnd-kit/sortable";
 import type { DragEndEvent } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
+import type { DashboardTile } from "./TwoByThreeGrid";
 import "./TwoByThreeGrid.css";
-
-export type DashboardTile = {
-  id: string;
-  title: string;
-  slotLabel?: string;
-  hint?: string;
-  children?: React.ReactNode;
-};
 
 type TwoByThreeGridSortableProps = {
   tiles: DashboardTile[];
