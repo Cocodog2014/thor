@@ -34,13 +34,13 @@
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  margin: 0 0 0.25rem 0;
-  gap: 0.5rem;
-  font-size: 0.70rem;
+  margin: 0 0.35rem 0.35rem 0.35rem;
+  gap: 0.75rem;
+  font-size: 1rem;
   color: #d4d4d4;
 }
 
-.last-update { display: flex; gap: 0.35rem; align-items: center; font-weight: 600; }
+.last-update { display: flex; gap: 0.35rem; align-items: center; font-weight: 600; font-size: 1rem; }
 .live-indicator { animation: pulse 2s ease-in-out infinite; }
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.45} }
 
@@ -81,7 +81,7 @@
   font-weight: 600;
   padding: 0.18rem 0.15rem;
   text-align: center;
-  font-size: 1.2rem;
+  font-size: 1.0rem;
   border-bottom: 1px solid rgba(255,255,255,0.1);
   border-right: 1px solid rgba(255,255,255,0.08);
   letter-spacing: 0.25px;
@@ -102,13 +102,13 @@
   text-align: center;
   border-bottom: 1px solid rgba(255,255,255,0.08);
   border-right: 1px solid rgba(255,255,255,0.06);
-  font-size: 1.2rem;
+  font-size: 0.9rem;
 }
 .markets-table td:first-child, .markets-table thead th:first-child { text-align: left; }
 .markets-table td:last-child { border-right: none; }
 .markets-table tbody tr:last-child td { border-bottom: none; }
 
-.market-name { font-weight:600; color:#fff; }
+.markets-table td.market-name { font-weight:600; color:#fff; font-size:0.9rem; }
 .market-year, .market-month, .market-date, .market-day { font-family:'Courier New', monospace; font-variant-numeric:tabular-nums; color:#d0d0d0; font-size: 1.1em; }
 .market-open { font-family:'Courier New', monospace; font-variant-numeric:tabular-nums; color:#00e07a; font-size: 1.1em; }
 .market-close { font-family:'Courier New', monospace; font-variant-numeric:tabular-nums; color:#ff5b5b; font-size: 1.1em; }
