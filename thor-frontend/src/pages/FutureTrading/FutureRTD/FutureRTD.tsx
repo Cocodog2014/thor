@@ -219,7 +219,7 @@ export default function FutureRTD({ onToggleMarketOpen, showMarketOpen }: Future
             display: "grid",
             gridTemplateColumns: { xs: "1fr", md: "repeat(2, minmax(0, 1fr))" },
             gridAutoRows: "auto",
-            gap: 2,
+            gap: 1.5,
             width: "100%",
           }}
         >
