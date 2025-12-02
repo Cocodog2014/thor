@@ -101,6 +101,14 @@ namespace TosRtdBridge
         }
 
         /// <summary>
+        /// Called if the RTD server thread is being terminated.
+        /// </summary>
+        public void ThreadTerminate()
+        {
+            Console.WriteLine("[TOS RTD] ThreadTerminate() called.");
+        }
+
+        /// <summary>
         /// Manual shutdown from our app.
         /// </summary>
         public void Shutdown()
