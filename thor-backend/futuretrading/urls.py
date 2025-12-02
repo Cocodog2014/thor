@@ -1,5 +1,5 @@
 from django.urls import path
-from .views.RTD import LatestQuotesView
+from .views.RTD import LatestQuotesView, RibbonQuotesView
 from .views.MarketCloseCapture import MarketCloseCaptureView
 from .views.MarketSession import (
     MarketOpenSessionListView,
@@ -15,6 +15,7 @@ app_name = 'FutureTrading'
 urlpatterns = [
     # RTD Futures Quotes
     path('quotes/latest', LatestQuotesView.as_view(), name='quotes-latest'),
+    path('quotes/ribbon', RibbonQuotesView.as_view(), name='quotes-ribbon'),
     
     # Market Open Sessions
     path('market-opens/', MarketOpenSessionListView.as_view(), name='market-opens-list'),

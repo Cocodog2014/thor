@@ -16,7 +16,7 @@
 @import '../pages/User/User.css';
 @import '../pages/User/Login.css';
 @import '../pages/User/Register.css';
-@import '../components/HomeRibbon.css';
+@import '../components/Ribbons/FooterRibbon.css';
 @import '../components/Grid2x3/TwoByThreeGrid.css';
 @import '../components/Grid2x2/TwoByTwoGrid.css';
 @import '../pages/FutureTrading/Home/FutureHome.css';
@@ -157,7 +157,7 @@ h1, h2, h3, h4, h5, h6, p, span, div {
 }
 
 /* Ensure ribbon stays visually flush at bottom */
-.home-ribbon {
+.footer-ribbon {
   flex: 0 0 auto;
   border-top: 1px solid #262626;
 }
