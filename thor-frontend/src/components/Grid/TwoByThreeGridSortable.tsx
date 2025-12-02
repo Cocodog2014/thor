@@ -1,4 +1,3 @@
-// @ts-nocheck
 // src/components/Grid/TwoByThreeGridSortable.tsx
 import React, { useMemo } from "react";
 import {
@@ -18,14 +17,7 @@ import {
 import type { DragEndEvent } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
 import "./TwoByThreeGrid.css";
-
-export type DashboardTile = {
-  id: string;
-  title: string;
-  slotLabel?: string;
-  hint?: string;
-  children?: React.ReactNode;
-};
+import type { DashboardTile } from "./TwoByThreeGrid";
 
 type TwoByThreeGridSortableProps = {
   tiles: DashboardTile[];
@@ -39,14 +31,15 @@ const MAX_TILES = COLUMN_COUNT * ROW_COUNT;
 function SortableTile({ tile, index }: { tile: DashboardTile; index: number }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: tile.id });
 
+  const transformStyle = transform ? CSS.Transform.toString(transform) : undefined;
+
   return (
     <div
       ref={setNodeRef}
-      className={`tbt-tile tbt-tile-${index + 1}`}
+      style={{ transform: transformStyle, transition } as React.CSSProperties}
+      className={`tbt-tile tbt-tile-${index + 1}${isDragging ? ' tbt-tile-dragging' : ''}`}
       data-row={Math.floor(index / COLUMN_COUNT) + 1}
       data-column={(index % COLUMN_COUNT) + 1}
-      data-transform={transform ? CSS.Transform.toString(transform) : undefined}
-      data-transition={transition}
     >
       <header className="tbt-header">
         <button

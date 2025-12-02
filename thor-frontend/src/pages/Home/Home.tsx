@@ -1,8 +1,9 @@
 // src/pages/Home/Home.tsx
-import React, { useEffect, useMemo, useState } from "react";
+import React from "react";
 import GlobalMarkets from "../GlobalMarkets/GlobalMarkets";
 import TwoByThreeGridSortable from "../../components/Grid/TwoByThreeGridSortable";
 import type { DashboardTile } from "../../components/Grid/TwoByThreeGrid";
+import { useDragAndDropTiles } from "../../hooks/DragAndDrop";
 
 const BASE_TILES: DashboardTile[] = [
   {
@@ -21,33 +22,7 @@ const BASE_TILES: DashboardTile[] = [
 const STORAGE_KEY = "thor.home.tiles.order";
 
 const Home: React.FC = () => {
-  const tileMap = useMemo(() => new Map(BASE_TILES.map((tile) => [tile.id, tile])), []);
-
-  const [tiles, setTiles] = useState<DashboardTile[]>(() => {
-    if (typeof window === "undefined") return BASE_TILES;
-    try {
-      const stored = window.localStorage.getItem(STORAGE_KEY);
-      if (!stored) return BASE_TILES;
-      const storedIds: string[] = JSON.parse(stored);
-      const ordered: DashboardTile[] = [];
-      storedIds.forEach((id) => {
-        const tile = tileMap.get(id);
-        if (tile) ordered.push(tile);
-      });
-      const remaining = BASE_TILES.filter((tile) => !storedIds.includes(tile.id));
-      return [...ordered, ...remaining];
-    } catch {
-      return BASE_TILES;
-    }
-  });
-
-  useEffect(() => {
-    try {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(tiles.map((tile) => tile.id)));
-    } catch {
-      // Ignore storage failures (e.g., disabled storage)
-    }
-  }, [tiles]);
+  const { tiles, setTiles } = useDragAndDropTiles(BASE_TILES, { storageKey: STORAGE_KEY });
 
   return (
     <div className="home-screen">
