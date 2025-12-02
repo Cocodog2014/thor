@@ -4,10 +4,10 @@ import './FooterRibbon.css';
 interface RibbonSymbol {
   symbol: string;
   name: string;
-  price: number | null;
-  last: number | null;
-  change: number | null;
-  change_percent: number | null;
+  price: number | string | null;
+  last: number | string | null;
+  change: number | string | null;
+  change_percent: number | string | null;
   signal: string | null;
 }
 
@@ -27,7 +27,7 @@ const FooterRibbon: React.FC = () => {
   useEffect(() => {
     const fetchRibbonData = async () => {
       try {
-        const response = await fetch('/api/futuretrading/quotes/ribbon');
+        const response = await fetch('/api/quotes/ribbon');
         if (!response.ok) {
           throw new Error(`Failed to fetch ribbon data: ${response.status}`);
         }
@@ -49,18 +49,30 @@ const FooterRibbon: React.FC = () => {
     return () => clearInterval(interval);
   }, []);
 
-  const formatPrice = (price: number | null) => {
-    if (price === null || price === undefined) return '—';
-    return price.toFixed(2);
+  const toNumber = (value: number | string | null | undefined) => {
+    if (value === null || value === undefined) return null;
+    const numeric = typeof value === 'string' ? Number(value) : value;
+    return Number.isFinite(numeric) ? numeric : null;
   };
 
-  const formatChange = (change: number | null, percent: number | null) => {
-    if (change === null || percent === null) return '';
-    const sign = change >= 0 ? '+' : '';
-    return `${sign}${percent.toFixed(2)}%`;
+  const formatPrice = (price: number | string | null | undefined) => {
+    const numericPrice = toNumber(price);
+    if (numericPrice === null) return '—';
+    return numericPrice.toFixed(2);
   };
 
-  const renderContent = () => {
+  const formatChange = (
+    change: number | string | null | undefined,
+    percent: number | string | null | undefined,
+  ) => {
+    const numericChange = toNumber(change);
+    const numericPercent = toNumber(percent);
+    if (numericChange === null || numericPercent === null) return '';
+    const sign = numericChange >= 0 ? '+' : '';
+    return `${sign}${numericPercent.toFixed(2)}%`;
+  };
+
+  const renderContent = (dupIndex = 0) => {
     if (error) {
       return `⚠️ Error loading data: ${error} `;
     }
@@ -70,25 +82,26 @@ const FooterRibbon: React.FC = () => {
     }
 
     return ribbonData.map((item, idx) => {
-      const changeClass = (item.change ?? 0) >= 0 ? 'positive' : 'negative';
+      const numericChange = toNumber(item.change);
+      const changeClass = (numericChange ?? 0) >= 0 ? 'positive' : 'negative';
       return (
-        <span key={`${item.symbol}-${idx}`} className="ribbon-item">
+        <span key={`${item.symbol}-${dupIndex}-${idx}`} className="ribbon-item">
           <span className="ribbon-symbol">{item.symbol}</span>
-          <span className="ribbon-price">{formatPrice(item.last || item.price)}</span>
+          <span className="ribbon-price">{formatPrice(item.last ?? item.price)}</span>
           <span className={`ribbon-change ${changeClass}`}>
             {formatChange(item.change, item.change_percent)}
           </span>
           {' • '}
         </span>
       );
-    }).join('');
+    });
   };
 
   return (
     <div className="footer-ribbon" aria-label="Market ticker ribbon">
       <div className="footer-ribbon-track">
-        {renderContent()}
-        {renderContent()} {/* Duplicate for seamless loop */}
+        {renderContent(0)}
+        {renderContent(1)} {/* Duplicate for seamless loop */}
       </div>
     </div>
   );

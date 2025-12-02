@@ -56,7 +56,20 @@ class RibbonQuotesView(APIView):
                 show_in_ribbon=True
             ).order_by('sort_order', 'symbol')
             
-            ribbon_symbols = {instr.symbol for instr in ribbon_instruments}
+            # Create a set with both slash and non-slash versions for matching
+            ribbon_symbols = set()
+            for instr in ribbon_instruments:
+                ribbon_symbols.add(instr.symbol)
+                # Also add version without leading slash if present
+                if instr.symbol.startswith('/'):
+                    ribbon_symbols.add(instr.symbol[1:])
+                else:
+                    ribbon_symbols.add(f'/{instr.symbol}')
+            
+            logger.info(f"Ribbon symbols configured: {ribbon_symbols}")
+            logger.info(f"Available rows: {len(rows)}")
+            if rows:
+                logger.info(f"First row symbol: {rows[0].get('instrument', {}).get('symbol', 'N/A')}")
             
             # Filter rows to only include ribbon instruments
             ribbon_data = []
@@ -72,6 +85,7 @@ class RibbonQuotesView(APIView):
                         'change_percent': row.get('change_percent'),
                         'signal': row.get('signal'),
                     })
+            logger.info(f"Returning {len(ribbon_data)} symbols for ribbon")
             
             return Response({
                 'symbols': ribbon_data,
