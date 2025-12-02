@@ -1,7 +1,7 @@
 // src/App.tsx
 import { useState } from 'react';
 import { Routes, Route, useLocation, Navigate } from 'react-router-dom';
-import { Container } from '@mui/material';
+import { Container, CircularProgress, Box } from '@mui/material';
 
 // GlobalHeader is used inside AppLayout only
 import GlobalMarkets from './pages/GlobalMarkets/GlobalMarkets';
@@ -102,7 +102,13 @@ function App() {
                     <Route
                       path="home-sortable"
                       element={
-                        <Suspense fallback={<div style={{ padding: 16 }}>Loading sortable demo…</div>}>
+                        <Suspense
+                          fallback={
+                            <Box sx={{ p: 2, display: 'flex', justifyContent: 'center' }}>
+                              <CircularProgress size={24} color="inherit" />
+                            </Box>
+                          }
+                        > 
                           <HomeSortableDemo />
                         </Suspense>
                       }
@@ -120,7 +126,13 @@ function App() {
                       <Route
                         path="home-sortable"
                         element={
-                          <Suspense fallback={<div style={{ padding: 16 }}>Loading sortable demo…</div>}>
+                          <Suspense
+                            fallback={
+                              <Box sx={{ p: 2, display: 'flex', justifyContent: 'center' }}>
+                                <CircularProgress size={24} color="inherit" />
+                              </Box>
+                            }
+                          > 
                             <HomeSortableDemo />
                           </Suspense>
                         }
