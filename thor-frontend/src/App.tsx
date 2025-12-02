@@ -1,7 +1,7 @@
 // src/App.tsx
 import { useState } from 'react';
 import { Routes, Route, useLocation, Navigate } from 'react-router-dom';
-import { Container, CircularProgress, Box } from '@mui/material';
+import { Container } from '@mui/material';
 
 // GlobalHeader is used inside AppLayout only
 import GlobalMarkets from './pages/GlobalMarkets/GlobalMarkets';
@@ -19,8 +19,6 @@ import { TradingModeProvider } from './context/TradingModeContext';
 
 // New Schwab-style homepage
 import Home from './pages/Home/Home';
-import { Suspense, lazy } from 'react';
-const HomeSortableDemo = lazy(() => import('./pages/Home/HomeSortableDemo'));
 
 // NOTE: This App.tsx is the top-level router.
 // The visual home page is handled by src/pages/Home/Home.tsx.
@@ -99,20 +97,6 @@ function App() {
                   // Full-width routes (no MUI Container)
                   <Routes>
                     <Route path="home" element={<Home />} />
-                    <Route
-                      path="home-sortable"
-                      element={
-                        <Suspense
-                          fallback={
-                            <Box sx={{ p: 2, display: 'flex', justifyContent: 'center' }}>
-                              <CircularProgress size={24} color="inherit" />
-                            </Box>
-                          }
-                        > 
-                          <HomeSortableDemo />
-                        </Suspense>
-                      }
-                    />
                     <Route path="futures" element={<FutureHome />} />
                     {/* Stock trading removed */}
                     <Route path="user" element={<User />} />
@@ -123,20 +107,6 @@ function App() {
                   <Container maxWidth={false} sx={{ p: 0 }}>
                     <Routes>
                       <Route path="home" element={<Home />} />
-                      <Route
-                        path="home-sortable"
-                        element={
-                          <Suspense
-                            fallback={
-                              <Box sx={{ p: 2, display: 'flex', justifyContent: 'center' }}>
-                                <CircularProgress size={24} color="inherit" />
-                              </Box>
-                            }
-                          > 
-                            <HomeSortableDemo />
-                          </Suspense>
-                        }
-                      />
                       <Route path="futures" element={<FutureHome />} />
                       <Route
                         path="futures/rtd"
