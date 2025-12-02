@@ -46,15 +46,33 @@
   align-items: center;
   gap: 0.25rem;
   font-size: 0.9rem;
-  color: #34d399; /* emerald-400 */
   font-weight: 600;
+  transition: color 150ms ease;
+}
+
+.home-connection.connected {
+  color: #34d399; /* emerald-400 */
+}
+
+.home-connection.disconnected {
+  color: #f87171; /* red-400 */
 }
 
 .home-connection-dot {
   width: 0.5rem;
   height: 0.5rem;
   border-radius: 9999px;
+  transition: background-color 150ms ease, box-shadow 150ms ease;
+}
+
+.home-connection-dot.connected {
   background-color: #34d399;
+  box-shadow: 0 0 6px rgba(52, 211, 153, 0.7);
+}
+
+.home-connection-dot.disconnected {
+  background-color: #f87171;
+  box-shadow: 0 0 4px rgba(248, 113, 113, 0.6);
 }
 
 /* Connection details and account ID */
@@ -67,6 +85,10 @@
 
 .home-connection-details {
   color: #a3a3a3; /* neutral-400 */
+}
+
+.home-connection-details.offline {
+  color: #fca5a5;
 }
 
 .home-account-id {

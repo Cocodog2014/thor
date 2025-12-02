@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import './GlobalBanner.css';
 
@@ -6,6 +6,57 @@ import './GlobalBanner.css';
 const GlobalBanner: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const [connectionStatus, setConnectionStatus] = useState<'connected' | 'disconnected'>('disconnected');
+  const [lastUpdate, setLastUpdate] = useState<string | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const checkConnection = async () => {
+      try {
+        const response = await fetch('/api/quotes/latest', { cache: 'no-store' });
+        if (!response.ok) {
+          throw new Error(`Status ${response.status}`);
+        }
+
+        const data = await response.json();
+        const rows = Array.isArray(data?.rows) ? data.rows : [];
+        const hasLiveData = rows.length > 0;
+
+        if (!isMounted) {
+          return;
+        }
+
+        if (hasLiveData) {
+          setConnectionStatus('connected');
+          setLastUpdate(new Date().toLocaleTimeString());
+        } else {
+          setConnectionStatus('disconnected');
+        }
+      } catch (err) {
+        if (!isMounted) {
+          return;
+        }
+        setConnectionStatus('disconnected');
+      }
+    };
+
+    checkConnection();
+    const interval = setInterval(checkConnection, 5000);
+
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, []);
+
+  const isConnected = connectionStatus === 'connected';
+  const connectionLabel = isConnected ? 'Connected' : 'Disconnected';
+  const connectionDetails = isConnected
+    ? lastUpdate
+      ? `Realtime data · ${lastUpdate}`
+      : 'Realtime data'
+    : 'Waiting for live feed';
 
   // Parent (top) tabs
   const parentTabs: { label: string; path: string; key: string }[] = [
@@ -56,11 +107,13 @@ const GlobalBanner: React.FC = () => {
       {/* Row 1 */}
       <div className="global-banner-row global-banner-row-top">
         <div className="global-banner-left">
-          <span className="home-connection">
-            <span className="home-connection-dot" />
-            Connected
+          <span className={`home-connection ${isConnected ? 'connected' : 'disconnected'}`}>
+            <span className={`home-connection-dot ${isConnected ? 'connected' : 'disconnected'}`} />
+            {connectionLabel}
           </span>
-          <span className="home-connection-details">Realtime data</span>
+          <span className={`home-connection-details ${isConnected ? '' : 'offline'}`}>
+            {connectionDetails}
+          </span>
           <span className="home-account-id">739954815CHW (Rollover IRA)</span>
         </div>
         <div className="global-banner-right">
