@@ -12,7 +12,7 @@
 .footer-ribbon-track {
   display: inline-block;
   white-space: nowrap;
-  animation: footer-ribbon-scroll 10s linear infinite;
+  animation: footer-ribbon-scroll 40s linear infinite;
   color: #d4d4d4;
   font-size: 0.75rem;
   padding-left: 0.75rem;
