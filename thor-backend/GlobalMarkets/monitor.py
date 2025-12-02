@@ -57,7 +57,8 @@ class MarketMonitor:
         # markets that are already OPEN (reconciliation may flip statuses but
         # does not itself start workers).
         try:
-            from FutureTrading.services.IntradayMarketSupervisor import intraday_market_supervisor
+            # Updated import path after modular refactor
+            from FutureTrading.services.intraday_supervisor import intraday_market_supervisor
             from GlobalMarkets.models import Market
             open_markets = Market.objects.filter(is_active=True, is_control_market=True, status='OPEN')
             started = 0
@@ -146,7 +147,8 @@ class MarketMonitor:
         from GlobalMarkets.models import Market
         # Lazy import intraday supervisor so it is only touched at event time
         try:
-            from FutureTrading.services.IntradayMarketSupervisor import intraday_market_supervisor
+            # Updated import path after modular refactor
+            from FutureTrading.services.intraday_supervisor import intraday_market_supervisor
         except Exception:
             intraday_market_supervisor = None
 

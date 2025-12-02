@@ -7,6 +7,8 @@ from .models.MarketSession import MarketSession
 from .models.extremes import Rolling52WeekStats
 from .models.target_high_low import TargetHighLowConfig
 from .models.vwap import VwapMinute
+from .models.Martket24h import FutureTrading24Hour
+from .models.MarketIntraDay import MarketIntraday
 
 
 class ColumnSetFilter(admin.SimpleListFilter):
@@ -434,6 +436,41 @@ class VwapMinuteAdmin(admin.ModelAdmin):
     list_filter = ("symbol",)
     search_fields = ("symbol",)
     ordering = ("-timestamp_minute", "symbol")
+
+
+@admin.register(FutureTrading24Hour)
+class FutureTrading24HourAdmin(admin.ModelAdmin):
+    list_display = (
+        "session_group", "session_date", "country", "future",
+        "open_price_24h", "prev_close_24h", "low_24h", "high_24h",
+        "range_diff_24h", "range_pct_24h", "close_24h", "finalized",
+    )
+    list_filter = (
+        "session_date", "country", "future", "finalized",
+    )
+    search_fields = (
+        "future", "country", "session_group",
+    )
+    ordering = ("-session_date", "future")
+    date_hierarchy = "session_date"
+    readonly_fields = ("finalized",)
+
+
+@admin.register(MarketIntraday)
+class MarketIntradayAdmin(admin.ModelAdmin):
+    list_display = (
+        "timestamp_minute", "country", "future", "market_code",
+        "open_1m", "high_1m", "low_1m", "close_1m", "volume_1m",
+    )
+    list_filter = (
+        "country", "future", "market_code",
+    )
+    search_fields = (
+        "future", "country",
+    )
+    ordering = ("-timestamp_minute", "future")
+    date_hierarchy = "timestamp_minute"
+    readonly_fields = ("timestamp_minute",)
 
 
 

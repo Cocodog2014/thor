@@ -1,5 +1,7 @@
 import React from 'react';
 import GlobalHeader from '../components/GlobalHeader';
+import GlobalBanner from '../components/GlobalBanner';
+import HomeRibbon from '../components/HomeRibbon';
 
 type AppLayoutProps = {
   children: React.ReactNode;
@@ -26,7 +28,12 @@ const AppLayout: React.FC<AppLayoutProps>
       onFuturesOnHomeToggle={onFuturesOnHomeToggle}
       showFuturesOnHome={showFuturesOnHome}
     >
-      {children}
+      {/* Layout: banner (top), scrollable content, ribbon (bottom) */}
+      <GlobalBanner />
+      <div className="app-content-scroll">
+        {children}
+      </div>
+      <HomeRibbon />
     </GlobalHeader>
   );
 };

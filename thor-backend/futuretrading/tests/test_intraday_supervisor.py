@@ -4,7 +4,7 @@ from unittest.mock import patch
 from django.test import TestCase
 
 from FutureTrading.models.MarketSession import MarketSession
-from FutureTrading.services.IntradayMarketSupervisor import IntradayMarketSupervisor
+from FutureTrading.services.intraday_supervisor import IntradayMarketSupervisor
 
 
 class DummyMarket:
