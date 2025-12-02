@@ -1,7 +1,8 @@
 /* TotalCard.css - extracted static layout styles from inline sx */
 
 .totalcard-root {
-  width: 500px;
+  width: 100%;
+  max-width: 520px;
   height: 100%;
   overflow: hidden;
   border-radius: 8px;
@@ -15,24 +16,24 @@
 }
 
 .totalcard-body {
-  padding: 16px;
+  padding: 12px 14px;
 }
 
 .totalcard-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
+  gap: 10px;
 }
 
 .totalcard-footer {
-  margin-top: 16px;
+  margin-top: 12px;
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
 
 .totalcard-tile {
-  padding: 12px;
+  padding: 10px;
   background: rgba(255,255,255,0.1);
   border-color: rgba(255,255,255,0.2);
   text-align: center;

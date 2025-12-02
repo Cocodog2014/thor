@@ -1,8 +1,9 @@
 /* L1Card.css - extracted static layout styles from inline sx */
 
 .l1card-root {
-  width: 500px;
-  min-height: 420px;
+  width: 100%;
+  max-width: 520px;
+  min-height: 380px;
   display: flex;
   flex-direction: column;
   border-radius: 8px;
@@ -12,25 +13,25 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 4px 16px; /* corresponds to px:2 py:1 */
+  padding: 4px 12px; /* slightly tighter horizontal padding */
 }
 
 .l1card-price-row {
   display: flex;
   justify-content: space-between;
-  gap: 16px;
+  gap: 12px;
 }
 
 .l1card-bidask-grid {
   margin-top: 6px;
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 8px;
+  gap: 6px;
 }
 
 .l1card-qty-panel {
   margin-top: 8px;
-  padding: 12px;
+  padding: 10px;
   background: rgba(255, 255, 255, 0.02);
   border: 1px solid rgba(255,255,255,0.1);
 }
@@ -39,7 +40,7 @@
   margin-top: 8px;
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 8px;
+  gap: 6px;
 }
 
 .l1card-data-grid {

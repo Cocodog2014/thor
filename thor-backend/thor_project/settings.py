@@ -61,7 +61,7 @@ INSTALLED_APPS = [
     'api',
     'GlobalMarkets',  # WorldClock and Market data (renamed from 'timezones')
     'thordata',   # Large Excel import app
-    'FutureTrading',  # Modern real-time market data system
+    'FutureTrading',  # Modern real-time market data system (shim module delegates to lowercase app)
     # LiveData - Multi-broker live data pipeline
     'LiveData.schwab.apps.SchwabConfig',  # Schwab OAuth + Trading API
     'LiveData.tos.apps.TosConfig',        # Thinkorswim streaming

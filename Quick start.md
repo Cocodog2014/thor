@@ -16,7 +16,7 @@ docker compose up -d redis
 
 ```powershell
 cd A:\Thor\thor-backend
-# conda activate Thor_inv       # if applicable
+# conda activate ThorBot       # if applicable
 $env:DATA_PROVIDER    = 'excel_live'
 $env:EXCEL_DATA_FILE  = 'A:\\Thor\\RTD_TOS.xlsm'
 $env:EXCEL_SHEET_NAME = 'LiveData'

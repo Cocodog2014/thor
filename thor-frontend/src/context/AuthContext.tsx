@@ -26,7 +26,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setToken(newToken);
     try {
       localStorage.setItem(ACCESS_KEY, newToken);
-    } catch {}
+    } catch {
+      // Ignore storage errors (private mode, disabled storage, etc.)
+    }
   };
 
   const logout = () => {
@@ -34,7 +36,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       localStorage.removeItem(ACCESS_KEY);
       localStorage.removeItem(REFRESH_KEY);
-    } catch {}
+    } catch {
+      // Ignore storage errors on logout
+    }
   };
 
   // Keep a boolean for convenience
