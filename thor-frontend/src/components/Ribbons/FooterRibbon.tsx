@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import './FooterRibbon.css';
 
 interface RibbonSymbol {
@@ -23,6 +23,7 @@ interface RibbonData {
 const FooterRibbon: React.FC = () => {
   const [ribbonData, setRibbonData] = useState<RibbonSymbol[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const MIN_SYMBOLS_FOR_LOOP = 20;
 
   useEffect(() => {
     const fetchRibbonData = async () => {
@@ -48,6 +49,19 @@ const FooterRibbon: React.FC = () => {
 
     return () => clearInterval(interval);
   }, []);
+
+  const extendedRibbonData = useMemo(() => {
+    if (!ribbonData.length) {
+      return [];
+    }
+
+    const loops = Math.max(1, Math.ceil(MIN_SYMBOLS_FOR_LOOP / ribbonData.length));
+    if (loops === 1) {
+      return ribbonData;
+    }
+
+    return Array.from({ length: loops }, () => ribbonData).flat();
+  }, [ribbonData]);
 
   const toNumber = (value: number | string | null | undefined) => {
     if (value === null || value === undefined) return null;
@@ -77,11 +91,11 @@ const FooterRibbon: React.FC = () => {
       return `⚠️ Error loading data: ${error} `;
     }
 
-    if (ribbonData.length === 0) {
+    if (extendedRibbonData.length === 0) {
       return '📊 No symbols configured for ribbon display. Configure in admin panel. ';
     }
 
-    return ribbonData.map((item, idx) => {
+    return extendedRibbonData.map((item, idx) => {
       const numericChange = toNumber(item.change);
       const changeClass = (numericChange ?? 0) >= 0 ? 'positive' : 'negative';
       return (
