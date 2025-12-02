@@ -140,6 +140,17 @@ Recommended Workflow
 - Add global chrome element: modify AppLayout (rare) & import CSS in global.css.
 - Update theme or global resets: edit styles/global.css only.
 
+Drag & Drop Hook
+- Location: `src/hooks/DragAndDrop.ts` exporting `useDragAndDropTiles`.
+- Purpose: centralizes the drag-and-drop tile order logic (state + optional `localStorage` persistence) so every dashboard uses the same behavior.
+- Usage pattern for any 2×3 “home” page:
+  1. Define `const BASE_TILES: DashboardTile[] = [...]`.
+  2. Call `const { tiles, setTiles, resetTiles } = useDragAndDropTiles(BASE_TILES, { storageKey: 'thor.somepage.tiles' });`.
+  3. Render `<TwoByThreeGridSortable tiles={tiles} onReorder={setTiles} />` inside the page layout.
+  4. (Optional) expose `resetTiles` via a button/menu if users should restore defaults.
+- Current adopters: `src/pages/Home/Home.tsx` and `src/pages/FutureTrading/Home/FutureHome.tsx`.
+- When building a new home page, repeat the pattern above with a unique storage key to get drag/drop + scroll with zero copy/paste.
+
 Future / TODO
 - Remove unused @dnd-kit dependencies if drag & drop remains inactive.
 - Centralize balance + account data into context/provider (currently hard-coded strings in GlobalBanner / Drawer).
