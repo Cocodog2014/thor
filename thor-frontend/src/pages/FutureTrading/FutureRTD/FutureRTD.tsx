@@ -217,19 +217,18 @@ export default function FutureRTD({ onToggleMarketOpen, showMarketOpen }: Future
         <Box
           sx={{
             display: "grid",
-            gridTemplateColumns: "repeat(6, 500px)",
-            gridTemplateRows: "repeat(2, auto)",
-            gap: 2,
-            width: "fit-content",
-            minWidth: "100%",
+            gridTemplateColumns: { xs: "1fr", md: "repeat(2, minmax(0, 1fr))" },
+            gridAutoRows: "auto",
+            gap: 1.5,
+            width: "100%",
           }}
         >
-          {/* Total Composite Card - appears first */}
+          {/* Row 1, Col 1: Total card */}
           <Box>
             <TotalCard total={total} theme={theme} />
           </Box>
 
-          {/* Individual Futures Cards */}
+          {/* Remaining rows auto-fill in FUTURES_11 order */}
           {displayRows.slice(0, 11).map((row) => (
             <Box key={row.instrument.symbol}>
               <L1Card

@@ -1,9 +1,11 @@
 /* Thor Global CSS - Single Entry Point for All Styles */
 
 /* Import all component and page CSS files */
-@import '../App.css';
+/*@import '../App.css';*/
 @import '../components/GlobalHeader.css';
+@import '../components/GlobalBanner.css';
 @import '../components/CollapsibleDrawer.css';
+@import '../pages/Home/Home.css';
 @import '../pages/GlobalMarkets/GlobalMarkets.css';
 @import '../pages/FutureTrading/Market/MarketDashboard.css';
 @import '../pages/FutureTrading/FutureRTD/FutureRTD.css';
@@ -14,6 +16,9 @@
 @import '../pages/User/User.css';
 @import '../pages/User/Login.css';
 @import '../pages/User/Register.css';
+@import '../components/HomeRibbon.css';
+@import '../components/Grid/TwoByThreeGrid.css';
+@import '../pages/FutureTrading/Home/FutureHome.css';
 
 /* ========================================= */
 /*                RESETS & BASE             */
@@ -123,7 +128,7 @@ main,
 [role="main"] {
   background-color: #000000;
   color: white;
-  min-height: 100vh;
+  /* min-height: 100vh; */ /* Removed - was pushing content off-screen */
   width: 100%;
 }
 
@@ -138,6 +143,22 @@ main,
 /* Default text color for all content on black canvas */
 h1, h2, h3, h4, h5, h6, p, span, div {
   color: inherit; /* Inherit white from parent */
+}
+
+/* Scrollable content area between banner (top) and ribbon (bottom) */
+.app-content-scroll {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0; /* allow internal children to size */
+  overflow: auto; /* only this region scrolls */
+  position: relative;
+}
+
+/* Ensure ribbon stays visually flush at bottom */
+.home-ribbon {
+  flex: 0 0 auto;
+  border-top: 1px solid #262626;
 }
 
 /* Override Material-UI defaults for dark theme */

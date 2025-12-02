@@ -54,7 +54,7 @@ export default function L1Card({ row, theme, quantity, onQuantityChange }: L1Car
         <L1Header row={row} theme={theme} />
 
         <Box
-          p={2}
+          p={1.5}
           className="l1-body"
           sx={{ flex: 1, minHeight: 0, overflowY: "auto", overflowX: "hidden" }}
         >
