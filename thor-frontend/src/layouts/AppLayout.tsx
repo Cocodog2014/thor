@@ -1,7 +1,7 @@
 import React from 'react';
 import GlobalHeader from '../components/GlobalHeader';
 import GlobalBanner from '../components/GlobalBanner';
-import HomeRibbon from '../components/HomeRibbon';
+import { FooterRibbon } from '../components/Ribbons';
 
 type AppLayoutProps = {
   children: React.ReactNode;
@@ -33,7 +33,7 @@ const AppLayout: React.FC<AppLayoutProps>
       <div className="app-content-scroll">
         {children}
       </div>
-      <HomeRibbon />
+      <FooterRibbon />
     </GlobalHeader>
   );
 };

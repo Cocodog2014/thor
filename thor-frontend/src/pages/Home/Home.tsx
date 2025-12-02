@@ -8,7 +8,7 @@ import { useDragAndDropTiles } from "../../hooks/DragAndDrop";
 const BASE_TILES: DashboardTile[] = [
   {
     id: "global",
-    title: "",
+    title: "Global Markets",
     slotLabel: "",
     children: <GlobalMarkets />,
   },
