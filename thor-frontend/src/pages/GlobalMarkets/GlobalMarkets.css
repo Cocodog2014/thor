@@ -79,9 +79,9 @@
   top: 0;
   background: #1b1b1b;
   font-weight: 600;
-  padding: 0.28rem 0.25rem;
-  text-align: left;
-  font-size: 0.6rem;
+  padding: 0.18rem 0.15rem;
+  text-align: center;
+  font-size: 1.2rem;
   border-bottom: 1px solid rgba(255,255,255,0.1);
   border-right: 1px solid rgba(255,255,255,0.08);
   letter-spacing: 0.25px;
@@ -95,14 +95,14 @@
 .markets-table tbody tr:hover td { background: rgba(255,255,255,0.05); }
 
 .markets-table td {
-  padding: 0.28rem 0.25rem;
+  padding: 0.2rem 0.14rem;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   text-align: center;
   border-bottom: 1px solid rgba(255,255,255,0.08);
   border-right: 1px solid rgba(255,255,255,0.06);
-  font-size: 0.66rem;
+  font-size: 1.2rem;
 }
 .markets-table td:first-child, .markets-table thead th:first-child { text-align: left; }
 .markets-table td:last-child { border-right: none; }
