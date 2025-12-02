@@ -22,12 +22,12 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE", "thor_project.settings")
 django.setup()
 
 from django.utils import timezone
-from FutureTrading.services.quotes import get_enriched_quotes_with_composite
-from FutureTrading.services.TargetHighLow import compute_targets_for_symbol
-from FutureTrading.views.MarketOpenCapture import capture_market_open
-from FutureTrading.models.MarketSession import MarketSession
+from ThorTrading.services.quotes import get_enriched_quotes_with_composite
+from ThorTrading.services.TargetHighLow import compute_targets_for_symbol
+from ThorTrading.views.MarketOpenCapture import capture_market_open
+from ThorTrading.models.MarketSession import MarketSession
 from GlobalMarkets.models import Market
-from FutureTrading.constants import FUTURES_SYMBOLS
+from ThorTrading.constants import FUTURES_SYMBOLS
 
 def show_sample_targets():
     print("\n=== SAMPLE ENRICHED QUOTES / TARGET LOGIC ===\n")
@@ -139,3 +139,4 @@ if __name__ == '__main__':
         import traceback
         traceback.print_exc()
         sys.exit(1)
+

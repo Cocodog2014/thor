@@ -18,7 +18,7 @@ interface RibbonData {
 }
 
 // Footer ribbon component that displays live market data from any source
-// Note: Currently uses FutureTrading endpoint, but TradingInstrument model
+// Note: Currently uses Futures endpoint, but TradingInstrument model
 // supports all asset classes (futures, stocks, crypto, forex, etc)
 const FooterRibbon: React.FC = () => {
   const [ribbonData, setRibbonData] = useState<RibbonSymbol[]>([]);

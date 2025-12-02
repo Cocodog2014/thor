@@ -2,10 +2,10 @@ import os
 os.environ['DJANGO_SETTINGS_MODULE'] = 'thor_project.settings'
 import django
 django.setup()
-from FutureTrading.models.MarketSession import MarketSession
+from ThorTrading.models.MarketSession import MarketSession
 from django.db.models import Max
-from FutureTrading.services.quotes import get_enriched_quotes_with_composite
-from FutureTrading.services.market_metrics import MarketCloseMetric, MarketRangeMetric
+from ThorTrading.services.quotes import get_enriched_quotes_with_composite
+from ThorTrading.services.market_metrics import MarketCloseMetric, MarketRangeMetric
 
 country = 'USA'
 latest = MarketSession.objects.filter(country=country).aggregate(Max('session_number'))['session_number__max']
@@ -23,3 +23,4 @@ if latest:
         print(f"{s.future:5} close={s.market_close} range={s.market_range}")
 else:
     print('No sessions found for country')
+

@@ -2,7 +2,7 @@
 
 Workflow:
   1. Optionally purge today's MarketSession rows per market (PURGE_EXISTING_ALL=1).
-  2. Iterate through control countries (FutureTrading.constants.CONTROL_COUNTRIES) OR all active markets.
+  2. Iterate through control countries (ThorTrading.constants.CONTROL_COUNTRIES) OR all active markets.
   3. Invoke capture_market_open(market) for each (ignores market.status — intended for diagnostic run).
   4. Validate per-future rows (expected FUTURES_SYMBOLS) + TOTAL row.
   5. Print summary table and exit code 0 if all pass; 2 if any market has issues; 1 on fatal error.
@@ -31,10 +31,10 @@ except Exception as e:
     sys.exit(1)
 
 from django.utils import timezone
-from FutureTrading.constants import FUTURES_SYMBOLS, CONTROL_COUNTRIES
+from ThorTrading.constants import FUTURES_SYMBOLS, CONTROL_COUNTRIES
 from GlobalMarkets.models import Market
-from FutureTrading.views.MarketOpenCapture import capture_market_open
-from FutureTrading.models.MarketSession import MarketSession
+from ThorTrading.views.MarketOpenCapture import capture_market_open
+from ThorTrading.models.MarketSession import MarketSession
 
 TODAY = timezone.now().date()
 YEAR, MONTH, DAY = TODAY.year, TODAY.month, TODAY.day  # Server local date (used only for purge)
@@ -189,3 +189,4 @@ for country, info in results.items():
 exit_code = 0 if all_ok else 2
 print(f"\nExit code: {exit_code}")
 sys.exit(exit_code)
+

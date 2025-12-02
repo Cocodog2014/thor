@@ -12,7 +12,7 @@ from rest_framework.decorators import api_view, permission_classes
 from account_statement.models.paper import PaperAccount
 from account_statement.models.real import RealAccount
 from decimal import Decimal
-from FutureTrading.services.vwap import vwap_service
+from ThorTrading.services.vwap import vwap_service
 from LiveData.shared.redis_client import live_data_redis
 
 @api_view(['GET'])
@@ -333,3 +333,4 @@ def account_statement_reset_paper(request: HttpRequest):
     }
 
     return Response(data, status=status.HTTP_200_OK)
+

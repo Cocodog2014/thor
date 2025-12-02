@@ -10,7 +10,7 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'thor_project.settings')
 import django
 django.setup()
 
-from FutureTrading.models import ContractWeight, TradingInstrument
+from ThorTrading.models import ContractWeight, TradingInstrument
 from decimal import Decimal
 
 # New weights - Option 4 (Hybrid)
@@ -86,3 +86,4 @@ print(f"  Bear Weight %: {(bear_total/total)*100:.1f}%")
 print(f"  Total Weight: {total:.3f}")
 
 print("\n✓ Weight adjustments complete!")
+

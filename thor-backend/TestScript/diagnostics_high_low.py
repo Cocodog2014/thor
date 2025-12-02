@@ -3,9 +3,9 @@ os.environ['DJANGO_SETTINGS_MODULE'] = 'thor_project.settings'
 import django
 django.setup()
 
-from FutureTrading.services.quotes import get_enriched_quotes_with_composite
-from FutureTrading.services.market_metrics import MarketHighMetric, MarketLowMetric
-from FutureTrading.models.MarketSession import MarketSession
+from ThorTrading.services.quotes import get_enriched_quotes_with_composite
+from ThorTrading.services.market_metrics import MarketHighMetric, MarketLowMetric
+from ThorTrading.models.MarketSession import MarketSession
 from django.db.models import Max
 
 country = 'United Kingdom'
@@ -21,3 +21,4 @@ if latest:
         print('YM post-update: high_num', s.market_high_open, 'high_pct', s.market_high_pct_open, 'low_num', s.market_low_open, 'low_pct', s.market_low_pct_open)
     else:
         print('No YM session row found.')
+

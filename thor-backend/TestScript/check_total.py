@@ -6,7 +6,7 @@ import os
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'thor_project.settings')
 django.setup()
 
-from FutureTrading.models.MarketSession import MarketSession
+from ThorTrading.models.MarketSession import MarketSession
 
 # Get most recent Japan TOTAL row
 total_row = (MarketSession.objects
@@ -41,3 +41,4 @@ siblings = (MarketSession.objects
 print(f"Futures captured for this session ({siblings.count()} rows):")
 for row in siblings:
     print(f"  {row.future}: bhs={row.bhs} last={row.last_price} change={row.change} weight={row.weight}")
+

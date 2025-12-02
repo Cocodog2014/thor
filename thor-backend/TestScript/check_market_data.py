@@ -4,7 +4,7 @@ import django
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'thor_project.settings')
 django.setup()
 
-from FutureTrading.models.MarketOpen import MarketOpenSession, FutureSnapshot
+from ThorTrading.models.MarketOpen import MarketOpenSession, FutureSnapshot
 from datetime import datetime, timedelta
 
 print('=== MARKET OPEN SESSIONS ===')
@@ -68,3 +68,4 @@ countries = MarketOpenSession.objects.values_list('country', flat=True).distinct
 for country in countries:
     count = MarketOpenSession.objects.filter(country=country).count()
     print(f'{country}: {count} sessions')
+

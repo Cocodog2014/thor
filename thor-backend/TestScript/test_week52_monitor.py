@@ -14,13 +14,13 @@ print("Testing Week 52 Monitor")
 print("=" * 60)
 
 # Import and test
-from FutureTrading.services.Week52Supervisor import start_52w_monitor
+from ThorTrading.services.Week52Supervisor import start_52w_monitor
 
 print("\n1. Attempting to start monitor...")
 start_52w_monitor()
 
 print("\n2. Checking if monitor thread is running...")
-from FutureTrading.services.Week52Supervisor import get_52w_monitor
+from ThorTrading.services.Week52Supervisor import get_52w_monitor
 monitor = get_52w_monitor()
 print(f"   Monitor running: {monitor._running}")
 print(f"   Monitor thread: {monitor._thread}")
@@ -36,7 +36,7 @@ for sym in test_symbols:
         print(f"   ✗ {sym}: No data")
 
 print("\n4. Checking database for 52w stats...")
-from FutureTrading.models.extremes import Rolling52WeekStats
+from ThorTrading.models.extremes import Rolling52WeekStats
 stats = Rolling52WeekStats.objects.all()
 print(f"   Found {stats.count()} records")
 for s in stats[:3]:
@@ -45,3 +45,4 @@ for s in stats[:3]:
 print("\n" + "=" * 60)
 print("Test complete. Monitor should be running in background.")
 print("=" * 60)
+

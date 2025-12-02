@@ -8,7 +8,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'thor_project.settings')
 django.setup()
 
-from FutureTrading.models.vwap import VwapMinute
+from ThorTrading.models.vwap import VwapMinute
 from django.utils import timezone
 
 print("✅ VwapMinute model imported successfully")
@@ -48,3 +48,4 @@ print("✅ Successfully deleted test row")
 print("\n" + "=" * 60)
 print("✅ VwapMinute model is FULLY FUNCTIONAL")
 print("=" * 60)
+

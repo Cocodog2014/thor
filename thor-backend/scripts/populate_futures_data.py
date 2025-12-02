@@ -19,7 +19,7 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'thor_project.settings')
 django.setup()
 
 from decimal import Decimal
-from FutureTrading.models import (
+from ThorTrading.models import (
     InstrumentCategory, TradingInstrument, SignalWeight,
     ContractWeight, SignalStatValue
 )
@@ -239,3 +239,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+

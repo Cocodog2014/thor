@@ -58,7 +58,7 @@ class MarketMonitor:
         # does not itself start workers).
         try:
             # Updated import path after modular refactor
-            from FutureTrading.services.intraday_supervisor import intraday_market_supervisor
+            from ThorTrading.services.intraday_supervisor import intraday_market_supervisor
             from GlobalMarkets.models import Market
             open_markets = Market.objects.filter(is_active=True, is_control_market=True, status='OPEN')
             started = 0
@@ -148,7 +148,7 @@ class MarketMonitor:
         # Lazy import intraday supervisor so it is only touched at event time
         try:
             # Updated import path after modular refactor
-            from FutureTrading.services.intraday_supervisor import intraday_market_supervisor
+            from ThorTrading.services.intraday_supervisor import intraday_market_supervisor
         except Exception:
             intraday_market_supervisor = None
 
@@ -263,10 +263,11 @@ def _on_market_open(market):
         return
 
     try:
-        from FutureTrading.views.MarketOpenCapture import capture_market_open
+        from ThorTrading.views.MarketOpenCapture import capture_market_open
     except Exception as e:
         logger.error(f"Import error – cannot capture futures for {market.country}: {e}")
         return
 
     logger.info("🚀 Initiating futures open capture for %s", market.country)
     capture_market_open(market)
+

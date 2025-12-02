@@ -12,7 +12,7 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'thor_project.settings')
 
 django.setup()
 
-from FutureTrading.models.MarketSession import MarketSession
+from ThorTrading.models.MarketSession import MarketSession
 
 latest_groups = (
     MarketSession.objects
@@ -41,3 +41,4 @@ if latest_groups:
     print(f"\nFirst 15 rows in newest capture_group {newest} ordered by future:")
     for r in rows:
         print(r)
+
