@@ -17,7 +17,8 @@
 @import '../pages/User/Login.css';
 @import '../pages/User/Register.css';
 @import '../components/HomeRibbon.css';
-@import '../components/Grid/TwoByThreeGrid.css';
+@import '../components/Grid2x3/TwoByThreeGrid.css';
+@import '../components/Grid2x2/TwoByTwoGrid.css';
 @import '../pages/FutureTrading/Home/FutureHome.css';
 
 /* ========================================= */

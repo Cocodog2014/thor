@@ -1,10 +1,10 @@
-/* src/components/Grid/TwoByThreeGrid.css */
+/* src/components/Grid2x2/TwoByTwoGrid.css */
 
-/* 2 columns × 3 rows grid - pages control outer container/padding */
-.tbt-grid {
+/* 2 columns × 2 rows grid where row 2 is twice the height of row 1 */
+.g22-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  grid-template-rows: repeat(3, minmax(0, 1fr));
+  grid-template-rows: minmax(0, 1fr) minmax(0, 2fr);
   grid-auto-flow: row;
   gap: 0.3125rem;
   width: 100%;
@@ -13,8 +13,7 @@
   min-height: 0;
 }
 
-/* Each tile */
-.tbt-tile {
+.g22-tile {
   border-radius: 0.5rem;
   padding: 0.5rem 0.65rem;
   display: flex;
@@ -25,23 +24,25 @@
   overflow: hidden;
 }
 
-.tbt-tile-1 { background: #181818; }
-.tbt-tile-2 { background: #141414; }
-.tbt-tile-3 { background: #101010; }
-.tbt-tile-4 { background: #0c0c0c; }
-.tbt-tile-5 { background: #080808; }
-.tbt-tile-6 { background: #050505; }
+.g22-tile-dragging {
+  opacity: 0.75;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+}
 
-/* Header */
-.tbt-header {
+.g22-tile-1 { background: #181818; }
+.g22-tile-2 { background: #151515; }
+.g22-tile-3 { background: #101010; }
+.g22-tile-4 { background: #0c0c0c; }
+
+.g22-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   margin-bottom: 0.25rem;
-  font-size: 0.65rem;
+  font-size: 0.75rem;
 }
 
-.tbt-drag-handle {
+.g22-drag-handle {
   cursor: grab;
   background: transparent;
   border: 0;
@@ -51,21 +52,22 @@
   padding: 0 0.25rem;
   margin-right: 0.25rem;
 }
-.tbt-drag-handle:active {
+.g22-drag-handle:active {
   cursor: grabbing;
 }
 
-.tbt-title {
+.g22-title {
   font-weight: 600;
+  font-size: 1.2rem;
+  line-height: 1.2;
 }
 
-.tbt-slot {
+.g22-slot {
   font-size: 0.625rem;
   opacity: 0.7;
 }
 
-/* Body - scrollable container for tile content */
-.tbt-body {
+.g22-body {
   flex: 1;
   display: flex;
   align-items: center;
@@ -75,16 +77,15 @@
   text-align: center;
   opacity: 0.85;
   min-height: 0;
-  overflow-x: hidden;  /* Never allow horizontal scroll - apps must fit width */
-  overflow-y: auto;    /* Allow vertical scroll when content is too tall */
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
-/* When tile has custom content (not just hint text), adjust alignment */
-.tbt-body:has(> *:not(.tbt-hint)) {
+.g22-body:has(> *:not(.g22-hint)) {
   align-items: stretch;
   justify-content: stretch;
 }
 
-.tbt-hint {
+.g22-hint {
   margin: 0;
 }

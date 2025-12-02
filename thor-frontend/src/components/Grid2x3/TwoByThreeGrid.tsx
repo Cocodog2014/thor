@@ -1,4 +1,4 @@
-// src/components/Grid/TwoByThreeGrid.tsx
+// src/components/Grid2x3/TwoByThreeGrid.tsx
 import React from "react";
 import "./TwoByThreeGrid.css";
 

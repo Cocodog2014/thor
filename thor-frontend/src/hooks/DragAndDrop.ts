@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { DashboardTile } from '../components/Grid/TwoByThreeGrid';
+import type { DashboardTile } from '../components/Grid2x3/TwoByThreeGrid';
 
 type UseDragAndDropOptions = {
   /** Optional key for persisting tile order across reloads. */

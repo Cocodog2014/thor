@@ -1,13 +1,13 @@
 import React from "react";
-import TwoByThreeGridSortable from "../../../components/Grid/TwoByThreeGridSortable";
-import type { DashboardTile } from "../../../components/Grid/TwoByThreeGrid";
+import TwoByTwoGridSortable from "../../../components/Grid2x2/TwoByTwoGridSortable";
+import type { DashboardTile } from "../../../components/Grid2x3/TwoByThreeGrid";
 import GlobalMarkets from "../../GlobalMarkets/GlobalMarkets";
 import FutureRTD from "../FutureRTD/FutureRTD";
 import MarketDashboard from "../Market/MarketDashboard";
 import { useDragAndDropTiles } from "../../../hooks/DragAndDrop";
 import "./FutureHome.css";
 
-// Blank 2×3 grid for Futures Home
+// Futures home now uses a 2×2 grid (second row twice as tall)
 const FUTURE_TILES: DashboardTile[] = [
   {
     id: "slot-1",
@@ -24,12 +24,14 @@ const FUTURE_TILES: DashboardTile[] = [
     title: "Market Sessions",
     children: <MarketDashboard />,
   },
-  { id: "slot-4", title: "" },
-  { id: "slot-5", title: "" },
-  { id: "slot-6", title: "" },
+  {
+    id: "slot-4",
+    title: "Add Widget",
+    hint: "Drop any futures widget here",
+  },
 ];
 
-const STORAGE_KEY = "thor.futures.tiles.order";
+const STORAGE_KEY = "thor.futures.tiles.order.v2";
 
 const FutureHome: React.FC = () => {
   const { tiles, setTiles } = useDragAndDropTiles(FUTURE_TILES, { storageKey: STORAGE_KEY });
@@ -37,7 +39,7 @@ const FutureHome: React.FC = () => {
   return (
     <div className="future-screen">
       <main className="future-content">
-        <TwoByThreeGridSortable tiles={tiles} onReorder={setTiles} />
+        <TwoByTwoGridSortable tiles={tiles} onReorder={setTiles} />
       </main>
     </div>
   );
