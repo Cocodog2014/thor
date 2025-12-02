@@ -52,8 +52,13 @@ export type MarketData = {
   last_prev_pct?: string | number | null;
   open_prev_diff?: string | number | null;
   open_prev_pct?: string | number | null;
+  high_prev_diff?: string | number | null;
+  high_prev_pct?: string | number | null;
+  low_prev_diff?: string | number | null;
+  low_prev_pct?: string | number | null;
   range_diff?: string | number | null;
   range_pct?: string | number | null;
+  spread?: string | number | null;
   last_52w_above_low_diff?: string | number | null;
   last_52w_above_low_pct?: string | number | null;
   last_52w_below_high_diff?: string | number | null;

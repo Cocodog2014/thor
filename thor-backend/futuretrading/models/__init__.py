@@ -23,4 +23,15 @@ try:
 except Exception:
     pass
 
+
+# Register new models for intraday and 24h session
+try:
+    from .MarketIntraDay import *  # noqa: F401,F403
+except Exception:
+    pass
+try:
+    from .Martket24h import *  # noqa: F401,F403
+except Exception:
+    pass
+
 __all__ = [name for name in globals().keys() if not name.startswith('_')]

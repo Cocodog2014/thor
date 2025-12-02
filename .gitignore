@@ -56,3 +56,12 @@ Copy of CleanData.xlsm
 CleanData.xlsm
 ~$*.xlsm
 ~$*.xlsx
+data/*
+!data/.gitkeep
+
+# Redis persistence files
+*.rdb
+*.aof
+*.manifest
+appendonlydir/
+

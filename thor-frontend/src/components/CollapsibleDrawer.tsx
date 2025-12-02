@@ -72,7 +72,9 @@ const CollapsibleDrawer: React.FC<CollapsibleDrawerProps> = ({
     try {
       localStorage.removeItem('thor_access_token');
       localStorage.removeItem('thor_refresh_token');
-    } catch {}
+    } catch {
+      // Swallow errors from localStorage in restricted environments
+    }
     navigate('/auth/login');
   };
 

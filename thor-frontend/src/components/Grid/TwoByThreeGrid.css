@@ -1,0 +1,90 @@
+/* src/components/Grid/TwoByThreeGrid.css */
+
+/* 2 columns × 3 rows grid - pages control outer container/padding */
+.tbt-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: repeat(3, minmax(0, 1fr));
+  grid-auto-flow: row;
+  gap: 0.3125rem;
+  width: 100%;
+  height: 100%;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* Each tile */
+.tbt-tile {
+  border-radius: 0.5rem;
+  padding: 0.5rem 0.65rem;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  min-height: 0;
+  overflow: hidden;
+}
+
+.tbt-tile-1 { background: #181818; }
+.tbt-tile-2 { background: #141414; }
+.tbt-tile-3 { background: #101010; }
+.tbt-tile-4 { background: #0c0c0c; }
+.tbt-tile-5 { background: #080808; }
+.tbt-tile-6 { background: #050505; }
+
+/* Header */
+.tbt-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.25rem;
+  font-size: 0.65rem;
+}
+
+.tbt-drag-handle {
+  cursor: grab;
+  background: transparent;
+  border: 0;
+  color: #9e9e9e;
+  font-size: 0.9rem;
+  line-height: 1;
+  padding: 0 0.25rem;
+  margin-right: 0.25rem;
+}
+.tbt-drag-handle:active {
+  cursor: grabbing;
+}
+
+.tbt-title {
+  font-weight: 600;
+}
+
+.tbt-slot {
+  font-size: 0.625rem;
+  opacity: 0.7;
+}
+
+/* Body - scrollable container for tile content */
+.tbt-body {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  color: #d4d4d4;
+  text-align: center;
+  opacity: 0.85;
+  min-height: 0;
+  overflow-x: hidden;  /* Never allow horizontal scroll - apps must fit width */
+  overflow-y: auto;    /* Allow vertical scroll when content is too tall */
+}
+
+/* When tile has custom content (not just hint text), adjust alignment */
+.tbt-body:has(> *:not(.tbt-hint)) {
+  align-items: stretch;
+  justify-content: stretch;
+}
+
+.tbt-hint {
+  margin: 0;
+}
