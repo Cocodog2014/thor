@@ -35,6 +35,8 @@
 .mo-rt-left {
   flex: 1 1 auto;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .mo-rt-right {
@@ -197,6 +199,20 @@
 .meta-value {
   font-size: 13px;
   font-weight: 700;
+}
+
+/* Intraday compact row */
+.mo-rt-intraday {
+  margin-top: auto; /* push to bottom of left column */
+  margin-bottom: 12px;
+}
+.intraday-row {
+  font-size: 12px;
+  opacity: 0.9;
+  background: rgba(255,255,255,0.03);
+  border: 1px dashed rgba(255,255,255,0.12);
+  border-radius: 8px;
+  padding: 6px 8px;
 }
 
 .mo-rt-stats-title {

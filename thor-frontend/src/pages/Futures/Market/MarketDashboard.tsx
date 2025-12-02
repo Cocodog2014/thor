@@ -190,6 +190,14 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl }) => {
   const resolvedLiveStatusUrl = getLiveStatusApiUrl();
   const [sessions, setSessions] = useState<MarketOpenSession[] | null>(null);
   const [liveStatus, setLiveStatus] = useState<Record<string, MarketLiveStatus>>({});
+  const [intradayLatest, setIntradayLatest] = useState<Record<string, {
+    open?: number | null;
+    high?: number | null;
+    low?: number | null;
+    close?: number | null;
+    volume?: number | null;
+    spread?: number | null;
+  }>>({});
 
   // 🔹 Default future per market = TOTAL (per-country composite)
   const [selected, setSelected] = useState<Record<string, string>>(() => {
@@ -263,6 +271,47 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl }) => {
     const id = setInterval(tick, 1000);
     return () => { cancelled = true; clearInterval(id); };
   }, [resolvedApiUrl, resolvedLiveStatusUrl]);
+
+  // Map dashboard key to backend session market_code
+  const marketKeyToCode = (key: string) => {
+    switch (key) {
+      case "Tokyo": return "Tokyo";
+      case "Bombay": return "India";
+      case "London": return "London";
+      case "Pre_USA": return "Pre_USA";
+      case "USA": return "USA";
+      default: return key; // fallback
+    }
+  };
+
+  // Fetch intraday latest for each visible card and selected future (except TOTAL)
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadIntraday() {
+      const updates: Record<string, any> = {};
+      await Promise.all(CONTROL_MARKETS.map(async (m) => {
+        const sel = selected[m.key] || "TOTAL";
+        if (sel === "TOTAL") return; // no intraday row for TOTAL
+        const marketCode = marketKeyToCode(m.key);
+        const url = `http://127.0.0.1:8000/api/session?market=${encodeURIComponent(marketCode)}&future=${encodeURIComponent(sel)}`;
+        try {
+          const res = await fetch(url);
+          if (!res.ok) return;
+          const data = await res.json();
+          const latest = data?.intraday_latest || null;
+          updates[m.key] = latest || null;
+        } catch (_) {
+          updates[m.key] = null;
+        }
+      }));
+      if (!cancelled) setIntradayLatest(prev => ({ ...prev, ...updates }));
+    }
+
+    const id = setInterval(loadIntraday, 1000);
+    loadIntraday();
+    return () => { cancelled = true; clearInterval(id); };
+  }, [selected]);
 
   const normalizeCountry = (c?: string) => (c || "").trim().toLowerCase();
 
@@ -507,6 +556,25 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl }) => {
                         ))}
                       </div>
                     )}
+
+                    {/* Intraday latest compact row */}
+                    <div className="mo-rt-intraday">
+                      {(() => {
+                        const latest = intradayLatest[m.key];
+                        if (!latest) {
+                          return <div className="intraday-row">O — | H — | L — | C — | Vol — | Spr —</div>;
+                        }
+                        const fmt = (v: number | null | undefined, frac = 2) => {
+                          if (v === null || v === undefined) return "—";
+                          return Number(v).toLocaleString("en-US", { maximumFractionDigits: frac });
+                        };
+                        return (
+                          <div className="intraday-row">
+                            {`O ${fmt(latest.open)} | H ${fmt(latest.high)} | L ${fmt(latest.low)} | C ${fmt(latest.close)} | Vol ${fmt(latest.volume, 0)} | Spr ${fmt(latest.spread, 3)}`}
+                          </div>
+                        );
+                      })()}
+                    </div>
 
                     <div className="mo-rt-meta">
                       <div className="meta">
