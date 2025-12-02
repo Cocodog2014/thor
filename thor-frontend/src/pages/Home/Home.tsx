@@ -1,8 +1,8 @@
 // src/pages/Home/Home.tsx
 import React from "react";
 import GlobalMarkets from "../GlobalMarkets/GlobalMarkets";
-import TwoByThreeGridSortable from "../../components/Grid/TwoByThreeGridSortable";
-import type { DashboardTile } from "../../components/Grid/TwoByThreeGrid";
+import TwoByThreeGridSortable from "../../components/Grid2x3/TwoByThreeGridSortable";
+import type { DashboardTile } from "../../components/Grid2x3/TwoByThreeGrid";
 import { useDragAndDropTiles } from "../../hooks/DragAndDrop";
 
 const BASE_TILES: DashboardTile[] = [

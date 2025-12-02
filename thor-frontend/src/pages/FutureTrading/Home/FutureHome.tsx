@@ -1,6 +1,6 @@
 import React from "react";
-import TwoByThreeGridSortable from "../../../components/Grid/TwoByThreeGridSortable";
-import type { DashboardTile } from "../../../components/Grid/TwoByThreeGrid";
+import TwoByThreeGridSortable from "../../../components/Grid2x3/TwoByThreeGridSortable";
+import type { DashboardTile } from "../../../components/Grid2x3/TwoByThreeGrid";
 import GlobalMarkets from "../../GlobalMarkets/GlobalMarkets";
 import FutureRTD from "../FutureRTD/FutureRTD";
 import MarketDashboard from "../Market/MarketDashboard";

@@ -1,4 +1,4 @@
-// src/components/Grid/TwoByThreeGridSortable.tsx
+// src/components/Grid2x2/TwoByTwoGridSortable.tsx
 import React, { useMemo } from "react";
 import {
   DndContext,
@@ -16,16 +16,16 @@ import {
 } from "@dnd-kit/sortable";
 import type { DragEndEvent } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
-import "./TwoByThreeGrid.css";
-import type { DashboardTile } from "./TwoByThreeGrid";
+import type { DashboardTile } from "../Grid2x3/TwoByThreeGrid";
+import "./TwoByTwoGrid.css";
 
-type TwoByThreeGridSortableProps = {
+type TwoByTwoGridSortableProps = {
   tiles: DashboardTile[];
   onReorder?: (next: DashboardTile[]) => void;
 };
 
 const COLUMN_COUNT = 2;
-const ROW_COUNT = 3;
+const ROW_COUNT = 2;
 const MAX_TILES = COLUMN_COUNT * ROW_COUNT;
 
 function SortableTile({ tile, index }: { tile: DashboardTile; index: number }) {
@@ -37,35 +37,30 @@ function SortableTile({ tile, index }: { tile: DashboardTile; index: number }) {
     <div
       ref={setNodeRef}
       style={{ transform: transformStyle, transition } as React.CSSProperties}
-      className={`tbt-tile tbt-tile-${index + 1}${isDragging ? ' tbt-tile-dragging' : ''}`}
+      className={`g22-tile g22-tile-${index + 1}${isDragging ? " g22-tile-dragging" : ""}`}
       data-row={Math.floor(index / COLUMN_COUNT) + 1}
       data-column={(index % COLUMN_COUNT) + 1}
     >
-      <header className="tbt-header">
-        <button
-          className="tbt-drag-handle"
-          aria-label="Drag tile"
-          {...attributes}
-          {...listeners}
-        >
+      <header className="g22-header">
+        <button className="g22-drag-handle" aria-label="Drag tile" {...attributes} {...listeners}>
           ⋮⋮
         </button>
-        <span className="tbt-title">{tile.title}</span>
-        <span className="tbt-slot">{tile.slotLabel ?? `Slot ${index + 1}`}</span>
+        <span className="g22-title">{tile.title}</span>
+        <span className="g22-slot">{tile.slotLabel ?? `Slot ${index + 1}`}</span>
       </header>
 
-      <div className="tbt-body">
+      <div className="g22-body">
         {tile.children ? (
           tile.children
         ) : tile.hint ? (
-          <p className="tbt-hint">{tile.hint}</p>
+          <p className="g22-hint">{tile.hint}</p>
         ) : null}
       </div>
     </div>
   );
 }
 
-const TwoByThreeGridSortable: React.FC<TwoByThreeGridSortableProps> = ({ tiles, onReorder }) => {
+const TwoByTwoGridSortable: React.FC<TwoByTwoGridSortableProps> = ({ tiles, onReorder }) => {
   const trimmedTiles = tiles.slice(0, MAX_TILES);
   const paddedTiles = useMemo(
     () =>
@@ -95,21 +90,17 @@ const TwoByThreeGridSortable: React.FC<TwoByThreeGridSortableProps> = ({ tiles, 
     onReorder(nextOrder);
   };
 
-  // Only make non-empty tiles sortable
-  const sortableIds = useMemo(
-    () => trimmedTiles.map((t) => t.id),
-    [trimmedTiles]
-  );
+  const sortableIds = useMemo(() => trimmedTiles.map((t) => t.id), [trimmedTiles]);
 
   return (
     <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
       <SortableContext items={sortableIds} strategy={rectSortingStrategy}>
-        <div className="tbt-grid">
+        <div className="g22-grid">
           {paddedTiles.map((tile, idx) =>
             tile.id.startsWith("empty-") ? (
               <div
                 key={tile.id}
-                className={`tbt-tile tbt-tile-${idx + 1}`}
+                className={`g22-tile g22-tile-${idx + 1}`}
                 data-row={Math.floor(idx / COLUMN_COUNT) + 1}
                 data-column={(idx % COLUMN_COUNT) + 1}
               />
@@ -123,4 +114,4 @@ const TwoByThreeGridSortable: React.FC<TwoByThreeGridSortableProps> = ({ tiles, 
   );
 };
 
-export default TwoByThreeGridSortable;
+export default TwoByTwoGridSortable;

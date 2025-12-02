@@ -25,7 +25,7 @@
   overflow: hidden;
 }
 
-/* Grid layout/styles are owned by components/Grid/TwoByThreeGrid.css */
+/* Grid layout/styles are owned by components/Grid2x3/TwoByThreeGrid.css */
 /* Ribbon styles moved to HomeRibbon.css - HomeRibbon component is rendered directly */
 
 /* Ensure root elements never produce scrollbars for this layout */

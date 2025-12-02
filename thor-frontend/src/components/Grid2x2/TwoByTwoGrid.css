@@ -1,0 +1,89 @@
+/* src/components/Grid2x2/TwoByTwoGrid.css */
+
+/* 2 columns × 2 rows grid where row 2 is twice the height of row 1 */
+.g22-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: minmax(0, 1fr) minmax(0, 2fr);
+  grid-auto-flow: row;
+  gap: 0.3125rem;
+  width: 100%;
+  height: 100%;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.g22-tile {
+  border-radius: 0.5rem;
+  padding: 0.5rem 0.65rem;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  min-height: 0;
+  overflow: hidden;
+}
+
+.g22-tile-dragging {
+  opacity: 0.75;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+}
+
+.g22-tile-1 { background: #181818; }
+.g22-tile-2 { background: #151515; }
+.g22-tile-3 { background: #101010; }
+.g22-tile-4 { background: #0c0c0c; }
+
+.g22-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.25rem;
+  font-size: 0.65rem;
+}
+
+.g22-drag-handle {
+  cursor: grab;
+  background: transparent;
+  border: 0;
+  color: #9e9e9e;
+  font-size: 0.9rem;
+  line-height: 1;
+  padding: 0 0.25rem;
+  margin-right: 0.25rem;
+}
+.g22-drag-handle:active {
+  cursor: grabbing;
+}
+
+.g22-title {
+  font-weight: 600;
+}
+
+.g22-slot {
+  font-size: 0.625rem;
+  opacity: 0.7;
+}
+
+.g22-body {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  color: #d4d4d4;
+  text-align: center;
+  opacity: 0.85;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.g22-body:has(> *:not(.g22-hint)) {
+  align-items: stretch;
+  justify-content: stretch;
+}
+
+.g22-hint {
+  margin: 0;
+}
