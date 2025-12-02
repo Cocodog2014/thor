@@ -1,27 +1,3 @@
-Yes, that’s exactly what I needed 🙌
-
-Because your thor_redis container is mapped as:
-
-0.0.0.0:6379 -> 6379/tcp
-
-
-your Redis connection string from Windows is:
-
-localhost:6379
-
-
-Below is a complete TOS_RTD.md you can drop straight into your repo.
-It includes:
-
-What the bridge does
-
-How to create the project in VS Code
-
-The full C# code (Program + RTD client)
-
-How to run it and keep it “pure” (no Excel, no VBA)
-
-
 # TOS_RTD Bridge
 ## Thinkorswim RTD → Redis for Thor (No Excel)
 
@@ -60,40 +36,31 @@ Current Excel formulas (examples):
 
 We will subscribe to all of these directly from C#, and push them into Redis.
 
-Requirements
+### Requirements
 
-Windows
+- Windows PC with Thinkorswim installed, logged in, and running
+- .NET 8 SDK (6 also works, but instructions assume 8)
+- Visual Studio Code
+- Docker container `thor_redis` exposing Redis on `0.0.0.0:6379 -> 6379/tcp`
 
-Thinkorswim installed and running
+With that mapping, the bridge can always connect via `localhost:6379`.
 
-.NET 8 SDK (or 6)
+### Project Setup (VS Code + dotnet)
 
-VS Code
+Run the following from PowerShell:
 
-Docker Redis already running as thor_redis with port mapping:
-
-0.0.0.0:6379 -> 6379/tcp
-
-
-So the Redis connection string is: localhost:6379
-
-Project Setup (VS Code + dotnet)
-
-From PowerShell:
-
+```powershell
 cd A:\Thor
 dotnet new console -n TosRtdBridge -f net8.0-windows
 cd TosRtdBridge
-
 dotnet add package Microsoft.Office.Interop.Excel
 dotnet add package StackExchange.Redis
-
 code .
+```
 
+That scaffolds the console app, installs the only two dependencies, and opens the folder in VS Code.
 
-This creates a console app and opens it in VS Code.
-
-Core Concept
+### Core Concept
 
 We create an instance of the TOS RTD server using its ProgID: "tos.rtd".
 
@@ -105,13 +72,11 @@ Whenever TOS has new data, it calls UpdateNotify() on us.
 
 Inside UpdateNotify, we call RefreshData and write the new values into Redis.
 
-Code
-TosRtdClient.cs
+## Implementation
 
-Code
-TosRtdClient.cs
+### `TosRtdClient.cs`
 
-Create a new file TosRtdClient.cs and paste:
+Create `TosRtdClient.cs` and add:
 
 using System;
 using System.Collections.Generic;
@@ -227,7 +192,7 @@ namespace TosRtdBridge
     }
 }
 
-Program.cs
+### `Program.cs`
 
 using System;
 
@@ -318,18 +283,17 @@ namespace TosRtdBridge
 }
 
 
-Running the Bridge
+## Running the Bridge
 
-Make sure Thinkorswim is running and logged in.
+1. Launch Thinkorswim and log in so RTD is live.
+2. Confirm the `thor_redis` container is running (port 6379 exposed to localhost).
+3. From `TosRtdBridge/`, run:
 
-Make sure thor_redis container is running (which it already is).
-
-From the TosRtdBridge folder:
-
+```powershell
 dotnet run
+```
 
-
-You should see logs like:
+You should then see logs like:
 
 Starting TOS RTD → Redis bridge...
 [TOS RTD] ServerStart result = 1
@@ -347,25 +311,15 @@ GET RTD:ES:LAST
 GET RTD:NQ:VOLUME
 
 
-Making It “Pure” / Production-Ready
+## Production Hardening
 
-To make this a clean background service:
+To keep the bridge running as a background service:
 
-Convert to a Worker Service or keep console but use a Windows Scheduled Task / Service wrapper.
-
-Replace Console.WriteLine with structured logging (Serilog / NLog).
-
-Move configuration (symbols, Redis connection, etc.) into appsettings.json.
-
-Ensure Thor reads from the same Redis keys:
-
-RTD:YM:LAST
-
-RTD:ES:LAST
-
-etc.
-
-Optionally run the bridge at startup so that as soon as TOS is logged in, data flows into Redis and Thor.
+- Convert the console app to a Worker Service or wrap it with a Windows Scheduled Task/service runner.
+- Swap `Console.WriteLine` for structured logging (Serilog, NLog, etc.).
+- Move configuration (symbols, Redis connection, heartbeat) into `appsettings.json`.
+- Keep the Redis key format (`RTD:{symbol}:{field}`) stable so Thor can consume the same keys (`RTD:YM:LAST`, `RTD:ES:LAST`, etc.).
+- Auto-start the bridge at login so data flows as soon as Thinkorswim is ready.
 
 Safety Notes
 
