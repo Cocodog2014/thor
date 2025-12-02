@@ -10,7 +10,7 @@ if PROJECT_ROOT not in sys.path:
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'thor_project.settings')
 django.setup()
 
-from FutureTrading.models.MarketSession import MarketSession
+from ThorTrading.models.MarketSession import MarketSession
 from LiveData.shared.redis_client import live_data_redis
 
 # Get latest session and check each future
@@ -51,3 +51,4 @@ for future in sorted(futures):
         status.append(f"✗ {no_slash}")
     
     print(f"{future:10} → {' | '.join(status)}")
+

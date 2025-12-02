@@ -7,10 +7,10 @@
 @import '../components/CollapsibleDrawer.css';
 @import '../pages/Home/Home.css';
 @import '../pages/GlobalMarkets/GlobalMarkets.css';
-@import '../pages/FutureTrading/Market/MarketDashboard.css';
-@import '../pages/FutureTrading/FutureRTD/FutureRTD.css';
-@import '../pages/FutureTrading/FutureRTD/RTDcards/L1Card.css';
-@import '../pages/FutureTrading/FutureRTD/TotalCard.css';
+@import '../pages/Futures/Market/MarketDashboard.css';
+@import '../pages/Futures/FutureRTD/FutureRTD.css';
+@import '../pages/Futures/FutureRTD/RTDcards/L1Card.css';
+@import '../pages/Futures/FutureRTD/TotalCard.css';
 @import '../pages/ActivityPositions/ActivityPositions.css';
 @import '../pages/AccountStatement/AccountStatement.css';
 @import '../pages/User/User.css';
@@ -19,7 +19,7 @@
 @import '../components/Ribbons/FooterRibbon.css';
 @import '../components/Grid2x3/TwoByThreeGrid.css';
 @import '../components/Grid2x2/TwoByTwoGrid.css';
-@import '../pages/FutureTrading/Home/FutureHome.css';
+@import '../pages/Futures/Home/FutureHome.css';
 
 /* ========================================= */
 /*                RESETS & BASE             */

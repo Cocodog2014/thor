@@ -10,8 +10,8 @@ if PROJECT_ROOT not in sys.path:
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'thor_project.settings')
 django.setup()
 
-from FutureTrading.views.MarketGrader import MarketGrader
-from FutureTrading.models.MarketSession import MarketSession
+from ThorTrading.views.MarketGrader import MarketGrader
+from ThorTrading.models.MarketSession import MarketSession
 
 grader = MarketGrader()
 
@@ -58,3 +58,4 @@ else:
         print(f"Hit price: {total.target_hit_price}")
         print(f"Hit type: {total.target_hit_type}")
         print(f"Hit at: {total.target_hit_at}")
+

@@ -9,7 +9,7 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'thor_project.settings')
 django.setup()
 
 from collections import defaultdict
-from FutureTrading.models.MarketSession import MarketSession
+from ThorTrading.models.MarketSession import MarketSession
 from django.utils import timezone
 
 today = timezone.now()
@@ -51,3 +51,4 @@ else:
               [:5])
     for row in recent:
         print(f"  - {row.country} #{row.session_number} {row.future}: {row.captured_at.strftime('%Y-%m-%d %H:%M:%S')} bhs={row.bhs}")
+

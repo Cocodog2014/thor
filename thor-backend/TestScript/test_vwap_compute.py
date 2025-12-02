@@ -14,8 +14,8 @@ import django
 
 django.setup()
 
-from FutureTrading.models.vwap import VwapMinute
-from FutureTrading.services.vwap import vwap_service
+from ThorTrading.models.vwap import VwapMinute
+from ThorTrading.services.vwap import vwap_service
 
 TEST_SYMBOL = 'TESTVWAP2'
 
@@ -46,3 +46,4 @@ else:
 
 # Cleanup
 VwapMinute.objects.filter(symbol=TEST_SYMBOL).delete()
+

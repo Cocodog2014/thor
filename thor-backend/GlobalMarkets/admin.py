@@ -29,7 +29,7 @@ class MarketAdmin(admin.ModelAdmin):
                 'enable_open_capture',
                 'enable_close_capture',
             ),
-            'description': 'Control if this market writes rows into FutureTrading.MarketSession.'
+            'description': 'Control if this market writes rows into ThorTrading.MarketSession.'
         }),
     )
     
@@ -84,3 +84,4 @@ class MarketDataSnapshotAdmin(admin.ModelAdmin):
     def has_add_permission(self, request):
         # Snapshots should only be created programmatically
         return False
+

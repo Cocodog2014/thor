@@ -183,9 +183,10 @@ Redis settings come from Django settings with defaults:
 
 Older documents (architecture & migration) are now merged here. The high-level design remains: LiveData publishes; business apps consume.
 4. ⏳ Implement TOS WebSocket connection (`LiveData/tos/services.py`)
-5. ✅ `FutureTrading/views/RTD.py` now reads latest quotes from Redis snapshot (source of truth)
+5. ✅ `ThorTrading/views/RTD.py` now reads latest quotes from Redis snapshot (source of truth)
 6. ⏳ Add IBKR integration (when needed)
 
 ---
 
 **Questions?** Check the code in `LiveData/shared/redis_client.py` for usage examples.
+

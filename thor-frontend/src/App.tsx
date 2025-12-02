@@ -6,8 +6,8 @@ import { Container } from '@mui/material';
 // GlobalHeader is used inside AppLayout only
 import GlobalMarkets from './pages/GlobalMarkets/GlobalMarkets';
 // NOTE: MarketDashboard removed – no longer used on the home page
-import FutureRTD from './pages/FutureTrading';
-import FutureHome from './pages/FutureTrading/Home/FutureHome';
+import FutureRTD from './pages/Futures';
+import FutureHome from './pages/Futures/Home/FutureHome';
 import ActivityPositions from './pages/ActivityPositions';
 import AccountStatement from './pages/AccountStatement/AccountStatement';
 import ProtectedRoute from './components/ProtectedRoute';
