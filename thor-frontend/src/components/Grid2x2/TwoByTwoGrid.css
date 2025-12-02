@@ -39,7 +39,7 @@
   align-items: center;
   justify-content: space-between;
   margin-bottom: 0.25rem;
-  font-size: 0.65rem;
+  font-size: 0.75rem;
 }
 
 .g22-drag-handle {
@@ -58,6 +58,8 @@
 
 .g22-title {
   font-weight: 600;
+  font-size: 1.2rem;
+  line-height: 1.2;
 }
 
 .g22-slot {
