@@ -52,6 +52,7 @@ class TradingInstrument(models.Model):
     # Trading configuration
     is_active = models.BooleanField(default=True)
     is_watchlist = models.BooleanField(default=False)  # Show in main watchlist
+    show_in_ribbon = models.BooleanField(default=False)  # Show in moving ticker ribbon
     sort_order = models.IntegerField(default=0)
     
     # Display configuration

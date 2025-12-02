@@ -53,10 +53,11 @@ class InstrumentCategoryAdmin(admin.ModelAdmin):
 @admin.register(TradingInstrument)
 class TradingInstrumentAdmin(admin.ModelAdmin):
     list_display = [
-        'symbol', 'name', 'category', 'exchange', 'tick_value', 'margin_requirement', 'is_active', 'is_watchlist'
+        'symbol', 'name', 'category', 'exchange', 'tick_value', 'margin_requirement', 
+        'is_active', 'is_watchlist', 'show_in_ribbon'
     ]
-    list_filter = ['category', 'is_active', 'is_watchlist', 'exchange']
-    list_editable = ['is_active', 'is_watchlist']
+    list_filter = ['category', 'is_active', 'is_watchlist', 'show_in_ribbon', 'exchange']
+    list_editable = ['is_active', 'is_watchlist', 'show_in_ribbon']
     search_fields = ['symbol', 'name']
     inlines = [SignalStatValueInline, ContractWeightInline]
     
@@ -68,7 +69,7 @@ class TradingInstrumentAdmin(admin.ModelAdmin):
             'fields': ('exchange', 'currency')
         }),
         ('Trading Configuration', {
-            'fields': ('is_active', 'is_watchlist', 'sort_order')
+            'fields': ('is_active', 'is_watchlist', 'show_in_ribbon', 'sort_order')
         }),
         ('Display Configuration', {
             'fields': ('display_precision', 'tick_size', 'contract_size')

@@ -201,7 +201,7 @@ src/
  │    │      ├── GlobalBanner.tsx
  │    │      └── GlobalBanner.css
  │    │
- │    ├── Grid/
+ │    ├── Grid2x3/
  │    │      ├── TwoByThreeGrid.tsx
  │    │      └── TwoByThreeGrid.css
  │    │
@@ -293,8 +293,8 @@ Nothing inside Home.css should affect it.
 
 Every Home page follows the same structure using:
 
-src/components/Grid/TwoByThreeGrid.tsx
-src/components/Grid/TwoByThreeGrid.css
+src/components/Grid2x3/TwoByThreeGrid.tsx
+src/components/Grid2x3/TwoByThreeGrid.css
 
 
 Features:
@@ -407,7 +407,7 @@ Examples:
 
 components/GlobalBanner/GlobalBanner.css
 
-components/Grid/TwoByThreeGrid.css
+components/Grid2x3/TwoByThreeGrid.css
 
 components/L1Card/L1Card.css
 
