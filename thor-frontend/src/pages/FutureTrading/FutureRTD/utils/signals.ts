@@ -1,7 +1,7 @@
 import type { ChipProps } from "@mui/material";
 import type { SignalKey } from "../types";
 
-export function signalLabel(sig?: SignalKey) {
+export function signalLabel(sig?: SignalKey | null) {
   if (!sig) return "—";
   switch (sig) {
     case "STRONG_BUY":
@@ -19,7 +19,7 @@ export function signalLabel(sig?: SignalKey) {
   }
 }
 
-export function signalChipColor(sig?: SignalKey): ChipProps["color"] {
+export function signalChipColor(sig?: SignalKey | null): ChipProps["color"] {
   if (!sig) return "default";
   switch (sig) {
     case "STRONG_BUY":

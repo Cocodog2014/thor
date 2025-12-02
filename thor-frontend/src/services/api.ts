@@ -33,7 +33,9 @@ api.interceptors.request.use(
         if (token) {
           (config.headers = config.headers || {}).Authorization = `Bearer ${token}`;
         }
-      } catch {}
+      } catch {
+        // Ignore storage access errors (private mode, disabled storage)
+      }
     }
     return config;
   },
@@ -76,8 +78,12 @@ api.interceptors.response.use(
         }
       } catch (refreshError) {
         // Refresh failed, clear tokens and redirect to login
-        localStorage.removeItem('thor_access_token');
-        localStorage.removeItem('thor_refresh_token');
+        try {
+          localStorage.removeItem('thor_access_token');
+          localStorage.removeItem('thor_refresh_token');
+        } catch {
+          // Swallow storage removal errors
+        }
         // Don't redirect on public endpoint failures
         if (!isPublic) {
           window.location.href = '/auth/login';
