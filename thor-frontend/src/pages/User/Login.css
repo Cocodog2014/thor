@@ -1,147 +1,111 @@
-/* Login styles (imported via global.css) */
-
 .login-page {
   width: 100%;
-}
-
-.login-card-wrapper {
-  position: relative;
-  width: 100%;
-  max-width: 480px;
-  z-index: 3;
-}
-
-.login-card {
-  width: 100%;
-  padding: var(--thor-spacing-xl);
-  border: 1px solid rgba(66, 165, 245, 0.3);
-  background: linear-gradient(135deg, rgba(25, 118, 210, 0.15) 0%, rgba(0, 0, 0, 0.8) 100%);
-  backdrop-filter: blur(10px);
-  border-radius: 16px;
-  box-shadow: 0 8px 32px rgba(25, 118, 210, 0.2);
-}
-
-.login-title {
-  font-family: var(--thor-font-title);
-  letter-spacing: 0.5px;
-}
-
-.login-form {
-  margin-top: var(--thor-spacing-sm);
-}
-
-/* Thor Hammer Strike Animation */
-@keyframes hammerStrike {
-  0%, 100% {
-    transform: translateY(0) scale(1);
-  }
-  5% {
-    transform: translateY(-8px) scale(1.15);
-  }
-  10% {
-    transform: translateY(2px) scale(0.95);
-  }
-  15% {
-    transform: translateY(0) scale(1);
-  }
-}
-
-@keyframes lightningFlash {
-  0%, 100% {
-    text-shadow: 0 0 10px rgba(66, 165, 245, 0.3);
-  }
-  3% {
-    text-shadow: 0 0 10px rgba(66, 165, 245, 0.3);
-  }
-  5% {
-    text-shadow: 
-      0 0 30px rgba(66, 165, 245, 1),
-      0 0 60px rgba(66, 165, 245, 0.9),
-      0 0 80px rgba(66, 165, 245, 0.7),
-      0 0 100px rgba(255, 255, 255, 0.5);
-  }
-  7% {
-    text-shadow: 
-      0 0 25px rgba(66, 165, 245, 0.8),
-      0 0 50px rgba(66, 165, 245, 0.6);
-  }
-  10% {
-    text-shadow: 
-      0 0 20px rgba(66, 165, 245, 0.5),
-      0 0 40px rgba(66, 165, 245, 0.3);
-  }
-  15% {
-    text-shadow: 0 0 10px rgba(66, 165, 245, 0.3);
-  }
-}
-
-@keyframes marketShatter {
-  0%, 100% {
-    transform: scale(1);
-    filter: brightness(1);
-  }
-  5% {
-    transform: scale(1.05);
-    filter: brightness(1.5);
-  }
-  10% {
-    transform: scale(1);
-    filter: brightness(1);
-  }
-}
-
-.thor-branding-animated {
-  animation: hammerStrike 4s ease-in-out infinite;
-}
-
-.lightning-animated {
-  animation: hammerStrike 4s ease-in-out infinite, lightningFlash 4s ease-in-out infinite;
-  display: inline-block;
-}
-
-.login-card-animated {
-  animation: marketShatter 4s ease-in-out infinite;
-}
-
-.login-overlay-backdrop {
-  position: fixed;
-  inset: 0;
-  background: radial-gradient(circle at center, rgba(13, 71, 161, 0.45) 0%, rgba(2, 6, 23, 0.95) 65%);
-  filter: blur(0px);
-  z-index: 1;
-  animation: backdropPulse 3s ease-in-out infinite;
-  transition: opacity 0.35s ease-out;
-}
-
-@keyframes backdropPulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.85; }
-}
-
-.login-card-overlay {
-  position: absolute;
-  inset: 0;
+  height: 100vh; /* ensures full screen always */
+  background: url("../../assets/ThorTrading 16_9.png") center/cover no-repeat fixed;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(2, 6, 23, 0.7);
-  border-radius: 16px;
-  backdrop-filter: blur(6px);
-  transition: opacity 0.35s ease-out;
+  overflow: hidden;
+}
+
+
+/* === Splash Screen === */
+.splash-screen {
+  position: fixed;
+  inset: 0;
+  background: url("../../assets/ThorTrading 16_9.png") center/cover no-repeat;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  z-index: 9999;
+  animation: fadeOut 1s ease-in-out 3s forwards;
+}
+
+.splash-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 0;
+}
+
+.splash-card {
+  position: relative;
+  z-index: 2;
+  text-align: center;
+  color: #00bfff;
+  text-shadow: 0 0 30px #00bfff;
+  animation: pulse 3s infinite ease-in-out;
+}
+
+.splash-card h1 {
+  font-size: 3rem;
+  letter-spacing: 2px;
+  margin-bottom: 1rem;
+}
+
+.splash-card p {
+  font-size: 1.2rem;
+  color: #b0d0ff;
+}
+
+@keyframes pulse {
+  0%, 100% { text-shadow: 0 0 25px #00bfff; }
+  50% { text-shadow: 0 0 50px #00ffff; }
+}
+
+@keyframes fadeOut {
+  to {
+    opacity: 0;
+    visibility: hidden;
+  }
+}
+
+/* === Login Card === */
+.login-card-wrapper {
+  position: relative;
   z-index: 2;
 }
 
-.login-card-overlay-content img {
-  width: min(70vw, 320px);
-  max-width: 340px;
-  object-fit: contain;
-  filter: drop-shadow(0 0 25px rgba(66,165,245,0.65));
+.login-card {
+  background: rgba(0, 0, 0, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 16px;
+  padding: 2rem;
+  width: 320px;
+  box-shadow: 0 0 40px rgba(0, 191, 255, 0.3);
+  color: #fff;
+  text-align: center;
 }
 
-.login-card-overlay.fade-out {
-  opacity: 0;
+.login-card h2 {
+  color: #00bfff;
+  margin-bottom: 1rem;
 }
 
-.login-overlay-backdrop.fade-out {
-  opacity: 0;
+.login-card input {
+  width: 100%;
+  margin: 0.5rem 0;
+  padding: 0.7rem;
+  border: none;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #e6f2ff;
 }
+
+.login-card button {
+  width: 100%;
+  padding: 0.7rem;
+  background: #00bfff;
+  border: none;
+  border-radius: 6px;
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
+
+.login-card button:hover {
+  background: #00a2e6;
+}
+
+
