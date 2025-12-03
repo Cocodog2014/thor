@@ -663,23 +663,16 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl }) => {
         .intraday-value { font-size: 13px; font-weight: 700; }
         .intraday-empty { font-size: 12px; opacity: 0.75; }
 
-        /* TOTAL inline card */
-        .total-inline-card { background: rgba(0,0,0,0.35); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
-        .total-inline-top { display: flex; align-items: flex-start; justify-content: space-between; }
-        .total-inline-title { font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; opacity: 0.9; }
-        .total-inline-tags { display: flex; gap: 6px; }
-        .total-inline-badge { font-size: 10px; padding: 3px 8px; border-radius: 999px; background: rgba(255,255,255,0.08); }
-        .total-inline-signal { display: flex; gap: 6px; align-items: center; }
-        .total-inline-weight { font-size: 11px; opacity: 0.8; }
-        .total-inline-main { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 8px; }
-        .total-inline-value { font-size: 20px; font-weight: 800; }
-        .total-inline-label { font-size: 11px; opacity: 0.8; }
-        .total-inline-metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
-        .total-inline-mini { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 8px 10px; }
-        .mini-title { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; opacity: 0.7; }
-        .mini-value { font-size: 13px; font-weight: 700; }
-        .mini-sub { font-size: 11px; opacity: 0.8; }
-        .total-inline-meta { font-size: 11px; opacity: 0.8; }
+        /* TOTAL session summary */
+        .total-session-card { display: flex; flex-direction: column; gap: 12px; }
+        .session-summary-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+        @media (min-width: 1200px) {
+          .session-summary-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+        }
+        .session-summary-card { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 12px 14px; }
+        .summary-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; opacity: 0.7; margin-bottom: 6px; }
+        .summary-value { font-size: 18px; font-weight: 700; }
+        .summary-sub { font-size: 13px; opacity: 0.85; margin-top: 4px; }
 
         /* Compact session stats under TOTAL */
         .mo-rt-session-stats { margin-top: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.35); padding: 8px 10px; font-size: 11px; }
@@ -774,11 +767,9 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl }) => {
           const signal = snap?.bhs;
           const outcomeStatus = snap?.wndw;
           const isTotalFuture = (snap.future || "").toUpperCase() === "TOTAL";
-          const totalSumRaw = snap.country_future_wndw_total ?? snap.country_future;
           const totalWeightedAverage = formatNum(snap?.weighted_average, 3) ?? (isZero(snap?.weighted_average) ? 0 : "—");
-          const totalSumValue = formatNum(totalSumRaw) ?? (isZero(totalSumRaw) ? 0 : "—");
           const totalInstrumentCount = snap?.instrument_count ?? 11;
-          const totalCapture = snap?.captured_at ? new Date(snap.captured_at).toLocaleTimeString() : "—";
+          const sessionDateLabel = getSessionDateKey(snap) ?? "—";
           const closeDeltaValue = formatSignedValue(snap?.market_close);
           const closeDeltaPercent = formatPercentValue(snap?.market_close_vs_open_pct);
           const closeDeltaClass = getDeltaClass(
@@ -823,7 +814,19 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl }) => {
           const bidSizeDisplay = formatNumOrDash(snap?.bid_size, 0);
           const askPriceDisplay = formatNumOrDash(snap?.ask_price);
           const askSizeDisplay = formatNumOrDash(snap?.ask_size, 0);
+          const lastPriceDisplay = formatNum(snap?.last_price) ?? (isZero(snap?.last_price) ? 0 : "—");
           const openPrimary = openDeltaMetric.primary ?? "—";
+          const totalSummaryCards: Array<{
+            key: string;
+            label: string;
+            value: string | number;
+            subtitle?: string | number;
+          }> = [
+            { key: "bid", label: "Bid", value: `${bidPriceDisplay}`, subtitle: `Size ${bidSizeDisplay}` },
+            { key: "basket", label: "Futures in Basket", value: totalInstrumentCount, subtitle: undefined },
+            { key: "total-avg", label: "Total Weighted Avg", value: totalWeightedAverage, subtitle: undefined },
+            { key: "local-date", label: "Local Date", value: sessionDateLabel, subtitle: undefined },
+          ];
           const totalSessionStatsRows = [
             {
               key: "market-open",
@@ -960,41 +963,34 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl }) => {
                 </div>
 
                 {isTotalFuture ? (
-                  <div className="total-inline-card">
-                    <div className="total-inline-top">
-                      <div>
-                        <div className="total-inline-title">TOTAL</div>
-                        <div className="total-inline-tags">
-                          <span className="total-inline-badge">Composite</span>
-                          <span className="total-inline-badge">{totalInstrumentCount} Futures</span>
+                  <div className="total-session-card">
+                    <div className="mo-rt-top total">
+                      <div className="mo-rt-last">
+                        <div className="val">{lastPriceDisplay}</div>
+                        <div className="label">Last</div>
+                      </div>
+                      <div className="mo-rt-change">
+                        <div className={`val ${closeDeltaClass}`}>
+                          {closeDeltaValue ?? (isZero(snap?.market_close) ? "0" : "—")}
                         </div>
+                        <div className={`pct ${closeDeltaClass}`}>
+                          {closeDeltaPercent
+                            ?? (isZero(snap?.market_close_vs_open_pct) ? "0%" : "—")}
+                        </div>
+                        <div className="label">Close Δ</div>
                       </div>
-                      <div className="total-inline-signal">
-                        <span className={chipClass("signal", signal || undefined)}>{signal || "—"}</span>
-                        <span className="total-inline-weight">Wgt: {snap?.weight ?? "—"}</span>
-                      </div>
-                    </div>
-                    <div className="total-inline-main">
-                      <div className="total-inline-value">{totalWeightedAverage}</div>
-                      <div className="total-inline-label">Weighted Average</div>
-                    </div>
-                    <div className="total-inline-metrics">
-                      <div className="total-inline-mini">
-                        <div className="mini-title">Sum</div>
-                        <div className="mini-value">{totalSumValue}</div>
-                        <div className="mini-sub">Weighted</div>
-                      </div>
-                      <div className="total-inline-mini">
-                        <div className="mini-title">Count</div>
-                        <div className="mini-value">{totalInstrumentCount}</div>
-                        <div className="mini-sub">Instruments</div>
-                      </div>
-                    </div>
-                    <div className="total-inline-meta">
-                      <span>Capture: {totalCapture}</span>
                     </div>
 
-                    {/* Compact Session Stats for TOTAL */}
+                    <div className="session-summary-grid">
+                      {totalSummaryCards.map(card => (
+                        <div className="session-summary-card" key={card.key}>
+                          <div className="summary-label">{card.label}</div>
+                          <div className="summary-value">{card.value}</div>
+                          {card.subtitle && <div className="summary-sub">{card.subtitle}</div>}
+                        </div>
+                      ))}
+                    </div>
+
                     <div className="mo-rt-session-stats">
                       <div className="session-stats-header">
                         <span>Metric</span>
@@ -1018,7 +1014,7 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl }) => {
                   <>
                     <div className="mo-rt-top">
                       <div className="mo-rt-last">
-                        <div className="val">{formatNum(snap?.last_price) ?? (isZero(snap?.last_price) ? 0 : "—")}</div>
+                        <div className="val">{lastPriceDisplay}</div>
                         <div className="label">Last</div>
                       </div>
                       <div className="mo-rt-change">
