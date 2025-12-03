@@ -74,190 +74,6 @@ type IntradaySnapshot = {
   spread?: number | null;
 };
 
-// Demo fallback rows so UI can render when API has no data
-const DEMO_SESSIONS: MarketOpenSession[] = [
-  {
-    id: 1,
-    session_number: 12,
-    year: 2025,
-    month: 12,
-    date: 3,
-    day: "Wed",
-    captured_at: new Date().toISOString(),
-    country: "Japan",
-    future: "TOTAL",
-    country_future: "126.40",
-    country_future_wndw_total: "126.40",
-    weight: 1.0,
-    last_price: "4532.75",
-    ask_price: "4533.00",
-    ask_size: 12,
-    bid_price: "4532.50",
-    bid_size: 10,
-    volume: 1240000,
-    market_open: "-0.28",
-    market_high_open: "+15.50",
-    market_high_pct_open: "+0.51",
-    market_low_open: "-23.50",
-    market_low_pct_open: "-0.51",
-    market_close: "+15.25",
-    market_high_pct_close: "+0.34",
-    market_low_pct_close: null,
-    market_close_vs_open_pct: "+0.34",
-    market_range: "35.25",
-    market_range_pct: "0.78",
-    spread: "0.25",
-    prev_close_24h: "4517.50",
-    open_price_24h: "4520.00",
-    open_prev_diff_24h: "+2.50",
-    open_prev_pct_24h: "+0.06",
-    low_24h: "4510.25",
-    high_24h: "4545.50",
-    range_diff_24h: "35.25",
-    range_pct_24h: "0.78",
-    low_52w: "4000.00",
-    high_52w: "4800.00",
-    range_52w: "800.00",
-    entry_price: "4520.00",
-    target_high: "4540.00",
-    target_low: "4510.00",
-    weighted_average: "126.40",
-    bhs: "BUY",
-    instrument_count: 11,
-    outcome: "WORKED",
-    wndw: "WORKED",
-    exit_price: "4532.75",
-    fw_exit_value: "+15.25",
-    fw_exit_percent: "+0.34",
-  },
-  {
-    id: 2,
-    session_number: 8,
-    year: 2025,
-    month: 12,
-    date: 3,
-    day: "Wed",
-    captured_at: new Date().toISOString(),
-    country: "China",
-    future: "TOTAL",
-    country_future: "113.20",
-    country_future_wndw_total: "113.20",
-    weight: 1.0,
-    last_price: "3456.10",
-    ask_price: "3456.30",
-    ask_size: 9,
-    bid_price: "3455.90",
-    bid_size: 8,
-    volume: 820000,
-    market_open: "-0.12",
-    market_high_open: "+10.05",
-    market_high_pct_open: "+0.29",
-    market_low_open: "-14.20",
-    market_low_pct_open: "-0.41",
-    market_close: "-2.25",
-    market_close_vs_open_pct: "-0.06",
-    market_range: "24.25",
-    market_range_pct: "0.70",
-    weighted_average: "113.20",
-    bhs: "NEUTRAL",
-    instrument_count: 11,
-    outcome: "MISSED",
-    wndw: "DIDNT_WORK",
-  },
-  {
-    id: 3,
-    session_number: 10,
-    year: 2025,
-    month: 12,
-    date: 3,
-    day: "Wed",
-    captured_at: new Date().toISOString(),
-    country: "India",
-    future: "TOTAL",
-    country_future: "98.75",
-    country_future_wndw_total: "98.75",
-    weight: 1.0,
-    last_price: "2899.50",
-    market_open: "+1.25",
-    market_close: "+3.50",
-    market_close_vs_open_pct: "+0.12",
-    weighted_average: "98.75",
-    bhs: "SELL",
-    instrument_count: 11,
-    outcome: "WORKED",
-    wndw: "WORKED",
-  },
-  {
-    id: 4,
-    session_number: 9,
-    year: 2025,
-    month: 12,
-    date: 3,
-    day: "Wed",
-    captured_at: new Date().toISOString(),
-    country: "United Kingdom",
-    future: "TOTAL",
-    country_future: "121.05",
-    country_future_wndw_total: "121.05",
-    weight: 1.0,
-    last_price: "7550.25",
-    market_open: "+0.75",
-    market_close: "+2.15",
-    market_close_vs_open_pct: "+0.09",
-    weighted_average: "121.05",
-    bhs: "BUY",
-    instrument_count: 11,
-    outcome: "WORKED",
-    wndw: "WORKED",
-  },
-  {
-    id: 5,
-    session_number: 1,
-    year: 2025,
-    month: 12,
-    date: 3,
-    day: "Wed",
-    captured_at: new Date().toISOString(),
-    country: "Pre_USA",
-    future: "TOTAL",
-    country_future: "110.00",
-    country_future_wndw_total: "110.00",
-    weight: 1.0,
-    last_price: "4599.00",
-    market_open: "0.00",
-    market_close: "0.00",
-    market_close_vs_open_pct: "0.00",
-    weighted_average: "110.00",
-    bhs: "NEUTRAL",
-    instrument_count: 11,
-    outcome: "PENDING",
-    wndw: "PENDING",
-  },
-  {
-    id: 6,
-    session_number: 2,
-    year: 2025,
-    month: 12,
-    date: 3,
-    day: "Wed",
-    captured_at: new Date().toISOString(),
-    country: "USA",
-    future: "TOTAL",
-    country_future: "130.25",
-    country_future_wndw_total: "130.25",
-    weight: 1.0,
-    last_price: "4732.75",
-    market_open: "+2.25",
-    market_close: "+15.25",
-    market_close_vs_open_pct: "+0.34",
-    weighted_average: "130.25",
-    bhs: "BUY",
-    instrument_count: 11,
-    outcome: "LIVE",
-    wndw: "PENDING",
-  },
-];
-
 // Control markets must use exact country strings from backend sessions.
 // Backend currently stores: Japan, China, India, Germany, United Kingdom, Pre_USA, USA, Canada, Mexico
 const CONTROL_MARKETS = [
@@ -450,11 +266,11 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl }) => {
         const data = await res.json();
         if (!cancelled) {
           const list = Array.isArray(data) ? data : [];
-          setSessions(list.length > 0 ? list : DEMO_SESSIONS);
+          setSessions(list);
         }
       } catch (e) {
         console.error("MarketDashboard: fetch failed", e);
-        if (!cancelled) setSessions(DEMO_SESSIONS);
+        if (!cancelled) setSessions([]);
       }
     }
 
@@ -483,27 +299,11 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl }) => {
           }
         }
         if (!cancelled) {
-          // Seed demo live status when API empty
-          const withDemo = Object.keys(map).length > 0 ? map : {
-            Japan: { next_event: "close", seconds_to_next_event: 120, current_state: "OPEN", local_date_key: buildDateKey(2025,12,3) },
-            China: { next_event: "open", seconds_to_next_event: 3600, current_state: "CLOSED", local_date_key: buildDateKey(2025,12,3) },
-            India: { next_event: "close", seconds_to_next_event: 600, current_state: "OPEN", local_date_key: buildDateKey(2025,12,3) },
-            "United Kingdom": { next_event: "close", seconds_to_next_event: 1800, current_state: "OPEN", local_date_key: buildDateKey(2025,12,3) },
-            Pre_USA: { next_event: "open", seconds_to_next_event: 900, current_state: "PREOPEN", local_date_key: buildDateKey(2025,12,3) },
-            USA: { next_event: "close", seconds_to_next_event: 14400, current_state: "OPEN", local_date_key: buildDateKey(2025,12,3) },
-          };
-          setLiveStatus(withDemo);
+          setLiveStatus(map);
         }
       } catch (e) {
         console.error("MarketDashboard: live status fetch failed", e);
-        if (!cancelled) setLiveStatus({
-          Japan: { next_event: "close", seconds_to_next_event: 120, current_state: "OPEN", local_date_key: buildDateKey(2025,12,3) },
-          China: { next_event: "open", seconds_to_next_event: 3600, current_state: "CLOSED", local_date_key: buildDateKey(2025,12,3) },
-          India: { next_event: "close", seconds_to_next_event: 600, current_state: "OPEN", local_date_key: buildDateKey(2025,12,3) },
-          "United Kingdom": { next_event: "close", seconds_to_next_event: 1800, current_state: "OPEN", local_date_key: buildDateKey(2025,12,3) },
-          Pre_USA: { next_event: "open", seconds_to_next_event: 900, current_state: "PREOPEN", local_date_key: buildDateKey(2025,12,3) },
-          USA: { next_event: "close", seconds_to_next_event: 14400, current_state: "OPEN", local_date_key: buildDateKey(2025,12,3) },
-        });
+        if (!cancelled) setLiveStatus({});
       }
     }
 
