@@ -172,6 +172,12 @@ const getDeltaClass = (value?: string | number | null) => {
 // Helper to check if a value is zero (number or string)
 const isZero = (v: any) => v === 0 || v === "0";
 
+const formatNumOrDash = (value?: string | number | null, maxFrac = 2) => {
+  const formatted = formatNum(value, maxFrac);
+  if (formatted !== undefined) return formatted;
+  return isZero(value) ? 0 : "—";
+};
+
 const buildDateKey = (year?: number | null, month?: number | null, day?: number | null) => {
   if (!year || !month || !day) return undefined;
   const paddedMonth = String(month).padStart(2, "0");
@@ -225,7 +231,9 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl }) => {
   // 🔹 Default future per market = TOTAL (per-country composite)
   const [selected, setSelected] = useState<Record<string, string>>(() => {
     const init: Record<string, string> = {};
-    CONTROL_MARKETS.forEach(m => { init[m.key] = "TOTAL"; });
+    CONTROL_MARKETS.forEach(m => {
+      init[m.key] = "TOTAL";
+    });
     return init;
   });
 
@@ -444,12 +452,18 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl }) => {
               ?? snap?.market_high_pct_close
               ?? snap?.market_low_pct_close
           );
-          const marketDeltaMetrics = [
+          const openDeltaMetric = {
+            label: "Open Δ",
+            primary: formatSignedValue(snap?.market_open),
+            secondary: undefined,
+            className: getDeltaClass(snap?.market_open),
+          };
+          const rangeColumnMetrics = [
             {
-              label: "Open Δ",
-              primary: formatSignedValue(snap?.market_open),
-              secondary: undefined,
-              className: getDeltaClass(snap?.market_open),
+              label: "Low Δ",
+              primary: formatSignedValue(snap?.market_low_open),
+              secondary: formatPercentValue(snap?.market_low_pct_open),
+              className: getDeltaClass(snap?.market_low_open ?? snap?.market_low_pct_open),
             },
             {
               label: "High Δ",
@@ -458,19 +472,23 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl }) => {
               className: getDeltaClass(snap?.market_high_open ?? snap?.market_high_pct_open),
             },
             {
-              label: "Low Δ",
-              primary: formatSignedValue(snap?.market_low_open),
-              secondary: formatPercentValue(snap?.market_low_pct_open),
-              className: getDeltaClass(snap?.market_low_open ?? snap?.market_low_pct_open),
-            },
-            {
               label: "Range Δ",
               primary: formatSignedValue(snap?.market_range),
               secondary: formatPercentValue(snap?.market_range_pct),
               className: getDeltaClass(snap?.market_range ?? snap?.market_range_pct),
             },
           ];
-          const hasDeltaData = marketDeltaMetrics.some(metric => metric.primary || metric.secondary);
+          const [lowMetric, highMetric, diffMetric] = rangeColumnMetrics;
+          const showLowMetric = Boolean(lowMetric.primary || lowMetric.secondary);
+          const showHighMetric = Boolean(highMetric.primary || highMetric.secondary);
+          const showDiffMetric = Boolean(diffMetric.primary || diffMetric.secondary);
+          const captureTime = snap?.captured_at ? new Date(snap.captured_at).toLocaleTimeString() : "—";
+          const selectId = `future-select-${m.key}`;
+          const bidPriceDisplay = formatNumOrDash(snap?.bid_price);
+          const bidSizeDisplay = formatNumOrDash(snap?.bid_size, 0);
+          const askPriceDisplay = formatNumOrDash(snap?.ask_price);
+          const askSizeDisplay = formatNumOrDash(snap?.ask_size, 0);
+          const openPrimary = openDeltaMetric.primary ?? "—";
 
           return (
             <div key={m.key} className="mo-rt-card">
@@ -478,19 +496,17 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl }) => {
                 <div className="mo-rt-header">
                   <div className="mo-rt-header-chips">
                     <span className="chip sym">{m.label}</span>
-                    {!isTotalFuture && (
-                      <span className={chipClass("signal", signal || undefined)}>{signal || "—"}</span>
-                    )}
+                    <span className={chipClass("signal", signal || undefined)}>{signal || "—"}</span>
                     <span className={chipClass("status", outcomeStatus || undefined)}>{outcomeStatus || "—"}</span>
-                    {!isTotalFuture && (
-                      <span className="chip weight">Wgt: {snap?.weight ?? "—"}</span>
-                    )}
+                    <span className="chip weight">Wgt: {snap?.weight ?? "—"}</span>
+                    <span className="chip default">Capture {captureTime}</span>
                   </div>
-                  <div>
-                    <span className="future-select-label">Future</span>
+                  <div className="mo-rt-header-select">
+                    <label htmlFor={selectId} className="future-select-label">Future</label>
                     <select
+                      id={selectId}
                       className="future-select"
-                      value={selected[m.key] || defaultFuture}
+                      value={selectedSymbol}
                       onChange={(e) => setSelected(prev => ({ ...prev, [m.key]: e.target.value }))}
                       aria-label="Select future contract"
                     >
@@ -555,44 +571,73 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl }) => {
                       </div>
                     </div>
 
-                    <div className="mo-rt-bbo">
-                      <div className="bbo-tile">
-                        <div className="bbo-head bid">Bid</div>
-                        <div className="bbo-main">{formatNum(snap?.bid_price) ?? (isZero(snap?.bid_price) ? 0 : "—")}</div>
-                        <div className="bbo-sub">Size {formatNum(snap?.bid_size, 0) ?? (isZero(snap?.bid_size) ? 0 : "—")}</div>
+                    <div className="mo-rt-deltas">
+                      <div className="delta-column">
+                        <div className="delta-card bbo-card">
+                          <div className="bbo-section">
+                            <div className="bbo-head bid">Bid</div>
+                            <div className="bbo-main">{bidPriceDisplay}</div>
+                            <div className="bbo-sub">Size {bidSizeDisplay}</div>
+                          </div>
+                          <div className="bbo-divider" aria-hidden="true" />
+                          <div className="bbo-section">
+                            <div className="bbo-head ask">Ask</div>
+                            <div className="bbo-main">{askPriceDisplay}</div>
+                            <div className="bbo-sub">Size {askSizeDisplay}</div>
+                          </div>
+                        </div>
                       </div>
-                      <div className="bbo-tile">
-                        <div className="bbo-head ask">Ask</div>
-                        <div className="bbo-main">{formatNum(snap?.ask_price) ?? (isZero(snap?.ask_price) ? 0 : "—")}</div>
-                        <div className="bbo-sub">Size {formatNum(snap?.ask_size, 0) ?? (isZero(snap?.ask_size) ? 0 : "—")}</div>
-                      </div>
-                    </div>
-
-                    {hasDeltaData && (
-                      <div className="mo-rt-deltas">
-                        {marketDeltaMetrics.map(metric => (
-                          <div className="delta-card" key={metric.label}>
-                            <div className="delta-label">{metric.label}</div>
-                            <div className={`delta-value ${metric.className}`}>
-                              {metric.primary ?? "—"}
+                      {(openPrimary || showLowMetric || showHighMetric || showDiffMetric) && (
+                        <div className="delta-column">
+                          <div className="delta-row">
+                            <div className="delta-card" key="open-metric">
+                              <div className="delta-label">{openDeltaMetric.label}</div>
+                              <div className={`delta-value ${openDeltaMetric.className}`}>
+                                {openPrimary}
+                              </div>
+                              {openDeltaMetric.secondary && (
+                                <div className="delta-sub">{openDeltaMetric.secondary}</div>
+                              )}
                             </div>
-                            {metric.secondary && (
-                              <div className="delta-sub">{metric.secondary}</div>
+                            {showLowMetric && (
+                              <div className="delta-card" key="low-metric">
+                                <div className="delta-label">{lowMetric.label}</div>
+                                <div className={`delta-value ${lowMetric.className}`}>
+                                  {lowMetric.primary ?? "—"}
+                                </div>
+                                {lowMetric.secondary && (
+                                  <div className="delta-sub">{lowMetric.secondary}</div>
+                                )}
+                              </div>
+                            )}
+                            {showHighMetric && (
+                              <div className="delta-card" key="high-metric">
+                                <div className="delta-label">{highMetric.label}</div>
+                                <div className={`delta-value ${highMetric.className}`}>
+                                  {highMetric.primary ?? "—"}
+                                </div>
+                                {highMetric.secondary && (
+                                  <div className="delta-sub">{highMetric.secondary}</div>
+                                )}
+                              </div>
                             )}
                           </div>
-                        ))}
-                      </div>
-                    )}
+                          {showDiffMetric && (
+                            <div className="delta-card" key="range-metric">
+                              <div className="delta-label">{diffMetric.label}</div>
+                              <div className={`delta-value ${diffMetric.className}`}>
+                                {diffMetric.primary ?? "—"}
+                              </div>
+                              {diffMetric.secondary && (
+                                <div className="delta-sub">{diffMetric.secondary}</div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
 
                     <div className="mo-rt-meta">
-                      <div className="meta">
-                        <div className="meta-label">Capture</div>
-                        <div className="meta-value">{snap?.captured_at ? new Date(snap.captured_at).toLocaleTimeString() : "—"}</div>
-                      </div>
-                      <div className="meta">
-                        <div className="meta-label">Contract</div>
-                        <div className="meta-value">{snap?.future || "—"}</div>
-                      </div>
                       <div className="meta">
                         <div className="meta-label">Entry</div>
                         <div className="meta-value">{formatNum(snap?.entry_price) ?? (isZero(snap?.entry_price) ? 0 : "—")}</div>
@@ -650,13 +695,13 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl }) => {
                           label: "Open",
                           value: formatIntradayValue(latestIntraday?.open),
                         }, {
-                          key: "high",
-                          label: "High",
-                          value: formatIntradayValue(latestIntraday?.high),
-                        }, {
                           key: "low",
                           label: "Low",
                           value: formatIntradayValue(latestIntraday?.low),
+                        }, {
+                          key: "high",
+                          label: "High",
+                          value: formatIntradayValue(latestIntraday?.high),
                         }, {
                           key: "close",
                           label: "Close",
