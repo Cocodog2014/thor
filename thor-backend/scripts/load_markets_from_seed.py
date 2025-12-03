@@ -4,6 +4,11 @@ from __future__ import annotations
 import json
 from datetime import datetime
 import os
+import pathlib
+import sys
+
+BASE_DIR = pathlib.Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(BASE_DIR))
 
 import django
 
