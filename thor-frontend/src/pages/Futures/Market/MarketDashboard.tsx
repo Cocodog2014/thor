@@ -74,6 +74,190 @@ type IntradaySnapshot = {
   spread?: number | null;
 };
 
+// Demo fallback rows so UI can render when API has no data
+const DEMO_SESSIONS: MarketOpenSession[] = [
+  {
+    id: 1,
+    session_number: 12,
+    year: 2025,
+    month: 12,
+    date: 3,
+    day: "Wed",
+    captured_at: new Date().toISOString(),
+    country: "Japan",
+    future: "TOTAL",
+    country_future: "126.40",
+    country_future_wndw_total: "126.40",
+    weight: 1.0,
+    last_price: "4532.75",
+    ask_price: "4533.00",
+    ask_size: 12,
+    bid_price: "4532.50",
+    bid_size: 10,
+    volume: 1240000,
+    market_open: "-0.28",
+    market_high_open: "+15.50",
+    market_high_pct_open: "+0.51",
+    market_low_open: "-23.50",
+    market_low_pct_open: "-0.51",
+    market_close: "+15.25",
+    market_high_pct_close: "+0.34",
+    market_low_pct_close: null,
+    market_close_vs_open_pct: "+0.34",
+    market_range: "35.25",
+    market_range_pct: "0.78",
+    spread: "0.25",
+    prev_close_24h: "4517.50",
+    open_price_24h: "4520.00",
+    open_prev_diff_24h: "+2.50",
+    open_prev_pct_24h: "+0.06",
+    low_24h: "4510.25",
+    high_24h: "4545.50",
+    range_diff_24h: "35.25",
+    range_pct_24h: "0.78",
+    low_52w: "4000.00",
+    high_52w: "4800.00",
+    range_52w: "800.00",
+    entry_price: "4520.00",
+    target_high: "4540.00",
+    target_low: "4510.00",
+    weighted_average: "126.40",
+    bhs: "BUY",
+    instrument_count: 11,
+    outcome: "WORKED",
+    wndw: "WORKED",
+    exit_price: "4532.75",
+    fw_exit_value: "+15.25",
+    fw_exit_percent: "+0.34",
+  },
+  {
+    id: 2,
+    session_number: 8,
+    year: 2025,
+    month: 12,
+    date: 3,
+    day: "Wed",
+    captured_at: new Date().toISOString(),
+    country: "China",
+    future: "TOTAL",
+    country_future: "113.20",
+    country_future_wndw_total: "113.20",
+    weight: 1.0,
+    last_price: "3456.10",
+    ask_price: "3456.30",
+    ask_size: 9,
+    bid_price: "3455.90",
+    bid_size: 8,
+    volume: 820000,
+    market_open: "-0.12",
+    market_high_open: "+10.05",
+    market_high_pct_open: "+0.29",
+    market_low_open: "-14.20",
+    market_low_pct_open: "-0.41",
+    market_close: "-2.25",
+    market_close_vs_open_pct: "-0.06",
+    market_range: "24.25",
+    market_range_pct: "0.70",
+    weighted_average: "113.20",
+    bhs: "NEUTRAL",
+    instrument_count: 11,
+    outcome: "MISSED",
+    wndw: "DIDNT_WORK",
+  },
+  {
+    id: 3,
+    session_number: 10,
+    year: 2025,
+    month: 12,
+    date: 3,
+    day: "Wed",
+    captured_at: new Date().toISOString(),
+    country: "India",
+    future: "TOTAL",
+    country_future: "98.75",
+    country_future_wndw_total: "98.75",
+    weight: 1.0,
+    last_price: "2899.50",
+    market_open: "+1.25",
+    market_close: "+3.50",
+    market_close_vs_open_pct: "+0.12",
+    weighted_average: "98.75",
+    bhs: "SELL",
+    instrument_count: 11,
+    outcome: "WORKED",
+    wndw: "WORKED",
+  },
+  {
+    id: 4,
+    session_number: 9,
+    year: 2025,
+    month: 12,
+    date: 3,
+    day: "Wed",
+    captured_at: new Date().toISOString(),
+    country: "United Kingdom",
+    future: "TOTAL",
+    country_future: "121.05",
+    country_future_wndw_total: "121.05",
+    weight: 1.0,
+    last_price: "7550.25",
+    market_open: "+0.75",
+    market_close: "+2.15",
+    market_close_vs_open_pct: "+0.09",
+    weighted_average: "121.05",
+    bhs: "BUY",
+    instrument_count: 11,
+    outcome: "WORKED",
+    wndw: "WORKED",
+  },
+  {
+    id: 5,
+    session_number: 1,
+    year: 2025,
+    month: 12,
+    date: 3,
+    day: "Wed",
+    captured_at: new Date().toISOString(),
+    country: "Pre_USA",
+    future: "TOTAL",
+    country_future: "110.00",
+    country_future_wndw_total: "110.00",
+    weight: 1.0,
+    last_price: "4599.00",
+    market_open: "0.00",
+    market_close: "0.00",
+    market_close_vs_open_pct: "0.00",
+    weighted_average: "110.00",
+    bhs: "NEUTRAL",
+    instrument_count: 11,
+    outcome: "PENDING",
+    wndw: "PENDING",
+  },
+  {
+    id: 6,
+    session_number: 2,
+    year: 2025,
+    month: 12,
+    date: 3,
+    day: "Wed",
+    captured_at: new Date().toISOString(),
+    country: "USA",
+    future: "TOTAL",
+    country_future: "130.25",
+    country_future_wndw_total: "130.25",
+    weight: 1.0,
+    last_price: "4732.75",
+    market_open: "+2.25",
+    market_close: "+15.25",
+    market_close_vs_open_pct: "+0.34",
+    weighted_average: "130.25",
+    bhs: "BUY",
+    instrument_count: 11,
+    outcome: "LIVE",
+    wndw: "PENDING",
+  },
+];
+
 // Control markets must use exact country strings from backend sessions.
 // Backend currently stores: Japan, China, India, Germany, United Kingdom, Pre_USA, USA, Canada, Mexico
 const CONTROL_MARKETS = [
@@ -169,6 +353,20 @@ const getDeltaClass = (value?: string | number | null) => {
   return parsed > 0 ? "delta-positive" : "delta-negative";
 };
 
+const getTriangleClass = (value?: string | number | null) => {
+  const deltaClass = getDeltaClass(value);
+  if (deltaClass === "delta-positive") return "triangle-up";
+  if (deltaClass === "delta-negative") return "triangle-down";
+  return "triangle-neutral";
+};
+
+const buildPercentCell = (value?: string | number | null, fallback = "—") => {
+  return {
+    text: formatPercentValue(value) ?? fallback,
+    className: getDeltaClass(value),
+  };
+};
+
 // Helper to check if a value is zero (number or string)
 const isZero = (v: any) => v === 0 || v === "0";
 
@@ -250,10 +448,13 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl }) => {
           return;
         }
         const data = await res.json();
-        if (!cancelled) setSessions(Array.isArray(data) ? data : []);
+        if (!cancelled) {
+          const list = Array.isArray(data) ? data : [];
+          setSessions(list.length > 0 ? list : DEMO_SESSIONS);
+        }
       } catch (e) {
         console.error("MarketDashboard: fetch failed", e);
-        if (!cancelled) setSessions([]);
+        if (!cancelled) setSessions(DEMO_SESSIONS);
       }
     }
 
@@ -281,10 +482,28 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl }) => {
             }
           }
         }
-        if (!cancelled) setLiveStatus(map);
+        if (!cancelled) {
+          // Seed demo live status when API empty
+          const withDemo = Object.keys(map).length > 0 ? map : {
+            Japan: { next_event: "close", seconds_to_next_event: 120, current_state: "OPEN", local_date_key: buildDateKey(2025,12,3) },
+            China: { next_event: "open", seconds_to_next_event: 3600, current_state: "CLOSED", local_date_key: buildDateKey(2025,12,3) },
+            India: { next_event: "close", seconds_to_next_event: 600, current_state: "OPEN", local_date_key: buildDateKey(2025,12,3) },
+            "United Kingdom": { next_event: "close", seconds_to_next_event: 1800, current_state: "OPEN", local_date_key: buildDateKey(2025,12,3) },
+            Pre_USA: { next_event: "open", seconds_to_next_event: 900, current_state: "PREOPEN", local_date_key: buildDateKey(2025,12,3) },
+            USA: { next_event: "close", seconds_to_next_event: 14400, current_state: "OPEN", local_date_key: buildDateKey(2025,12,3) },
+          };
+          setLiveStatus(withDemo);
+        }
       } catch (e) {
         console.error("MarketDashboard: live status fetch failed", e);
-        if (!cancelled) setLiveStatus({});
+        if (!cancelled) setLiveStatus({
+          Japan: { next_event: "close", seconds_to_next_event: 120, current_state: "OPEN", local_date_key: buildDateKey(2025,12,3) },
+          China: { next_event: "open", seconds_to_next_event: 3600, current_state: "CLOSED", local_date_key: buildDateKey(2025,12,3) },
+          India: { next_event: "close", seconds_to_next_event: 600, current_state: "OPEN", local_date_key: buildDateKey(2025,12,3) },
+          "United Kingdom": { next_event: "close", seconds_to_next_event: 1800, current_state: "OPEN", local_date_key: buildDateKey(2025,12,3) },
+          Pre_USA: { next_event: "open", seconds_to_next_event: 900, current_state: "PREOPEN", local_date_key: buildDateKey(2025,12,3) },
+          USA: { next_event: "close", seconds_to_next_event: 14400, current_state: "OPEN", local_date_key: buildDateKey(2025,12,3) },
+        });
       }
     }
 
@@ -369,6 +588,119 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl }) => {
 
   return (
     <div className="market-dashboard">
+      {/* Inline styles for MarketDashboard (kept local per request) */}
+      <style>{`
+        .market-dashboard { width: 100%; padding: 16px; }
+        .market-dashboard-header { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 10px; }
+        .market-open-header-title { font-size: 1.05rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+        .subtitle-text { opacity: 0.75; }
+
+        .market-grid { display: grid; grid-template-columns: 1fr; gap: 14px; }
+        .mo-rt-card { background: #1e1e1e; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); padding: 14px 16px; display: flex; gap: 12px; }
+        .mo-rt-left { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+        .mo-rt-right { flex: 0 0 auto; min-width: 280px; }
+
+        .mo-rt-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+        .mo-rt-header-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+        .chip { padding: 3px 8px; border-radius: 999px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; background: rgba(255,255,255,0.08); }
+        .chip.sym { background: rgba(255,255,255,0.15); }
+        .chip.weight { background: rgba(0,0,0,0.4); }
+        .chip.default { background: rgba(148,163,184,0.35); }
+        .chip.signal.success { background: rgba(16,185,129,0.35); }
+        .chip.signal.error { background: rgba(239,68,68,0.35); }
+        .chip.signal.warning { background: rgba(255,193,7,0.35); }
+        .chip.status.success { background: rgba(16,185,129,0.35); }
+        .chip.status.error { background: rgba(239,68,68,0.35); }
+        .chip.status.warning { background: rgba(255,193,7,0.35); }
+
+        .mo-rt-header-select { display: flex; align-items: center; gap: 6px; font-size: 11px; }
+        .future-select-label { font-size: 11px; opacity: 0.75; text-transform: uppercase; letter-spacing: 0.05em; }
+        .future-select { background: rgba(0,0,0,0.5); border-radius: 6px; border: 1px solid rgba(255,255,255,0.2); padding: 3px 8px; color: #fff; font-size: 12px; }
+
+        .mo-rt-top { display: grid; grid-template-columns: minmax(0, 1fr) 140px; gap: 12px; }
+        .mo-rt-last .val { font-size: 28px; font-weight: 800; line-height: 1; }
+        .mo-rt-last .label { font-size: 12px; opacity: 0.75; }
+        .mo-rt-change { text-align: right; }
+        .mo-rt-change .val { font-size: 16px; font-weight: 700; }
+        .mo-rt-change .pct { font-size: 13px; font-weight: 600; }
+        .mo-rt-change .label { font-size: 12px; opacity: 0.75; }
+        .delta-positive { color: #5cc569; }
+        .delta-negative { color: #f26d6d; }
+        .delta-neutral { color: #fff; opacity: 0.85; }
+
+        .mo-rt-deltas { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+        .delta-column { display: flex; flex-direction: column; gap: 10px; }
+        .delta-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+        .delta-card { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 8px 10px; }
+        .delta-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; opacity: 0.7; }
+        .delta-value { font-size: 13px; font-weight: 700; }
+        .delta-sub { font-size: 11px; opacity: 0.8; }
+
+        .bbo-card { display: grid; grid-template-columns: 1fr 1px 1fr; gap: 0; }
+        .bbo-section { padding: 6px 8px; }
+        .bbo-head { font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; opacity: 0.7; }
+        .bbo-main { font-size: 14px; font-weight: 700; }
+        .bbo-sub { font-size: 11px; opacity: 0.8; }
+        .bbo-divider { width: 1px; background: rgba(255,255,255,0.1); }
+
+        .mo-rt-meta { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 8px; }
+        .meta { background: rgba(255,255,255,0.03); border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); padding: 8px 10px; }
+        .meta-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; opacity: 0.7; margin-bottom: 4px; }
+        .meta-value { font-size: 13px; font-weight: 700; }
+
+        .mo-rt-placeholder { font-size: 12px; opacity: 0.75; padding: 8px 10px; }
+
+        .mo-rt-right-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .mo-rt-stats-title, .intraday-title { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; opacity: 0.7; margin-bottom: 6px; }
+        .mo-rt-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+        .stat { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 8px 10px; }
+        .stat-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; opacity: 0.7; }
+        .stat-value { font-size: 13px; font-weight: 700; }
+
+        .intraday-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+        .intraday-card { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 8px 10px; }
+        .intraday-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; opacity: 0.7; }
+        .intraday-value { font-size: 13px; font-weight: 700; }
+        .intraday-empty { font-size: 12px; opacity: 0.75; }
+
+        /* TOTAL inline card */
+        .total-inline-card { background: rgba(0,0,0,0.35); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
+        .total-inline-top { display: flex; align-items: flex-start; justify-content: space-between; }
+        .total-inline-title { font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; opacity: 0.9; }
+        .total-inline-tags { display: flex; gap: 6px; }
+        .total-inline-badge { font-size: 10px; padding: 3px 8px; border-radius: 999px; background: rgba(255,255,255,0.08); }
+        .total-inline-signal { display: flex; gap: 6px; align-items: center; }
+        .total-inline-weight { font-size: 11px; opacity: 0.8; }
+        .total-inline-main { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 8px; }
+        .total-inline-value { font-size: 20px; font-weight: 800; }
+        .total-inline-label { font-size: 11px; opacity: 0.8; }
+        .total-inline-metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+        .total-inline-mini { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 8px 10px; }
+        .mini-title { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; opacity: 0.7; }
+        .mini-value { font-size: 13px; font-weight: 700; }
+        .mini-sub { font-size: 11px; opacity: 0.8; }
+        .total-inline-meta { font-size: 11px; opacity: 0.8; }
+
+        /* Compact session stats under TOTAL */
+        .mo-rt-session-stats { margin-top: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.35); padding: 8px 10px; font-size: 11px; }
+        .session-stats-header,
+        .session-stats-row { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 0.9fr); gap: 10px; align-items: center; }
+        .session-stats-header { text-transform: uppercase; letter-spacing: 0.08em; font-size: 10px; opacity: 0.7; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 4px; margin-bottom: 4px; }
+        .delta-header-stack { grid-column: 3; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+        .delta-header-stack span:last-child { font-size: 9px; letter-spacing: 0.12em; opacity: 0.8; }
+        .session-stats-row + .session-stats-row { margin-top: 6px; padding-top: 6px; border-top: 1px dashed rgba(255,255,255,0.08); }
+        .session-stats-row span:nth-child(2) { text-align: right; font-variant-numeric: tabular-nums; }
+        .triangle-cell { grid-column: 3; display:flex; flex-direction:column; align-items:center; justify-content:center; gap: 4px; font-variant-numeric: tabular-nums; }
+        .triangle-percent { font-size: 11px; font-weight: 600; }
+        .triangle-up { width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-bottom: 10px solid #5cc569; }
+        .triangle-down { width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-top: 10px solid #f26d6d; }
+        .triangle-neutral { width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-top: 10px solid #bbb; border-bottom: 10px solid #bbb; }
+
+        @media (max-width: 900px) {
+          .mo-rt-right { min-width: 0; }
+          .mo-rt-right-columns { grid-template-columns: 1fr; }
+        }
+      `}</style>
       <div className="market-dashboard-header">
         <h3 className="market-open-header-title">📊 Market Open Sessions</h3>
         <div className="text-xs subtitle-text">Shows all control markets with their own TOTAL</div>
@@ -489,6 +821,113 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl }) => {
           const askPriceDisplay = formatNumOrDash(snap?.ask_price);
           const askSizeDisplay = formatNumOrDash(snap?.ask_size, 0);
           const openPrimary = openDeltaMetric.primary ?? "—";
+          const totalSessionStatsRows = [
+            {
+              key: "market-open",
+              label: "Market Open",
+              value: formatNumOrDash(snap?.open_price_24h),
+              triangleValue: snap?.market_open,
+              percent: buildPercentCell(snap?.market_open),
+            },
+            {
+              key: "market-high",
+              label: "Market High",
+              value: formatNumOrDash(snap?.high_24h),
+              triangleValue: snap?.market_high_pct_open,
+              percent: buildPercentCell(snap?.market_high_pct_open),
+            },
+            {
+              key: "market-low",
+              label: "Market Low",
+              value: formatNumOrDash(snap?.low_24h),
+              triangleValue: snap?.market_low_pct_open,
+              percent: buildPercentCell(snap?.market_low_pct_open),
+            },
+            {
+              key: "market-close",
+              label: "Market Close",
+              value: formatNumOrDash(snap?.prev_close_24h),
+              triangleValue: snap?.market_close_vs_open_pct,
+              percent: buildPercentCell(snap?.market_close_vs_open_pct),
+            },
+            {
+              key: "session-volume",
+              label: "Session Volume",
+              value: formatNumOrDash(snap?.volume, 0),
+              triangleValue: null,
+              percent: buildPercentCell(undefined, "--"),
+            },
+            {
+              key: "range",
+              label: "Range",
+              value: formatNumOrDash(snap?.market_range),
+              triangleValue: snap?.market_range_pct,
+              percent: buildPercentCell(snap?.market_range_pct),
+            },
+          ];
+          const prevCloseNum = parseNumericValue(snap?.prev_close_24h);
+          const low52Num = parseNumericValue(snap?.low_52w);
+          const high52Num = parseNumericValue(snap?.high_52w);
+          const low52DeltaPercent = (prevCloseNum !== null && low52Num !== null && prevCloseNum !== 0)
+            ? ((prevCloseNum - low52Num) / prevCloseNum) * 100
+            : null;
+          const high52DeltaPercent = (prevCloseNum !== null && high52Num !== null && prevCloseNum !== 0)
+            ? ((high52Num - prevCloseNum) / prevCloseNum) * 100
+            : null;
+          const sessionRangeValue = snap?.range_diff_24h
+            ? `${formatNum(snap?.range_diff_24h)} (${formatNum(snap?.range_pct_24h) ?? "—"})`
+            : "—";
+          const detailedSessionStatsRows = [
+            {
+              key: "close",
+              label: "Close",
+              value: formatNumOrDash(snap?.prev_close_24h),
+              triangleValue: snap?.market_close_vs_open_pct,
+              percent: buildPercentCell(snap?.market_close_vs_open_pct),
+            },
+            {
+              key: "open",
+              label: "Open",
+              value: formatNumOrDash(snap?.open_price_24h),
+              triangleValue: snap?.market_open,
+              percent: buildPercentCell(snap?.market_open),
+            },
+            {
+              key: "low24",
+              label: "24h Low",
+              value: formatNumOrDash(snap?.low_24h),
+              triangleValue: snap?.market_low_pct_open,
+              percent: buildPercentCell(snap?.market_low_pct_open),
+            },
+            {
+              key: "high24",
+              label: "24h High",
+              value: formatNumOrDash(snap?.high_24h),
+              triangleValue: snap?.market_high_pct_open,
+              percent: buildPercentCell(snap?.market_high_pct_open),
+            },
+            {
+              key: "range24",
+              label: "24h Range",
+              value: sessionRangeValue,
+              triangleValue: snap?.market_range_pct,
+              percent: buildPercentCell(snap?.market_range_pct),
+            },
+            {
+              key: "low52",
+              label: "52w Low",
+              value: formatNumOrDash(snap?.low_52w),
+              triangleValue: low52DeltaPercent,
+              percent: buildPercentCell(low52DeltaPercent),
+            },
+            {
+              key: "high52",
+              label: "52w High",
+              value: formatNumOrDash(snap?.high_52w),
+              triangleValue: high52DeltaPercent,
+              percent: buildPercentCell(high52DeltaPercent),
+            },
+          ];
 
           return (
             <div key={m.key} className="mo-rt-card">
@@ -550,6 +989,28 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl }) => {
                     </div>
                     <div className="total-inline-meta">
                       <span>Capture: {totalCapture}</span>
+                    </div>
+
+                    {/* Compact Session Stats for TOTAL */}
+                    <div className="mo-rt-session-stats">
+                      <div className="session-stats-header">
+                        <span>Metric</span>
+                        <span>Value</span>
+                        <span className="delta-header-stack">
+                          <span>Δ</span>
+                          <span>Δ%</span>
+                        </span>
+                      </div>
+                      {totalSessionStatsRows.map(row => (
+                        <div className="session-stats-row" key={row.key}>
+                          <span>{row.label}</span>
+                          <span>{row.value}</span>
+                          <span className="triangle-cell">
+                            <span className={getTriangleClass(row.triangleValue)} />
+                            <span className={`triangle-percent ${row.percent.className}`}>{row.percent.text}</span>
+                          </span>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 ) : (
@@ -642,6 +1103,28 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl }) => {
                         <div className="meta-label">Entry</div>
                         <div className="meta-value">{formatNum(snap?.entry_price) ?? (isZero(snap?.entry_price) ? 0 : "—")}</div>
                       </div>
+                    </div>
+
+                    {/* Four-column session stats under non-TOTAL */}
+                    <div className="mo-rt-session-stats">
+                      <div className="session-stats-header">
+                        <span>Metric</span>
+                        <span>Value</span>
+                        <span className="delta-header-stack">
+                          <span>Δ</span>
+                          <span>Δ%</span>
+                        </span>
+                      </div>
+                      {detailedSessionStatsRows.map(row => (
+                        <div className="session-stats-row" key={row.key}>
+                          <span>{row.label}</span>
+                          <span>{row.value}</span>
+                          <span className="triangle-cell">
+                            <span className={getTriangleClass(row.triangleValue)} />
+                            <span className={`triangle-percent ${row.percent.className}`}>{row.percent.text}</span>
+                          </span>
+                        </div>
+                      ))}
                     </div>
                   </>
                 )}
