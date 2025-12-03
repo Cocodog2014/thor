@@ -1,12 +1,16 @@
 .login-page {
+  position: relative;
   width: 100%;
   height: 100vh; /* ensures full screen always */
+  min-height: 100vh;
   background: url("../../assets/ThorTrading 16_9.png") center/cover no-repeat fixed;
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
+  font-family: "Segoe UI", sans-serif;
 }
+
 
 
 /* === Splash Screen === */
@@ -61,11 +65,30 @@
   }
 }
 
-/* === Login Card === */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
 .login-card-wrapper {
   position: relative;
   z-index: 2;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  height: 100%;
 }
+
+.fade-in {
+  animation: fadeIn 1s ease-in forwards;
+}
+
 
 .login-card {
   background: rgba(0, 0, 0, 0.75);
