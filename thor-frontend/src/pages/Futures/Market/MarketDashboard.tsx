@@ -924,7 +924,7 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl }) => {
                   </>
                 )}
               </div>
-
+              
               {!isTotalFuture && (
                 <div className="mo-rt-right">
                   <div className="mo-rt-right-columns">
