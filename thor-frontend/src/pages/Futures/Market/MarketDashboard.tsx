@@ -684,13 +684,16 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl }) => {
         /* Compact session stats under TOTAL */
         .mo-rt-session-stats { margin-top: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.35); padding: 8px 10px; font-size: 11px; }
         .session-stats-header,
-        .session-stats-row { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 0.9fr); gap: 10px; align-items: center; }
+        .session-stats-row { display: grid; grid-template-columns: minmax(0, 1.25fr) repeat(3, minmax(0, 0.95fr)); gap: 10px; align-items: center; }
         .session-stats-header { text-transform: uppercase; letter-spacing: 0.08em; font-size: 10px; opacity: 0.7; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 4px; margin-bottom: 4px; }
-        .delta-header-stack { grid-column: 3; display: flex; flex-direction: column; align-items: center; gap: 2px; }
-        .delta-header-stack span:last-child { font-size: 9px; letter-spacing: 0.12em; opacity: 0.8; }
+        .session-stats-header span,
+        .session-stats-row span { text-align: center; }
+        .session-stats-header span:first-child,
+        .session-stats-row span:first-child { text-align: left; }
         .session-stats-row + .session-stats-row { margin-top: 6px; padding-top: 6px; border-top: 1px dashed rgba(255,255,255,0.08); }
-        .session-stats-row span:nth-child(2) { text-align: right; font-variant-numeric: tabular-nums; }
-        .triangle-cell { grid-column: 3; display:flex; flex-direction:column; align-items:center; justify-content:center; gap: 4px; font-variant-numeric: tabular-nums; }
+        .session-stats-row span:nth-child(2),
+        .session-stats-row span:nth-child(4) { font-variant-numeric: tabular-nums; }
+        .triangle-cell { display:flex; align-items:center; justify-content:center; }
         .triangle-percent { font-size: 11px; font-weight: 600; }
         .triangle-up { width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-bottom: 10px solid #5cc569; }
         .triangle-down { width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-top: 10px solid #f26d6d; }
@@ -851,18 +854,18 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl }) => {
               percent: buildPercentCell(snap?.market_close_vs_open_pct),
             },
             {
-              key: "session-volume",
-              label: "Session Volume",
-              value: formatNumOrDash(snap?.volume, 0),
-              triangleValue: null,
-              percent: buildPercentCell(undefined, "--"),
-            },
-            {
               key: "range",
               label: "Range",
               value: formatNumOrDash(snap?.market_range),
               triangleValue: snap?.market_range_pct,
               percent: buildPercentCell(snap?.market_range_pct),
+            },
+            {
+              key: "session-volume",
+              label: "Session Volume",
+              value: formatNumOrDash(snap?.volume, 0),
+              triangleValue: null,
+              percent: buildPercentCell(undefined, "--"),
             },
           ];
           const prevCloseNum = parseNumericValue(snap?.prev_close_24h);
@@ -996,10 +999,8 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl }) => {
                       <div className="session-stats-header">
                         <span>Metric</span>
                         <span>Value</span>
-                        <span className="delta-header-stack">
-                          <span>Δ</span>
-                          <span>Δ%</span>
-                        </span>
+                        <span>Δ</span>
+                        <span>Δ%</span>
                       </div>
                       {totalSessionStatsRows.map(row => (
                         <div className="session-stats-row" key={row.key}>
@@ -1007,8 +1008,8 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl }) => {
                           <span>{row.value}</span>
                           <span className="triangle-cell">
                             <span className={getTriangleClass(row.triangleValue)} />
-                            <span className={`triangle-percent ${row.percent.className}`}>{row.percent.text}</span>
                           </span>
+                          <span className={`triangle-percent ${row.percent.className}`}>{row.percent.text}</span>
                         </div>
                       ))}
                     </div>
@@ -1110,10 +1111,8 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl }) => {
                       <div className="session-stats-header">
                         <span>Metric</span>
                         <span>Value</span>
-                        <span className="delta-header-stack">
-                          <span>Δ</span>
-                          <span>Δ%</span>
-                        </span>
+                        <span>Δ</span>
+                        <span>Δ%</span>
                       </div>
                       {detailedSessionStatsRows.map(row => (
                         <div className="session-stats-row" key={row.key}>
@@ -1121,8 +1120,8 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl }) => {
                           <span>{row.value}</span>
                           <span className="triangle-cell">
                             <span className={getTriangleClass(row.triangleValue)} />
-                            <span className={`triangle-percent ${row.percent.className}`}>{row.percent.text}</span>
                           </span>
+                          <span className={`triangle-percent ${row.percent.className}`}>{row.percent.text}</span>
                         </div>
                       ))}
                     </div>
