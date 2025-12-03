@@ -1,51 +1,62 @@
-import React, { useEffect, useState } from 'react';
-import { Box, Paper, Typography, TextField, Button } from '@mui/material';
-import { useLocation, useNavigate } from 'react-router-dom';
-import { toast } from 'react-hot-toast';
-import api from '../../services/api';
-import './Login.css';
-import ThorTradingLogo from '../../assets/ThorTrading 16_9.png';
+import React, { useMemo, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
+import { toast } from "react-hot-toast";
+import api from "../../services/api";
+import { useAuth } from "../../context/AuthContext";
+import WarRoomBanner from "./WarRoomBanner";
+import "./Login.css";
+import ThorTradingImage from "../../assets/ThorTrading 16-9.png";
 
 const Login: React.FC = () => {
-  const navigate = useNavigate();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [showSplash, setShowSplash] = useState(true);
-  const [renderSplash, setRenderSplash] = useState(true);
+  const navigate = useNavigate();
   const location = useLocation();
+  const { login } = useAuth();
 
-  useEffect(() => {
-    const fadeTimer = window.setTimeout(() => setShowSplash(false), 2600);
-    const removeTimer = window.setTimeout(() => setRenderSplash(false), 3000);
-    return () => {
-      window.clearTimeout(fadeTimer);
-      window.clearTimeout(removeTimer);
-    };
-  }, []);
+  const redirectTarget = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    const next = params.get("next");
+    return next && next.startsWith("/") ? next : "/app/home";
+  }, [location.search]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
+  const handleLogin = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!email || !password) {
+      toast.error("Please enter valid credentials.");
+      return;
+    }
+
     try {
-      // Call Django JWT login endpoint
-      // Note: Backend expects 'email' field (CustomUser.USERNAME_FIELD = 'email')
-      const { data } = await api.post('/users/login/', {  // baseURL already has /api
-        email: email,  // CustomUser uses email as USERNAME_FIELD
-        password 
-      });
-      
-      // Store JWT tokens
-      localStorage.setItem('thor_access_token', data.access);
-      localStorage.setItem('thor_refresh_token', data.refresh);
-      
-      toast.success('Logged in successfully!');
-      const params = new URLSearchParams(location.search);
-      const next = params.get('next') || '/app/user';
-      navigate(next);
-    } catch (err: any) {
-      console.error('Login error:', err);
-      const message = err.response?.data?.non_field_errors?.[0] || err.response?.data?.detail || 'Invalid credentials';
+      setLoading(true);
+      const { data } = await api.post("/users/login/", { email, password });
+
+      const accessToken = data?.access;
+      const refreshToken = data?.refresh;
+
+      if (!accessToken) {
+        throw new Error("Missing access token in response");
+      }
+
+      login(accessToken);
+
+      if (refreshToken) {
+        try {
+          localStorage.setItem("thor_refresh_token", refreshToken);
+        } catch {
+          // ignore storage errors (private mode, etc.)
+        }
+      }
+
+      toast.success("Welcome back, commander.");
+      navigate(redirectTarget, { replace: true });
+    } catch (error: any) {
+      const message =
+        error?.response?.data?.detail ||
+        error?.response?.data?.message ||
+        error?.message ||
+        "Unable to log in. Please verify your credentials.";
       toast.error(message);
     } finally {
       setLoading(false);
@@ -53,80 +64,50 @@ const Login: React.FC = () => {
   };
 
   return (
-    <Box className="login-page" sx={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-start', p: 3 }}>
-      {renderSplash && (
-        <div className={`login-overlay-backdrop ${showSplash ? '' : 'fade-out'}`} aria-hidden="true" />
-      )}
-      <div className="login-card-wrapper">
-        <Paper elevation={6} className="login-card">
-        {/* Thor Branding */}
-        <Box sx={{ textAlign: 'center', mb: 3 }}>
-          <Typography variant="h3" sx={{ fontSize: '3.75rem', mb: 1 }} className="lightning-animated thor-branding-animated">
-            ⚡🔨⚡
-          </Typography>
-          <Typography variant="h4" className="login-title" sx={{ fontWeight: 600, letterSpacing: 1 }}>
-            THOR'S WAR ROOM
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-            Sign in
-          </Typography>
-        </Box>
+    <div className="login-container">
+      {/* Background */}
+      <div
+        className="background"
+        style={{ backgroundImage: `url(${ThorTradingImage})` }}
+      ></div>
 
-        <form onSubmit={handleSubmit} className="login-form">
-          <TextField
-            label="Email"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            fullWidth
-            required
-            margin="normal"
-            variant="filled"
-            sx={{ mb: 2 }}
-          />
-          <TextField
-            label="Password"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            fullWidth
-            required
-            margin="normal"
-            variant="filled"
-            sx={{ mb: 3 }}
-          />
-          <Button 
-            type="submit" 
-            variant="contained" 
-            disabled={loading} 
-            fullWidth 
-            sx={{ 
-              mt: 1,
-              py: 1.5,
-              background: 'linear-gradient(45deg, #1976d2 30%, #42a5f5 90%)',
-              fontSize: '1rem',
-              fontWeight: 600,
-              '&:hover': {
-                background: 'linear-gradient(45deg, #1565c0 30%, #1976d2 90%)',
-              }
-            }}
-          >
-            {loading ? 'Logging in…' : 'LOGIN'}
-          </Button>
-          <Typography variant="body2" sx={{ mt: 3, textAlign: 'center' }}>
-            Don't have an account? <a href="/auth/register" style={{ color: '#42a5f5', fontWeight: 500 }}>Create one</a>
-          </Typography>
-        </form>
-        </Paper>
-        {renderSplash && (
-          <div className={`login-card-overlay ${showSplash ? '' : 'fade-out'}`} role="presentation">
-            <div className="login-card-overlay-content">
-              <img src={ThorTradingLogo} alt="Thor Trading" />
-            </div>
-          </div>
-        )}
+      <WarRoomBanner />
+
+      {/* Login Form */}
+      <div className="login-wrapper">
+        <div className="login-card">
+          <h2>Activate War Console</h2>
+          <form onSubmit={handleLogin}>
+            <input
+              name="email"
+              type="email"
+              placeholder="Email"
+              autoComplete="email"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              disabled={loading}
+              required
+            />
+            <input
+              name="password"
+              type="password"
+              placeholder="Password"
+              autoComplete="current-password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              disabled={loading}
+              required
+            />
+            <button type="submit" disabled={loading}>
+              {loading ? "Activating…" : "Activate"}
+            </button>
+          </form>
+          <p>
+            Don't have an account? <a href="/auth/register">Create one</a>
+          </p>
+        </div>
       </div>
-    </Box>
+    </div>
   );
 };
 
