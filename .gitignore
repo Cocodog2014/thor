@@ -47,6 +47,8 @@ __pycache__/
 *.swp
 *.swo
 *.bak
+# Local database session/export dumps
+*.pgsql
 # Local Visio diagrams
 Thor Flow.vsdx
 # Excel files with live RTD data

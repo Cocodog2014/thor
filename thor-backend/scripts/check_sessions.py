@@ -10,7 +10,7 @@ if BASE_DIR not in sys.path:
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "thor_project.settings")
 django.setup()
 
-from FutureTrading.models.MarketSession import MarketSession
+from ThorTrading.models.MarketSession import MarketSession
 from django.db.models import Count
 
 print("=" * 60)
@@ -27,10 +27,11 @@ for s in MarketSession.objects.order_by('-captured_at')[:3]:
     print(f"  {s.country} - {s.future} - {s.year}/{s.month}/{s.date} - {s.bhs}")
 
 print("\nLatest per country (for API /latest/):")
-from FutureTrading.constants import CONTROL_COUNTRIES
+from ThorTrading.constants import CONTROL_COUNTRIES
 for country in CONTROL_COUNTRIES:
     latest = MarketSession.objects.filter(country=country).order_by('-captured_at').first()
     if latest:
         print(f"  {country}: {latest.year}-{latest.month:02d}-{latest.date:02d} @ {latest.captured_at.strftime('%H:%M:%S')}")
     else:
         print(f"  {country}: NO DATA")
+

@@ -12,8 +12,80 @@ from rest_framework.decorators import api_view, permission_classes
 from account_statement.models.paper import PaperAccount
 from account_statement.models.real import RealAccount
 from decimal import Decimal
-from FutureTrading.services.vwap import vwap_service
+from ThorTrading.services.vwap import vwap_service
 from LiveData.shared.redis_client import live_data_redis
+from django.db import connection
+
+@api_view(['GET'])
+def session(request: HttpRequest):
+    """
+    GET /api/session?market=Tokyo&future=YM
+
+    Returns session payload including latest 1-minute intraday bar for the
+    given market (market_code) and future symbol from table `intraday_1m`.
+
+    Response shape (partial):
+    {
+      "market": "Tokyo",
+      "future": "YM",
+      "intraday_latest": {
+        "open": float | null,
+        "high": float | null,
+        "low": float | null,
+        "close": float | null,
+        "volume": int | null,
+        "spread": float | null
+      }
+    }
+    """
+    market_code = (request.GET.get('market') or '').strip()
+    future = (request.GET.get('future') or '').strip().upper()
+
+    if not market_code or not future:
+        return Response({
+            'detail': 'Both market and future parameters are required.',
+            'market': market_code,
+            'future': future,
+            'intraday_latest': None,
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    # Query latest 1-minute bar
+    sql = (
+        """
+        SELECT open_1m, high_1m, low_1m, close_1m, volume_1m, spread_last
+        FROM intraday_1m
+        WHERE market_code = %s AND future = %s
+        ORDER BY timestamp_minute DESC
+        LIMIT 1
+        """
+    )
+
+    latest = None
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(sql, [market_code, future])
+            row = cursor.fetchone()
+            if row:
+                open_v, high_v, low_v, close_v, volume_v, spread_v = row
+                latest = {
+                    'open': float(open_v) if open_v is not None else None,
+                    'high': float(high_v) if high_v is not None else None,
+                    'low': float(low_v) if low_v is not None else None,
+                    'close': float(close_v) if close_v is not None else None,
+                    'volume': int(volume_v) if volume_v is not None else None,
+                    'spread': float(spread_v) if spread_v is not None else None,
+                }
+    except Exception as e:
+        return Response({'detail': f'Database error: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    # Minimal payload; hooks exist to merge session tiles when available
+    payload = {
+        'market': market_code,
+        'future': future,
+        'intraday_latest': latest,
+    }
+
+    return Response(payload, status=status.HTTP_200_OK)
 
 @api_view(['GET'])
 def vwap_today(request: HttpRequest):
@@ -333,3 +405,4 @@ def account_statement_reset_paper(request: HttpRequest):
     }
 
     return Response(data, status=status.HTTP_200_OK)
+

@@ -1,6 +1,11 @@
-from django.db import models
+import logging
 from datetime import datetime, time, timedelta
+
+from django.conf import settings
+from django.db import models
 import pytz
+
+logger = logging.getLogger(__name__)
 
 
 # Control Markets Configuration - The 9 markets that drive global sentiment
@@ -16,6 +21,31 @@ CONTROL_MARKET_WEIGHTS = {
     'Canada': 0.03,          # Toronto (TSX) - Commodity confirmation
     'Mexico': 0.02,          # BMV IPC - Regional follow-through
 }
+
+_TIMEZONE_ALIASES = {
+    "Tokyo": "Asia/Tokyo",
+    "Japan": "Asia/Tokyo",
+    "Shanghai": "Asia/Shanghai",
+    "China": "Asia/Shanghai",
+    "Bombay": "Asia/Kolkata",
+    "India": "Asia/Kolkata",
+    "Frankfurt": "Europe/Berlin",
+    "Germany": "Europe/Berlin",
+    "London": "Europe/London",
+    "United Kingdom": "Europe/London",
+    "Pre-USA": "America/New_York",
+    "Pre_USA": "America/New_York",
+    "USA": "America/New_York",
+    "Toronto": "America/Toronto",
+    "Canada": "America/Toronto",
+    "Mexican": "America/Mexico_City",
+    "Mexico": "America/Mexico_City",
+}
+
+try:
+    _DEFAULT_MARKET_TZ = pytz.timezone(getattr(settings, "TIME_ZONE", "UTC"))
+except Exception:  # pragma: no cover - defensive guard for bad settings
+    _DEFAULT_MARKET_TZ = pytz.UTC
 
 
 class Market(models.Model):
@@ -116,10 +146,26 @@ class Market(models.Model):
         }
         return order_map.get(self.country, 999)
     
-    def get_current_market_time(self):
-        """Get current time in market's timezone with full date/time info"""
+    def _resolve_timezone(self):
+        tz_name = (self.timezone_name or "").strip()
+        if not tz_name:
+            return None
+        tz_name = _TIMEZONE_ALIASES.get(tz_name, tz_name)
         try:
-            tz = pytz.timezone(self.timezone_name)
+            return pytz.timezone(tz_name)
+        except Exception:
+            logger.warning(
+                "Market %s has invalid timezone '%s'; defaulting to %s",
+                self.country,
+                tz_name,
+                _DEFAULT_MARKET_TZ.zone,
+            )
+            return None
+
+    def get_current_market_time(self):
+        """Get current time in market's timezone with full date/time info."""
+        tz = self._resolve_timezone() or _DEFAULT_MARKET_TZ
+        try:
             now = datetime.now(tz)
             return {
                 'datetime': now,
@@ -135,7 +181,8 @@ class Market(models.Model):
                 'utc_offset': now.strftime('%z'),  # Auto-calculated with DST
                 'dst_active': bool(now.dst()),  # Auto-detected DST status
             }
-        except Exception as e:
+        except Exception:
+            logger.exception("Failed computing current market time for %s", self.country)
             return None
     
     def should_collect_data(self):

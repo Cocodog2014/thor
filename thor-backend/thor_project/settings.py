@@ -59,9 +59,9 @@ INSTALLED_APPS = [
     'account_statement',  # Paper and real trading account management
     'core',
     'api',
-    'GlobalMarkets',  # WorldClock and Market data (renamed from 'timezones')
-    'thordata',   # Large Excel import app
-    'FutureTrading',  # Modern real-time market data system (shim module delegates to lowercase app)
+        'GlobalMarkets',  # WorldClock and Market data (renamed from 'timezones')
+        'thordata',   # Large Excel import app
+        'ThorTrading.apps.ThorTradingConfig',  # Modern real-time market data system (keeps legacy DB tables)
     # LiveData - Multi-broker live data pipeline
     'LiveData.schwab.apps.SchwabConfig',  # Schwab OAuth + Trading API
     'LiveData.tos.apps.TosConfig',        # Thinkorswim streaming
@@ -284,7 +284,7 @@ LOGGING = {
         },
     },
     'loggers': {
-        'FutureTrading': {
+        'ThorTrading': {
             'handlers': ['console'],
             'level': 'INFO',
         },

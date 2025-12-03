@@ -6,8 +6,8 @@ http://localhost:5173/
 
 1. Start databases & cache
 
-```powershellcd A:\Thor
-
+```powershell
+cd A:\Thor
 docker compose up -d postgres
 docker compose up -d redis
 ```
@@ -27,11 +27,11 @@ $env:REDIS_URL        = 'redis://localhost:6379/0'
 python manage.py runserver
 ```
 
-3. Run frontend 
-```  
+3. Run frontend
+
+```powershell
 cd A:\Thor\thor-frontend
 npm run dev
-     
 ```
 
 4. Start Excel → Redis poller (new shell)

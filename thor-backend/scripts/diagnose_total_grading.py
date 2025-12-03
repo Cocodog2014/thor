@@ -11,7 +11,7 @@ if PROJECT_ROOT not in sys.path:
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'thor_project.settings')
 django.setup()
 
-from FutureTrading.models.MarketSession import MarketSession
+from ThorTrading.models.MarketSession import MarketSession
 from LiveData.shared.redis_client import live_data_redis
 from decimal import Decimal
 
@@ -75,3 +75,4 @@ if ym_session and total_session:
                             print(f"⏸ Price {exit_price} between {total_session.target_low} and {total_session.target_high} → Still PENDING")
     except Exception as e:
         print(f"\nError checking YM price: {e}")
+

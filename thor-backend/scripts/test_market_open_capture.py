@@ -15,8 +15,8 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'thor_project.settings')
 django.setup()
 
 from GlobalMarkets.models import Market
-from FutureTrading.views.MarketOpenCapture import capture_market_open
-from FutureTrading.models.MarketSession import MarketSession
+from ThorTrading.views.MarketOpenCapture import capture_market_open
+from ThorTrading.models.MarketSession import MarketSession
 
 
 def simulate_tokyo_open():
@@ -189,3 +189,4 @@ if __name__ == '__main__':
         print("\n📋 TRACEBACK:")
         traceback.print_exc()
         sys.exit(1)
+

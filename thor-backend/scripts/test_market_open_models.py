@@ -13,7 +13,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'thor_project.settings')
 django.setup()
 
-from FutureTrading.models.MarketOpen import MarketOpenSession, FutureSnapshot
+from ThorTrading.models.MarketOpen import MarketOpenSession, FutureSnapshot
 from decimal import Decimal
 from django.utils import timezone
 
@@ -135,3 +135,4 @@ except Exception as e:
 print("\n" + "=" * 60)
 print("✅ All tests passed!")
 print("=" * 60)
+
