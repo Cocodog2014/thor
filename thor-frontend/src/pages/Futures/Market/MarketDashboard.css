@@ -35,11 +35,14 @@
 .mo-rt-left {
   flex: 1 1 auto;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .mo-rt-right {
-  flex: 0 0 260px;
+  flex: 0 0 360px;
   min-width: 0;
+  margin-top: 32px;
 }
 
 .mo-rt-header {
@@ -114,18 +117,23 @@
 .delta-negative { color: #f26d6d; }
 .delta-neutral { color: #fff; opacity: 0.85; }
 
-.mo-rt-bbo {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+.mo-rt-deltas {
+  display: flex;
   gap: 12px;
   margin-bottom: 14px;
 }
 
-.mo-rt-deltas {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+.delta-column {
+  flex: 1 1 0;
+  display: flex;
+  flex-direction: column;
   gap: 10px;
-  margin-bottom: 14px;
+}
+
+.delta-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+  gap: 10px;
 }
 
 .delta-card {
@@ -153,12 +161,21 @@
   opacity: 0.75;
 }
 
-.bbo-tile {
-  background: rgba(255,255,255,0.04);
-  border-radius: 10px;
-  border: 1px solid rgba(255,255,255,0.12);
-  padding: 10px 12px;
+.bbo-card {
+  display: flex;
+  align-items: stretch;
+  gap: 12px;
+}
+
+.bbo-section {
+  flex: 1 1 0;
   text-align: center;
+}
+
+.bbo-divider {
+  width: 1px;
+  background: rgba(255,255,255,0.08);
+  border-radius: 1px;
 }
 
 .bbo-head {
@@ -175,7 +192,7 @@
 
 .mo-rt-meta {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(1, minmax(0, 1fr));
   gap: 10px;
 }
 
@@ -197,6 +214,63 @@
 .meta-value {
   font-size: 13px;
   font-weight: 700;
+}
+
+.mo-rt-right-columns {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.session-stats-column {
+  flex: 1 1 auto;
+}
+
+.intraday-column {
+  flex: 0 0 150px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 10px;
+  padding: 10px;
+}
+
+.intraday-title {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  opacity: 0.75;
+  margin-bottom: 6px;
+}
+
+.intraday-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.intraday-card {
+  background: rgba(0,0,0,0.3);
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.08);
+  padding: 6px 8px;
+}
+
+.intraday-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  opacity: 0.7;
+}
+
+.intraday-value {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.intraday-empty {
+  margin-top: 8px;
+  font-size: 11px;
+  opacity: 0.7;
 }
 
 .mo-rt-stats-title {
@@ -243,6 +317,8 @@
 @media (max-width: 1024px) {
   .mo-rt-card { flex-direction: column; }
   .mo-rt-right { flex: 1 1 auto; }
+  .mo-rt-right-columns { flex-direction: column; }
+  .intraday-column { flex: 1 1 auto; width: 100%; }
 }
 
 /* TOTAL inline layout (per market) */

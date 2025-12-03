@@ -65,6 +65,15 @@ type MarketLiveStatus = {
   local_date_key?: string;
 };
 
+type IntradaySnapshot = {
+  open?: number | null;
+  high?: number | null;
+  low?: number | null;
+  close?: number | null;
+  volume?: number | null;
+  spread?: number | null;
+};
+
 // Control markets must use exact country strings from backend sessions.
 // Backend currently stores: Japan, China, India, Germany, United Kingdom, Pre_USA, USA, Canada, Mexico
 const CONTROL_MARKETS = [
@@ -163,6 +172,12 @@ const getDeltaClass = (value?: string | number | null) => {
 // Helper to check if a value is zero (number or string)
 const isZero = (v: any) => v === 0 || v === "0";
 
+const formatNumOrDash = (value?: string | number | null, maxFrac = 2) => {
+  const formatted = formatNum(value, maxFrac);
+  if (formatted !== undefined) return formatted;
+  return isZero(value) ? 0 : "—";
+};
+
 const buildDateKey = (year?: number | null, month?: number | null, day?: number | null) => {
   if (!year || !month || !day) return undefined;
   const paddedMonth = String(month).padStart(2, "0");
@@ -185,16 +200,40 @@ const getLiveStatusApiUrl = () => {
     || "http://127.0.0.1:8000/api/global-markets/markets/live_status/";
 };
 
+const trimTrailingSlash = (value: string) => value.replace(/\/+$/, "");
+
+const getSessionApiUrl = () => {
+  const explicit = import.meta.env.VITE_MARKET_SESSION_API_URL || import.meta.env.VITE_SESSION_API_URL;
+  if (explicit) return trimTrailingSlash(explicit);
+  const backendBase = import.meta.env.VITE_BACKEND_BASE_URL;
+  if (backendBase) return `${trimTrailingSlash(backendBase)}/api/session`;
+  if (typeof window !== "undefined" && window.location?.origin) {
+    return `${trimTrailingSlash(window.location.origin)}/api/session`;
+  }
+  return "http://127.0.0.1:8000/api/session";
+};
+
+const formatIntradayValue = (value?: number | null, maxFrac = 2) => {
+  if (value === null || value === undefined) return "—";
+  const parsed = Number(value);
+  if (Number.isNaN(parsed)) return "—";
+  return parsed.toLocaleString("en-US", { maximumFractionDigits: maxFrac });
+};
+
 const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl }) => {
   const resolvedApiUrl = apiUrl || getApiUrl();
   const resolvedLiveStatusUrl = getLiveStatusApiUrl();
+  const sessionApiUrl = useMemo(() => getSessionApiUrl(), []);
   const [sessions, setSessions] = useState<MarketOpenSession[] | null>(null);
   const [liveStatus, setLiveStatus] = useState<Record<string, MarketLiveStatus>>({});
+  const [intradayLatest, setIntradayLatest] = useState<Record<string, IntradaySnapshot | null>>({});
 
   // 🔹 Default future per market = TOTAL (per-country composite)
   const [selected, setSelected] = useState<Record<string, string>>(() => {
     const init: Record<string, string> = {};
-    CONTROL_MARKETS.forEach(m => { init[m.key] = "TOTAL"; });
+    CONTROL_MARKETS.forEach(m => {
+      init[m.key] = "TOTAL";
+    });
     return init;
   });
 
@@ -263,6 +302,50 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl }) => {
     const id = setInterval(tick, 1000);
     return () => { cancelled = true; clearInterval(id); };
   }, [resolvedApiUrl, resolvedLiveStatusUrl]);
+
+  // Map dashboard key to backend session market_code
+  const marketKeyToCode = (key: string) => {
+    switch (key) {
+      case "Tokyo": return "Tokyo";
+      case "Bombay": return "India";
+      case "London": return "London";
+      case "Pre_USA": return "Pre_USA";
+      case "USA": return "USA";
+      default: return key; // fallback
+    }
+  };
+
+  // Fetch intraday latest for each visible card and selected future (except TOTAL)
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadIntraday() {
+      const updates: Record<string, IntradaySnapshot | null> = {};
+      await Promise.all(CONTROL_MARKETS.map(async (m) => {
+        const sel = selected[m.key] || "TOTAL";
+        if (sel === "TOTAL") return; // no intraday call for TOTAL composites
+        const marketCode = marketKeyToCode(m.key);
+        const url = `${sessionApiUrl}?market=${encodeURIComponent(marketCode)}&future=${encodeURIComponent(sel)}`;
+        try {
+          const res = await fetch(url);
+          if (!res.ok) {
+            updates[m.key] = null;
+            return;
+          }
+          const data = await res.json();
+          updates[m.key] = data?.intraday_latest || null;
+        } catch (err) {
+          console.error("MarketDashboard: intraday fetch failed", err);
+          updates[m.key] = null;
+        }
+      }));
+      if (!cancelled) setIntradayLatest(prev => ({ ...prev, ...updates }));
+    }
+
+    const id = setInterval(loadIntraday, 1000);
+    loadIntraday();
+    return () => { cancelled = true; clearInterval(id); };
+  }, [selected, sessionApiUrl]);
 
   const normalizeCountry = (c?: string) => (c || "").trim().toLowerCase();
 
@@ -335,6 +418,7 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl }) => {
           const selectedSymbol = selected[m.key] || defaultFuture;
 
           const snap = rows.find(r => r.future?.toUpperCase() === selectedSymbol.toUpperCase()) || rows[0];
+          const latestIntraday = intradayLatest[m.key];
 
           if (!snap) {
             return (
@@ -368,12 +452,18 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl }) => {
               ?? snap?.market_high_pct_close
               ?? snap?.market_low_pct_close
           );
-          const marketDeltaMetrics = [
+          const openDeltaMetric = {
+            label: "Open Δ",
+            primary: formatSignedValue(snap?.market_open),
+            secondary: undefined,
+            className: getDeltaClass(snap?.market_open),
+          };
+          const rangeColumnMetrics = [
             {
-              label: "Open Δ",
-              primary: formatSignedValue(snap?.market_open),
-              secondary: undefined,
-              className: getDeltaClass(snap?.market_open),
+              label: "Low Δ",
+              primary: formatSignedValue(snap?.market_low_open),
+              secondary: formatPercentValue(snap?.market_low_pct_open),
+              className: getDeltaClass(snap?.market_low_open ?? snap?.market_low_pct_open),
             },
             {
               label: "High Δ",
@@ -382,19 +472,23 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl }) => {
               className: getDeltaClass(snap?.market_high_open ?? snap?.market_high_pct_open),
             },
             {
-              label: "Low Δ",
-              primary: formatSignedValue(snap?.market_low_open),
-              secondary: formatPercentValue(snap?.market_low_pct_open),
-              className: getDeltaClass(snap?.market_low_open ?? snap?.market_low_pct_open),
-            },
-            {
               label: "Range Δ",
               primary: formatSignedValue(snap?.market_range),
               secondary: formatPercentValue(snap?.market_range_pct),
               className: getDeltaClass(snap?.market_range ?? snap?.market_range_pct),
             },
           ];
-          const hasDeltaData = marketDeltaMetrics.some(metric => metric.primary || metric.secondary);
+          const [lowMetric, highMetric, diffMetric] = rangeColumnMetrics;
+          const showLowMetric = Boolean(lowMetric.primary || lowMetric.secondary);
+          const showHighMetric = Boolean(highMetric.primary || highMetric.secondary);
+          const showDiffMetric = Boolean(diffMetric.primary || diffMetric.secondary);
+          const captureTime = snap?.captured_at ? new Date(snap.captured_at).toLocaleTimeString() : "—";
+          const selectId = `future-select-${m.key}`;
+          const bidPriceDisplay = formatNumOrDash(snap?.bid_price);
+          const bidSizeDisplay = formatNumOrDash(snap?.bid_size, 0);
+          const askPriceDisplay = formatNumOrDash(snap?.ask_price);
+          const askSizeDisplay = formatNumOrDash(snap?.ask_size, 0);
+          const openPrimary = openDeltaMetric.primary ?? "—";
 
           return (
             <div key={m.key} className="mo-rt-card">
@@ -402,19 +496,17 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl }) => {
                 <div className="mo-rt-header">
                   <div className="mo-rt-header-chips">
                     <span className="chip sym">{m.label}</span>
-                    {!isTotalFuture && (
-                      <span className={chipClass("signal", signal || undefined)}>{signal || "—"}</span>
-                    )}
+                    <span className={chipClass("signal", signal || undefined)}>{signal || "—"}</span>
                     <span className={chipClass("status", outcomeStatus || undefined)}>{outcomeStatus || "—"}</span>
-                    {!isTotalFuture && (
-                      <span className="chip weight">Wgt: {snap?.weight ?? "—"}</span>
-                    )}
+                    <span className="chip weight">Wgt: {snap?.weight ?? "—"}</span>
+                    <span className="chip default">Capture {captureTime}</span>
                   </div>
-                  <div>
-                    <span className="future-select-label">Future</span>
+                  <div className="mo-rt-header-select">
+                    <label htmlFor={selectId} className="future-select-label">Future</label>
                     <select
+                      id={selectId}
                       className="future-select"
-                      value={selected[m.key] || defaultFuture}
+                      value={selectedSymbol}
                       onChange={(e) => setSelected(prev => ({ ...prev, [m.key]: e.target.value }))}
                       aria-label="Select future contract"
                     >
@@ -479,44 +571,73 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl }) => {
                       </div>
                     </div>
 
-                    <div className="mo-rt-bbo">
-                      <div className="bbo-tile">
-                        <div className="bbo-head bid">Bid</div>
-                        <div className="bbo-main">{formatNum(snap?.bid_price) ?? (isZero(snap?.bid_price) ? 0 : "—")}</div>
-                        <div className="bbo-sub">Size {formatNum(snap?.bid_size, 0) ?? (isZero(snap?.bid_size) ? 0 : "—")}</div>
+                    <div className="mo-rt-deltas">
+                      <div className="delta-column">
+                        <div className="delta-card bbo-card">
+                          <div className="bbo-section">
+                            <div className="bbo-head bid">Bid</div>
+                            <div className="bbo-main">{bidPriceDisplay}</div>
+                            <div className="bbo-sub">Size {bidSizeDisplay}</div>
+                          </div>
+                          <div className="bbo-divider" aria-hidden="true" />
+                          <div className="bbo-section">
+                            <div className="bbo-head ask">Ask</div>
+                            <div className="bbo-main">{askPriceDisplay}</div>
+                            <div className="bbo-sub">Size {askSizeDisplay}</div>
+                          </div>
+                        </div>
                       </div>
-                      <div className="bbo-tile">
-                        <div className="bbo-head ask">Ask</div>
-                        <div className="bbo-main">{formatNum(snap?.ask_price) ?? (isZero(snap?.ask_price) ? 0 : "—")}</div>
-                        <div className="bbo-sub">Size {formatNum(snap?.ask_size, 0) ?? (isZero(snap?.ask_size) ? 0 : "—")}</div>
-                      </div>
-                    </div>
-
-                    {hasDeltaData && (
-                      <div className="mo-rt-deltas">
-                        {marketDeltaMetrics.map(metric => (
-                          <div className="delta-card" key={metric.label}>
-                            <div className="delta-label">{metric.label}</div>
-                            <div className={`delta-value ${metric.className}`}>
-                              {metric.primary ?? "—"}
+                      {(openPrimary || showLowMetric || showHighMetric || showDiffMetric) && (
+                        <div className="delta-column">
+                          <div className="delta-row">
+                            <div className="delta-card" key="open-metric">
+                              <div className="delta-label">{openDeltaMetric.label}</div>
+                              <div className={`delta-value ${openDeltaMetric.className}`}>
+                                {openPrimary}
+                              </div>
+                              {openDeltaMetric.secondary && (
+                                <div className="delta-sub">{openDeltaMetric.secondary}</div>
+                              )}
                             </div>
-                            {metric.secondary && (
-                              <div className="delta-sub">{metric.secondary}</div>
+                            {showLowMetric && (
+                              <div className="delta-card" key="low-metric">
+                                <div className="delta-label">{lowMetric.label}</div>
+                                <div className={`delta-value ${lowMetric.className}`}>
+                                  {lowMetric.primary ?? "—"}
+                                </div>
+                                {lowMetric.secondary && (
+                                  <div className="delta-sub">{lowMetric.secondary}</div>
+                                )}
+                              </div>
+                            )}
+                            {showHighMetric && (
+                              <div className="delta-card" key="high-metric">
+                                <div className="delta-label">{highMetric.label}</div>
+                                <div className={`delta-value ${highMetric.className}`}>
+                                  {highMetric.primary ?? "—"}
+                                </div>
+                                {highMetric.secondary && (
+                                  <div className="delta-sub">{highMetric.secondary}</div>
+                                )}
+                              </div>
                             )}
                           </div>
-                        ))}
-                      </div>
-                    )}
+                          {showDiffMetric && (
+                            <div className="delta-card" key="range-metric">
+                              <div className="delta-label">{diffMetric.label}</div>
+                              <div className={`delta-value ${diffMetric.className}`}>
+                                {diffMetric.primary ?? "—"}
+                              </div>
+                              {diffMetric.secondary && (
+                                <div className="delta-sub">{diffMetric.secondary}</div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
 
                     <div className="mo-rt-meta">
-                      <div className="meta">
-                        <div className="meta-label">Capture</div>
-                        <div className="meta-value">{snap?.captured_at ? new Date(snap.captured_at).toLocaleTimeString() : "—"}</div>
-                      </div>
-                      <div className="meta">
-                        <div className="meta-label">Contract</div>
-                        <div className="meta-value">{snap?.future || "—"}</div>
-                      </div>
                       <div className="meta">
                         <div className="meta-label">Entry</div>
                         <div className="meta-value">{formatNum(snap?.entry_price) ?? (isZero(snap?.entry_price) ? 0 : "—")}</div>
@@ -528,39 +649,81 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl }) => {
 
               {!isTotalFuture && (
                 <div className="mo-rt-right">
-                  <div className="mo-rt-stats-title">Session Stats</div>
-                  <div className="mo-rt-stats">
-                    <div className="stat">
-                      <div className="stat-label">Volume</div>
-                      <div className="stat-value">{snap?.volume !== undefined && snap?.volume !== null ? formatNum(snap?.volume, 0) : "—"}</div>
+                  <div className="mo-rt-right-columns">
+                    <div className="session-stats-column">
+                      <div className="mo-rt-stats-title">Session Stats</div>
+                      <div className="mo-rt-stats">
+                        <div className="stat">
+                          <div className="stat-label">Volume</div>
+                          <div className="stat-value">{snap?.volume !== undefined && snap?.volume !== null ? formatNum(snap?.volume, 0) : "—"}</div>
+                        </div>
+                        <div className="stat">
+                          <div className="stat-label">Prev Close (24h)</div>
+                          <div className="stat-value">{formatNum(snap?.prev_close_24h) ?? (isZero(snap?.prev_close_24h) ? 0 : "—")}</div>
+                        </div>
+                        <div className="stat">
+                          <div className="stat-label">Open (24h)</div>
+                          <div className="stat-value">{formatNum(snap?.open_price_24h) ?? (isZero(snap?.open_price_24h) ? 0 : "—")}</div>
+                        </div>
+                        <div className="stat">
+                          <div className="stat-label">24h Low</div>
+                          <div className="stat-value">{formatNum(snap?.low_24h) ?? (isZero(snap?.low_24h) ? 0 : "—")}</div>
+                        </div>
+                        <div className="stat">
+                          <div className="stat-label">24h High</div>
+                          <div className="stat-value">{formatNum(snap?.high_24h) ?? (isZero(snap?.high_24h) ? 0 : "—")}</div>
+                        </div>
+                        <div className="stat">
+                          <div className="stat-label">24h Range</div>
+                          <div className="stat-value">{snap?.range_diff_24h ? `${formatNum(snap?.range_diff_24h)} (${formatNum(snap?.range_pct_24h) ?? "—"})` : "—"}</div>
+                        </div>
+                        <div className="stat">
+                          <div className="stat-label">52W Low</div>
+                          <div className="stat-value">{formatNum(snap?.low_52w) ?? (isZero(snap?.low_52w) ? 0 : "—")}</div>
+                        </div>
+                        <div className="stat">
+                          <div className="stat-label">52W High</div>
+                          <div className="stat-value">{formatNum(snap?.high_52w) ?? (isZero(snap?.high_52w) ? 0 : "—")}</div>
+                        </div>
+                      </div>
                     </div>
-                    <div className="stat">
-                      <div className="stat-label">Prev Close (24h)</div>
-                      <div className="stat-value">{formatNum(snap?.prev_close_24h) ?? (isZero(snap?.prev_close_24h) ? 0 : "—")}</div>
-                    </div>
-                    <div className="stat">
-                      <div className="stat-label">Open (24h)</div>
-                      <div className="stat-value">{formatNum(snap?.open_price_24h) ?? (isZero(snap?.open_price_24h) ? 0 : "—")}</div>
-                    </div>
-                    <div className="stat">
-                      <div className="stat-label">24h Low</div>
-                      <div className="stat-value">{formatNum(snap?.low_24h) ?? (isZero(snap?.low_24h) ? 0 : "—")}</div>
-                    </div>
-                    <div className="stat">
-                      <div className="stat-label">24h High</div>
-                      <div className="stat-value">{formatNum(snap?.high_24h) ?? (isZero(snap?.high_24h) ? 0 : "—")}</div>
-                    </div>
-                    <div className="stat">
-                      <div className="stat-label">24h Range</div>
-                      <div className="stat-value">{snap?.range_diff_24h ? `${formatNum(snap?.range_diff_24h)} (${formatNum(snap?.range_pct_24h) ?? "—"})` : "—"}</div>
-                    </div>
-                    <div className="stat">
-                      <div className="stat-label">52W Low</div>
-                      <div className="stat-value">{formatNum(snap?.low_52w) ?? (isZero(snap?.low_52w) ? 0 : "—")}</div>
-                    </div>
-                    <div className="stat">
-                      <div className="stat-label">52W High</div>
-                      <div className="stat-value">{formatNum(snap?.high_52w) ?? (isZero(snap?.high_52w) ? 0 : "—")}</div>
+                    <div className="intraday-column">
+                      <div className="intraday-title">Intraday 1m</div>
+                      <div className="intraday-grid">
+                        {[{
+                          key: "open",
+                          label: "Open",
+                          value: formatIntradayValue(latestIntraday?.open),
+                        }, {
+                          key: "low",
+                          label: "Low",
+                          value: formatIntradayValue(latestIntraday?.low),
+                        }, {
+                          key: "high",
+                          label: "High",
+                          value: formatIntradayValue(latestIntraday?.high),
+                        }, {
+                          key: "close",
+                          label: "Close",
+                          value: formatIntradayValue(latestIntraday?.close),
+                        }, {
+                          key: "volume",
+                          label: "Volume",
+                          value: formatIntradayValue(latestIntraday?.volume, 0),
+                        }, {
+                          key: "spread",
+                          label: "Spread",
+                          value: formatIntradayValue(latestIntraday?.spread, 3),
+                        }].map(item => (
+                          <div className="intraday-card" key={item.key}>
+                            <div className="intraday-label">{item.label}</div>
+                            <div className="intraday-value">{item.value}</div>
+                          </div>
+                        ))}
+                      </div>
+                      {!latestIntraday && (
+                        <div className="intraday-empty">Waiting for live data...</div>
+                      )}
                     </div>
                   </div>
                 </div>

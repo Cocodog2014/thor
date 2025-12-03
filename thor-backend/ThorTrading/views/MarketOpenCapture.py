@@ -253,7 +253,7 @@ class MarketOpenCaptureService:
             try:
                 sym_list = [r.get('instrument', {}).get('symbol') for r in enriched]
                 logger.info(
-                    "MarketOpenCapture %s %04d-%02d-%02d – enriched count=%s, symbols=%s",
+                    "MarketOpenCapture %s %04d-%02d-%02d - enriched count=%s, symbols=%s",
                     market.country,
                     time_info['year'],
                     time_info['month'],
@@ -263,7 +263,7 @@ class MarketOpenCaptureService:
                 )
             except Exception:
                 logger.info(
-                    "MarketOpenCapture %s %04d-%02d-%02d – enriched count=%s",
+                    "MarketOpenCapture %s %04d-%02d-%02d - enriched count=%s",
                     market.country,
                     time_info['year'],
                     time_info['month'],

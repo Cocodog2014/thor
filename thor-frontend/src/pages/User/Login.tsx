@@ -1,16 +1,28 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Box, Paper, Typography, TextField, Button } from '@mui/material';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import api from '../../services/api';
 import './Login.css';
+import ThorTradingLogo from '../../assets/ThorTrading 16_9.png';
 
 const Login: React.FC = () => {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showSplash, setShowSplash] = useState(true);
+  const [renderSplash, setRenderSplash] = useState(true);
   const location = useLocation();
+
+  useEffect(() => {
+    const fadeTimer = window.setTimeout(() => setShowSplash(false), 2600);
+    const removeTimer = window.setTimeout(() => setRenderSplash(false), 3000);
+    return () => {
+      window.clearTimeout(fadeTimer);
+      window.clearTimeout(removeTimer);
+    };
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -42,7 +54,11 @@ const Login: React.FC = () => {
 
   return (
     <Box className="login-page" sx={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-start', p: 3 }}>
-      <Paper elevation={6} className="login-card">
+      {renderSplash && (
+        <div className={`login-overlay-backdrop ${showSplash ? '' : 'fade-out'}`} aria-hidden="true" />
+      )}
+      <div className="login-card-wrapper">
+        <Paper elevation={6} className="login-card">
         {/* Thor Branding */}
         <Box sx={{ textAlign: 'center', mb: 3 }}>
           <Typography variant="h3" sx={{ fontSize: '3.75rem', mb: 1 }} className="lightning-animated thor-branding-animated">
@@ -101,7 +117,15 @@ const Login: React.FC = () => {
             Don't have an account? <a href="/auth/register" style={{ color: '#42a5f5', fontWeight: 500 }}>Create one</a>
           </Typography>
         </form>
-      </Paper>
+        </Paper>
+        {renderSplash && (
+          <div className={`login-card-overlay ${showSplash ? '' : 'fade-out'}`} role="presentation">
+            <div className="login-card-overlay-content">
+              <img src={ThorTradingLogo} alt="Thor Trading" />
+            </div>
+          </div>
+        )}
+      </div>
     </Box>
   );
 };
