@@ -40,8 +40,9 @@
 }
 
 .mo-rt-right {
-  flex: 0 0 260px;
+  flex: 0 0 360px;
   min-width: 0;
+  margin-top: 32px;
 }
 
 .mo-rt-header {
@@ -201,18 +202,61 @@
   font-weight: 700;
 }
 
-/* Intraday compact row */
-.mo-rt-intraday {
-  margin-top: auto; /* push to bottom of left column */
-  margin-bottom: 12px;
+.mo-rt-right-columns {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
 }
-.intraday-row {
-  font-size: 12px;
-  opacity: 0.9;
+
+.session-stats-column {
+  flex: 1 1 auto;
+}
+
+.intraday-column {
+  flex: 0 0 150px;
   background: rgba(255,255,255,0.03);
-  border: 1px dashed rgba(255,255,255,0.12);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 10px;
+  padding: 10px;
+}
+
+.intraday-title {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  opacity: 0.75;
+  margin-bottom: 6px;
+}
+
+.intraday-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.intraday-card {
+  background: rgba(0,0,0,0.3);
   border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.08);
   padding: 6px 8px;
+}
+
+.intraday-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  opacity: 0.7;
+}
+
+.intraday-value {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.intraday-empty {
+  margin-top: 8px;
+  font-size: 11px;
+  opacity: 0.7;
 }
 
 .mo-rt-stats-title {
@@ -259,6 +303,8 @@
 @media (max-width: 1024px) {
   .mo-rt-card { flex-direction: column; }
   .mo-rt-right { flex: 1 1 auto; }
+  .mo-rt-right-columns { flex-direction: column; }
+  .intraday-column { flex: 1 1 auto; width: 100%; }
 }
 
 /* TOTAL inline layout (per market) */
