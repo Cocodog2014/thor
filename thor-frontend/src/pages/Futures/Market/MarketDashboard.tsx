@@ -169,6 +169,20 @@ const getDeltaClass = (value?: string | number | null) => {
   return parsed > 0 ? "delta-positive" : "delta-negative";
 };
 
+const getTriangleClass = (value?: string | number | null) => {
+  const deltaClass = getDeltaClass(value);
+  if (deltaClass === "delta-positive") return "triangle-up";
+  if (deltaClass === "delta-negative") return "triangle-down";
+  return "triangle-neutral";
+};
+
+const buildPercentCell = (value?: string | number | null, fallback = "—") => {
+  return {
+    text: formatPercentValue(value) ?? fallback,
+    className: getDeltaClass(value),
+  };
+};
+
 // Helper to check if a value is zero (number or string)
 const isZero = (v: any) => v === 0 || v === "0";
 
@@ -250,7 +264,10 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl }) => {
           return;
         }
         const data = await res.json();
-        if (!cancelled) setSessions(Array.isArray(data) ? data : []);
+        if (!cancelled) {
+          const list = Array.isArray(data) ? data : [];
+          setSessions(list);
+        }
       } catch (e) {
         console.error("MarketDashboard: fetch failed", e);
         if (!cancelled) setSessions([]);
@@ -281,7 +298,9 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl }) => {
             }
           }
         }
-        if (!cancelled) setLiveStatus(map);
+        if (!cancelled) {
+          setLiveStatus(map);
+        }
       } catch (e) {
         console.error("MarketDashboard: live status fetch failed", e);
         if (!cancelled) setLiveStatus({});
@@ -369,6 +388,115 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl }) => {
 
   return (
     <div className="market-dashboard">
+      {/* Inline styles for MarketDashboard (kept local per request) */}
+      <style>{`
+        .market-dashboard { width: 100%; padding: 16px; }
+        .market-dashboard-header { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 10px; }
+        .market-open-header-title { font-size: 1.05rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+        .subtitle-text { opacity: 0.75; }
+
+        .market-grid { display: grid; grid-template-columns: 1fr; gap: 14px; }
+        .mo-rt-card { background: #1e1e1e; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); padding: 14px 16px; display: flex; gap: 12px; }
+        .mo-rt-left { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+        .mo-rt-right { flex: 0 0 auto; min-width: 280px; }
+
+        .mo-rt-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+        .mo-rt-header-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+        .chip { padding: 3px 8px; border-radius: 999px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; background: rgba(255,255,255,0.08); }
+        .chip.sym { background: rgba(255,255,255,0.15); }
+        .chip.weight { background: rgba(0,0,0,0.4); }
+        .chip.default { background: rgba(148,163,184,0.35); }
+        .chip.signal.success { background: rgba(16,185,129,0.35); }
+        .chip.signal.error { background: rgba(239,68,68,0.35); }
+        .chip.signal.warning { background: rgba(255,193,7,0.35); }
+        .chip.status.success { background: rgba(16,185,129,0.35); }
+        .chip.status.error { background: rgba(239,68,68,0.35); }
+        .chip.status.warning { background: rgba(255,193,7,0.35); }
+
+        .mo-rt-header-select { display: flex; align-items: center; gap: 6px; font-size: 11px; }
+        .future-select-label { font-size: 11px; opacity: 0.75; text-transform: uppercase; letter-spacing: 0.05em; }
+        .future-select { background: rgba(0,0,0,0.5); border-radius: 6px; border: 1px solid rgba(255,255,255,0.2); padding: 3px 8px; color: #fff; font-size: 12px; }
+
+        .mo-rt-top { display: grid; grid-template-columns: minmax(0, 1fr) 140px; gap: 12px; }
+        .mo-rt-last .val { font-size: 28px; font-weight: 800; line-height: 1; }
+        .mo-rt-last .label { font-size: 12px; opacity: 0.75; }
+        .mo-rt-change { text-align: right; }
+        .mo-rt-change .val { font-size: 16px; font-weight: 700; }
+        .mo-rt-change .pct { font-size: 13px; font-weight: 600; }
+        .mo-rt-change .label { font-size: 12px; opacity: 0.75; }
+        .delta-positive { color: #5cc569; }
+        .delta-negative { color: #f26d6d; }
+        .delta-neutral { color: #fff; opacity: 0.85; }
+
+        .mo-rt-deltas { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+        .delta-column { display: flex; flex-direction: column; gap: 10px; }
+        .delta-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+        .delta-card { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 8px 10px; }
+        .delta-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; opacity: 0.7; }
+        .delta-value { font-size: 13px; font-weight: 700; }
+        .delta-sub { font-size: 11px; opacity: 0.8; }
+
+        .bbo-card { display: grid; grid-template-columns: 1fr 1px 1fr; gap: 0; }
+        .bbo-section { padding: 6px 8px; }
+        .bbo-head { font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; opacity: 0.7; }
+        .bbo-main { font-size: 14px; font-weight: 700; }
+        .bbo-sub { font-size: 11px; opacity: 0.8; }
+        .bbo-divider { width: 1px; background: rgba(255,255,255,0.1); }
+
+        .mo-rt-meta { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 8px; }
+        .meta { background: rgba(255,255,255,0.03); border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); padding: 8px 10px; }
+        .meta-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; opacity: 0.7; margin-bottom: 4px; }
+        .meta-value { font-size: 13px; font-weight: 700; }
+
+        .mo-rt-placeholder { font-size: 12px; opacity: 0.75; padding: 8px 10px; }
+
+        .mo-rt-right-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .mo-rt-stats-title, .intraday-title { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; opacity: 0.7; margin-bottom: 6px; }
+        .mo-rt-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+        .stat { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 8px 10px; }
+        .stat-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; opacity: 0.7; }
+        .stat-value { font-size: 13px; font-weight: 700; }
+
+        .intraday-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+        .intraday-card { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 8px 10px; }
+        .intraday-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; opacity: 0.7; }
+        .intraday-value { font-size: 13px; font-weight: 700; }
+        .intraday-empty { font-size: 12px; opacity: 0.75; }
+
+        /* TOTAL session summary */
+        .total-session-card { display: flex; flex-direction: column; gap: 12px; }
+        .session-summary-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+        @media (min-width: 1200px) {
+          .session-summary-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+        }
+        .session-summary-card { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 12px 14px; }
+        .summary-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; opacity: 0.7; margin-bottom: 6px; }
+        .summary-value { font-size: 18px; font-weight: 700; }
+        .summary-sub { font-size: 13px; opacity: 0.85; margin-top: 4px; }
+
+        /* Compact session stats under TOTAL */
+        .mo-rt-session-stats { margin-top: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.35); padding: 8px 10px; font-size: 11px; }
+        .session-stats-header,
+        .session-stats-row { display: grid; grid-template-columns: minmax(0, 1.25fr) repeat(3, minmax(0, 0.95fr)); gap: 10px; align-items: center; }
+        .session-stats-header { text-transform: uppercase; letter-spacing: 0.08em; font-size: 10px; opacity: 0.7; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 4px; margin-bottom: 4px; }
+        .session-stats-header span,
+        .session-stats-row span { text-align: center; }
+        .session-stats-header span:first-child,
+        .session-stats-row span:first-child { text-align: left; }
+        .session-stats-row + .session-stats-row { margin-top: 6px; padding-top: 6px; border-top: 1px dashed rgba(255,255,255,0.08); }
+        .session-stats-row span:nth-child(2),
+        .session-stats-row span:nth-child(4) { font-variant-numeric: tabular-nums; }
+        .triangle-cell { display:flex; align-items:center; justify-content:center; }
+        .triangle-percent { font-size: 11px; font-weight: 600; }
+        .triangle-up { width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-bottom: 10px solid #5cc569; }
+        .triangle-down { width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-top: 10px solid #f26d6d; }
+        .triangle-neutral { width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-top: 10px solid #bbb; border-bottom: 10px solid #bbb; }
+
+        @media (max-width: 900px) {
+          .mo-rt-right { min-width: 0; }
+          .mo-rt-right-columns { grid-template-columns: 1fr; }
+        }
+      `}</style>
       <div className="market-dashboard-header">
         <h3 className="market-open-header-title">📊 Market Open Sessions</h3>
         <div className="text-xs subtitle-text">Shows all control markets with their own TOTAL</div>
@@ -439,11 +567,9 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl }) => {
           const signal = snap?.bhs;
           const outcomeStatus = snap?.wndw;
           const isTotalFuture = (snap.future || "").toUpperCase() === "TOTAL";
-          const totalSumRaw = snap.country_future_wndw_total ?? snap.country_future;
           const totalWeightedAverage = formatNum(snap?.weighted_average, 3) ?? (isZero(snap?.weighted_average) ? 0 : "—");
-          const totalSumValue = formatNum(totalSumRaw) ?? (isZero(totalSumRaw) ? 0 : "—");
           const totalInstrumentCount = snap?.instrument_count ?? 11;
-          const totalCapture = snap?.captured_at ? new Date(snap.captured_at).toLocaleTimeString() : "—";
+          const sessionDateLabel = getSessionDateKey(snap) ?? "—";
           const closeDeltaValue = formatSignedValue(snap?.market_close);
           const closeDeltaPercent = formatPercentValue(snap?.market_close_vs_open_pct);
           const closeDeltaClass = getDeltaClass(
@@ -488,7 +614,126 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl }) => {
           const bidSizeDisplay = formatNumOrDash(snap?.bid_size, 0);
           const askPriceDisplay = formatNumOrDash(snap?.ask_price);
           const askSizeDisplay = formatNumOrDash(snap?.ask_size, 0);
+          const lastPriceDisplay = formatNum(snap?.last_price) ?? (isZero(snap?.last_price) ? 0 : "—");
           const openPrimary = openDeltaMetric.primary ?? "—";
+          const totalSummaryCards: Array<{
+            key: string;
+            label: string;
+            value: string | number;
+            subtitle?: string | number;
+          }> = [
+            { key: "bid", label: "Bid", value: `${bidPriceDisplay}`, subtitle: `Size ${bidSizeDisplay}` },
+            { key: "basket", label: "Futures in Basket", value: totalInstrumentCount, subtitle: undefined },
+            { key: "total-avg", label: "Total Weighted Avg", value: totalWeightedAverage, subtitle: undefined },
+            { key: "local-date", label: "Local Date", value: sessionDateLabel, subtitle: undefined },
+          ];
+          const totalSessionStatsRows = [
+            {
+              key: "market-open",
+              label: "Market Open",
+              value: formatNumOrDash(snap?.open_price_24h),
+              triangleValue: snap?.market_open,
+              percent: buildPercentCell(snap?.market_open),
+            },
+            {
+              key: "market-high",
+              label: "Market High",
+              value: formatNumOrDash(snap?.high_24h),
+              triangleValue: snap?.market_high_pct_open,
+              percent: buildPercentCell(snap?.market_high_pct_open),
+            },
+            {
+              key: "market-low",
+              label: "Market Low",
+              value: formatNumOrDash(snap?.low_24h),
+              triangleValue: snap?.market_low_pct_open,
+              percent: buildPercentCell(snap?.market_low_pct_open),
+            },
+            {
+              key: "market-close",
+              label: "Market Close",
+              value: formatNumOrDash(snap?.prev_close_24h),
+              triangleValue: snap?.market_close_vs_open_pct,
+              percent: buildPercentCell(snap?.market_close_vs_open_pct),
+            },
+            {
+              key: "range",
+              label: "Range",
+              value: formatNumOrDash(snap?.market_range),
+              triangleValue: snap?.market_range_pct,
+              percent: buildPercentCell(snap?.market_range_pct),
+            },
+            {
+              key: "session-volume",
+              label: "Session Volume",
+              value: formatNumOrDash(snap?.volume, 0),
+              triangleValue: null,
+              percent: buildPercentCell(undefined, "--"),
+            },
+          ];
+          const prevCloseNum = parseNumericValue(snap?.prev_close_24h);
+          const low52Num = parseNumericValue(snap?.low_52w);
+          const high52Num = parseNumericValue(snap?.high_52w);
+          const low52DeltaPercent = (prevCloseNum !== null && low52Num !== null && prevCloseNum !== 0)
+            ? ((prevCloseNum - low52Num) / prevCloseNum) * 100
+            : null;
+          const high52DeltaPercent = (prevCloseNum !== null && high52Num !== null && prevCloseNum !== 0)
+            ? ((high52Num - prevCloseNum) / prevCloseNum) * 100
+            : null;
+          const sessionRangeValue = snap?.range_diff_24h
+            ? `${formatNum(snap?.range_diff_24h)} (${formatNum(snap?.range_pct_24h) ?? "—"})`
+            : "—";
+          const detailedSessionStatsRows = [
+            {
+              key: "close",
+              label: "Close",
+              value: formatNumOrDash(snap?.prev_close_24h),
+              triangleValue: snap?.market_close_vs_open_pct,
+              percent: buildPercentCell(snap?.market_close_vs_open_pct),
+            },
+            {
+              key: "open",
+              label: "Open",
+              value: formatNumOrDash(snap?.open_price_24h),
+              triangleValue: snap?.market_open,
+              percent: buildPercentCell(snap?.market_open),
+            },
+            {
+              key: "low24",
+              label: "24h Low",
+              value: formatNumOrDash(snap?.low_24h),
+              triangleValue: snap?.market_low_pct_open,
+              percent: buildPercentCell(snap?.market_low_pct_open),
+            },
+            {
+              key: "high24",
+              label: "24h High",
+              value: formatNumOrDash(snap?.high_24h),
+              triangleValue: snap?.market_high_pct_open,
+              percent: buildPercentCell(snap?.market_high_pct_open),
+            },
+            {
+              key: "range24",
+              label: "24h Range",
+              value: sessionRangeValue,
+              triangleValue: snap?.market_range_pct,
+              percent: buildPercentCell(snap?.market_range_pct),
+            },
+            {
+              key: "low52",
+              label: "52w Low",
+              value: formatNumOrDash(snap?.low_52w),
+              triangleValue: low52DeltaPercent,
+              percent: buildPercentCell(low52DeltaPercent),
+            },
+            {
+              key: "high52",
+              label: "52w High",
+              value: formatNumOrDash(snap?.high_52w),
+              triangleValue: high52DeltaPercent,
+              percent: buildPercentCell(high52DeltaPercent),
+            },
+          ];
 
           return (
             <div key={m.key} className="mo-rt-card">
@@ -518,45 +763,58 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl }) => {
                 </div>
 
                 {isTotalFuture ? (
-                  <div className="total-inline-card">
-                    <div className="total-inline-top">
-                      <div>
-                        <div className="total-inline-title">TOTAL</div>
-                        <div className="total-inline-tags">
-                          <span className="total-inline-badge">Composite</span>
-                          <span className="total-inline-badge">{totalInstrumentCount} Futures</span>
+                  <div className="total-session-card">
+                    <div className="mo-rt-top total">
+                      <div className="mo-rt-last">
+                        <div className="val">{lastPriceDisplay}</div>
+                        <div className="label">Last</div>
+                      </div>
+                      <div className="mo-rt-change">
+                        <div className={`val ${closeDeltaClass}`}>
+                          {closeDeltaValue ?? (isZero(snap?.market_close) ? "0" : "—")}
                         </div>
-                      </div>
-                      <div className="total-inline-signal">
-                        <span className={chipClass("signal", signal || undefined)}>{signal || "—"}</span>
-                        <span className="total-inline-weight">Wgt: {snap?.weight ?? "—"}</span>
-                      </div>
-                    </div>
-                    <div className="total-inline-main">
-                      <div className="total-inline-value">{totalWeightedAverage}</div>
-                      <div className="total-inline-label">Weighted Average</div>
-                    </div>
-                    <div className="total-inline-metrics">
-                      <div className="total-inline-mini">
-                        <div className="mini-title">Sum</div>
-                        <div className="mini-value">{totalSumValue}</div>
-                        <div className="mini-sub">Weighted</div>
-                      </div>
-                      <div className="total-inline-mini">
-                        <div className="mini-title">Count</div>
-                        <div className="mini-value">{totalInstrumentCount}</div>
-                        <div className="mini-sub">Instruments</div>
+                        <div className={`pct ${closeDeltaClass}`}>
+                          {closeDeltaPercent
+                            ?? (isZero(snap?.market_close_vs_open_pct) ? "0%" : "—")}
+                        </div>
+                        <div className="label">Close Δ</div>
                       </div>
                     </div>
-                    <div className="total-inline-meta">
-                      <span>Capture: {totalCapture}</span>
+
+                    <div className="session-summary-grid">
+                      {totalSummaryCards.map(card => (
+                        <div className="session-summary-card" key={card.key}>
+                          <div className="summary-label">{card.label}</div>
+                          <div className="summary-value">{card.value}</div>
+                          {card.subtitle && <div className="summary-sub">{card.subtitle}</div>}
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="mo-rt-session-stats">
+                      <div className="session-stats-header">
+                        <span>Metric</span>
+                        <span>Value</span>
+                        <span>Δ</span>
+                        <span>Δ%</span>
+                      </div>
+                      {totalSessionStatsRows.map(row => (
+                        <div className="session-stats-row" key={row.key}>
+                          <span>{row.label}</span>
+                          <span>{row.value}</span>
+                          <span className="triangle-cell">
+                            <span className={getTriangleClass(row.triangleValue)} />
+                          </span>
+                          <span className={`triangle-percent ${row.percent.className}`}>{row.percent.text}</span>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 ) : (
                   <>
                     <div className="mo-rt-top">
                       <div className="mo-rt-last">
-                        <div className="val">{formatNum(snap?.last_price) ?? (isZero(snap?.last_price) ? 0 : "—")}</div>
+                        <div className="val">{lastPriceDisplay}</div>
                         <div className="label">Last</div>
                       </div>
                       <div className="mo-rt-change">
@@ -642,6 +900,26 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl }) => {
                         <div className="meta-label">Entry</div>
                         <div className="meta-value">{formatNum(snap?.entry_price) ?? (isZero(snap?.entry_price) ? 0 : "—")}</div>
                       </div>
+                    </div>
+
+                    {/* Four-column session stats under non-TOTAL */}
+                    <div className="mo-rt-session-stats">
+                      <div className="session-stats-header">
+                        <span>Metric</span>
+                        <span>Value</span>
+                        <span>Δ</span>
+                        <span>Δ%</span>
+                      </div>
+                      {detailedSessionStatsRows.map(row => (
+                        <div className="session-stats-row" key={row.key}>
+                          <span>{row.label}</span>
+                          <span>{row.value}</span>
+                          <span className="triangle-cell">
+                            <span className={getTriangleClass(row.triangleValue)} />
+                          </span>
+                          <span className={`triangle-percent ${row.percent.className}`}>{row.percent.text}</span>
+                        </div>
+                      ))}
                     </div>
                   </>
                 )}

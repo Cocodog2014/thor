@@ -8,31 +8,55 @@ const GlobalMarkets: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdate, setLastUpdate] = useState(new Date());
+  const [isStale, setIsStale] = useState(false);
 
-  // Fetch markets from backend API
   useEffect(() => {
-    const fetchMarkets = async () => {
+    let cancelled = false;
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+    let currentDelay = 1000;
+
+    const scheduleNext = (delay: number) => {
+      if (cancelled) return;
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+      timeoutId = setTimeout(() => fetchMarkets('timer'), delay);
+    };
+
+    const fetchMarkets = async (reason: 'initial' | 'timer') => {
+      if (cancelled) return;
       try {
+        console.debug(`[GlobalMarkets] fetching (${reason})`);
         const data = await marketsService.getAll();
         const sortedMarkets = data.results.sort((a, b) => a.sort_order - b.sort_order);
         setMarkets(sortedMarkets);
         setLastUpdate(new Date());
         setError(null);
+        setIsStale(false);
+        currentDelay = 1000;
+        scheduleNext(1000);
       } catch (err) {
-        console.error('Error fetching markets:', err);
-        setError('Failed to load market data. Please check if the backend is running.');
+        console.error('[GlobalMarkets] fetch failed, backing off', err);
+        const nextDelay = Math.min(currentDelay * 2, 15000);
+        setError(
+          `Lost connection to global markets (retrying in ${(nextDelay / 1000).toFixed(1)}s)`
+        );
+        setIsStale(true);
+        currentDelay = nextDelay;
+        scheduleNext(nextDelay);
       } finally {
         setLoading(false);
       }
     };
 
-    // Fetch immediately
-    fetchMarkets();
+    fetchMarkets('initial');
 
-    // Update every 1 seconds to get fresh data from backend (live updating)
-    const interval = setInterval(fetchMarkets, 1000);
-
-    return () => clearInterval(interval);
+    return () => {
+      cancelled = true;
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
   }, []);
 
   if (loading) {
@@ -99,9 +123,11 @@ const GlobalMarkets: React.FC = () => {
       {error && <div className="error-message">⚠️ {error}</div>}
       <div className="markets-table-container">
         <div className="markets-table-header">
-          
           <div className="last-update">
-            <span className="live-indicator">🟢</span>
+            <span className="live-indicator" title={isStale ? 'Reconnecting…' : 'Live'}>
+              {isStale ? '🟡' : '🟢'}
+            </span>
+            {' '}
             UTC time: {lastUpdate.toLocaleTimeString('en-US', {
               timeZone: 'UTC',
               hour12: false,
