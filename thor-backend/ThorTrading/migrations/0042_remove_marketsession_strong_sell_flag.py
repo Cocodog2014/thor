@@ -6,7 +6,7 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("FutureTrading", "0041_remove_marketsession_didnt_work_and_more"),
+        ("ThorTrading", "0041_remove_marketsession_didnt_work_and_more"),
     ]
 
     operations = [

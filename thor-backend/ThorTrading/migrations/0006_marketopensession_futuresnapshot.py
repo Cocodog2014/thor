@@ -8,7 +8,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("FutureTrading", "0005_remove_tradingsignal_instrument_and_more"),
+        ("ThorTrading", "0005_remove_tradingsignal_instrument_and_more"),
     ]
 
     operations = [

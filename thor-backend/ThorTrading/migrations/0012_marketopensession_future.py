@@ -7,7 +7,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         (
-            "FutureTrading",
+            "ThorTrading",
             "0011_rename_ym_entry_price_marketopensession_entry_price_and_more",
         ),
     ]

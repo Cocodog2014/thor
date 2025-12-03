@@ -15,7 +15,7 @@ FIELD_RENAMES = (
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("FutureTrading", "0077_marketsession_market_high_open"),
+        ("ThorTrading", "0077_marketsession_market_high_open"),
     ]
 
     operations = [

@@ -7,7 +7,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("FutureTrading", "0009_rolling52weekstats"),
+        ("ThorTrading", "0009_rolling52weekstats"),
     ]
 
     operations = [

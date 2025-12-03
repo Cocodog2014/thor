@@ -4,7 +4,7 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("FutureTrading", "0078_marketsession_bulk_field_renames"),
+        ("ThorTrading", "0078_marketsession_bulk_field_renames"),
     ]
 
     operations = [

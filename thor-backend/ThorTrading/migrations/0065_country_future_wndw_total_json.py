@@ -6,13 +6,13 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("FutureTrading", "0064_market_close_percentage_split"),
+        ("ThorTrading", "0064_market_close_percentage_split"),
     ]
 
     operations = [
         migrations.RunSQL(
             sql=(
-                'ALTER TABLE "FutureTrading_marketsession" '
+                'ALTER TABLE "ThorTrading_marketsession" '
                 'ALTER COLUMN country_future_wndw_total '
                 'TYPE bigint USING '
                 'CASE '
@@ -21,7 +21,7 @@ class Migration(migrations.Migration):
                 'END'
             ),
             reverse_sql=(
-                'ALTER TABLE "FutureTrading_marketsession" '
+                'ALTER TABLE "ThorTrading_marketsession" '
                 'ALTER COLUMN country_future_wndw_total '
                 'TYPE numeric(14,4) USING '
                 'CASE '

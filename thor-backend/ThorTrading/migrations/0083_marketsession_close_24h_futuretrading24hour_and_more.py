@@ -7,7 +7,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("FutureTrading", "0082_remove_marketsession_vwap"),
+        ("ThorTrading", "0082_remove_marketsession_vwap"),
     ]
 
     operations = [

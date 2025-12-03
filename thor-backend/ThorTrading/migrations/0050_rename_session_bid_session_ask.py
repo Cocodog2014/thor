@@ -4,7 +4,7 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("FutureTrading", "0049_move_wndw_after_bhs"),
+        ("ThorTrading", "0049_move_wndw_after_bhs"),
     ]
 
     operations = [

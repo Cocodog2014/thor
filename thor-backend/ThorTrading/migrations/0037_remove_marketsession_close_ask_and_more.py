@@ -6,7 +6,7 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("FutureTrading", "0036_reorder_session_bid_after_wndw"),
+        ("ThorTrading", "0036_reorder_session_bid_after_wndw"),
     ]
 
     operations = [

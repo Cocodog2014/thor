@@ -30,7 +30,7 @@ class SafeRenameField(migrations.RenameField):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("FutureTrading", "0068_rename_day_24h_high_marketsession_high_24h_and_more"),
+        ("ThorTrading", "0068_rename_day_24h_high_marketsession_high_24h_and_more"),
     ]
 
     operations = [

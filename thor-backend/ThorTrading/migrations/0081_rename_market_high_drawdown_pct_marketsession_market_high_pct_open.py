@@ -6,7 +6,7 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("FutureTrading", "0080_marketsession_close_vs_open_pct"),
+        ("ThorTrading", "0080_marketsession_close_vs_open_pct"),
     ]
 
     operations = [

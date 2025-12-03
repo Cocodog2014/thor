@@ -2,7 +2,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ('FutureTrading', '0061_remove_vwap_bid_ask'),
+        ('ThorTrading', '0061_remove_vwap_bid_ask'),
     ]
 
     operations = [

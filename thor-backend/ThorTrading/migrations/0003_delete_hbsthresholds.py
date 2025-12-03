@@ -6,7 +6,7 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("FutureTrading", "0002_delete_dataproviderconfig"),
+        ("ThorTrading", "0002_delete_dataproviderconfig"),
     ]
 
     operations = [

@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("FutureTrading", "0030_marketsession_rename_reference_ask_to_session_ask"),
+        ("ThorTrading", "0030_marketsession_rename_reference_ask_to_session_ask"),
     ]
 
     operations = [

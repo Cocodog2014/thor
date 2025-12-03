@@ -4,7 +4,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("FutureTrading", "0062_alter_percentage_precision"),
+        ("ThorTrading", "0062_alter_percentage_precision"),
     ]
 
     operations = [

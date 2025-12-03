@@ -6,7 +6,7 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("FutureTrading", "0065_country_future_wndw_total_json"),
+        ("ThorTrading", "0065_country_future_wndw_total_json"),
     ]
 
     operations = [

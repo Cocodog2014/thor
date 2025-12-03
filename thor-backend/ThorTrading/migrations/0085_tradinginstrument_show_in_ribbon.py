@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("FutureTrading", "0084_futuretrading24hour_volume_24h_and_more"),
+        ("ThorTrading", "0084_futuretrading24hour_volume_24h_and_more"),
     ]
 
     operations = [

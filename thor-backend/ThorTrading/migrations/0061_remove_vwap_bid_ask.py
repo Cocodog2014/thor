@@ -6,7 +6,7 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("FutureTrading", "0060_vwapminute"),
+        ("ThorTrading", "0060_vwapminute"),
     ]
 
     operations = [

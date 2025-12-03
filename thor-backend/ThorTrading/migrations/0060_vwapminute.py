@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("FutureTrading", "0059_marketsession_capture_group"),
+        ("ThorTrading", "0059_marketsession_capture_group"),
     ]
 
     operations = [

@@ -5,8 +5,8 @@ from django.db import migrations
 FORWARD_SQL = r"""
 DO $$
 DECLARE
-    tbl CONSTANT text := 'FutureTrading_marketsession';
-    tmp CONSTANT text := 'FutureTrading_marketsession_tmp';
+    tbl CONSTANT text := 'ThorTrading_marketsession';
+    tmp CONSTANT text := 'ThorTrading_marketsession_tmp';
     col_list text;
 BEGIN
     IF NOT EXISTS (
@@ -19,7 +19,7 @@ BEGIN
     EXECUTE format('DROP TABLE IF EXISTS %I CASCADE', tmp);
 
     EXECUTE '
-        CREATE TABLE "FutureTrading_marketsession_tmp" (
+        CREATE TABLE "ThorTrading_marketsession_tmp" (
             id SERIAL PRIMARY KEY,
             session_number integer NOT NULL,
             year integer NOT NULL,
@@ -122,8 +122,8 @@ BEGIN
     EXECUTE format('ALTER TABLE %I RENAME TO %I', tmp, tbl);
 
     PERFORM setval(
-        pg_get_serial_sequence('"FutureTrading_marketsession"','id'),
-        GREATEST(1, COALESCE((SELECT MAX(id) FROM "FutureTrading_marketsession"), 0))
+        pg_get_serial_sequence('"ThorTrading_marketsession"','id'),
+        GREATEST(1, COALESCE((SELECT MAX(id) FROM "ThorTrading_marketsession"), 0))
     );
 END$$;
 """
@@ -134,7 +134,7 @@ REVERSE_SQL = "SELECT 1;"
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("FutureTrading", "0037_remove_marketsession_close_ask_and_more"),
+        ("ThorTrading", "0037_remove_marketsession_close_ask_and_more"),
     ]
 
     operations = [

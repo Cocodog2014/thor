@@ -4,7 +4,7 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("FutureTrading", "0029_marketsession_rename_reference_close_to_session_close"),
+        ("ThorTrading", "0029_marketsession_rename_reference_close_to_session_close"),
     ]
 
     operations = [

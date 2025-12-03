@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("FutureTrading", "0014_single_table_refactor"),
+        ("ThorTrading", "0014_single_table_refactor"),
     ]
 
     operations = [

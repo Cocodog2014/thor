@@ -7,7 +7,7 @@ MARGIN_PLACEHOLDER = Decimal("10000.00")
 
 
 def apply_margin_placeholders(apps, schema_editor):
-    TradingInstrument = apps.get_model("FutureTrading", "TradingInstrument")
+    TradingInstrument = apps.get_model("ThorTrading", "TradingInstrument")
 
     symbols = [
         "/ES",
@@ -30,14 +30,14 @@ def apply_margin_placeholders(apps, schema_editor):
 
 
 def remove_margin_placeholders(apps, schema_editor):
-    TradingInstrument = apps.get_model("FutureTrading", "TradingInstrument")
+    TradingInstrument = apps.get_model("ThorTrading", "TradingInstrument")
 
     TradingInstrument.objects.filter(margin_requirement=MARGIN_PLACEHOLDER).update(margin_requirement=None)
 
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("FutureTrading", "0044_add_wndw_back"),
+        ("ThorTrading", "0044_add_wndw_back"),
     ]
 
     operations = [

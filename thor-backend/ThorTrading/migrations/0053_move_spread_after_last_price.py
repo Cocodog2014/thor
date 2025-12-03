@@ -6,7 +6,7 @@ from django.db import migrations
 FORWARD_SQL = r"""
 DO $$
 DECLARE
-    tbl TEXT := 'FutureTrading_marketsession';
+    tbl TEXT := 'ThorTrading_marketsession';
     col_list TEXT;
 BEGIN
     IF NOT EXISTS (
@@ -18,9 +18,9 @@ BEGIN
         RAISE EXCEPTION 'Table % does not exist; abort reorder', tbl;
     END IF;
 
-    EXECUTE 'DROP TABLE IF EXISTS "FutureTrading_marketsession_tmp" CASCADE';
+    EXECUTE 'DROP TABLE IF EXISTS "ThorTrading_marketsession_tmp" CASCADE';
 
-    CREATE TABLE "FutureTrading_marketsession_tmp" (
+    CREATE TABLE "ThorTrading_marketsession_tmp" (
         id SERIAL PRIMARY KEY,
         session_number integer NOT NULL,
         year integer NOT NULL,
@@ -94,27 +94,27 @@ BEGIN
         || 'sell_worked, sell_worked_percentage, sell_didnt_work, sell_didnt_work_percentage';
 
     EXECUTE format(
-        'INSERT INTO "FutureTrading_marketsession_tmp" (%s) SELECT %s FROM %I',
+        'INSERT INTO "ThorTrading_marketsession_tmp" (%s) SELECT %s FROM %I',
         col_list,
         col_list,
         tbl
     );
 
     EXECUTE format('DROP TABLE %I', tbl);
-    ALTER TABLE "FutureTrading_marketsession_tmp" RENAME TO "FutureTrading_marketsession";
+    ALTER TABLE "ThorTrading_marketsession_tmp" RENAME TO "ThorTrading_marketsession";
 
     IF EXISTS (
         SELECT 1
         FROM pg_class
-        WHERE relname = 'FutureTrading_marketsession_tmp_id_seq'
+        WHERE relname = 'ThorTrading_marketsession_tmp_id_seq'
     ) THEN
-        EXECUTE 'ALTER SEQUENCE "FutureTrading_marketsession_tmp_id_seq" '
-            || 'RENAME TO "FutureTrading_marketsession_id_seq"';
+        EXECUTE 'ALTER SEQUENCE "ThorTrading_marketsession_tmp_id_seq" '
+            || 'RENAME TO "ThorTrading_marketsession_id_seq"';
     END IF;
 
     PERFORM setval(
-        pg_get_serial_sequence('"FutureTrading_marketsession"','id'),
-        GREATEST(1, COALESCE((SELECT MAX(id) FROM "FutureTrading_marketsession"), 0))
+        pg_get_serial_sequence('"ThorTrading_marketsession"','id'),
+        GREATEST(1, COALESCE((SELECT MAX(id) FROM "ThorTrading_marketsession"), 0))
     );
 END$$;
 """
@@ -125,7 +125,7 @@ REVERSE_SQL = "SELECT 1;"
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("FutureTrading", "0052_reorder_signal_block_after_instrument_count"),
+        ("ThorTrading", "0052_reorder_signal_block_after_instrument_count"),
     ]
 
     operations = [

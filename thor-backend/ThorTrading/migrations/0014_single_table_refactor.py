@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("FutureTrading", "0013_reorder_future_column"),
+        ("ThorTrading", "0013_reorder_future_column"),
     ]
 
     operations = [

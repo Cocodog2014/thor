@@ -6,8 +6,8 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("FutureTrading", "0069_remove_marketsession_range_high_low_and_more"),
-        ("FutureTrading", "0069_rename_marketsession_range_fields"),
+        ("ThorTrading", "0069_remove_marketsession_range_high_low_and_more"),
+        ("ThorTrading", "0069_rename_marketsession_range_fields"),
     ]
 
     operations = []

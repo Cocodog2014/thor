@@ -4,7 +4,7 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("FutureTrading", "0066_remove_marketsession_hold_percentage_and_more"),
+        ("ThorTrading", "0066_remove_marketsession_hold_percentage_and_more"),
     ]
 
     operations = [

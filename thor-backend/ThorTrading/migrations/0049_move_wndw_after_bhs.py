@@ -22,16 +22,16 @@ BEGIN
     IF NOT EXISTS (
         SELECT 1
         FROM information_schema.tables
-        WHERE table_name = 'FutureTrading_marketsession'
+        WHERE table_name = 'ThorTrading_marketsession'
           AND table_schema = 'public'
     ) THEN
-        RAISE NOTICE 'FutureTrading_marketsession missing; skipping reorder';
+        RAISE NOTICE 'ThorTrading_marketsession missing; skipping reorder';
         RETURN;
     END IF;
 
-    EXECUTE 'DROP TABLE IF EXISTS "FutureTrading_marketsession_tmp" CASCADE';
+    EXECUTE 'DROP TABLE IF EXISTS "ThorTrading_marketsession_tmp" CASCADE';
 
-    CREATE TABLE "FutureTrading_marketsession_tmp" (
+    CREATE TABLE "ThorTrading_marketsession_tmp" (
         id SERIAL PRIMARY KEY,
         session_number integer NOT NULL,
         year integer NOT NULL,
@@ -97,18 +97,18 @@ BEGIN
     );
 
     EXECUTE format(
-        'INSERT INTO "FutureTrading_marketsession_tmp" (%s) SELECT %s FROM "FutureTrading_marketsession"',
+        'INSERT INTO "ThorTrading_marketsession_tmp" (%s) SELECT %s FROM "ThorTrading_marketsession"',
         col_list,
         col_list
     );
 
-    DROP TABLE "FutureTrading_marketsession";
-    ALTER TABLE "FutureTrading_marketsession_tmp" RENAME TO "FutureTrading_marketsession";
-    ALTER INDEX ft_msession_tmp_unique RENAME TO FutureTrading_marketsession_country_year_month_date_future_e20093d3_uniq;
+    DROP TABLE "ThorTrading_marketsession";
+    ALTER TABLE "ThorTrading_marketsession_tmp" RENAME TO "ThorTrading_marketsession";
+    ALTER INDEX ft_msession_tmp_unique RENAME TO ThorTrading_marketsession_country_year_month_date_future_e20093d3_uniq;
 
     PERFORM setval(
-        pg_get_serial_sequence('"FutureTrading_marketsession"', 'id'),
-        GREATEST(1, COALESCE((SELECT MAX(id) FROM "FutureTrading_marketsession"), 0)),
+        pg_get_serial_sequence('"ThorTrading_marketsession"', 'id'),
+        GREATEST(1, COALESCE((SELECT MAX(id) FROM "ThorTrading_marketsession"), 0)),
         true
     );
 END$$;
@@ -120,7 +120,7 @@ REVERSE_SQL = "SELECT 1;"
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("FutureTrading", "0048_set_target_offsets"),
+        ("ThorTrading", "0048_set_target_offsets"),
     ]
 
     operations = [

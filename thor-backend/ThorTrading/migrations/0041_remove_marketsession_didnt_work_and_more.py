@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("FutureTrading", "0040_targethighlowconfig"),
+        ("ThorTrading", "0040_targethighlowconfig"),
     ]
 
     operations = [

@@ -4,7 +4,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("FutureTrading", "0054_remove_change_columns"),
+        ("ThorTrading", "0054_remove_change_columns"),
     ]
 
     operations = [

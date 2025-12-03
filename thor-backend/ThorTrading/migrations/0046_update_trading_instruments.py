@@ -85,8 +85,8 @@ INSTRUMENT_SPECS = {
 
 
 def upsert_instruments(apps, schema_editor):
-    InstrumentCategory = apps.get_model("FutureTrading", "InstrumentCategory")
-    TradingInstrument = apps.get_model("FutureTrading", "TradingInstrument")
+    InstrumentCategory = apps.get_model("ThorTrading", "InstrumentCategory")
+    TradingInstrument = apps.get_model("ThorTrading", "TradingInstrument")
 
     futures_category, _ = InstrumentCategory.objects.get_or_create(
         name="futures",
@@ -116,7 +116,7 @@ def upsert_instruments(apps, schema_editor):
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("FutureTrading", "0045_fill_margin_requirement"),
+        ("ThorTrading", "0045_fill_margin_requirement"),
     ]
 
     operations = [

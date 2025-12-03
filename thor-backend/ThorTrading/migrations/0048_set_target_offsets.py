@@ -19,7 +19,7 @@ OFFSET_CONFIG = {
 
 
 def apply_target_offsets(apps, schema_editor):
-    TargetHighLowConfig = apps.get_model("FutureTrading", "TargetHighLowConfig")
+    TargetHighLowConfig = apps.get_model("ThorTrading", "TargetHighLowConfig")
 
     for symbol, offset in OFFSET_CONFIG.items():
         TargetHighLowConfig.objects.update_or_create(
@@ -37,7 +37,7 @@ def apply_target_offsets(apps, schema_editor):
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("FutureTrading", "0047_set_contract_sizes"),
+        ("ThorTrading", "0047_set_contract_sizes"),
     ]
 
     operations = [

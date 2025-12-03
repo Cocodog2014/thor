@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("FutureTrading", "0004_remove_unused_models"),
+        ("ThorTrading", "0004_remove_unused_models"),
     ]
 
     operations = [

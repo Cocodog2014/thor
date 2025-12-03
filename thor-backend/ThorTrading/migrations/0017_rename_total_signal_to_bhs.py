@@ -3,7 +3,7 @@ from django.db import migrations
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("FutureTrading", "0016_rename_marketopensession_marketsession_and_more"),
+        ("ThorTrading", "0016_rename_marketopensession_marketsession_and_more"),
     ]
 
     operations = [

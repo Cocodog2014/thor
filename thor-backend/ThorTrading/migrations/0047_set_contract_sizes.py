@@ -19,7 +19,7 @@ CONTRACT_SIZES = {
 
 
 def apply_contract_sizes(apps, schema_editor):
-    TradingInstrument = apps.get_model("FutureTrading", "TradingInstrument")
+    TradingInstrument = apps.get_model("ThorTrading", "TradingInstrument")
 
     for symbol, contract_size in CONTRACT_SIZES.items():
         TradingInstrument.objects.filter(symbol=symbol).update(contract_size=contract_size)
@@ -27,7 +27,7 @@ def apply_contract_sizes(apps, schema_editor):
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("FutureTrading", "0046_update_trading_instruments"),
+        ("ThorTrading", "0046_update_trading_instruments"),
     ]
 
     operations = [

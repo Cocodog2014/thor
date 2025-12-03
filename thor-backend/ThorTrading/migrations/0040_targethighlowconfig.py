@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("FutureTrading", "0039_move_entry_fields_after_ask_size"),
+        ("ThorTrading", "0039_move_entry_fields_after_ask_size"),
     ]
 
     operations = [

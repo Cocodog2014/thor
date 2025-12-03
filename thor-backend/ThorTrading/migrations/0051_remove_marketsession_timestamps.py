@@ -4,7 +4,7 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("FutureTrading", "0050_rename_session_bid_session_ask"),
+        ("ThorTrading", "0050_rename_session_bid_session_ask"),
     ]
 
     operations = [

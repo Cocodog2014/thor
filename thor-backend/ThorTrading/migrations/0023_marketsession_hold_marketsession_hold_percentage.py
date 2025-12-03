@@ -6,7 +6,7 @@ from django.db import migrations, models
 FORWARD_SQL = r"""
 DO $$
 DECLARE
-    tbl TEXT := 'FutureTrading_marketsession';
+    tbl TEXT := 'ThorTrading_marketsession';
     col_list TEXT;
 BEGIN
     IF NOT EXISTS (
@@ -16,7 +16,7 @@ BEGIN
         RAISE EXCEPTION 'Table % does not exist; abort reorder', tbl;
     END IF;
 
-    CREATE TABLE "FutureTrading_marketsession_tmp" (
+    CREATE TABLE "ThorTrading_marketsession_tmp" (
         id SERIAL PRIMARY KEY,
         session_number integer NOT NULL,
         year integer NOT NULL,
@@ -119,18 +119,18 @@ BEGIN
         || 'week_52_high, week_52_low, week_52_range_high_low, week_52_range_percent, weight, weighted_average';
 
     EXECUTE format(
-        'INSERT INTO "FutureTrading_marketsession_tmp" (%s) SELECT %s FROM %I',
+        'INSERT INTO "ThorTrading_marketsession_tmp" (%s) SELECT %s FROM %I',
         col_list,
         col_list,
         tbl
     );
 
     EXECUTE format('DROP TABLE %I', tbl);
-    ALTER TABLE "FutureTrading_marketsession_tmp" RENAME TO "FutureTrading_marketsession";
+    ALTER TABLE "ThorTrading_marketsession_tmp" RENAME TO "ThorTrading_marketsession";
 
     PERFORM setval(
-        pg_get_serial_sequence('"FutureTrading_marketsession"','id'),
-        GREATEST(1, COALESCE((SELECT MAX(id) FROM "FutureTrading_marketsession"), 0))
+        pg_get_serial_sequence('"ThorTrading_marketsession"','id'),
+        GREATEST(1, COALESCE((SELECT MAX(id) FROM "ThorTrading_marketsession"), 0))
     );
 END$$;
 """
@@ -141,7 +141,7 @@ REVERSE_SQL = """-- Irreversible rebuild."""
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("FutureTrading", "0022_marketsession_buy_didnt_work_and_more"),
+        ("ThorTrading", "0022_marketsession_buy_didnt_work_and_more"),
     ]
 
     operations = [

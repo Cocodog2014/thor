@@ -4,7 +4,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("FutureTrading", "0063_market_close_vs_open_percentage"),
+        ("ThorTrading", "0063_market_close_vs_open_percentage"),
     ]
 
     operations = [
