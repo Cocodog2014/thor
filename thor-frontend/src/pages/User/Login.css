@@ -1,51 +1,56 @@
-.login-page {
+/* ======================
+   Base Layout
+====================== */
+.login-container {
   position: relative;
-  width: 100%;
-  height: 100vh; /* ensures full screen always */
-  min-height: 100vh;
-  background: url("../../assets/ThorTrading 16_9.png") center/cover no-repeat fixed;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  width: 100vw;
+  height: 100vh;
   overflow: hidden;
   font-family: "Segoe UI", sans-serif;
 }
 
-
-
-/* === Splash Screen === */
-.splash-screen {
+/* ======================
+   Background Layer
+====================== */
+.background {
   position: fixed;
   inset: 0;
-  background: url("../../assets/ThorTrading 16_9.png") center/cover no-repeat;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-direction: column;
-  z-index: 9999;
-  animation: fadeOut 1s ease-in-out 3s forwards;
-}
-
-.splash-overlay {
-  position: absolute;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.6);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  filter: brightness(0.8);
   z-index: 0;
 }
 
-.splash-card {
-  position: relative;
+/* ======================
+   Splash Layer
+====================== */
+.splash {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.65);
   z-index: 2;
+  transition: opacity 2s ease-in-out;
+}
+
+.splash.fade-out {
+  opacity: 0;
+  visibility: hidden;
+}
+
+.splash-card {
   text-align: center;
   color: #00bfff;
-  text-shadow: 0 0 30px #00bfff;
+  text-shadow: 0 0 25px #00bfff;
   animation: pulse 3s infinite ease-in-out;
 }
 
 .splash-card h1 {
   font-size: 3rem;
-  letter-spacing: 2px;
-  margin-bottom: 1rem;
+  margin-bottom: 0.5rem;
 }
 
 .splash-card p {
@@ -58,41 +63,29 @@
   50% { text-shadow: 0 0 50px #00ffff; }
 }
 
-@keyframes fadeOut {
-  to {
-    opacity: 0;
-    visibility: hidden;
-  }
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-
-  to {
-    opacity: 1;
-  }
-}
-
-.login-card-wrapper {
-  position: relative;
-  z-index: 2;
+/* ======================
+   Login Layer
+====================== */
+.login-wrapper {
+  position: fixed;
+  inset: 0;
   display: flex;
   justify-content: center;
   align-items: center;
-  width: 100%;
-  height: 100%;
+  z-index: 3;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 2s ease-in-out;
 }
 
-.fade-in {
-  animation: fadeIn 1s ease-in forwards;
+.login-wrapper.fade-in {
+  opacity: 1;
+  pointer-events: auto;
 }
-
 
 .login-card {
   background: rgba(0, 0, 0, 0.75);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 16px;
   padding: 2rem;
   width: 320px;
@@ -130,5 +123,3 @@
 .login-card button:hover {
   background: #00a2e6;
 }
-
-
