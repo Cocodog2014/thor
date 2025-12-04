@@ -4,6 +4,7 @@ from rest_framework.response import Response
 from django.http import StreamingHttpResponse, HttpRequest
 from django.utils.timezone import now
 import json
+import math
 import time
 from .redis_client import get_redis, latest_key, unified_stream_key
 from django.contrib.auth.decorators import login_required
@@ -11,10 +12,37 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import api_view, permission_classes
 from account_statement.models.paper import PaperAccount
 from account_statement.models.real import RealAccount
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from ThorTrading.services.vwap import vwap_service
 from LiveData.shared.redis_client import live_data_redis
 from django.db import connection
+
+def _safe_float(value):
+    """Convert DB numerics to float, skipping NaN/Inf payloads."""
+    if value is None:
+        return None
+    try:
+        as_float = float(value)
+    except (TypeError, ValueError, InvalidOperation):
+        try:
+            as_float = float(Decimal(value))
+        except (InvalidOperation, TypeError, ValueError):
+            return None
+    if math.isnan(as_float) or math.isinf(as_float):
+        return None
+    return as_float
+
+
+def _safe_int(value):
+    """Convert DB numerics to int, avoiding NaN / overflow crashes."""
+    as_float = _safe_float(value)
+    if as_float is None:
+        return None
+    try:
+        return int(as_float)
+    except (ValueError, OverflowError):
+        return None
+
 
 @api_view(['GET'])
 def session(request: HttpRequest):
@@ -68,12 +96,12 @@ def session(request: HttpRequest):
             if row:
                 open_v, high_v, low_v, close_v, volume_v, spread_v = row
                 latest = {
-                    'open': float(open_v) if open_v is not None else None,
-                    'high': float(high_v) if high_v is not None else None,
-                    'low': float(low_v) if low_v is not None else None,
-                    'close': float(close_v) if close_v is not None else None,
-                    'volume': int(volume_v) if volume_v is not None else None,
-                    'spread': float(spread_v) if spread_v is not None else None,
+                    'open': _safe_float(open_v),
+                    'high': _safe_float(high_v),
+                    'low': _safe_float(low_v),
+                    'close': _safe_float(close_v),
+                    'volume': _safe_int(volume_v),
+                    'spread': _safe_float(spread_v),
                 }
     except Exception as e:
         return Response({'detail': f'Database error: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
