@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Alert, Box, Button, CircularProgress, Container, Typography } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
-import { RefreshCw } from "lucide-react";
 
 import { L1Card } from "./RTDcards";
 import TotalCard from "./TotalCard";
@@ -24,7 +23,7 @@ const FUTURES_11 = [
   "ZB", // vol, dollar, 30Y
 ];
 
-const POLL_STEPS = [2000, 1000, 5000];
+const POLL_INTERVAL_MS = 1000;
 
 const normalizeSymbol = (symbol: string) => symbol.replace(/^\//, "").toUpperCase();
 
@@ -72,10 +71,8 @@ function makePlaceholder(symbol: string, index: number): MarketData {
 export default function FutureRTD({ onToggleMarketOpen, showMarketOpen }: FutureRTDProps = {}) {
   const theme = useTheme();
 
-  const [pollMs, setPollMs] = useState(2000);
-
   // ✅ Single source of truth for quotes
-  const { rows, total, loading, error, hasLoadedOnce } = useFuturesQuotes(pollMs);
+  const { rows, total, loading, error, hasLoadedOnce } = useFuturesQuotes(POLL_INTERVAL_MS);
 
   const [routingPlan, setRoutingPlan] = useState<RoutingPlanResponse | null>(null);
   const [routingError, setRoutingError] = useState<string | null>(null);
@@ -124,12 +121,6 @@ export default function FutureRTD({ onToggleMarketOpen, showMarketOpen }: Future
   }, [effective]);
 
   const displayRows: MarketData[] = useMemo(() => ordered, [ordered]);
-
-  const handlePollCycle = () => {
-    const currentIndex = POLL_STEPS.findIndex((step) => step === pollMs);
-    const nextIndex = (currentIndex + 1) % POLL_STEPS.length;
-    setPollMs(POLL_STEPS[nextIndex]);
-  };
 
   // ---------------------------- Render ---------------------------
 
@@ -193,25 +184,6 @@ export default function FutureRTD({ onToggleMarketOpen, showMarketOpen }: Future
           {error}
         </Alert>
       )}
-
-      <Box display="flex" justifyContent="flex-end" alignItems="center" mb={3}>
-        <Button
-          variant="outlined"
-          onClick={handlePollCycle}
-          startIcon={<RefreshCw size={16} />}
-          title="Toggle polling interval"
-          sx={{
-            borderColor: "white",
-            color: "white",
-            "&:hover": {
-              borderColor: "rgba(255, 255, 255, 0.8)",
-              backgroundColor: "rgba(255, 255, 255, 0.1)",
-            },
-          }}
-        >
-          {pollMs / 1000}s
-        </Button>
-      </Box>
 
       <Box sx={{ overflowX: "auto", pb: 2 }}>
         <Box

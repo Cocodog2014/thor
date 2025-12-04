@@ -30,7 +30,7 @@ def _get_capture_interval() -> float:
             return max(1.0, float(env))
         except (TypeError, ValueError):
             logger.warning("Invalid FUTURETRADING_MARKET_OPEN_CAPTURE_INTERVAL env %r", env)
-    return 5.0
+    return 1.0
 
 
 def _market_local_date(market) -> date_cls:
