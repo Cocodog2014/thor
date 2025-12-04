@@ -11,13 +11,12 @@ import {
   buildPercentCell,
   isZero,
   formatNumOrDash,
-  formatIntradayValue,
+  getSessionDateKey,
 } from "./marketSessionUtils.ts";
 
 type MarketFutureCardProps = {
   market: any;
   snap: any;
-  intradaySnap?: any;
   selectedSymbol: string;
   onSelectedSymbolChange: (symbol: string) => void;
 };
@@ -25,7 +24,6 @@ type MarketFutureCardProps = {
 const MarketFutureCard: React.FC<MarketFutureCardProps> = ({
   market: m,
   snap,
-  intradaySnap,
   selectedSymbol,
   onSelectedSymbolChange,
 }) => {
@@ -36,6 +34,8 @@ const MarketFutureCard: React.FC<MarketFutureCardProps> = ({
     ? new Date(snap.captured_at).toLocaleTimeString()
     : "—";
   const selectId = `future-select-${m.key}`;
+
+  const sessionDateLabel = getSessionDateKey(snap) ?? "—";
 
   const closeDeltaValue = formatSignedValue(snap?.market_close);
   const closeDeltaPercent = formatPercentValue(
@@ -48,45 +48,6 @@ const MarketFutureCard: React.FC<MarketFutureCardProps> = ({
       snap?.market_low_pct_close
   );
 
-  const openDeltaMetric = {
-    label: "Open Δ",
-    primary: formatSignedValue(snap?.market_open),
-    secondary: undefined as string | undefined,
-    className: getDeltaClass(snap?.market_open),
-  };
-
-  const rangeColumnMetrics = [
-    {
-      label: "Low Δ",
-      primary: formatSignedValue(snap?.market_low_open),
-      secondary: formatPercentValue(snap?.market_low_pct_open),
-      className: getDeltaClass(
-        snap?.market_low_open ?? snap?.market_low_pct_open
-      ),
-    },
-    {
-      label: "High Δ",
-      primary: formatSignedValue(snap?.market_high_open),
-      secondary: formatPercentValue(snap?.market_high_pct_open),
-      className: getDeltaClass(
-        snap?.market_high_open ?? snap?.market_high_pct_open
-      ),
-    },
-    {
-      label: "Range Δ",
-      primary: formatSignedValue(snap?.market_range),
-      secondary: formatPercentValue(snap?.market_range_pct),
-      className: getDeltaClass(
-        snap?.market_range ?? snap?.market_range_pct
-      ),
-    },
-  ] as const;
-
-  const [lowMetric, highMetric, diffMetric] = rangeColumnMetrics;
-  const showLowMetric = Boolean(lowMetric.primary || lowMetric.secondary);
-  const showHighMetric = Boolean(highMetric.primary || highMetric.secondary);
-  const showDiffMetric = Boolean(diffMetric.primary || diffMetric.secondary);
-
   const bidPriceDisplay = formatNumOrDash(snap?.bid_price);
   const bidSizeDisplay = formatNumOrDash(snap?.bid_size, 0);
   const askPriceDisplay = formatNumOrDash(snap?.ask_price);
@@ -95,22 +56,38 @@ const MarketFutureCard: React.FC<MarketFutureCardProps> = ({
   const lastPriceDisplay =
     formatNum(snap?.last_price) ?? (isZero(snap?.last_price) ? 0 : "—");
 
-  const openPrimary = openDeltaMetric.primary ?? "—";
-
-  const sessionRangeValue = snap?.range_diff_24h
-    ? `${formatNum(snap?.range_diff_24h)} (${
-        formatNum(snap?.range_pct_24h) ?? "—"
-      })`
-    : "—";
-
-  const detailedSessionStatsRows = [
+  // Summary boxes for futures (same layout as TOTAL, different content)
+  const summaryCards: Array<{
+    key: string;
+    label: string;
+    value: string | number;
+    subtitle?: string | number;
+  }> = [
     {
-      key: "close",
-      label: "Close",
-      value: formatNumOrDash(snap?.prev_close_24h),
-      triangleValue: snap?.market_close_vs_open_pct,
-      percent: buildPercentCell(snap?.market_close_vs_open_pct),
+      key: "bid",
+      label: "Bid",
+      value: `${bidPriceDisplay}`,
+      subtitle: `Size ${bidSizeDisplay}`,
     },
+    {
+      key: "ask",
+      label: "Ask",
+      value: `${askPriceDisplay}`,
+      subtitle: `Size ${askSizeDisplay}`,
+    },
+    {
+      key: "prev-close",
+      label: "Prev Close (24h)",
+      value: formatNumOrDash(snap?.prev_close_24h),
+    },
+    {
+      key: "local-date",
+      label: "Local Date",
+      value: sessionDateLabel,
+    },
+  ];
+
+  const sessionStatsRows = [
     {
       key: "open",
       label: "Open",
@@ -119,35 +96,35 @@ const MarketFutureCard: React.FC<MarketFutureCardProps> = ({
       percent: buildPercentCell(snap?.market_open),
     },
     {
-      key: "low24",
-      label: "24h Low",
-      value: formatNumOrDash(snap?.low_24h),
-      triangleValue: snap?.market_low_pct_open,
-      percent: buildPercentCell(snap?.market_low_pct_open),
-    },
-    {
-      key: "high24",
+      key: "high",
       label: "24h High",
       value: formatNumOrDash(snap?.high_24h),
       triangleValue: snap?.market_high_pct_open,
       percent: buildPercentCell(snap?.market_high_pct_open),
     },
     {
-      key: "range24",
-      label: "24h Range",
-      value: sessionRangeValue,
-      triangleValue: snap?.market_range_pct,
-      percent: buildPercentCell(snap?.market_range_pct),
+      key: "low",
+      label: "24h Low",
+      value: formatNumOrDash(snap?.low_24h),
+      triangleValue: snap?.market_low_pct_open,
+      percent: buildPercentCell(snap?.market_low_pct_open),
     },
     {
-      key: "low52",
-      label: "52w Low",
-      value: formatNumOrDash(snap?.low_52w),
+      key: "range",
+      label: "24h Range",
+      value: formatNumOrDash(snap?.range_diff_24h),
+      triangleValue: snap?.range_pct_24h,
+      percent: buildPercentCell(snap?.range_pct_24h),
+    },
+    {
+      key: "volume",
+      label: "Session Volume",
+      value: formatNumOrDash(snap?.volume, 0),
       triangleValue: null,
       percent: buildPercentCell(undefined, "--"),
     },
     {
-      key: "high52",
+      key: "52w-high",
       label: "52w High",
       value: formatNumOrDash(snap?.high_52w),
       triangleValue: null,
@@ -155,12 +132,10 @@ const MarketFutureCard: React.FC<MarketFutureCardProps> = ({
     },
   ];
 
-  const latestIntradaySnap = intradaySnap;
-
   return (
     <div className="mo-rt-card">
       <div className="mo-rt-left">
-        {/* Shared header for futures */}
+        {/* Shared header (same as TOTAL) */}
         <div className="mo-rt-header">
           <div className="mo-rt-header-chips">
             <span className="chip sym">{m.label}</span>
@@ -193,194 +168,64 @@ const MarketFutureCard: React.FC<MarketFutureCardProps> = ({
           </div>
         </div>
 
-        {/* FUTURE (L1) layout */}
-        <div className="mo-rt-top">
-          <div className="mo-rt-last">
-            <div className="val">{lastPriceDisplay}</div>
-            <div className="label">Last</div>
-          </div>
-          <div className="mo-rt-change">
-            <div className={`val ${closeDeltaClass}`}>
-              {closeDeltaValue ?? (isZero(snap?.market_close) ? "0" : "—")}
+        {/* SAME layout as MarketTotalCard */}
+        <div className="total-session-card">
+          <div className="mo-rt-top total">
+            <div className="mo-rt-last">
+              <div className="val">{lastPriceDisplay}</div>
+              <div className="label">Last</div>
             </div>
-            <div className={`pct ${closeDeltaClass}`}>
-              {closeDeltaPercent ??
-                (isZero(snap?.market_close_vs_open_pct) ? "0%" : "—")}
-            </div>
-            <div className="label">Close Δ</div>
-          </div>
-        </div>
-
-        <div className="mo-rt-deltas">
-          <div className="delta-column">
-            <div className="delta-card bbo-card">
-              <div className="bbo-section">
-                <div className="bbo-head bid">Bid</div>
-                <div className="bbo-main">{bidPriceDisplay}</div>
-                <div className="bbo-sub">Size {bidSizeDisplay}</div>
+            <div className="mo-rt-change">
+              <div className={`val ${closeDeltaClass}`}>
+                {closeDeltaValue ??
+                  (isZero(snap?.market_close) ? "0" : "—")}
               </div>
-              <div className="bbo-divider" aria-hidden="true" />
-              <div className="bbo-section">
-                <div className="bbo-head ask">Ask</div>
-                <div className="bbo-main">{askPriceDisplay}</div>
-                <div className="bbo-sub">Size {askSizeDisplay}</div>
+              <div className={`pct ${closeDeltaClass}`}>
+                {closeDeltaPercent ??
+                  (isZero(snap?.market_close_vs_open_pct) ? "0%" : "—")}
               </div>
+              <div className="label">Close Δ</div>
             </div>
           </div>
 
-          {(openPrimary || showLowMetric || showHighMetric || showDiffMetric) && (
-            <div className="delta-column">
-              <div className="delta-row">
-                <div className="delta-card" key="open-metric">
-                  <div className="delta-label">{openDeltaMetric.label}</div>
-                  <div className={`delta-value ${openDeltaMetric.className}`}>
-                    {openPrimary}
-                  </div>
-                  {openDeltaMetric.secondary && (
-                    <div className="delta-sub">
-                      {openDeltaMetric.secondary}
-                    </div>
-                  )}
-                </div>
-
-                {showLowMetric && (
-                  <div className="delta-card" key="low-metric">
-                    <div className="delta-label">{lowMetric.label}</div>
-                    <div className={`delta-value ${lowMetric.className}`}>
-                      {lowMetric.primary ?? "—"}
-                    </div>
-                    {lowMetric.secondary && (
-                      <div className="delta-sub">{lowMetric.secondary}</div>
-                    )}
-                  </div>
-                )}
-
-                {showHighMetric && (
-                  <div className="delta-card" key="high-metric">
-                    <div className="delta-label">{highMetric.label}</div>
-                    <div className={`delta-value ${highMetric.className}`}>
-                      {highMetric.primary ?? "—"}
-                    </div>
-                    {highMetric.secondary && (
-                      <div className="delta-sub">{highMetric.secondary}</div>
-                    )}
-                  </div>
+          <div className="session-summary-grid">
+            {summaryCards.map((card) => (
+              <div className="session-summary-card" key={card.key}>
+                <div className="summary-label">{card.label}</div>
+                <div className="summary-value">{card.value}</div>
+                {card.subtitle && (
+                  <div className="summary-sub">{card.subtitle}</div>
                 )}
               </div>
-
-              {showDiffMetric && (
-                <div className="delta-card" key="range-metric">
-                  <div className="delta-label">{diffMetric.label}</div>
-                  <div className={`delta-value ${diffMetric.className}`}>
-                    {diffMetric.primary ?? "—"}
-                  </div>
-                  {diffMetric.secondary && (
-                    <div className="delta-sub">{diffMetric.secondary}</div>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-
-        <div className="mo-rt-meta">
-          <div className="meta">
-            <div className="meta-label">Entry</div>
-            <div className="meta-value">
-              {formatNum(snap?.entry_price) ??
-                (isZero(snap?.entry_price) ? 0 : "—")}
-            </div>
+            ))}
           </div>
-        </div>
 
-        <div className="mo-rt-session-stats">
-          <div className="session-stats-header">
-            <span>Metric</span>
-            <span>Value</span>
-            <span>Δ</span>
-            <span>Δ%</span>
-          </div>
-          {detailedSessionStatsRows.map((row) => (
-            <div className="session-stats-row" key={row.key}>
-              <span>{row.label}</span>
-              <span>{row.value}</span>
-              <span className="triangle-cell">
-                <span className={getTriangleClass(row.triangleValue)} />
-              </span>
-              <span
-                className={`triangle-percent ${row.percent.className}`}
-              >
-                {row.percent.text}
-              </span>
+          <div className="mo-rt-session-stats">
+            <div className="session-stats-header">
+              <span>Metric</span>
+              <span>Value</span>
+              <span>Δ</span>
+              <span>Δ%</span>
             </div>
-          ))}
+            {sessionStatsRows.map((row) => (
+              <div className="session-stats-row" key={row.key}>
+                <span>{row.label}</span>
+                <span>{row.value}</span>
+                <span className="triangle-cell">
+                  <span className={getTriangleClass(row.triangleValue)} />
+                </span>
+                <span
+                  className={`triangle-percent ${row.percent.className}`}
+                >
+                  {row.percent.text}
+                </span>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
-      {/* Right-side panel only for futures */}
-      <div className="mo-rt-right">
-        <div className="mo-rt-right-columns">
-          <div className="session-stats-column">
-            <div className="mo-rt-stats-title">Session Stats</div>
-            <div className="mo-rt-stats">
-              {/* stats cards – unchanged */}
-              {/* ... */}
-            </div>
-          </div>
-
-          <div className="intraday-column">
-            <div className="intraday-title">Intraday 1m</div>
-            <div className="intraday-grid">
-              {[
-                {
-                  key: "open",
-                  label: "Open",
-                  value: formatIntradayValue(latestIntradaySnap?.open),
-                },
-                {
-                  key: "low",
-                  label: "Low",
-                  value: formatIntradayValue(latestIntradaySnap?.low),
-                },
-                {
-                  key: "high",
-                  label: "High",
-                  value: formatIntradayValue(latestIntradaySnap?.high),
-                },
-                {
-                  key: "close",
-                  label: "Close",
-                  value: formatIntradayValue(latestIntradaySnap?.close),
-                },
-                {
-                  key: "volume",
-                  label: "Volume",
-                  value: formatIntradayValue(
-                    latestIntradaySnap?.volume,
-                    0
-                  ),
-                },
-                {
-                  key: "spread",
-                  label: "Spread",
-                  value: formatIntradayValue(
-                    latestIntradaySnap?.spread,
-                    3
-                  ),
-                },
-              ].map((item) => (
-                <div className="intraday-card" key={item.key}>
-                  <div className="intraday-label">{item.label}</div>
-                  <div className="intraday-value">{item.value}</div>
-                </div>
-              ))}
-            </div>
-            {!latestIntradaySnap && (
-              <div className="intraday-empty">Waiting for live data...</div>
-            )}
-          </div>
-        </div>
-      </div>
+      {/* no right panel – same silhouette as TOTAL */}
     </div>
   );
 };
