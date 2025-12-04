@@ -1,4 +1,26 @@
 services:
+  # Django Web App (Gunicorn - prod-like)
+  web:
+    build:
+      context: .                 # root: A:\Thor
+      dockerfile: ./thor-backend/Dockerfile
+    container_name: thor_web
+    ports:
+      - "8001:8000"              # host 8001 -> container 8000
+    env_file:
+      - .env                     # reuse your existing env file
+    environment:
+      # Override hosts for inside Docker
+      DB_HOST: postgres
+      REDIS_HOST: redis
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
   # PostgreSQL Database (for local development)
   postgres:
     image: postgres:15-alpine

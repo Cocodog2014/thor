@@ -108,10 +108,13 @@ DATABASES = {
         'NAME': config('DB_NAME', default='thor_db'),
         'USER': config('DB_USER', default='postgres'),
         'PASSWORD': config('DB_PASSWORD', default='postgres'),
-        'HOST': config('DB_HOST', default='localhost'),
+        # IMPORTANT: default to 'postgres' inside Docker, override via .env for local
+        'HOST': config('DB_HOST', default='postgres'),
         'PORT': config('DB_PORT', default='5432'),
     }
 }
+
+
 
 
 # Password validation
@@ -227,8 +230,18 @@ if _csrf_extra:
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
+# ============================================================================
+# Redis Configuration (LiveData shared message bus)
+# ============================================================================
+
 # Redis Configuration (live bus)
-REDIS_URL = config('REDIS_URL', default='redis://localhost:6379/0')
+REDIS_URL = config('REDIS_URL', default='redis://redis:6379/0')
+
+# Redis Configuration (LiveData shared message bus)
+REDIS_HOST = config('REDIS_HOST', default='redis')
+REDIS_PORT = config('REDIS_PORT', default=6379, cast=int)
+REDIS_DB = config('REDIS_DB', default=0, cast=int)
+
 
 # Frontend base URL exposed in admin shortcuts and cross-links
 FRONTEND_BASE_URL = config('FRONTEND_BASE_URL', default='http://localhost:5173/')
@@ -259,14 +272,6 @@ if DEBUG and CLOUDFLARE_TUNNEL_URL:
 else:
     # Production callback URL
     SCHWAB_REDIRECT_URI = config('SCHWAB_REDIRECT_URI', default='https://360edu.org/api/schwab/oauth/callback/')
-
-# ============================================================================
-# Redis Configuration (LiveData shared message bus)
-# ============================================================================
-REDIS_HOST = config('REDIS_HOST', default='localhost')
-REDIS_PORT = config('REDIS_PORT', default=6379, cast=int)
-REDIS_DB = config('REDIS_DB', default=0, cast=int)
-
 
 # Structured logging for background supervisors and services
 LOGGING = {
