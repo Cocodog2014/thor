@@ -5,11 +5,10 @@ import MarketTotalCard from "./MarketTotalCard";
 import MarketFutureCard from "./MarketFutureCard";
 
 type MarketSessionCardProps = {
-  market: any;                 // one element from CONTROL_MARKETS
-  rows: any[];                 // rows for this country
-  status?: any;                // liveStatus[m.country]
-  intradaySnap?: any;          // intradayLatest[m.key]
-  selectedSymbol?: string;     // selected[m.key]
+  market: any;             // one element from CONTROL_MARKETS
+  rows: any[];             // rows for this country
+  status?: any;            // liveStatus[m.country]
+  selectedSymbol?: string; // selected[m.key]
   onSelectedSymbolChange: (symbol: string) => void;
 };
 
@@ -17,7 +16,6 @@ const MarketSessionCard: React.FC<MarketSessionCardProps> = ({
   market: m,
   rows,
   status,
-  intradaySnap,
   selectedSymbol,
   onSelectedSymbolChange,
 }) => {
@@ -77,8 +75,6 @@ const MarketSessionCard: React.FC<MarketSessionCardProps> = ({
         r.future.toUpperCase() === effectiveSelectedSymbol.toUpperCase()
     ) || rows[0];
 
-  const latestIntradaySnap = intradaySnap;
-
   if (!snap) {
     return (
       <div className="mo-rt-card">
@@ -115,7 +111,6 @@ const MarketSessionCard: React.FC<MarketSessionCardProps> = ({
     <MarketFutureCard
       market={m}
       snap={snap}
-      intradaySnap={latestIntradaySnap}
       selectedSymbol={effectiveSelectedSymbol}
       onSelectedSymbolChange={onSelectedSymbolChange}
     />

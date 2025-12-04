@@ -116,9 +116,14 @@
 }
 
 .login-card a {
-  color: #42a5f5;
-  font-weight: 500;
+  color: #ff471a;
+  font-weight: 600;
   text-decoration: none;
+}
+
+.login-card .weapon-link {
+  color: #ff471a;
+  font-size: 120%;
 }
 
 .login-card a:hover {
