@@ -23,7 +23,7 @@ export const MARKET_SESSIONS_STYLES = `
   .chip.status.error { background: rgba(239,68,68,0.35); }
   .chip.status.warning { background: rgba(255,193,7,0.35); }
 
-  /* keep copying everything that was between <style>{` and `}</style> */
+  /* keep copying everything that was between <style>{ and }</style> */
 
   .session-stats-header span:first-child,
   .session-stats-row span:first-child { text-align: left; }

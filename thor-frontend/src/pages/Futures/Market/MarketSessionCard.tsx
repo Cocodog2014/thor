@@ -1,1 +1,1 @@
-export { default } from "./MarketSessionCards.tsx";
+export { default } from "./MarketSessionCards";
