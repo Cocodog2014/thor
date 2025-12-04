@@ -7,8 +7,8 @@ class FutureTrading24Hour(models.Model):
     """
     session_group = models.CharField(max_length=32, db_index=True, help_text="Shared key with MarketSession.capture_group")
     session_date = models.DateField(db_index=True)
-    country = models.CharField(max_length=10)
-    future = models.CharField(max_length=10)
+    country = models.CharField(max_length=32)
+    future = models.CharField(max_length=20)
     prev_close_24h = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True)
     open_price_24h = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True)
     open_prev_diff_24h = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True)

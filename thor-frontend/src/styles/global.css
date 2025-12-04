@@ -7,7 +7,7 @@
 @import '../components/CollapsibleDrawer.css';
 @import '../pages/Home/Home.css';
 @import '../pages/GlobalMarkets/GlobalMarkets.css';
-@import '../pages/Futures/Market/MarketDashboard.css';
+@import '../pages/Futures/Market/MarketSessions.css';
 @import '../pages/Futures/FutureRTD/FutureRTD.css';
 @import '../pages/Futures/FutureRTD/RTDcards/L1Card.css';
 @import '../pages/Futures/FutureRTD/TotalCard.css';
@@ -19,7 +19,7 @@
 @import '../components/Ribbons/FooterRibbon.css';
 @import '../components/Grid2x3/TwoByThreeGrid.css';
 @import '../components/Grid2x2/TwoByTwoGrid.css';
-@import '../pages/Futures/Home/FutureHome.css';
+@import '../pages/Futures/FuturesHome/FutureHome.css';
 
 /* ========================================= */
 /*                RESETS & BASE             */
