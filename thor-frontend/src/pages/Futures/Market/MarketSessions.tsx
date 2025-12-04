@@ -1,10 +1,8 @@
-// Market Open Session Styles are imported via MARKET_SESSIONS_STYLES
-import { MARKET_SESSIONS_STYLES } from "./marketSessionStyles.ts";
-
 import { CONTROL_MARKETS } from "./marketSessionTypes.ts";
 import { normalizeCountry } from "./marketSessionUtils.ts";
 import { useMarketSessions } from "./useMarketSessions.ts";
 import MarketSessionCard from "./MarketSessionCard.tsx";
+import "./MarketSessions.css";
 
 const MarketSessions: React.FC<{ apiUrl?: string }> = ({ apiUrl }) => {
   const { liveStatus, intradayLatest, selected, setSelected, byCountry } =
@@ -12,9 +10,6 @@ const MarketSessions: React.FC<{ apiUrl?: string }> = ({ apiUrl }) => {
 
   return (
     <div className="market-dashboard">
-      {/* Single style injection (CSS lives in marketSessionStyles.ts) */}
-      <style>{MARKET_SESSIONS_STYLES}</style>
-
       <div className="market-dashboard-header">
         <h3 className="market-open-header-title">📊 Market Open Sessions</h3>
         <div className="text-xs subtitle-text">
