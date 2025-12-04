@@ -11,6 +11,20 @@
 
 .market-dashboard-header {
   margin-bottom: 20px;
+  text-align: center;
+}
+
+.market-open-header-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+.subtitle-text {
+  opacity: 0.9;
+  font-size: 0.8rem;
 }
 
 .market-grid {
@@ -20,6 +34,8 @@
   width: 100%;
 }
 
+/* Base card */
+
 .mo-rt-card {
   background: #1e1e1e;
   border-radius: 12px;
@@ -28,8 +44,6 @@
   display: flex;
   flex-direction: row;
   gap: 16px;
-  max-height: none;
-  overflow: visible;
 }
 
 .mo-rt-left {
@@ -39,11 +53,7 @@
   flex-direction: column;
 }
 
-.mo-rt-right {
-  flex: 0 0 360px;
-  min-width: 0;
-  margin-top: 32px;
-}
+/* Header & chips */
 
 .mo-rt-header {
   display: flex;
@@ -95,6 +105,8 @@
   font-size: 12px;
 }
 
+/* Top strip: Last + Close Δ */
+
 .mo-rt-top {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 140px;
@@ -108,201 +120,37 @@
   line-height: 1;
 }
 
-.mo-rt-last .label { font-size: 13px; opacity: 0.75; }
-.mo-rt-change { text-align: right; }
-.mo-rt-change .val { font-size: 18px; font-weight: 700; }
-.mo-rt-change .pct { font-size: 14px; font-weight: 600; }
-.mo-rt-change .label { font-size: 12px; opacity: 0.75; }
-.delta-positive { color: #5cc569; }
-.delta-negative { color: #f26d6d; }
-.delta-neutral { color: #fff; opacity: 0.85; }
-
-.mo-rt-deltas {
-  display: flex;
-  gap: 12px;
-  margin-bottom: 14px;
+.mo-rt-last .label {
+  font-size: 13px;
+  opacity: 0.75;
 }
 
-.delta-column {
-  flex: 1 1 0;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+.mo-rt-change {
+  text-align: right;
 }
 
-.delta-row {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.delta-card {
-  background: rgba(255,255,255,0.03);
-  border: 1px solid rgba(255,255,255,0.1);
-  border-radius: 10px;
-  padding: 10px 12px;
-}
-
-.delta-label {
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  opacity: 0.7;
-  margin-bottom: 4px;
-}
-
-.delta-value {
-  font-size: 17px;
+.mo-rt-change .val {
+  font-size: 18px;
   font-weight: 700;
 }
 
-.delta-sub {
+.mo-rt-change .pct {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.mo-rt-change .label {
   font-size: 12px;
   opacity: 0.75;
 }
 
-.bbo-card {
-  display: flex;
-  align-items: stretch;
-  gap: 12px;
-}
+/* delta colors */
 
-.bbo-section {
-  flex: 1 1 0;
-  text-align: center;
-}
+.delta-positive { color: #5cc569; }
+.delta-negative { color: #f26d6d; }
+.delta-neutral { color: #fff; opacity: 0.85; }
 
-.bbo-divider {
-  width: 1px;
-  background: rgba(255,255,255,0.08);
-  border-radius: 1px;
-}
-
-.bbo-head {
-  font-size: 11px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  margin-bottom: 4px;
-}
-
-.bbo-head.bid { color: #5cc569; }
-.bbo-head.ask { color: #f46868; }
-.bbo-main { font-size: 20px; font-weight: 700; }
-.bbo-sub { font-size: 12px; opacity: 0.8; }
-
-.mo-rt-meta {
-  display: grid;
-  grid-template-columns: repeat(1, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.meta {
-  background: rgba(255,255,255,0.03);
-  border-radius: 8px;
-  border: 1px solid rgba(255,255,255,0.12);
-  padding: 8px 10px;
-}
-
-.meta-label {
-  font-size: 11px;
-  opacity: 0.7;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  margin-bottom: 2px;
-}
-
-.meta-value {
-  font-size: 13px;
-  font-weight: 700;
-}
-
-.mo-rt-right-columns {
-  display: flex;
-  gap: 12px;
-  align-items: flex-start;
-}
-
-.session-stats-column {
-  flex: 1 1 auto;
-}
-
-.intraday-column {
-  flex: 0 0 150px;
-  background: rgba(255,255,255,0.03);
-  border: 1px solid rgba(255,255,255,0.1);
-  border-radius: 10px;
-  padding: 10px;
-}
-
-.intraday-title {
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  opacity: 0.75;
-  margin-bottom: 6px;
-}
-
-.intraday-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-}
-
-.intraday-card {
-  background: rgba(0,0,0,0.3);
-  border-radius: 8px;
-  border: 1px solid rgba(255,255,255,0.08);
-  padding: 6px 8px;
-}
-
-.intraday-label {
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  opacity: 0.7;
-}
-
-.intraday-value {
-  font-size: 13px;
-  font-weight: 700;
-}
-
-.intraday-empty {
-  margin-top: 8px;
-  font-size: 11px;
-  opacity: 0.7;
-}
-
-.mo-rt-stats-title {
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  opacity: 0.75;
-  margin-bottom: 8px;
-}
-
-.mo-rt-stats {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-}
-
-.stat {
-  background: rgba(255,255,255,0.04);
-  border-radius: 8px;
-  border: 1px solid rgba(255,255,255,0.1);
-  padding: 8px 10px;
-}
-
-.stat-label {
-  font-size: 11px;
-  opacity: 0.75;
-}
-
-.stat-value {
-  font-size: 13px;
-  font-weight: 700;
-}
+/* Placeholder card text */
 
 .mo-rt-placeholder {
   padding: 16px;
@@ -314,125 +162,8 @@
   opacity: 0.85;
 }
 
-@media (max-width: 1024px) {
-  .mo-rt-card { flex-direction: column; }
-  .mo-rt-right { flex: 1 1 auto; }
-  .mo-rt-right-columns { flex-direction: column; }
-  .intraday-column { flex: 1 1 auto; width: 100%; }
-}
+/* TOTAL / FUTURE shared layout */
 
-/* TOTAL inline layout (per market) */
-.total-inline-card {
-  background: linear-gradient(135deg, #ff9800, #ff5722);
-  border: 1px solid rgba(255,152,0,0.55);
-  border-radius: 12px;
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.total-inline-top {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.total-inline-title {
-  font-size: 0.9rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  font-weight: 800;
-}
-
-.total-inline-tags {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin-top: 6px;
-}
-
-.total-inline-badge {
-  padding: 3px 10px;
-  border-radius: 999px;
-  font-size: 0.7rem;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  background: rgba(0,0,0,0.25);
-  font-weight: 700;
-}
-
-.total-inline-signal {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.total-inline-weight {
-  font-size: 0.85rem;
-  font-weight: 700;
-  opacity: 0.9;
-}
-
-.total-inline-main {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.total-inline-value {
-  font-size: 2.4rem;
-  font-weight: 900;
-  line-height: 1;
-}
-
-.total-inline-label {
-  font-size: 0.9rem;
-  opacity: 0.85;
-  font-weight: 600;
-}
-
-.total-inline-metrics {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 12px;
-}
-
-.total-inline-mini {
-  background: rgba(0,0,0,0.18);
-  border-radius: 10px;
-  border: 1px solid rgba(255,255,255,0.25);
-  padding: 12px;
-}
-
-.total-inline-mini .mini-title {
-  font-size: 0.75rem;
-  opacity: 0.75;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  margin-bottom: 4px;
-}
-
-.total-inline-mini .mini-value {
-  font-size: 1.4rem;
-  font-weight: 800;
-}
-
-.total-inline-mini .mini-sub {
-  font-size: 0.75rem;
-  opacity: 0.8;
-}
-
-.total-inline-meta {
-  font-size: 0.8rem;
-  opacity: 0.85;
-}
-
-.subtitle-text { opacity: 0.9; }
-
-/* TOTAL session summary layout */
 .total-session-card {
   display: flex;
   flex-direction: column;
@@ -477,7 +208,8 @@
   margin-top: 4px;
 }
 
-/* Compact session stats (TOTAL and futures) */
+/* Compact session stats (TOTAL + futures) */
+
 .mo-rt-session-stats {
   margin-top: 10px;
   border-radius: 8px;
@@ -528,6 +260,7 @@
 }
 
 /* Triangle indicator cells */
+
 .triangle-cell {
   display: flex;
   align-items: center;
@@ -540,6 +273,7 @@
 }
 
 /* Up / Down / Neutral triangles */
+
 .triangle-up {
   width: 0;
   height: 0;
@@ -563,4 +297,12 @@
   border-right: 6px solid transparent;
   border-top: 10px solid #bbb;
   border-bottom: 10px solid #bbb;
+}
+
+/* Responsive */
+
+@media (max-width: 1024px) {
+  .mo-rt-card {
+    flex-direction: column;
+  }
 }
