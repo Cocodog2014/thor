@@ -18,11 +18,11 @@ import {
 type MarketTotalCardProps = {
   market: any;
   snap: any;
-  status?: any;
   selectedSymbol: string;
   onSelectedSymbolChange: (symbol: string) => void;
 };
 
+// and in the function signature:
 const MarketTotalCard: React.FC<MarketTotalCardProps> = ({
   market: m,
   snap,

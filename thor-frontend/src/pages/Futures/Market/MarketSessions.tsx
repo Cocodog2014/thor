@@ -1,3 +1,4 @@
+import React from "react";
 import { CONTROL_MARKETS } from "./marketSessionTypes.ts";
 import { normalizeCountry } from "./marketSessionUtils.ts";
 import { useMarketSessions } from "./useMarketSessions.ts";
