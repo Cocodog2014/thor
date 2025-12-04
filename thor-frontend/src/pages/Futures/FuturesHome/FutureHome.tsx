@@ -3,7 +3,7 @@ import TwoByTwoGridSortable from "../../../components/Grid2x2/TwoByTwoGridSortab
 import type { DashboardTile } from "../../../components/Grid2x3/TwoByThreeGrid";
 import GlobalMarkets from "../../GlobalMarkets/GlobalMarkets";
 import FutureRTD from "../FutureRTD/FutureRTD";
-import MarketDashboard from "../Market/MarketDashboard";
+import MarketSessions from "../Market/MarketSessions";
 import { useDragAndDropTiles } from "../../../hooks/DragAndDrop";
 import "./FutureHome.css";
 
@@ -22,7 +22,7 @@ const FUTURE_TILES: DashboardTile[] = [
   {
     id: "slot-3",
     title: "Market Sessions",
-    children: <MarketDashboard />,
+    children: <MarketSessions />,
   },
   {
     id: "slot-4",
@@ -46,4 +46,3 @@ const FutureHome: React.FC = () => {
 };
 
 export default FutureHome;
-

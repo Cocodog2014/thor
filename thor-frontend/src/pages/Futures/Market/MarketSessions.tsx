@@ -234,7 +234,7 @@ const formatIntradayValue = (value?: number | null, maxFrac = 2) => {
   return parsed.toLocaleString("en-US", { maximumFractionDigits: maxFrac });
 };
 
-const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl }) => {
+const MarketSessions: React.FC<{ apiUrl?: string }> = ({ apiUrl }) => {
   const resolvedApiUrl = apiUrl || getApiUrl();
   const resolvedLiveStatusUrl = getLiveStatusApiUrl();
   const sessionApiUrl = useMemo(() => getSessionApiUrl(), []);
@@ -259,7 +259,7 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl }) => {
       try {
         const res = await fetch(resolvedApiUrl);
         if (!res.ok) {
-          console.error("MarketDashboard: API error", res.status, res.statusText);
+          console.error("MarketSessions: API error", res.status, res.statusText);
           if (!cancelled) setSessions([]);
           return;
         }
@@ -269,7 +269,7 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl }) => {
           setSessions(list);
         }
       } catch (e) {
-        console.error("MarketDashboard: fetch failed", e);
+        console.error("MarketSessions: fetch failed", e);
         if (!cancelled) setSessions([]);
       }
     }
@@ -278,7 +278,7 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl }) => {
       try {
         const res = await fetch(resolvedLiveStatusUrl);
         if (!res.ok) {
-          console.error("MarketDashboard: live status API error", res.status, res.statusText);
+          console.error("MarketSessions: live status API error", res.status, res.statusText);
           if (!cancelled) setLiveStatus({});
           return;
         }
@@ -302,7 +302,7 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl }) => {
           setLiveStatus(map);
         }
       } catch (e) {
-        console.error("MarketDashboard: live status fetch failed", e);
+        console.error("MarketSessions: live status fetch failed", e);
         if (!cancelled) setLiveStatus({});
       }
     }
@@ -354,7 +354,7 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl }) => {
           const data = await res.json();
           updates[m.key] = data?.intraday_latest || null;
         } catch (err) {
-          console.error("MarketDashboard: intraday fetch failed", err);
+          console.error("MarketSessions: intraday fetch failed", err);
           updates[m.key] = null;
         }
       }));
@@ -388,7 +388,7 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl }) => {
 
   return (
     <div className="market-dashboard">
-      {/* Inline styles for MarketDashboard (kept local per request) */}
+      {/* Inline styles for MarketSessions (kept local per request) */}
       <style>{`
         .market-dashboard { width: 100%; padding: 16px; }
         .market-dashboard-header { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 10px; }
@@ -1014,4 +1014,5 @@ const MarketDashboard: React.FC<{ apiUrl?: string }> = ({ apiUrl }) => {
   );
 };
 
-export default MarketDashboard;
+export default MarketSessions;
+
