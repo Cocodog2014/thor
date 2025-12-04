@@ -103,7 +103,10 @@ const Login: React.FC = () => {
             </button>
           </form>
           <p>
-            Don't have an account? <a href="/auth/register">Create one</a>
+            Don't have a weapon?{" "}
+            <a className="weapon-link" href="/auth/register">
+              Create one
+            </a>
           </p>
         </div>
       </div>

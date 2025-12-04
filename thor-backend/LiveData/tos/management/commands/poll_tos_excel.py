@@ -27,8 +27,8 @@ class Command(BaseCommand):
         parser.add_argument(
             '--interval',
             type=int,
-            default=3,
-            help='Polling interval in seconds (default: 3)'
+            default=1,
+            help='Polling interval in seconds (default: 1)'
         )
         parser.add_argument(
             '--file',
@@ -50,7 +50,7 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
-        interval = options['interval']
+        interval = max(1, options['interval'])
         file_path = options['file']
         sheet_name = options['sheet']
         data_range = options['range']

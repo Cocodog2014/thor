@@ -6,7 +6,6 @@ class ThorTradingConfig(AppConfig):
 
     default_auto_field = "django.db.models.BigAutoField"
     name = "ThorTrading"
-    label = "FutureTrading"  # preserve DB table/app label without migrations
     verbose_name = "Thor Trading"
 
     def ready(self):
