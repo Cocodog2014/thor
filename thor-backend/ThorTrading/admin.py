@@ -1,4 +1,5 @@
 from django.contrib import admin
+from .constants import CONTROL_COUNTRIES
 from .models import (
     InstrumentCategory, TradingInstrument,
     SignalStatValue, ContractWeight, SignalWeight
@@ -40,6 +41,60 @@ class ContractWeightInline(admin.StackedInline):
     model = ContractWeight
     extra = 0
     fields = ['weight']
+
+
+class MarketSessionCountryFilter(admin.SimpleListFilter):
+    """Normalize country choices so alias rows (Pre-USA vs Pre_USA) collapse to one option."""
+
+    title = "By country"
+    parameter_name = "country"
+
+    _ALIASES = {
+        'Pre_USA': {'Pre_USA', 'Pre-USA'},
+    }
+    _LABEL_OVERRIDES = {
+        'Pre_USA': 'Pre-USA',
+    }
+
+    def lookups(self, request, model_admin):
+        queryset = model_admin.get_queryset(request)
+        seen = set()
+        options = []
+
+        def add_option(canonical_name: str):
+            if canonical_name in seen:
+                return
+            seen.add(canonical_name)
+            label = self._LABEL_OVERRIDES.get(canonical_name, canonical_name)
+            options.append((canonical_name, label))
+
+        for country in CONTROL_COUNTRIES:
+            add_option(self._to_canonical(country))
+
+        dynamic_countries = queryset.order_by().values_list('country', flat=True).distinct()
+        for raw in dynamic_countries:
+            canonical = self._to_canonical(raw)
+            if canonical:
+                add_option(canonical)
+
+        return options
+
+    def queryset(self, request, queryset):
+        value = self.value()
+        if not value:
+            return queryset
+        variants = self._ALIASES.get(value, {value})
+        return queryset.filter(country__in=variants)
+
+    def _to_canonical(self, value):
+        if not value:
+            return None
+        normalized = value.strip()
+        key = normalized.replace('-', '_')
+        lower_key = key.lower()
+        if lower_key == 'pre_usa':
+            return 'Pre_USA'
+        return normalized
 
 
 @admin.register(InstrumentCategory)
@@ -260,7 +315,7 @@ class MarketSessionAdmin(admin.ModelAdmin):
 
     list_filter = [
         ColumnSetFilter,
-        'country',
+        MarketSessionCountryFilter,
         'future',
         'day',
         'bhs',
