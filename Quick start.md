@@ -75,3 +75,12 @@ cd A:\Thor
 docker compose up -d
 
 http://localhost:8001/admin/
+
+python manage.py runserver
+
+npm run dev:local
+
+when the Docker backend is up 
+
+npm run dev:docker
+
