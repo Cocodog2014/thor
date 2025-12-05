@@ -32,7 +32,7 @@ class IntradayMarketSupervisor:
         5. Precompute rolling VWAP snapshot.
     """
 
-    def __init__(self, interval_seconds: int = 10):
+    def __init__(self, interval_seconds: int = 1):
         self.interval_seconds = interval_seconds
         self.disabled = os.getenv("INTRADAY_SUPERVISOR_DISABLED", "").lower() in {"1", "true", "yes"}
         if self.disabled:
