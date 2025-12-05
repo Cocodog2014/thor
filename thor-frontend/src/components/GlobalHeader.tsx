@@ -7,15 +7,13 @@ interface LayoutProps {
   children: React.ReactNode;
   onTradingActivityToggle?: () => void;
   showTradingActivity?: boolean;
-  onAccountStatementToggle?: () => void;
-  showAccountStatement?: boolean;
   onGlobalMarketToggle?: () => void;
   showGlobalMarket?: boolean;
   onFuturesOnHomeToggle?: () => void;
   showFuturesOnHome?: boolean;
 }
 
-const GlobalHeader: React.FC<LayoutProps> = ({ children, onTradingActivityToggle, showTradingActivity, onAccountStatementToggle, showAccountStatement, onGlobalMarketToggle, showGlobalMarket, onFuturesOnHomeToggle, showFuturesOnHome }) => {
+const GlobalHeader: React.FC<LayoutProps> = ({ children, onTradingActivityToggle, showTradingActivity, onGlobalMarketToggle, showGlobalMarket, onFuturesOnHomeToggle, showFuturesOnHome }) => {
   const [open, setOpen] = React.useState(false);
   const { mode } = useTradingMode();
 
@@ -79,8 +77,6 @@ const GlobalHeader: React.FC<LayoutProps> = ({ children, onTradingActivityToggle
     widthClosed={DEFAULT_WIDTH_CLOSED}
     onTradingActivityToggle={onTradingActivityToggle}
     showTradingActivity={showTradingActivity}
-    onAccountStatementToggle={onAccountStatementToggle}
-    showAccountStatement={showAccountStatement}
     onGlobalMarketToggle={onGlobalMarketToggle}
     showGlobalMarket={showGlobalMarket}
     onFuturesOnHomeToggle={onFuturesOnHomeToggle}

@@ -56,12 +56,12 @@ INSTALLED_APPS = [
     'corsheaders',
     'django_filters',
     'users',  # Custom user management with identity & access
-    'account_statement',  # Paper and real trading account management
     'core',
     'api',
-        'GlobalMarkets',  # WorldClock and Market data (renamed from 'timezones')
-        'thordata',   # Large Excel import app
-        'ThorTrading.apps.ThorTradingConfig',  # Modern real-time market data system (keeps legacy DB tables)
+    'ActAndPos',
+    'GlobalMarkets',  # WorldClock and Market data (renamed from 'timezones')
+    'thordata',   # Large Excel import app
+    'ThorTrading.apps.ThorTradingConfig',  # Modern real-time market data system (keeps legacy DB tables)
     # LiveData - Multi-broker live data pipeline
     'LiveData.schwab.apps.SchwabConfig',  # Schwab OAuth + Trading API
     'LiveData.tos.apps.TosConfig',        # Thinkorswim streaming

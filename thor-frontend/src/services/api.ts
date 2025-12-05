@@ -28,7 +28,6 @@ const PUBLIC_ENDPOINTS = [
   '/global-markets/markets',
   '/quotes',
   '/vwap',
-  '/account-statement/summary',
 ];
 
 // Request interceptor

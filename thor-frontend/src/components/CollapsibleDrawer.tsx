@@ -22,7 +22,6 @@ import {
   Logout as LogoutIcon,
   Public as PublicIcon,
 } from '@mui/icons-material';
-import ReceiptLongIcon from '@mui/icons-material/ReceiptLong';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 export interface CollapsibleDrawerProps {
@@ -32,8 +31,6 @@ export interface CollapsibleDrawerProps {
   widthClosed?: number;
   onTradingActivityToggle?: () => void;
   showTradingActivity?: boolean;
-  onAccountStatementToggle?: () => void;
-  showAccountStatement?: boolean;
   onGlobalMarketToggle?: () => void;
   showGlobalMarket?: boolean;
   onFuturesOnHomeToggle?: () => void;
@@ -56,8 +53,6 @@ const CollapsibleDrawer: React.FC<CollapsibleDrawerProps> = ({
   // widthClosed = DEFAULT_WIDTH_CLOSED,
   onTradingActivityToggle,
   showTradingActivity = false,
-  onAccountStatementToggle,
-  showAccountStatement = false,
   onGlobalMarketToggle,
   showGlobalMarket = false,
   onFuturesOnHomeToggle,
@@ -180,20 +175,6 @@ const CollapsibleDrawer: React.FC<CollapsibleDrawerProps> = ({
           </ListItemButton>
         </ListItem>
 
-        {/* Accounts & Statements Toggle (appears high in the list) */}
-        <ListItem disablePadding sx={{ display: 'block' }}>
-          <ListItemButton
-            className="thor-nav-button"
-            selected={showAccountStatement}
-            onClick={onAccountStatementToggle}
-          >
-            <ListItemIcon className="thor-nav-icon">
-              <ReceiptLongIcon />
-            </ListItemIcon>
-            <ListItemText primary="Accounts & Statements" className="thor-nav-text" />
-          </ListItemButton>
-        </ListItem>
-        
   {/* Trading Activity Toggle */}
         <ListItem disablePadding sx={{ display: 'block' }}>
           <ListItemButton

@@ -9,7 +9,6 @@ import GlobalMarkets from './pages/GlobalMarkets/GlobalMarkets';
 import FutureRTD from './pages/Futures';
 import FutureHome from './pages/Futures/FuturesHome/FutureHome';
 import ActivityPositions from './pages/ActivityPositions';
-import AccountStatement from './pages/AccountStatement/AccountStatement';
 import ProtectedRoute from './components/ProtectedRoute';
 import AuthLayout from './layouts/AuthLayout';
 import AppLayout from './layouts/AppLayout';
@@ -27,7 +26,6 @@ function App() {
   const location = useLocation();
 
   const [showTradingActivity, setShowTradingActivity] = useState(false);
-  const [showAccountStatement, setShowAccountStatement] = useState(false);
   const [showGlobalMarket, setShowGlobalMarket] = useState(true); // Show by default
   const [showFuturesOnHome, setShowFuturesOnHome] = useState(true); // Toggle for split view
   const [showMarketOpenDashboard, setShowMarketOpenDashboard] = useState(false); // Market Open Dashboard toggle
@@ -39,10 +37,6 @@ function App() {
 
   const toggleTradingActivity = () => {
     setShowTradingActivity((prev) => !prev);
-  };
-
-  const toggleAccountStatement = () => {
-    setShowAccountStatement((prev) => !prev);
   };
 
   const toggleGlobalMarket = () => {
@@ -86,8 +80,6 @@ function App() {
               <AppLayout
                 onTradingActivityToggle={toggleTradingActivity}
                 showTradingActivity={showTradingActivity}
-                onAccountStatementToggle={toggleAccountStatement}
-                showAccountStatement={showAccountStatement}
                 onGlobalMarketToggle={toggleGlobalMarket}
                 showGlobalMarket={showGlobalMarket}
                 onFuturesOnHomeToggle={toggleFuturesOnHome}
@@ -118,7 +110,6 @@ function App() {
                         }
                       />
                       <Route path="global" element={<GlobalMarkets />} />
-                      <Route path="account" element={<AccountStatement />} />
                       <Route path="activity" element={<ActivityPositions />} />
                       {/* Stock trading removed */}
                       <Route path="user" element={<User />} />

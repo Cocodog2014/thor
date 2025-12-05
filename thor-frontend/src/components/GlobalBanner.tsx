@@ -63,7 +63,6 @@ const GlobalBanner: React.FC = () => {
     { label: 'Home',     path: '/app/home',     key: 'home' },
     { label: 'Futures',  path: '/app/futures',  key: 'futures' },
     { label: 'Global',   path: '/app/global',   key: 'global' },
-    { label: 'Account',  path: '/app/account',  key: 'account' },
     { label: 'Activity', path: '/app/activity', key: 'activity' },
     { label: 'Research', path: '/app/home',     key: 'research' },
     { label: 'Settings', path: '/app/home',     key: 'settings' },
@@ -84,10 +83,6 @@ const GlobalBanner: React.FC = () => {
     global: [
       { label: 'Tab 1', path: '/app/global' },
       { label: 'Tab 2', path: '/app/global' },
-    ],
-    account: [
-      { label: 'Panel 1', path: '/app/account' },
-      { label: 'Panel 2', path: '/app/account' },
     ],
     activity: [
       { label: 'Section A', path: '/app/activity' },

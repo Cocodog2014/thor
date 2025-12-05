@@ -11,8 +11,4 @@ urlpatterns = [
     path('vwap/rolling', views.vwap_rolling, name='vwap-rolling'),
     # Market session intraday latest
     path('session', views.session, name='session'),
-    # Account Statement summary (paper/real)
-    path('account-statement/summary', views.account_statement_summary, name='account-statement-summary'),
-    # Paper account reset (dev open; will secure later)
-    path('account-statement/reset-paper', views.account_statement_reset_paper, name='account-statement-reset-paper'),
 ]
