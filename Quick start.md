@@ -27,18 +27,35 @@ $env:REDIS_URL        = 'redis://localhost:6379/0'
 python manage.py runserver
 ```
 
+2.1 Excel poller (dev)
+
+cd A:\Thor\thor-backend
+python manage.py poll_tos_excel --interval 1
+
 3. Run frontend
 
 ```powershell
 cd A:\Thor\thor-frontend
-npm run dev
+npm run dev:local
 ```
+
+> Note: Vite reads the API base URL from `thor-frontend/.env.dev` (default `http://localhost:8000/api`). Adjust that file if you point the frontend at the Docker API instead.
 
 4. Start Excel → Redis poller (new shell)
 
+#### Dev runserver target
+
 ```powershell
 cd A:\Thor\thor-backend
-python manage.py poll_tos_excel
+python manage.py poll_tos_excel --interval 1
+```
+
+#### Docker (thor_web) target
+
+```powershell
+cd A:\Thor\thor-backend
+$env:REDIS_URL = "redis://localhost:6379/0"  # host view of the docker redis service
+python manage.py poll_tos_excel --interval 1
 ```
 
 5. (Optional) Run Cloudflare Tunnel (dev)
@@ -70,8 +87,9 @@ python manage.py start_market_grader --interval 1.0
 - **Frontend**: http://localhost:5173
 
 python manage.py runserver
-npm run dev:local
 http://localhost:8000/admin/
+
+npm run dev:local
 
 to run Gunicorn in docker desk top .
 
