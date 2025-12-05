@@ -71,7 +71,7 @@ const GlobalBanner: React.FC = () => {
   // Child tabs for each parent (generic placeholders for now)
   const childTabsByParent: Record<string, { label: string; path: string }[]> = {
     home: [
-      { label: 'View 1', path: '/app/home' },
+      { label: 'Activity & Positions', path: '/app/activity' },
       { label: 'View 2', path: '/app/home' },
       { label: 'View 3', path: '/app/home' },
     ],
@@ -166,7 +166,7 @@ const GlobalBanner: React.FC = () => {
               <button
                 key={child.label}
                 type="button"
-                onClick={() => console.log('Child tab clicked:', child.label)}
+                onClick={() => navigate(child.path)}
                 className={`home-nav-button-child${active ? ' active' : ''}`}
               >
                 {child.label}
