@@ -6,7 +6,7 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
   // Use the same backend host the React app will call in production,
   // defaulting to the legacy localhost:8000 dev server.
-  const apiBase = (env.VITE_API_BASE_URL ?? 'http://127.0.0.1:8001/api').replace(/\/+$/, '')
+  const apiBase = (env.VITE_API_BASE_URL ?? 'http://127.0.0.1:8000/api').replace(/\/+$/, '')
   const proxyTarget = apiBase.endsWith('/api') ? apiBase.slice(0, -4) : apiBase
 
   return {
