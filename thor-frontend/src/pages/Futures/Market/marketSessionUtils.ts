@@ -127,23 +127,36 @@ export const formatIntradayValue = (value?: number | null, maxFrac = 2) => {
 
 // ---- API URL helpers ----
 
+const trimTrailingSlash = (value: string) => value.replace(/\/+$/, "");
+
+const getBaseApiUrl = () => {
+  const base = import.meta.env.VITE_API_BASE_URL;
+  return base ? trimTrailingSlash(base) : undefined;
+};
+
 export const getApiUrl = () => {
-  return import.meta.env.VITE_MARKET_OPENS_API_URL
-    || "http://127.0.0.1:8000/api/market-opens/latest/";
+  const explicit = import.meta.env.VITE_MARKET_OPENS_API_URL;
+  if (explicit) return trimTrailingSlash(explicit);
+  const base = getBaseApiUrl();
+  if (base) return `${base}/market-opens/latest/`;
+  return "http://127.0.0.1:8000/api/market-opens/latest/";
 };
 
 export const getLiveStatusApiUrl = () => {
-  return import.meta.env.VITE_GLOBAL_MARKETS_LIVE_STATUS_API_URL
-    || "http://127.0.0.1:8000/api/global-markets/markets/live_status/";
+  const explicit = import.meta.env.VITE_GLOBAL_MARKETS_LIVE_STATUS_API_URL;
+  if (explicit) return trimTrailingSlash(explicit);
+  const base = getBaseApiUrl();
+  if (base) return `${base}/global-markets/markets/live_status/`;
+  return "http://127.0.0.1:8000/api/global-markets/markets/live_status/";
 };
-
-const trimTrailingSlash = (value: string) => value.replace(/\/+$/, "");
 
 export const getSessionApiUrl = () => {
   const explicit = import.meta.env.VITE_MARKET_SESSION_API_URL || import.meta.env.VITE_SESSION_API_URL;
   if (explicit) return trimTrailingSlash(explicit);
   const backendBase = import.meta.env.VITE_BACKEND_BASE_URL;
   if (backendBase) return `${trimTrailingSlash(backendBase)}/api/session`;
+  const apiBase = getBaseApiUrl();
+  if (apiBase) return `${apiBase}/session`;
   if (typeof window !== "undefined" && window.location?.origin) {
     return `${trimTrailingSlash(window.location.origin)}/api/session`;
   }
