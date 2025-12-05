@@ -1,14 +1,18 @@
 import axios from 'axios';
 
+// Decide the API base URL at build-time via Vite env variables.
+// If VITE_API_BASE_URL is not set, fall back to '/api' (old behavior).
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api';
+
 // Create axios instance with base configuration
-// Use a relative baseURL so Vite proxy (dev) and same-origin (prod) both work without CORS issues
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
   timeout: 10000, // 10 seconds timeout
 });
+
 
 // Public endpoints that don't require authentication
 const PUBLIC_ENDPOINTS = [
