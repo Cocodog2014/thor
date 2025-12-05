@@ -3,6 +3,18 @@ from django.contrib import admin
 from .models import Account, Order, Position, Trade
 
 
+class PositionInline(admin.TabularInline):
+	model = Position
+	extra = 0
+	readonly_fields = ("updated_at", "market_value", "unrealized_pl", "pl_percent")
+
+
+class OrderInline(admin.TabularInline):
+	model = Order
+	extra = 0
+	readonly_fields = ("time_last_update", "time_filled", "time_canceled")
+
+
 @admin.register(Account)
 class AccountAdmin(admin.ModelAdmin):
 	list_display = (
@@ -22,6 +34,7 @@ class AccountAdmin(admin.ModelAdmin):
 	search_fields = ("display_name", "broker_account_id")
 	ordering = ("-updated_at",)
 	readonly_fields = ("updated_at",)
+	inlines = [PositionInline, OrderInline]
 
 
 @admin.register(Position)
