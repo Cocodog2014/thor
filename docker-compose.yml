@@ -15,6 +15,7 @@ services:
       REDIS_HOST: redis
       REDIS_URL: redis://redis:6379/0
       THOR_STACK_AUTO_START: "0"
+      THOR_ENABLE_EXCEL_POLLER: "0"
     depends_on:
       postgres:
         condition: service_healthy
@@ -36,6 +37,7 @@ services:
       REDIS_HOST: redis
       REDIS_URL: redis://redis:6379/0
       THOR_STACK_AUTO_START: "1"
+      THOR_ENABLE_EXCEL_POLLER: "0"
     depends_on:
       postgres:
         condition: service_healthy
