@@ -3,6 +3,8 @@ Thor Trading Frontend — Development Guide (Updated)
 Overview
 This document describes the current (verified) frontend architecture for the Thor Trading platform and replaces earlier duplicated / outdated notes. Drag & drop features have been removed from active code (dependencies remain but are unused). L1 Card system now lives inside page‑specific FutureTrading folders, not under top‑level components.
 
+> Need the backend/worker picture or Excel poller instructions? See `Thor_web.md` for the authoritative Docker + Redis flow and the host-side poller steps that feed the UI widgets.
+
 Environment Profiles (NEW)
 - The `thor-frontend` app now includes two env templates:
   - `.env.dev` → local `python manage.py runserver` (http://localhost:8000/api)
@@ -12,6 +14,8 @@ Environment Profiles (NEW)
   - `npm run dev:docker` copies `.env.docker` into `.env.local` and starts Vite.
   - Standalone copies: `npm run env:local` / `npm run env:docker`.
 Vite reads `.env.local` at startup, so these commands eliminate manual edits when switching between dev and Docker backends.
+
+> Market Sessions now inherit the same `VITE_API_BASE_URL` used by the other widgets. As long as you run the helper scripts above, both Futures RTD panels and the Market Session grid target the same backend URL (dev or Docker) without extra env tweaks.
 
 Tech Stack (Current)
 React 19
