@@ -58,7 +58,7 @@ INSTALLED_APPS = [
     'users',  # Custom user management with identity & access
     'core',
     'api',
-    'ActAndPos',
+    'ActAndPos.apps.ActandposConfig',
     'GlobalMarkets',  # WorldClock and Market data (renamed from 'timezones')
     'thordata',   # Large Excel import app
     'ThorTrading.apps.ThorTradingConfig',  # Modern real-time market data system (keeps legacy DB tables)

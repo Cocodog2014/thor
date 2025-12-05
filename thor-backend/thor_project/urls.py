@@ -54,6 +54,7 @@ urlpatterns = [
     path('api/schwab/', include(('LiveData.schwab.urls', 'schwab'), namespace='schwab')),
     path('api/feed/', include(('LiveData.shared.urls', 'feed'), namespace='feed')),
     path('api/feed/tos/', include(('LiveData.tos.urls', 'tos'), namespace='tos')),
+    path('api/actandpos/', include(('ActAndPos.urls', 'ActAndPos'), namespace='ActAndPos')),
     path('api/worldclock/', include('GlobalMarkets.urls')),      # Legacy path (kept)
     path('api/global-markets/', include('GlobalMarkets.urls')),  # Preferred path
     path('api/world-markets/', include('GlobalMarkets.urls')),   # Friendly alias
