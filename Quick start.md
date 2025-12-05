@@ -69,3 +69,18 @@ python manage.py start_market_grader --interval 1.0
   - Password: `Coco1464#`
 - **Frontend**: http://localhost:5173
 
+to run Gunicorn in docker desk top 
+
+cd A:\Thor
+docker compose up -d
+
+http://localhost:8001/admin/
+
+python manage.py runserver
+
+npm run dev:local
+
+when the Docker backend is up 
+
+npm run dev:docker
+
