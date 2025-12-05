@@ -1,7 +1,15 @@
 import axios from 'axios';
 
-// Decide the API base URL at build-time via Vite env variables.
-// If VITE_API_BASE_URL is not set, fall back to '/api' (old behavior).
+/**
+ * API base URL
+ *
+ * We read this from Vite environment variables:
+ *   VITE_API_BASE_URL=http://localhost:8001/api   (Docker / Gunicorn)
+ *   VITE_API_BASE_URL=http://localhost:8000/api   (local runserver)
+ *
+ * If it is NOT set for some reason, we fall back to '/api' so
+ * the old Vite proxy behaviour keeps working.
+ */
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api';
 
 // Create axios instance with base configuration
@@ -12,6 +20,7 @@ const api = axios.create({
   },
   timeout: 10000, // 10 seconds timeout
 });
+
 
 
 // Public endpoints that don't require authentication
@@ -69,8 +78,8 @@ api.interceptors.response.use(
         // Try to refresh the token
         const refreshToken = localStorage.getItem('thor_refresh_token');
         if (refreshToken) {
-          const { data } = await axios.post('/api/users/token/refresh/', {
-            refresh: refreshToken
+          const { data } = await axios.post(`${API_BASE_URL}/users/token/refresh/`, {
+          refresh: refreshToken,
           });
           
           // Store new access token
