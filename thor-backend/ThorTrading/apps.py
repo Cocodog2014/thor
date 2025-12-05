@@ -1,3 +1,5 @@
+import os
+
 from django.apps import AppConfig
 
 
@@ -20,6 +22,12 @@ class ThorTradingConfig(AppConfig):
         import time
 
         logger = logging.getLogger(__name__)
+
+        # Allow disabling the automatic stack in specific processes (e.g., web)
+        auto_start = os.environ.get("THOR_STACK_AUTO_START", "1").lower() not in {"0", "false", "no"}
+        if not auto_start:
+            logger.info("⏭️ THOR_STACK_AUTO_START disabled — background stack will not auto-start in this process.")
+            return
 
         try:
             from ThorTrading.services.stack_start import start_thor_background_stack

@@ -150,7 +150,7 @@ def start_preopen_backtest_supervisor_wrapper():
 # =====================================================================
 #  MASTER STACK — starts ALL supervisors
 # =====================================================================
-def start_thor_background_stack():
+def start_thor_background_stack(force: bool = False):
     """
     Safely starts all background supervisors for Thor.
 
@@ -158,6 +158,9 @@ def start_thor_background_stack():
       • Multiple launches (autoreload duplicates)
       • Running during management commands like migrate/test
       • Running in the wrong (non-main) runserver process
+    Args:
+        force: When True, bypasses the manage.py/RUN_MAIN guards so the
+               stack can be launched from a dedicated worker process.
     """
 
     # Prevent duplicate startup in the same process
@@ -166,7 +169,7 @@ def start_thor_background_stack():
         return
 
     # Skip for management commands that should NOT launch background tasks
-    if "manage.py" in os.path.basename(sys.argv[0]):
+    if not force and "manage.py" in os.path.basename(sys.argv[0]):
         mgmt_cmds = {
             "migrate",
             "makemigrations",
@@ -180,28 +183,31 @@ def start_thor_background_stack():
             return
 
     # Avoid launching from Django's autoreload parent
-    if os.environ.get("RUN_MAIN") != "true":
+    if not force and os.environ.get("RUN_MAIN") != "true":
         logger.info("⏭️ Not main thread — skipping background tasks.")
         return
 
     # Mark as started for this process
     start_thor_background_stack._started = True
 
-    logger.info("🚀 Starting Thor Background Stack now...")
+    logger.info("🚀 Starting Thor Background Stack now%s...", " (forced)" if force else "")
 
     # ----------------------------------------
     # 1. EXCEL POLLER
     # ----------------------------------------
-    try:
-        t1 = threading.Thread(
-            target=start_excel_poller_supervisor,
-            name="ExcelPollerSupervisor",
-            daemon=True,
-        )
-        t1.start()
-        logger.info("📄 Excel Poller Supervisor started.")
-    except Exception:
-        logger.exception("❌ Failed to start Excel Poller Supervisor")
+    if os.environ.get("THOR_ENABLE_EXCEL_POLLER", "0") == "1":
+        try:
+            t1 = threading.Thread(
+                target=start_excel_poller_supervisor,
+                name="ExcelPollerSupervisor",
+                daemon=True,
+            )
+            t1.start()
+            logger.info("📄 Excel Poller Supervisor started.")
+        except Exception:
+            logger.exception("❌ Failed to start Excel Poller Supervisor")
+    else:
+        logger.info("📄 Skipping Excel Poller Supervisor (THOR_ENABLE_EXCEL_POLLER!=1).")
 
     # ----------------------------------------
     # 2. MARKET OPEN GRADER

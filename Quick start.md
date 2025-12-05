@@ -69,18 +69,33 @@ python manage.py start_market_grader --interval 1.0
   - Password: `Coco1464#`
 - **Frontend**: http://localhost:5173
 
-to run Gunicorn in docker desk top 
+python manage.py runserver
+npm run dev:local
+http://localhost:8000/admin/
+
+to run Gunicorn in docker desk top .
+
+polar
+cd A:\Thor\thor-backend
+$env:REDIS_URL = "redis://localhost:6379/0"
+python manage.py poll_tos_excel --interval 1
 
 cd A:\Thor
 docker compose up -d
 
 http://localhost:8001/admin/
 
-python manage.py runserver
-
-npm run dev:local
-
 when the Docker backend is up 
 
+docker compose build web
+docker compose up -d
+
+cd A:\Thor\thor-frontend
 npm run dev:docker
+
+
+run the Host Polar
+
+.
+
 
