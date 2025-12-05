@@ -20,6 +20,7 @@ Both app containers share the same image (`./thor-backend/Dockerfile`) and `.env
   - `THOR_STACK_AUTO_START=0` on `thor_web` so Gunicorn does not start any background loops.
   - `THOR_STACK_AUTO_START=1` on `thor_worker` so the stack boots exactly once.
 - If you run the legacy Excel/xlwings poller on the host, export `REDIS_URL=redis://localhost:6379/0` before starting it so that it hits the Compose Redis instance.
+- `THOR_ENABLE_EXCEL_POLLER` stays `0` in `.env` and both Docker services. That keeps the Excel poller supervisor OFF inside Linux containers (xlwings is Windows-only) and ensures you must launch the poller manually on the host when you want real-time futures.
 
 ## Lifecycle
 
@@ -49,6 +50,18 @@ Excel/xlwings (host) ──writes quotes──> thor_redis ──> thor_worker
 
 - `api.redis_client.get_redis()` respects `settings.REDIS_URL`, so once the host poller writes to `thor_redis`, the `/api/quotes*` endpoints will see the same payloads as dev.
 - Intraday APIs (charts, VWAP) pull from Postgres tables (`ThorTrading_marketintraday`, `ThorTrading_vwapminute`) that the worker refreshes.
+
+### Host Excel Poller (manual step)
+
+Because the containers cannot run xlwings, always launch the poller on Windows when you need live futures:
+
+```powershell
+cd A:\Thor\thor-backend
+$env:REDIS_URL = "redis://localhost:6379/0"  # host view of docker redis
+python manage.py poll_tos_excel --interval 1
+```
+
+Leave that terminal running; it feeds both dev and Docker stacks as long as Redis stays mapped to port `6379`.
 
 ## Verification Checklist
 
@@ -139,3 +152,8 @@ Legend:
 
 
 For deeper topics—database schemas, Excel ingestion, frontend wiring—create separate Markdown files that can cite this overview instead of duplicating it.
+
+## Frontend Notes (Dec 2025)
+
+- Vite builds read `VITE_API_BASE_URL`. We now default all Market Session endpoints to that base URL, so Docker only needs this single env pointing at `http://localhost:8001/api` (or `http://web:8000/api` inside the compose network).
+- Dev `.env.dev` continues to use `http://localhost:8000/api`, so no extra overrides are needed for the new fallback logic.
