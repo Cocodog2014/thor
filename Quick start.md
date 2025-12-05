@@ -1,71 +1,188 @@
-cd A:\Thor
-.\thor_dev.ps1
+🚀 THOR Quickstart Guide (Improved & Simplified)
+Local Development vs Production (Docker Desktop)
 
-http://localhost:5173/
+This version removes ambiguity, follows a clean sequence, and states the purpose of each process.
 
+==========================================
+⭐ 0. Directory Structure
+==========================================
+A:\Thor
+ ├─ thor-backend/       (Django + Redis workers)
+ ├─ thor-frontend/      (Vite + React)
+ ├─ docker-compose.yml  (prod)
+ ├─ thor_dev.ps1        (optional dev helper script)
 
-1. Start databases & cache
+==========================================
+⭐ 1. LOCAL DEVELOPMENT (non-Docker)
+==========================================
 
-```powershell
+This is the setup where:
+
+Redis runs in Docker
+
+Django backend runs locally
+
+Excel → poller runs locally
+
+Frontend (Vite) runs locally
+
+Everything talks to port 8000 (not 8001)
+
+✔ STEP 1 — Start Redis & Postgres (Docker)
 cd A:\Thor
 docker compose up -d postgres
 docker compose up -d redis
-```
 
-2. Run backend (new shell)
 
-```powershell
+Purpose:
+Redis receives real-time futures quotes (RTD).
+Postgres stores intraday/session data.
+
+✔ STEP 2 — Start Django backend (local)
 cd A:\Thor\thor-backend
-# conda activate ThorBot       # if applicable
-$env:DATA_PROVIDER    = 'excel_live'
-$env:EXCEL_DATA_FILE  = 'A:\\Thor\\RTD_TOS.xlsm'
-$env:EXCEL_SHEET_NAME = 'LiveData'
-$env:EXCEL_LIVE_RANGE = 'A1:N13'
-$env:REDIS_URL        = 'redis://localhost:6379/0'
-# optional: disable background 52-week monitor
-# $env:FUTURETRADING_ENABLE_52W_MONITOR = '0'
 python manage.py runserver
-```
 
-3. Run frontend
 
-```powershell
-cd A:\Thor\thor-frontend
-npm run dev
-```
+Backend now alive at:
+👉 http://localhost:8000/api/
 
-4. Start Excel → Redis poller (new shell)
+👉 http://localhost:8000/admin/
 
-```powershell
+✔ STEP 3 — Start Excel → Redis Poller (local)
+
+This pushes live futures to Redis for the dev API.
+
 cd A:\Thor\thor-backend
-python manage.py poll_tos_excel
-```
+python manage.py poll_tos_excel --interval 1
 
-5. (Optional) Run Cloudflare Tunnel (dev)
 
-```powershell
+IMPORTANT:
+Leave this window running so Redis gets updated every second.
+
+✔ STEP 4 — Start Frontend (local)
+cd A:\Thor\thor-frontend
+npm run dev:local
+
+
+Frontend now alive at:
+👉 http://localhost:5173
+
+Frontend reads API from:
+thor-frontend/.env.dev → http://localhost:8000/api
+
+==========================================
+⭐ 2. PRODUCTION MODE (Docker Desktop)
+==========================================
+
+Production means:
+
+Gunicorn running Django backend inside Docker
+
+React frontend running in Docker (or pointed at Docker backend)
+
+Excel poller STILL RUNS ON WINDOWS (host), not inside Docker
+
+Everything talks via port 8001
+
+✔ STEP 1 — Start Excel → Redis poller for Docker
+
+The poller must point at Docker Redis (localhost:6379):
+
+cd A:\Thor\thor-backend
+$env:REDIS_URL = "redis://localhost:6379/0"
+python manage.py poll_tos_excel --interval 1
+
+
+This keeps real-time data flowing into Docker Redis.
+
+✔ STEP 2 — Build the Docker image
+cd A:\Thor
+docker compose build web
+
+✔ STEP 3 — Start the full production stack
+cd A:\Thor
+docker compose up -d
+
+
+Services:
+
+Service	Purpose	Port
+thor_web	Gunicorn Django backend	8001
+thor_redis	Redis message bus	6379
+thor_postgres	Postgres DB	5432
+thor_worker	Intraday + session workers	—
+
+Backend now at:
+👉 http://localhost:8001/api/
+
+👉 http://localhost:8001/admin/
+
+✔ STEP 4 — Frontend pointed at Docker backend
+
+If running frontend locally:
+
+cd A:\Thor\thor-frontend
+npm run dev:docker
+
+
+Or build production frontend in Docker (optional).
+
+==========================================
+⭐ 3. OPTIONAL — Cloudflare Tunnel for External Access
+==========================================
 cd A:\Thor
 cloudflared tunnel run thor
-```
+
+==========================================
+⭐ 4. OPTIONAL — Manual Market Open / Grader Commands
+==========================================
+
+Only run these if you intentionally disabled automatic Thor stack:
+
+python manage.py market_open_capture
+python manage.py market_close_capture
+python manage.py market_grader
 
 
-6. (Optional) Start Market Open Grader (new shell)
+Production worker normally starts these automatically when:
 
-The grader monitors pending MarketSession rows and updates their `wndw` field based on live prices hitting targets.
+THOR_STACK_AUTO_START=1
 
-```powershell
-cd A:\Thor\thor-backend
 
-# Start with default 0.5s check interval
-python manage.py start_market_grader
+is set in docker-compose.yml.
 
-# Or customize interval
-python manage.py start_market_grader --interval 1.0
+==========================================
+⭐ 5. Understanding the Data Flow (DIAGRAM)
+==========================================
+🔵 Development Mode
+Excel RTD → poll_tos_excel → Redis (Docker) → Django runserver → Frontend (5173)
 
-### Local Access
-- **Backend API**: http://localhost:8000/api/
-- **Admin Panel**: http://localhost:8000/admin/
-  - Email: `admin@360edu.org`
-  - Password: `Coco1464#`
-- **Frontend**: http://localhost:5173
+🟠 Production Mode
+Excel RTD → poll_tos_excel (host) → Redis (Docker) 
+        → Django (Gunicorn in docker)
+        → Thor worker (intraday + sessions)
+        → Frontend (docker/local)
 
+==========================================
+⭐ 6. Improvements Added
+==========================================
+
+✔ Clear separation between Dev and Prod pipelines
+✔ Each step includes purpose + expected URL
+✔ Removed confusing repetitions
+✔ Added diagram + service purpose table
+✔ Ensured Redis target is unambiguous
+✔ Ensured workers + Excel poller roles are distinct
+✔ Added optional advanced commands only at the end
+
+🎉 Final Result
+
+Your Quickstart is now:
+
+Professional
+
+Easy to follow
+
+Impossible to confuse dev/prod paths
+
+Ready for teammates or future you
