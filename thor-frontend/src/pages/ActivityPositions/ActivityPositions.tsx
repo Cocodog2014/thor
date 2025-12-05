@@ -1,132 +1,284 @@
-const ActivityPositions = () => {
+// src/pages/ActivityPositions/ActivityPositions.tsx
+import React, { useEffect, useState } from "react";
+import "./ActivityPositions.css";
+import api from "../../services/api";
+
+// ---------- Types matching ActAndPos API ----------
+
+interface AccountSummary {
+  id: number;
+  broker: string;
+  broker_account_id: string;
+  display_name: string | null;
+  currency: string;
+  net_liq: string;
+  cash: string;
+  stock_buying_power: string;
+  option_buying_power: string;
+  day_trading_buying_power: string;
+  ok_to_trade: boolean;
+}
+
+interface Order {
+  id: number;
+  symbol: string;
+  asset_type: string;
+  side: "BUY" | "SELL";
+  quantity: string;
+  order_type: string;
+  limit_price: string | null;
+  stop_price: string | null;
+  status: string;
+  time_placed: string;
+  time_last_update: string;
+  time_filled: string | null;
+  time_canceled: string | null;
+}
+
+interface Position {
+  id: number;
+  symbol: string;
+  description: string;
+  asset_type: string;
+  quantity: string;
+  avg_price: string;
+  mark_price: string;
+  market_value: string;
+  unrealized_pl: string;
+  pl_percent: string;
+  realized_pl_open: string;
+  realized_pl_day: string;
+  currency: string;
+}
+
+interface ActivityTodayResponse {
+  account: AccountSummary;
+  working_orders: Order[];
+  filled_orders: Order[];
+  canceled_orders: Order[];
+  positions: Position[];
+  account_status: {
+    ok_to_trade: boolean;
+    net_liq: string | number;
+    day_trading_buying_power: string | number;
+  };
+}
+
+// ---------- Small presentational helpers ----------
+
+const OrdersSection: React.FC<{ title: string; orders: Order[] }> = ({
+  title,
+  orders,
+}) => (
+  <section className="ap-section">
+    <div className="ap-section-header">
+      <span>{title}</span>
+      <span className="ap-section-count">Orders: {orders.length}</span>
+    </div>
+    <div className="ap-table-wrapper">
+      {orders.length === 0 ? (
+        <div className="ap-table-empty">No records.</div>
+      ) : (
+        <table className="ap-table ap-table-orders">
+          <thead>
+            <tr>
+              <th>Time</th>
+              <th>Side</th>
+              <th>Qty</th>
+              <th>Symbol</th>
+              <th>Type</th>
+              <th>Limit</th>
+              <th>Stop</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {orders.map((o) => (
+              <tr key={o.id}>
+                <td>{new Date(o.time_placed).toLocaleTimeString()}</td>
+                <td>{o.side}</td>
+                <td>{o.quantity}</td>
+                <td>{o.symbol}</td>
+                <td>{o.order_type}</td>
+                <td>{o.limit_price ?? "-"}</td>
+                <td>{o.stop_price ?? "-"}</td>
+                <td>{o.status}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
+  </section>
+);
+
+const PositionsStatement: React.FC<{ positions: Position[] }> = ({
+  positions,
+}) => (
+  <section className="ap-section ap-section-positions">
+    <div className="ap-section-header">
+      <span>Position Statement</span>
+      {/* place for “Beta Weighting / NOT WEIGHTED” later */}
+    </div>
+    <div className="ap-table-wrapper">
+      {positions.length === 0 ? (
+        <div className="ap-table-empty">No open positions.</div>
+      ) : (
+        <table className="ap-table ap-table-positions">
+          <thead>
+            <tr>
+              <th>Instrument</th>
+              <th>Qty</th>
+              <th>Trade Price</th>
+              <th>Mark</th>
+              <th>Net Liq</th>
+              <th>% Change</th>
+              <th>P/L Open</th>
+              <th>P/L Day</th>
+            </tr>
+          </thead>
+          <tbody>
+            {positions.map((p) => (
+              <tr key={p.id}>
+                <td>{p.symbol}</td>
+                <td>{p.quantity}</td>
+                <td>{p.avg_price}</td>
+                <td>{p.mark_price}</td>
+                <td>{p.market_value}</td>
+                <td>{p.pl_percent}</td>
+                <td>{p.realized_pl_open || p.unrealized_pl}</td>
+                <td>{p.realized_pl_day}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
+  </section>
+);
+
+// ---------- Main component ----------
+
+const ActivityPositions: React.FC = () => {
+  const [data, setData] = useState<ActivityTodayResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function load() {
+      try {
+        setLoading(true);
+        const response = await api.get<ActivityTodayResponse>(
+          "/actandpos/activity/today"
+        );
+        if (!cancelled) {
+          setData(response.data);
+          setError(null);
+        }
+      } catch (err) {
+        console.error("[ActivityPositions] Failed to load activity.", err);
+        if (!cancelled) setError("Failed to load activity and positions.");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    load();
+    const interval = setInterval(load, 15000); // refresh every 15s
+
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, []);
+
+  if (loading && !data) {
+    return (
+      <div className="ap-screen">
+        <div className="ap-body">Loading activity and positions…</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="ap-screen">
+        <div className="ap-body ap-error">{error}</div>
+      </div>
+    );
+  }
+
+  if (!data) return null;
+
+  const { account, account_status } = data;
+
   return (
-    <div className="activity-positions-container">
-      <h2 className="activity-positions-title">Trading Activity & Positions</h2>
-      
-      {/* Today's Trade Activity */}
-      <section className="trade-activity-section">
-        <h3 className="section-title">Today's Trade Activity</h3>
-        
-        {/* Working Orders */}
-        <div className="activity-group">
-          <h4 className="activity-header">Working Orders: 0</h4>
-          <div className="activity-empty">No active orders</div>
-        </div>
+    <div className="ap-screen">
+      {/* Top tab strip like TOS: Activity & Positions / Account Statement / FX / Strategy Roller */}
+      <div className="ap-tabs">
+        <button className="ap-tab ap-tab--active">
+          Activity and Positions
+        </button>
+        <button className="ap-tab" disabled>
+          Account Statement
+        </button>
+        <button className="ap-tab" disabled>
+          FX Reports
+        </button>
+        <button className="ap-tab" disabled>
+          Strategy Roller
+        </button>
+      </div>
 
-        {/* Filled Orders */}
-        <div className="activity-group">
-          <h4 className="activity-header">Filled Orders: 0</h4>
-          <div className="activity-empty">No filled orders today</div>
-        </div>
-
-        {/* Cancelled Orders */}
-        <div className="activity-group">
-          <h4 className="activity-header">Cancelled Orders: 1 order</h4>
-          <div className="cancelled-order">
-            <div className="order-header">
-              <span className="order-type">FUTURE</span>
-              <span className="order-action">+1 TO OPEN</span>
-            </div>
-            <div className="order-details">
-              <span className="order-symbol">/YM Z25</span>
-              <span className="order-info">MKT - DAY</span>
-            </div>
-            <div className="order-status">REJECTED: You do not have...</div>
+      <div className="ap-body">
+        {/* Today’s Trade Activity header */}
+        <div className="ap-title-row">
+          <h2 className="ap-title">Today&apos;s Trade Activity</h2>
+          <div className="ap-account-summary">
+            <span className="ap-label">Account:</span>{" "}
+            <span className="ap-value">
+              {account.display_name || account.broker_account_id}
+            </span>
+            <span className="ap-label">Net Liq:</span>{" "}
+            <span className="ap-value">{account.net_liq}</span>
+            <span className="ap-label">BP:</span>{" "}
+            <span className="ap-value">
+              {account.day_trading_buying_power}
+            </span>
           </div>
         </div>
-      </section>
 
-      {/* Rolling Strategies */}
-      <section className="strategies-section">
-        <h3 className="section-title">Rolling Strategies: 0</h3>
-        <div className="strategies-empty">No rolling strategies</div>
-      </section>
+        {/* Orders sections */}
+        <OrdersSection
+          title="Working Orders"
+          orders={data.working_orders}
+        />
+        <OrdersSection title="Filled Orders" orders={data.filled_orders} />
+        <OrdersSection
+          title="Canceled Orders"
+          orders={data.canceled_orders}
+        />
 
-      {/* Position Statement */}
-      <section className="positions-section">
-        <h3 className="section-title">Position Statement</h3>
-        
-        {/* Position Controls */}
-        <div className="position-controls">
-          <label className="control-item">
-            <input type="checkbox" defaultChecked />
-            Beta Weighting
-          </label>
-          <span className="weight-status">NOT WEIGHTED</span>
+        {/* (Rolling Strategies / Covered Call Position headers could go here later) */}
+
+        {/* Position Statement */}
+        <PositionsStatement positions={data.positions} />
+
+        {/* Account Status footer */}
+        <div className="ap-status-row">
+          <span className="ap-label">ACCOUNT STATUS:</span>{" "}
+          <span
+            className={
+              account_status.ok_to_trade
+                ? "ap-status-ok"
+                : "ap-status-warning"
+            }
+          >
+            {account_status.ok_to_trade ? "OK TO TRADE" : "REVIEW REQUIRED"}
+          </span>
         </div>
-
-        {/* Positions Table */}
-        <div className="positions-table-container">
-          <table className="positions-table">
-            <thead>
-              <tr>
-                <th>Instrument</th>
-                <th>Qty</th>
-                <th>Days</th>
-                <th>Trade Price</th>
-                <th>Mark</th>
-                <th>Net Liq</th>
-                <th>% Change</th>
-                <th>P/L %</th>
-                <th>P/L Open</th>
-                <th>P/L Day</th>
-                <th>BP Effect</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr className="position-row">
-                <td className="instrument-cell">YFF</td>
-                <td className="qty-positive">+901</td>
-                <td>3.7114</td>
-                <td>8508</td>
-                <td>3.25</td>
-                <td className="amount-positive">$1,279.42</td>
-                <td className="percent-negative">-16.97%</td>
-                <td className="percent-negative">-61.82%</td>
-                <td className="amount-negative">($2,072.02)</td>
-                <td className="amount-positive">$45.05</td>
-                <td className="amount-neutral">$0.00</td>
-              </tr>
-              <tr className="position-row">
-                <td className="instrument-cell">VFF</td>
-                <td className="qty-positive">+26,000</td>
-                <td>-.06</td>
-                <td>-</td>
-                <td>-</td>
-                <td className="amount-positive">$84,500.00</td>
-                <td className="percent-negative">-9.32%</td>
-                <td className="percent-positive">+282.01%</td>
-                <td className="amount-positive">$62,380.20</td>
-                <td className="amount-negative">($1,560.00)</td>
-                <td className="amount-neutral">$0.00</td>
-              </tr>
-            </tbody>
-          </table>
-          
-          {/* Subtotals */}
-          <div className="position-subtotals">
-            <div className="subtotal-row">
-              <span className="subtotal-label">Subtotals</span>
-              <span className="subtotal-amount">$85,779.42</span>
-              <span className="subtotal-percent">+236.77%</span>
-              <span className="subtotal-amount">$60,308.18</span>
-              <span className="subtotal-amount negative">($1,514.95)</span>
-              <span className="subtotal-amount">$0.00</span>
-            </div>
-            <div className="total-row">
-              <span className="total-label">Overall Totals</span>
-              <span className="total-amount">$60,308.18</span>
-              <span className="total-amount negative">($1,514.95)</span>
-              <span className="total-amount">$0.00</span>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Account Status */}
-      <div className="account-status">
-        <span className="status-label">ACCOUNT STATUS:</span>
-        <span className="status-value ok">OK TO TRADE</span>
       </div>
     </div>
   );
