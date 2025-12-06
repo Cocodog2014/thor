@@ -61,6 +61,7 @@ const GlobalBanner: React.FC = () => {
   // Parent (top) tabs
   const parentTabs: { label: string; path: string; key: string }[] = [
     { label: 'Home',     path: '/app/home',     key: 'home' },
+    { label: 'Trade',    path: '/app/activity', key: 'trade' },
     { label: 'Futures',  path: '/app/futures',  key: 'futures' },
     { label: 'Global',   path: '/app/global',   key: 'global' },
     { label: 'Activity', path: '/app/activity', key: 'activity' },
@@ -83,6 +84,9 @@ const GlobalBanner: React.FC = () => {
     global: [
       { label: 'Tab 1', path: '/app/global' },
       { label: 'Tab 2', path: '/app/global' },
+    ],
+    trade: [
+      { label: 'Activity & Positions', path: '/app/activity' },
     ],
     activity: [
       { label: 'Section A', path: '/app/activity' },
