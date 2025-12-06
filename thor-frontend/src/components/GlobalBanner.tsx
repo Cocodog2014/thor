@@ -64,7 +64,6 @@ const GlobalBanner: React.FC = () => {
     { label: 'Trade',    path: '/app/activity', key: 'trade' },
     { label: 'Futures',  path: '/app/futures',  key: 'futures' },
     { label: 'Global',   path: '/app/global',   key: 'global' },
-    { label: 'Activity', path: '/app/activity', key: 'activity' },
     { label: 'Research', path: '/app/home',     key: 'research' },
     { label: 'Settings', path: '/app/home',     key: 'settings' },
   ];
@@ -88,18 +87,27 @@ const GlobalBanner: React.FC = () => {
     trade: [
       { label: 'Activity & Positions', path: '/app/activity' },
     ],
-    activity: [
-      { label: 'Section A', path: '/app/activity' },
-      { label: 'Section B', path: '/app/activity' },
-    ],
   };
 
-  // Figure out which parent tab is active
-  const activeParent =
-    parentTabs.find((tab) => location.pathname.startsWith(tab.path)) ??
-    parentTabs[0];
+  // Helper to derive parent key from current location
+  const deriveParentKey = (pathname: string) =>
+    parentTabs.find((tab) => pathname.startsWith(tab.path))?.key ?? parentTabs[0].key;
 
-  const childTabs = childTabsByParent[activeParent.key] ?? [];
+  const [activeParentKey, setActiveParentKey] = useState<string>(() => deriveParentKey(location.pathname));
+
+  useEffect(() => {
+    const derivedKey = deriveParentKey(location.pathname);
+    if (derivedKey !== activeParentKey) {
+      setActiveParentKey(derivedKey);
+    }
+  }, [location.pathname, activeParentKey]);
+
+  const handleParentClick = (tabKey: string, tabPath: string) => {
+    setActiveParentKey(tabKey);
+    navigate(tabPath);
+  };
+
+  const childTabs = childTabsByParent[activeParentKey] ?? [];
 
   return (
     <div className="global-banner" role="navigation" aria-label="Primary navigation banner">
@@ -147,12 +155,12 @@ const GlobalBanner: React.FC = () => {
       {/* Row 3 parent tabs */}
       <nav className="global-banner-tabs home-nav">
         {parentTabs.map((tab) => {
-          const active = location.pathname === tab.path;
+          const active = activeParentKey === tab.key;
           return (
             <button
               key={tab.label}
               type="button"
-              onClick={() => navigate(tab.path)}
+              onClick={() => handleParentClick(tab.key, tab.path)}
               className={`home-nav-button${active ? ' active' : ''}`}
             >
               {tab.label}
