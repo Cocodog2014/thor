@@ -107,6 +107,7 @@ const ActivityPositions: React.FC = () => {
   const [data, setData] = useState<ActivityTodayResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [refreshCounter, setRefreshCounter] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -134,7 +135,11 @@ const ActivityPositions: React.FC = () => {
       cancelled = true;
       clearInterval(interval);
     };
-  }, []);
+  }, [refreshCounter]);
+
+  const handleRefreshClick = () => {
+    setRefreshCounter((prev) => prev + 1);
+  };
 
   if (loading && !data) {
     return (
@@ -162,7 +167,8 @@ const ActivityPositions: React.FC = () => {
         {/* Today’s Trade Activity header */}
         <div className="ap-title-row">
           <h2 className="ap-title">Today&apos;s Trade Activity</h2>
-          <div className="ap-account-summary">
+          <div className="ap-title-right">
+            <div className="ap-account-summary">
             <span className="ap-label">Account:</span>{" "}
             <span className="ap-value">
               {account.display_name || account.broker_account_id}
@@ -173,6 +179,15 @@ const ActivityPositions: React.FC = () => {
             <span className="ap-value">
               {account.day_trading_buying_power}
             </span>
+            </div>
+            <button
+              type="button"
+              className="ap-refresh-button"
+              onClick={handleRefreshClick}
+              disabled={loading}
+            >
+              Refresh
+            </button>
           </div>
         </div>
 

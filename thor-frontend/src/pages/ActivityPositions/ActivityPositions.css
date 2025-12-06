@@ -59,10 +59,32 @@
   font-weight: 600;
 }
 
+.ap-title-right {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
 .ap-account-summary {
   display: flex;
   gap: 0.5rem;
   align-items: baseline;
+}
+
+.ap-refresh-button {
+  padding: 0.2rem 0.6rem;
+  background: linear-gradient(135deg, #facc15, #f59e0b);
+  border: none;
+  color: #111;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.ap-refresh-button:disabled {
+  opacity: 0.6;
+  cursor: default;
 }
 
 .ap-label {
