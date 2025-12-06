@@ -9,7 +9,7 @@ import GlobalMarkets from './pages/GlobalMarkets/GlobalMarkets';
 import FutureRTD from './pages/Futures';
 import FutureHome from './pages/Futures/FuturesHome/FutureHome';
 import ActivityPositions from './pages/ActivityPositions';
-import TradeHome from './pages/Trade/TradeHome';
+import Trades from './pages/Trade/Trades';
 import ProtectedRoute from './components/ProtectedRoute';
 import AuthLayout from './layouts/AuthLayout';
 import AppLayout from './layouts/AppLayout';
@@ -111,7 +111,7 @@ function App() {
                         }
                       />
                       <Route path="global" element={<GlobalMarkets />} />
-                      <Route path="trade" element={<TradeHome />} />
+                      <Route path="trade" element={<Trades />} />
                       <Route path="activity" element={<ActivityPositions />} />
                       {/* Stock trading removed */}
                       <Route path="user" element={<User />} />

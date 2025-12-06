@@ -2,74 +2,11 @@
 import React, { useEffect, useState } from "react";
 import "./ActivityPositions.css";
 import api from "../../services/api";
-import toast from "react-hot-toast";
-
-// ---------- Types matching ActAndPos API ----------
-
-interface AccountSummary {
-  id: number;
-  broker: string;
-  broker_account_id: string;
-  display_name: string | null;
-  currency: string;
-  net_liq: string;
-  cash: string;
-  stock_buying_power: string;
-  option_buying_power: string;
-  day_trading_buying_power: string;
-  ok_to_trade: boolean;
-}
-
-interface Order {
-  id: number;
-  symbol: string;
-  asset_type: string;
-  side: "BUY" | "SELL";
-  quantity: string;
-  order_type: string;
-  limit_price: string | null;
-  stop_price: string | null;
-  status: string;
-  time_placed: string;
-  time_last_update: string;
-  time_filled: string | null;
-  time_canceled: string | null;
-}
-
-interface Position {
-  id: number;
-  symbol: string;
-  description: string;
-  asset_type: string;
-  quantity: string;
-  avg_price: string;
-  mark_price: string;
-  market_value: string;
-  unrealized_pl: string;
-  pl_percent: string;
-  realized_pl_open: string;
-  realized_pl_day: string;
-  currency: string;
-}
-
-interface ActivityTodayResponse {
-  account: AccountSummary;
-  working_orders: Order[];
-  filled_orders: Order[];
-  canceled_orders: Order[];
-  positions: Position[];
-  account_status: {
-    ok_to_trade: boolean;
-    net_liq: string | number;
-    day_trading_buying_power: string | number;
-  };
-}
-
-interface PaperOrderResponse {
-  account: AccountSummary;
-  order: Order;
-  position: Position | null;
-}
+import type {
+  ActivityTodayResponse,
+  Order,
+  Position,
+} from "../../types/actandpos";
 
 // ---------- Small presentational helpers ----------
 
@@ -164,120 +101,12 @@ const PositionsStatement: React.FC<{ positions: Position[] }> = ({
   </section>
 );
 
-const PaperOrderTicket: React.FC<{ account: AccountSummary; onOrderPlaced: () => void }> = ({
-  account,
-  onOrderPlaced,
-}) => {
-  const [symbol, setSymbol] = useState("");
-  const [side, setSide] = useState<"BUY" | "SELL">("BUY");
-  const [quantity, setQuantity] = useState("1");
-  const [orderType, setOrderType] = useState<"MKT" | "LMT">("MKT");
-  const [limitPrice, setLimitPrice] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    const sym = symbol.trim().toUpperCase();
-    if (!sym) {
-      toast.error("Symbol is required.");
-      return;
-    }
-
-    const qty = Number(quantity);
-    if (!qty || qty <= 0) {
-      toast.error("Quantity must be greater than zero.");
-      return;
-    }
-
-    if (orderType === "LMT" && !limitPrice.trim()) {
-      toast.error("Limit price is required for limit orders.");
-      return;
-    }
-
-    try {
-      setSubmitting(true);
-      const payload = {
-        symbol: sym,
-        asset_type: "EQ",
-        side,
-        quantity: qty,
-        order_type: orderType,
-        limit_price: orderType === "LMT" ? Number(limitPrice.trim()) : null,
-        stop_price: null,
-      };
-
-      const response = await api.post<PaperOrderResponse>("/actandpos/paper/order", payload);
-      toast.success(
-        `Paper ${response.data.order.side} ${response.data.order.quantity} ${response.data.order.symbol} submitted.`,
-      );
-
-      setSymbol("");
-      setQuantity("1");
-      setLimitPrice("");
-      onOrderPlaced();
-    } catch (err: any) {
-      console.error("[PaperOrderTicket] Failed to place order", err);
-      const detail = err?.response?.data?.detail;
-      toast.error(detail || "Failed to place paper order.");
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  return (
-    <div className="ap-paper-ticket">
-      <div className="ap-paper-ticket-title">
-        Paper Trading – Quick Ticket ({account.display_name || account.broker_account_id})
-      </div>
-      <form className="ap-paper-ticket-form" onSubmit={handleSubmit}>
-        <label>
-          Symbol
-          <input type="text" value={symbol} onChange={(e) => setSymbol(e.target.value)} placeholder="ES, AAPL, etc." />
-        </label>
-        <label>
-          Side
-          <select value={side} onChange={(e) => setSide(e.target.value as "BUY" | "SELL")}>
-            <option value="BUY">BUY</option>
-            <option value="SELL">SELL</option>
-          </select>
-        </label>
-        <label>
-          Qty
-          <input type="number" min={0} step="1" value={quantity} onChange={(e) => setQuantity(e.target.value)} />
-        </label>
-        <label>
-          Type
-          <select value={orderType} onChange={(e) => setOrderType(e.target.value as "MKT" | "LMT")}>
-            <option value="MKT">Market</option>
-            <option value="LMT">Limit</option>
-          </select>
-        </label>
-        <label>
-          Limit
-          <input
-            type="number"
-            step="0.01"
-            value={limitPrice}
-            onChange={(e) => setLimitPrice(e.target.value)}
-            disabled={orderType !== "LMT"}
-          />
-        </label>
-        <button type="submit" disabled={submitting}>
-          {submitting ? "Sending…" : "Send Paper Order"}
-        </button>
-      </form>
-    </div>
-  );
-};
-
 // ---------- Main component ----------
 
 const ActivityPositions: React.FC = () => {
   const [data, setData] = useState<ActivityTodayResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [refreshCounter, setRefreshCounter] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -305,7 +134,7 @@ const ActivityPositions: React.FC = () => {
       cancelled = true;
       clearInterval(interval);
     };
-  }, [refreshCounter]);
+  }, []);
 
   if (loading && !data) {
     return (
@@ -346,12 +175,6 @@ const ActivityPositions: React.FC = () => {
             </span>
           </div>
         </div>
-
-        {/* NEW: Paper order ticket */}
-        <PaperOrderTicket
-          account={account}
-          onOrderPlaced={() => setRefreshCounter((prev) => prev + 1)}
-        />
 
         {/* Orders sections */}
         <OrdersSection
