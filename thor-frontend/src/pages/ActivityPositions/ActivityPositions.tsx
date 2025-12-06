@@ -329,22 +329,6 @@ const ActivityPositions: React.FC = () => {
 
   return (
     <div className="ap-screen">
-      {/* Top tab strip like TOS: Activity & Positions / Account Statement / FX / Strategy Roller */}
-      <div className="ap-tabs">
-        <button className="ap-tab ap-tab--active">
-          Activity and Positions
-        </button>
-        <button className="ap-tab" disabled>
-          Account Statement
-        </button>
-        <button className="ap-tab" disabled>
-          FX Reports
-        </button>
-        <button className="ap-tab" disabled>
-          Strategy Roller
-        </button>
-      </div>
-
       <div className="ap-body">
         {/* Today’s Trade Activity header */}
         <div className="ap-title-row">

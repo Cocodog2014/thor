@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import './GlobalBanner.css';
 
@@ -61,7 +61,7 @@ const GlobalBanner: React.FC = () => {
   // Parent (top) tabs
   const parentTabs: { label: string; path: string; key: string }[] = [
     { label: 'Home',     path: '/app/home',     key: 'home' },
-    { label: 'Trade',    path: '/app/activity', key: 'trade' },
+    { label: 'Trade',    path: '/app/trade',    key: 'trade' },
     { label: 'Futures',  path: '/app/futures',  key: 'futures' },
     { label: 'Global',   path: '/app/global',   key: 'global' },
     { label: 'Research', path: '/app/home',     key: 'research' },
@@ -84,9 +84,7 @@ const GlobalBanner: React.FC = () => {
       { label: 'Tab 1', path: '/app/global' },
       { label: 'Tab 2', path: '/app/global' },
     ],
-    trade: [
-      { label: 'Activity & Positions', path: '/app/activity' },
-    ],
+    trade: [],
   };
 
   // Helper to derive parent key from current location
@@ -94,8 +92,14 @@ const GlobalBanner: React.FC = () => {
     parentTabs.find((tab) => pathname.startsWith(tab.path))?.key ?? parentTabs[0].key;
 
   const [activeParentKey, setActiveParentKey] = useState<string>(() => deriveParentKey(location.pathname));
+  const ignorePathSyncRef = useRef(false);
 
   useEffect(() => {
+    if (ignorePathSyncRef.current) {
+      ignorePathSyncRef.current = false;
+      return;
+    }
+
     const derivedKey = deriveParentKey(location.pathname);
     if (derivedKey !== activeParentKey) {
       setActiveParentKey(derivedKey);
@@ -103,8 +107,15 @@ const GlobalBanner: React.FC = () => {
   }, [location.pathname, activeParentKey]);
 
   const handleParentClick = (tabKey: string, tabPath: string) => {
+    ignorePathSyncRef.current = true;
     setActiveParentKey(tabKey);
     navigate(tabPath);
+  };
+
+  const handleChildClick = (parentKey: string, path: string) => {
+    ignorePathSyncRef.current = true;
+    setActiveParentKey(parentKey);
+    navigate(path);
   };
 
   const childTabs = childTabsByParent[activeParentKey] ?? [];
@@ -178,7 +189,7 @@ const GlobalBanner: React.FC = () => {
               <button
                 key={child.label}
                 type="button"
-                onClick={() => navigate(child.path)}
+                onClick={() => handleChildClick(activeParentKey, child.path)}
                 className={`home-nav-button-child${active ? ' active' : ''}`}
               >
                 {child.label}
