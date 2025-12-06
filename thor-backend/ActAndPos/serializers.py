@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import Account, Order, Position
+from .models import Account, Order, Position, Trade
 
 
 class AccountSummarySerializer(serializers.ModelSerializer):
@@ -64,4 +64,20 @@ class OrderSerializer(serializers.ModelSerializer):
             "time_last_update",
             "time_filled",
             "time_canceled",
+        ]
+
+class TradeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Trade
+        fields = [
+            "id",
+            "symbol",
+            "side",
+            "quantity",
+            "price",
+            "commission",
+            "fees",
+            "exec_time",
+            "order",
+            "account",
         ]
