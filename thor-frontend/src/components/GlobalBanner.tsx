@@ -60,12 +60,10 @@ const GlobalBanner: React.FC = () => {
 
   // Parent (top) tabs
   const parentTabs: { label: string; path: string; key: string }[] = [
-    { label: 'Home',     path: '/app/home',     key: 'home' },
-    { label: 'Trade',    path: '/app/trade',    key: 'trade' },
-    { label: 'Futures',  path: '/app/futures',  key: 'futures' },
-    { label: 'Global',   path: '/app/global',   key: 'global' },
-    { label: 'Research', path: '/app/home',     key: 'research' },
-    { label: 'Settings', path: '/app/home',     key: 'settings' },
+    { label: 'Home',    path: '/app/home',    key: 'home' },
+    { label: 'Trade',   path: '/app/trade',   key: 'trade' },
+    { label: 'Futures', path: '/app/futures', key: 'futures' },
+    { label: 'Global',  path: '/app/global',  key: 'global' },
   ];
 
   // Child tabs for each parent (generic placeholders for now)
