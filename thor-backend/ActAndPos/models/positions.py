@@ -1,3 +1,4 @@
+from decimal import Decimal
 from django.db import models
 
 
@@ -47,11 +48,17 @@ class Position(models.Model):
 
     @property
     def market_value(self):
-        return self.quantity * self.mark_price * self.multiplier
+        q = self.quantity if self.quantity is not None else Decimal("0")
+        m = self.mark_price if self.mark_price is not None else Decimal("0")
+        mult = self.multiplier if self.multiplier is not None else Decimal("1")
+        return q * m * mult
 
     @property
     def cost_basis(self):
-        return self.quantity * self.avg_price * self.multiplier
+        q = self.quantity if self.quantity is not None else Decimal("0")
+        p = self.avg_price if self.avg_price is not None else Decimal("0")
+        mult = self.multiplier if self.multiplier is not None else Decimal("1")
+        return q * p * mult
 
     @property
     def unrealized_pl(self):
@@ -59,6 +66,7 @@ class Position(models.Model):
 
     @property
     def pl_percent(self):
-        if self.cost_basis == 0:
+        cost = self.cost_basis
+        if not cost:  # handles 0 or None
             return 0
-        return (self.unrealized_pl / abs(self.cost_basis)) * 100
+        return (self.unrealized_pl / abs(cost)) * 100

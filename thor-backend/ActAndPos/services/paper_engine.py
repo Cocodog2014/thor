@@ -176,7 +176,7 @@ def place_paper_order(params: PaperOrderParams) -> Tuple[Order, Trade, Position,
 
     position.save()
 
-    # 4) Update Account cash & buying power
+        # 4) Update Account cash & buying power
     trade_value = fill_price * params.quantity * mult
     total_cost = trade_value + params.commission + params.fees
 
@@ -186,9 +186,6 @@ def place_paper_order(params: PaperOrderParams) -> Tuple[Order, Trade, Position,
         account.cash += trade_value - (params.commission + params.fees)
 
     # Recompute net liq from cash + market value of all positions
-    from . import paper_utils  # optional helper, or inline below
-
-    # If you don't want a separate helper module, inline this:
     from decimal import Decimal as _D
     from ..models import Position as _Pos
 
