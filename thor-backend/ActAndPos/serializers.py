@@ -1,6 +1,7 @@
 from rest_framework import serializers
 
-from .models import Account, Order, Position, Trade
+from .models import Account, Order, Position
+from Trades.models import Trade
 
 
 class AccountSummarySerializer(serializers.ModelSerializer):

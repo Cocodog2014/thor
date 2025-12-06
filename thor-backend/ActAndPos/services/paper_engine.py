@@ -9,7 +9,8 @@ from typing import Tuple
 from django.db import transaction
 from django.utils import timezone
 
-from ..models import Account, Order, Position, Trade
+from ..models import Account, Order, Position
+from Trades.models import Trade
 
 
 DecimalLike = Decimal | str | float | int
