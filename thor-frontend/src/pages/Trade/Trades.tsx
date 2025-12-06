@@ -51,7 +51,7 @@ const PaperOrderTicket: React.FC<{ account: AccountSummary; onOrderPlaced: () =>
         stop_price: null,
       };
 
-      const response = await api.post<PaperOrderResponse>("/actandpos/paper/order", payload);
+      const response = await api.post<PaperOrderResponse>("/trades/paper/order", payload);
       toast.success(
         `Paper ${response.data.order.side} ${response.data.order.quantity} ${response.data.order.symbol} submitted.`,
       );

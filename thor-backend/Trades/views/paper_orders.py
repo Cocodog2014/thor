@@ -1,18 +1,19 @@
-# ActAndPos/views/paper_orders.py
+from decimal import Decimal, InvalidOperation
 
-from decimal import Decimal
-
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
-from ..models import Account, Order, Position
-from ..serializers import (
+from ActAndPos.models import Account, Order, Position
+from ActAndPos.serializers import (
     AccountSummarySerializer,
     OrderSerializer,
     PositionSerializer,
-    TradeSerializer,
 )
+from ActAndPos.views.accounts import get_active_account
+
+from ..serializers import TradeSerializer
 from ..services.paper_engine import (
     PaperOrderParams,
     place_paper_order,
@@ -20,6 +21,17 @@ from ..services.paper_engine import (
     InvalidPaperOrder,
     PaperTradingError,
 )
+
+
+def _parse_decimal(value, field_name: str, allow_null: bool = False):
+    if value in (None, "", "null"):
+        if allow_null:
+            return None
+        raise ValueError(f"{field_name} is required.")
+    try:
+        return Decimal(str(value))
+    except (InvalidOperation, TypeError):
+        raise ValueError(f"Invalid {field_name}.")
 
 
 def _to_decimal(val):
@@ -31,9 +43,70 @@ def _to_decimal(val):
 
 
 @api_view(["POST"])
+def paper_order_view(request):
+    """
+    POST /trades/paper/order
+
+    Uses the active account (or ?account_id=).
+    """
+
+    try:
+        account = get_active_account(request)
+    except ValueError as exc:
+        return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+    data = request.data
+
+    symbol = (data.get("symbol") or "").upper().strip()
+    asset_type = (data.get("asset_type") or "EQ").upper()
+    side = (data.get("side") or "").upper()
+    order_type = (data.get("order_type") or "MKT").upper()
+
+    try:
+        quantity = _parse_decimal(data.get("quantity"), "quantity")
+        limit_price = _parse_decimal(
+            data.get("limit_price"), "limit_price", allow_null=True
+        )
+        stop_price = _parse_decimal(
+            data.get("stop_price"), "stop_price", allow_null=True
+        )
+    except ValueError as exc:
+        return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+    params = PaperOrderParams(
+        account=account,
+        symbol=symbol,
+        asset_type=asset_type,
+        side=side,
+        quantity=quantity,
+        order_type=order_type,
+        limit_price=limit_price,
+        stop_price=stop_price,
+    )
+
+    try:
+        order, trade, position, account = place_paper_order(params)
+    except InvalidPaperOrder as exc:
+        return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+    except InsufficientBuyingPower as exc:
+        return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+    return Response(
+        {
+            "account": AccountSummarySerializer(account).data,
+            "order": OrderSerializer(order).data,
+            "position": PositionSerializer(position).data
+            if position is not None
+            else None,
+        },
+        status=status.HTTP_201_CREATED,
+    )
+
+
+@api_view(["POST"])
 def paper_order_create_view(request):
     """
-    POST /api/actandpos/paper/orders
+    POST /trades/paper/orders
 
     Create a PAPER order, immediately fill it, and return the updated snapshot.
     """
@@ -116,7 +189,7 @@ def paper_order_create_view(request):
 @api_view(["POST"])
 def paper_order_cancel_view(request, pk: int):
     """
-    POST /api/actandpos/paper/orders/<pk>/cancel
+    POST /trades/paper/orders/<pk>/cancel
 
     Cancel a WORKING paper order. No position/cash changes.
     """
@@ -141,8 +214,6 @@ def paper_order_cancel_view(request, pk: int):
             },
             status=status.HTTP_400_BAD_REQUEST,
         )
-
-    from django.utils import timezone
 
     now = timezone.now()
     order.status = "CANCELED"
