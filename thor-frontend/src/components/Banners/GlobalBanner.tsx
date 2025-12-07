@@ -80,9 +80,7 @@ const GlobalBanner: React.FC = () => {
 
     const loadAccounts = async () => {
       try {
-        const { data } = await api.get<AccountSummary[]>('/actandpos/accounts', {
-          headers: { 'Cache-Control': 'no-store' },
-        });
+        const { data } = await api.get<AccountSummary[]>('/actandpos/accounts');
         const accountList = Array.isArray(data) ? data : [];
         if (!isMounted) return;
 
@@ -131,8 +129,8 @@ const GlobalBanner: React.FC = () => {
   const childTabsByParent: Record<string, ChildTab[]> = {
     home: [
       { label: 'Activity & Positions', path: '/app/activity' },
-      { label: 'View 2', path: '/app/home' },
-      { label: 'View 3', path: '/app/home' },
+      { label: 'Account Statement', path: '/app/home' },
+      { label: 'FX Report', path: '/app/home' },
     ],
     futures: [
       { label: 'Option A', path: '/app/futures' },
