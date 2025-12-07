@@ -1,22 +1,12 @@
+// GlobalBanner.tsx
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import './GlobalBanner.css';
 import api from '../../services/api';
-
-// Shape of the account summary coming from /api/actandpos/accounts
-interface AccountSummary {
-  id: number;
-  broker: string;
-  broker_account_id: string;
-  display_name: string;
-  currency: string;
-  net_liq: string;
-  cash: string;
-  stock_buying_power: string;
-  option_buying_power: string;
-  day_trading_buying_power: string;
-  ok_to_trade: boolean;
-}
+import type { AccountSummary, ParentTab, ChildTab } from './bannerTypes';
+import TopRow from './TopRow';
+import BalanceRow from './BalanceRow';
+import TabsRow from './TabsRow';
 
 // Permanent banner under the AppBar, shows connection/account info + balances + tabs.
 const GlobalBanner: React.FC = () => {
@@ -42,21 +32,25 @@ const GlobalBanner: React.FC = () => {
     });
   };
 
-  // Ping the quotes API to determine "Connected / Disconnected" + last update time
+  // Ping the same quotes endpoint used by the futures hooks
   useEffect(() => {
     let isMounted = true;
 
     const checkConnection = async () => {
       try {
-        const { data } = await api.get<{ rows?: unknown[] }>('/quotes/latest', {
-          headers: { 'Cache-Control': 'no-store' },
+        const response = await fetch('/api/quotes/latest?consumer=futures_trading', {
+          cache: 'no-store',
         });
+
+        if (!response.ok) {
+          throw new Error(`Status ${response.status}`);
+        }
+
+        const data: { rows?: unknown[] } = await response.json();
         const rows = Array.isArray(data?.rows) ? data.rows : [];
         const hasLiveData = rows.length > 0;
 
-        if (!isMounted) {
-          return;
-        }
+        if (!isMounted) return;
 
         if (hasLiveData) {
           setConnectionStatus('connected');
@@ -64,10 +58,9 @@ const GlobalBanner: React.FC = () => {
         } else {
           setConnectionStatus('disconnected');
         }
-      } catch {
-        if (!isMounted) {
-          return;
-        }
+      } catch (err) {
+        if (!isMounted) return;
+        console.error('GlobalBanner: error checking connection', err);
         setConnectionStatus('disconnected');
       }
     };
@@ -127,7 +120,7 @@ const GlobalBanner: React.FC = () => {
     : 'Waiting for live feed';
 
   // Parent (top) tabs
-  const parentTabs: { label: string; path: string; key: string }[] = [
+  const parentTabs: ParentTab[] = [
     { label: 'Home', path: '/app/home', key: 'home' },
     { label: 'Trade', path: '/app/trade', key: 'trade' },
     { label: 'Futures', path: '/app/futures', key: 'futures' },
@@ -135,7 +128,7 @@ const GlobalBanner: React.FC = () => {
   ];
 
   // Child tabs for each parent (generic placeholders for now)
-  const childTabsByParent: Record<string, { label: string; path: string }[]> = {
+  const childTabsByParent: Record<string, ChildTab[]> = {
     home: [
       { label: 'Activity & Positions', path: '/app/activity' },
       { label: 'View 2', path: '/app/home' },
@@ -187,148 +180,38 @@ const GlobalBanner: React.FC = () => {
     navigate(path);
   };
 
-  const childTabs = childTabsByParent[activeParentKey] ?? [];
-
   return (
     <div
       className="global-banner"
       role="navigation"
       aria-label="Primary navigation banner"
     >
-      {/* Row 1 */}
-      <div className="global-banner-row global-banner-row-top">
-        <div className="global-banner-left">
-          <span
-            className={`home-connection ${
-              isConnected ? 'connected' : 'disconnected'
-            }`}
-          >
-            <span
-              className={`home-connection-dot ${
-                isConnected ? 'connected' : 'disconnected'
-              }`}
-            />
-            {connectionLabel}
-          </span>
-          <span
-            className={`home-connection-details ${
-              isConnected ? '' : 'offline'
-            }`}
-          >
-            {connectionDetails}
-          </span>
+      <TopRow
+        isConnected={isConnected}
+        connectionLabel={connectionLabel}
+        connectionDetails={connectionDetails}
+        accounts={accounts}
+        selectedAccountId={selectedAccountId}
+        onAccountChange={(id) => setSelectedAccountId(id)}
+        onNavigate={(path) => navigate(path)}
+      />
 
-          {/* Account dropdown replaces hard-coded account id */}
-          {accounts.length > 0 ? (
-            <select
-              className="home-account-select"
-              aria-label="Select trading account"
-              value={selectedAccount ? selectedAccount.id : ''}
-              onChange={(e) => setSelectedAccountId(Number(e.target.value))}
-            >
-              {accounts.map((acct) => (
-                <option key={acct.id} value={acct.id}>
-                  {acct.broker_account_id}
-                  {acct.display_name ? ` (${acct.display_name})` : ''}
-                </option>
-              ))}
-            </select>
-          ) : (
-            <span className="home-account-id">No accounts</span>
-          )}
-        </div>
+      <BalanceRow
+        selectedAccount={selectedAccount}
+        formatCurrency={formatCurrency}
+      />
 
-        <div className="global-banner-right">
-          <a href="mailto:admin@360edu.org" className="home-contact-link">
-            <span>📧</span> admin@360edu.org
-          </a>
-          <button
-            className="home-quick-link"
-            type="button"
-            onClick={() => navigate('/app/home')}
-          >
-            <span>🏠</span>Home
-          </button>
-          <button className="home-quick-link" type="button">
-            <span>💬</span>Messages
-          </button>
-          <button className="home-quick-link" type="button">
-            <span>🛟</span>Support
-          </button>
-          <button className="home-quick-link" type="button">
-            <span>💭</span>Chat Rooms
-          </button>
-          <button className="home-quick-link" type="button">
-            <span>⚙️</span>Setup
-          </button>
-        </div>
-      </div>
-
-      {/* Row 2 balances – driven by selected account */}
-      <div className="global-banner-balances home-balances">
-        <span>
-          Option Buying Power:
-          <span className="home-balance-value">
-            {selectedAccount
-              ? `$${formatCurrency(selectedAccount.option_buying_power)}`
-              : '—'}
-          </span>
-        </span>
-        <span>
-          Stock Buying Power:
-          <span className="home-balance-value">
-            {selectedAccount
-              ? `$${formatCurrency(selectedAccount.stock_buying_power)}`
-              : '—'}
-          </span>
-        </span>
-        <span>
-          Net Liq:
-          <span className="home-balance-value">
-            {selectedAccount
-              ? `$${formatCurrency(selectedAccount.net_liq)}`
-              : '—'}
-          </span>
-        </span>
-      </div>
-
-      {/* Row 3 parent tabs */}
-      <nav className="global-banner-tabs home-nav">
-        {parentTabs.map((tab) => {
-          const active = activeParentKey === tab.key;
-          return (
-            <button
-              key={tab.label}
-              type="button"
-              onClick={() => handleParentClick(tab.key, tab.path)}
-              className={`home-nav-button${active ? ' active' : ''}`}
-            >
-              {tab.label}
-            </button>
-          );
-        })}
-      </nav>
-
-      {/* Row 4 child tabs (generic placeholders, not wired yet) */}
-      {childTabs.length > 0 && (
-        <nav className="global-banner-subtabs">
-          {childTabs.map((child) => {
-            const active = location.pathname === child.path;
-            return (
-              <button
-                key={child.label}
-                type="button"
-                onClick={() => handleChildClick(activeParentKey, child.path)}
-                className={`home-nav-button-child${active ? ' active' : ''}`}
-              >
-                {child.label}
-              </button>
-            );
-          })}
-        </nav>
-      )}
+      <TabsRow
+        parentTabs={parentTabs}
+        childTabsByParent={childTabsByParent}
+        activeParentKey={activeParentKey}
+        onParentClick={handleParentClick}
+        onChildClick={handleChildClick}
+        locationPathname={location.pathname}
+      />
     </div>
   );
 };
 
 export default GlobalBanner;
+
