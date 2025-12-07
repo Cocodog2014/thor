@@ -3,7 +3,7 @@
 .account-statements-page {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 1.25rem;
   padding: 1.5rem 1.75rem 2rem;
   color: #e5e7eb;
   background-color: transparent; /* let global black canvas show through */
@@ -23,11 +23,12 @@
   font-size: 0.85rem;
 }
 
+/* === TOP FILTER BAR (Statement for...) =============================== */
+
 .account-statements-filters {
   display: flex;
-  flex-wrap: wrap;
-  gap: 1rem 1.5rem;
-  align-items: flex-end;
+  gap: 1.5rem;
+  align-items: flex-start;
   padding: 0.75rem 1rem;
   background-color: #111827;
   border-radius: 0.5rem;
@@ -41,11 +42,66 @@
   min-width: 180px;
 }
 
-.filter-group label {
+.filter-group.wide {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.filter-group-label-main {
   font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: #9ca3af;
+}
+
+.statement-range-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-top: 0.15rem;
+}
+
+.statement-range-option {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.8rem;
+  color: #d1d5db;
+}
+
+.statement-range-option input[type='radio'] {
+  accent-color: #fbbf24;
+}
+
+.statement-range-text {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.statement-days-input {
+  width: 3rem;
+  background-color: #020617;
+  border-radius: 0.375rem;
+  border: 1px solid #374151;
+  padding: 0.15rem 0.4rem;
+  color: #e5e7eb;
+  font-size: 0.8rem;
+}
+
+.statement-today-select {
+  min-width: 80px;
+}
+
+.statement-date-input {
+  min-width: 150px;
+}
+
+.statement-range-help {
+  margin: 0.4rem 0 0;
+  font-size: 0.75rem;
+  color: #6b7280;
 }
 
 .account-statements-select {
@@ -63,6 +119,8 @@
   box-shadow: 0 0 0 1px #fbbf24;
 }
 
+/* Apply button (same as before) */
+
 .account-statements-apply-btn {
   margin-left: auto;
   padding: 0.45rem 1rem;
@@ -75,41 +133,90 @@
   cursor: pointer;
   text-transform: uppercase;
   letter-spacing: 0.08em;
+  align-self: center;
 }
 
 .account-statements-apply-btn:hover {
   background: #fbbf24;
 }
 
-.account-statements-results {
+/* === SECOND ROW: FILTER ROWS + SHOW BY SYMBOL ======================== */
+
+.account-statements-subfilters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem 1.5rem;
+  align-items: flex-end;
+  padding: 0.6rem 1rem;
+  background-color: #020617;
+  border-radius: 0.5rem;
+  border: 1px solid #1f2937;
+}
+
+.account-row-filter-input {
+  width: 220px;
+}
+
+.filter-group label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #9ca3af;
+}
+
+/* === SECTIONS (Cash & Sweep, Equities, P&L, Summary) ================= */
+
+.account-statements-sections {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
 }
 
-.account-statements-results-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-}
-
-.account-statements-results-header h2 {
-  margin: 0;
-  font-size: 1rem;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-}
-
-.account-statements-count {
-  font-size: 0.8rem;
-  color: #6b7280;
-}
-
-.account-statements-table-wrapper {
-  overflow: auto;
+.account-section {
   border-radius: 0.5rem;
   border: 1px solid #1f2937;
   background-color: #020617;
+  overflow: hidden;
+}
+
+.account-section-header {
+  width: 100%;
+  border: none;
+  background: #030712;
+  color: #e5e7eb;
+  padding: 0.45rem 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+
+.account-section-header:hover {
+  background: #111827;
+}
+
+.account-section-toggle-icon {
+  width: 1rem;
+  text-align: center;
+  font-size: 0.9rem;
+}
+
+.account-section-title {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  flex: 1 1 auto;
+}
+
+.account-section-rowcount {
+  font-size: 0.75rem;
+  color: #9ca3af;
+}
+
+/* === TABLE STYLES ==================================================== */
+
+.account-statements-table-wrapper {
+  overflow: auto;
 }
 
 .account-statements-table {
@@ -137,13 +244,29 @@
   color: #9ca3af;
 }
 
-.account-statements-table tbody tr:nth-child(every) {
+.account-statements-table tbody tr:nth-child(even) {
+  background-color: #020617;
+}
+
+.account-statements-table tbody tr:nth-child(odd) {
   background-color: #020617;
 }
 
 .account-statements-table tbody tr:hover {
   background-color: #111827;
 }
+
+.align-right {
+  text-align: right;
+}
+
+.account-no-rows {
+  text-align: center;
+  color: #6b7280;
+  font-style: italic;
+}
+
+/* Old download button style kept in case you re-use it somewhere */
 
 .account-statements-download-btn {
   padding: 0.3rem 0.75rem;
@@ -159,3 +282,4 @@
   opacity: 0.5;
   cursor: default;
 }
+
