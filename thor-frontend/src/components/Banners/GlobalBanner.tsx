@@ -130,7 +130,6 @@ const GlobalBanner: React.FC = () => {
     home: [
       { label: 'Activity & Positions', path: '/app/activity' },
       { label: 'Account Statement', path: '/app/account-statement' },
-      { label: 'FX Report', path: '/app/home' },
     ],
     futures: [
       { label: 'Option A', path: '/app/futures' },

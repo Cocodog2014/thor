@@ -25,6 +25,47 @@
   overflow: hidden;
 }
 
+.home-tile-cta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  color: #e5e7eb;
+}
+
+.home-tile-cta small {
+  color: #9ca3af;
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+}
+
+.home-tile-cta button {
+  align-self: flex-start;
+  padding: 0.4rem 0.9rem;
+  border-radius: 999px;
+  border: 1px solid #facc15;
+  background: #facc15;
+  color: #111827;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  transition: transform 120ms ease, box-shadow 120ms ease;
+}
+
+.home-tile-cta button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgba(250, 204, 21, 0.35);
+}
+
+.home-tile-cta button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  border-color: rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.65);
+}
+
 /* Grid layout/styles are owned by components/Grid2x3/TwoByThreeGrid.css */
 /* Ribbon styles moved to FooterRibbon.css - FooterRibbon component is rendered in AppLayout */
 

@@ -1,0 +1,31 @@
+/* src/pages/FxReport/FxReport.css */
+
+.fx-report-page {
+  min-height: calc(100vh - 120px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  background: radial-gradient(circle at top, rgba(25, 118, 210, 0.2), transparent 55%);
+}
+
+.fx-report-placeholder {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 16px;
+  padding: 2.5rem 3rem;
+  text-align: center;
+  background: rgba(0, 0, 0, 0.35);
+  color: #e5e7eb;
+  font-size: 1rem;
+}
+
+.fx-report-placeholder h1 {
+  margin: 0 0 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.fx-report-placeholder p {
+  margin: 0;
+  color: #9ca3af;
+}
