@@ -1,5 +1,6 @@
 // src/pages/AccountStatements/AccountStatements.tsx
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import api from "../../services/api";
 
 type ColumnDef = {
   key: string;
@@ -36,8 +37,9 @@ const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({
     let result = rows;
 
     if (symbolFilter) {
+      const sym = symbolFilter.toUpperCase();
       result = result.filter(
-        (r) => !r.symbol || r.symbol.toUpperCase() === symbolFilter.toUpperCase()
+        (r) => !r.symbol || r.symbol.toUpperCase() === sym
       );
     }
 
@@ -111,8 +113,18 @@ const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({
   );
 };
 
+// ---- Shape of the API response ---------------------------------------
+// Adjust this to match what your backend actually sends.
+interface AccountStatementsResponse {
+  cashSweep: RowData[];
+  futuresCash: RowData[];
+  equities: RowData[];
+  pnlBySymbol: RowData[];
+  summary: RowData[];
+}
+
 const AccountStatements: React.FC = () => {
-  // Date filters (the popup-like control from your screenshot)
+  // Date filters
   const [rangeMode, setRangeMode] = useState<'daysBack' | 'custom'>('daysBack');
   const [daysBack, setDaysBack] = useState<number>(1);
   const [fromDate, setFromDate] = useState<string>('');
@@ -122,103 +134,59 @@ const AccountStatements: React.FC = () => {
   const [textFilter, setTextFilter] = useState('');
   const [symbolFilter, setSymbolFilter] = useState<string>('');
 
-  // --- MOCK DATA FOR NOW (wire to backend later) -------------------------
-  const cashSweepRows: RowData[] = [
-    {
-      id: 'cash-1',
-      symbol: '',
-      tradeDate: '12/6/25',
-      execDate: '12/6/25',
-      execTime: '23:00:00',
-      type: 'BAL',
-      description: 'Cash balance at the start of business day 07.12 CST',
-      miscFees: '—',
-      commissions: '—',
-      amount: '$7.41',
-      balance: '$7.41',
-    },
-  ];
+  // Data state
+  const [data, setData] = useState<AccountStatementsResponse | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const futuresCashRows: RowData[] = [
-    {
-      id: 'futures-cash-1',
-      symbol: '',
-      tradeDate: '12/6/25',
-      execDate: '12/6/25',
-      execTime: '23:00:00',
-      type: 'BAL',
-      description: 'Futures cash balance at the start of business day 07.12 CST',
-      miscFees: '—',
-      commissions: '—',
-      amount: '$0.00',
-      balance: '$0.00',
-    },
-  ];
+  // For now, pick the active account however you do it elsewhere
+  const [accountId] = useState<string>('PRIMARY'); // TODO: wire to real account selector
 
-  const equitiesRows: RowData[] = [
-    {
-      id: 'VFF',
-      symbol: 'VFF',
-      description: 'VILLAGE FARMS INTL I',
-      qty: '+26,740',
-      tradePrice: '1.2179',
-      mark: '3.37',
-      markValue: '$90,113.80',
-    },
-    {
-      id: 'CGC',
-      symbol: 'CGC',
-      description: 'CANOPY GROWTH CORP',
-      qty: '+1',
-      tradePrice: '3.7197',
-      mark: '1.15',
-      markValue: '$1.15',
-    },
-  ];
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
 
-  const pnlRows: RowData[] = [
-    {
-      id: 'pnl-CGC',
-      symbol: 'CGC',
-      description: 'CANOPY GROWTH CORP',
-      plOpen: '($2.57)',
-      plPct: '-69.09%',
-      plDay: '$0.00',
-      plYtd: '($1,455.09)',
-    },
-    {
-      id: 'pnl-VFF',
-      symbol: 'VFF',
-      description: 'VILLAGE FARMS INTL I',
-      plOpen: '$57,548.38',
-      plPct: '+176.72%',
-      plDay: '$534.80',
-      plYtd: '$68,209.80',
-    },
-    {
-      id: 'pnl-total',
-      symbol: '',
-      description: 'OVERALL TOTALS',
-      plOpen: '$57,545.81',
-      plPct: '+176.69%',
-      plDay: '$534.80',
-      plYtd: '$66,754.71',
-    },
-  ];
+      const params: any = { accountId };
 
-  const summaryRows: RowData[] = [
-    { id: 'sum-1', metric: 'Net Liquidating Value', value: '$90,122.36' },
-    { id: 'sum-2', metric: 'Stock Buying Power', value: '$7.41' },
-    { id: 'sum-3', metric: 'Day Trading Buying Power', value: '$7.41' },
-    { id: 'sum-4', metric: 'Available Funds For Trading', value: '$7.41' },
-    { id: 'sum-5', metric: 'Long Stock Value', value: '$90,114.95' },
-    { id: 'sum-6', metric: 'Margin Equity', value: '$90,122.36' },
-    { id: 'sum-7', metric: 'Equity Percentage', value: '100.00%' },
-    { id: 'sum-8', metric: 'Maintenance Requirement', value: '$90,114.95' },
-  ];
-  // ----------------------------------------------------------------------
+      if (rangeMode === 'daysBack') {
+        params.daysBack = daysBack;
+      } else {
+        if (fromDate) params.from = fromDate;
+        if (toDate) params.to = toDate;
+      }
 
-  // Build symbol list for Show-by-symbol dropdown
+      const res = await api.get<AccountStatementsResponse>(
+        '/account-statements',
+        { params }
+      );
+
+      setData(res.data);
+    } catch (err: any) {
+      console.error('Failed to load account statements', err);
+      setError('Unable to load account statements.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    // Initial load
+    loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accountId]);
+
+  const handleApplyFilters = () => {
+    loadData();
+  };
+
+  const cashSweepRows = data?.cashSweep ?? [];
+  const futuresCashRows = data?.futuresCash ?? [];
+  const equitiesRows = data?.equities ?? [];
+  const pnlRows = data?.pnlBySymbol ?? [];
+  const summaryRows = data?.summary ?? [];
+
+  // Build symbol list from whatever sections make sense
   const allSymbols = useMemo(() => {
     const symbols = new Set<string>();
     [equitiesRows, pnlRows].forEach((section) => {
@@ -228,12 +196,6 @@ const AccountStatements: React.FC = () => {
     });
     return Array.from(symbols).sort();
   }, [equitiesRows, pnlRows]);
-
-  const handleApplyFilters = () => {
-    // For now this is just a visual control.
-    // Later you can trigger a backend fetch with the current date filters.
-    console.log('Apply filters', { rangeMode, daysBack, fromDate, toDate });
-  };
 
   return (
     <div className="account-statements-page">
@@ -245,7 +207,7 @@ const AccountStatements: React.FC = () => {
         </p>
       </header>
 
-      {/* This sits directly under your child buttons: Activity / Positions / Account Statements */}
+      {/* Statement for: filter bar */}
       <section className="account-statements-filters">
         <div className="filter-group wide">
           <span className="filter-group-label-main">Statement for:</span>
@@ -304,7 +266,7 @@ const AccountStatements: React.FC = () => {
           </div>
 
           <p className="statement-range-help">
-            Maximum period length is 370 days. (Backend wiring coming soon.)
+            Maximum period length is 370 days.
           </p>
         </div>
 
@@ -317,7 +279,7 @@ const AccountStatements: React.FC = () => {
         </button>
       </section>
 
-      {/* Row filter + Show-by-symbol (like your “Show by symbol: VFF” control) */}
+      {/* Row filter + show by symbol */}
       <section className="account-statements-subfilters">
         <div className="filter-group">
           <label htmlFor="row-filter-input">Filter rows</label>
@@ -349,7 +311,15 @@ const AccountStatements: React.FC = () => {
         </div>
       </section>
 
-      {/* Collapsible sections that look like the TOS panes */}
+      {/* Loading / error states */}
+      {loading && <div className="account-no-rows">Loading…</div>}
+      {error && !loading && (
+        <div className="account-no-rows" style={{ color: '#f97373' }}>
+          {error}
+        </div>
+      )}
+
+      {/* Sections (always render so the fields are visible) */}
       <section className="account-statements-sections">
         <CollapsibleSection
           title="Cash & Sweep Vehicle"
@@ -401,7 +371,7 @@ const AccountStatements: React.FC = () => {
           textFilter={textFilter}
           symbolFilter={symbolFilter}
         />
-
+        
         <CollapsibleSection
           title="Profits and Losses (by Symbol)"
           columns={[
@@ -428,8 +398,11 @@ const AccountStatements: React.FC = () => {
           symbolFilter={symbolFilter}
         />
       </section>
+
+    
     </div>
   );
 };
 
 export default AccountStatements;
+
