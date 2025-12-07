@@ -259,7 +259,7 @@ Frontend usage:
 
 ActivityPositions.tsx hits /actandpos/activity/today every 15 seconds and renders:
 
-Top header: Account name, Net Liq, BP
+Top banner: Account name, Net Liq, BP
 
 Three order tables: Working / Filled / Canceled
 
@@ -328,13 +328,13 @@ App
 
 ActivityPositions is a polling client of /actandpos/activity/today, refreshing every 15 seconds to keep the dashboard live without WebSockets.
 
-The rest of the ThorTrading UI (Home, Futures, etc.) is wrapped by AppLayout, which provides the global header where an account selector and paper-trading toggle can be mounted later.
+The rest of the ThorTrading UI (Home, Futures, etc.) is wrapped by AppLayout, which provides the global banner where an account selector and paper-trading toggle can be mounted later.
 
 Future Extensions (Paper Trading & Account Selector)
 
 Not implemented yet, but this is where the app will grow:
 
-Account selector / dropdown in GlobalHeader, listing real + paper accounts using Account rows.
+Account selector / dropdown in Global banner, listing real + paper accounts using Account rows.
 
 Passing account_id from the selected account into:
 
