@@ -14,6 +14,83 @@ type RowData = {
   [key: string]: string | undefined;
 };
 
+type DateRange = {
+  from: string;
+  to: string;
+};
+
+interface AccountSummary {
+  id: number;
+  broker: string;
+  broker_account_id: string;
+  display_name: string;
+  currency: string;
+  net_liq: string;
+  cash: string;
+  stock_buying_power: string;
+  option_buying_power: string;
+  day_trading_buying_power: string;
+  ok_to_trade: boolean;
+}
+
+interface TradeApiRow {
+  id: number | string;
+  symbol: string;
+  side: string;
+  quantity: string;
+  price: string;
+  commission: string;
+  fees: string;
+  exec_time: string;
+  order?: number | null;
+}
+
+interface AccountStatementsResponse {
+  account: AccountSummary;
+  date_range: DateRange;
+  cashSweep: RowData[];
+  futuresCash: RowData[];
+  equities: RowData[];
+  pnlBySymbol: RowData[];
+  trades: TradeApiRow[];
+  summary: RowData[];
+}
+
+const formatDateOnly = (iso?: string) => {
+  if (!iso) return '';
+  const parsed = new Date(iso);
+  if (Number.isNaN(parsed.getTime())) {
+    return iso;
+  }
+  return parsed.toLocaleDateString(undefined, {
+    month: 'short',
+    day: '2-digit',
+    year: 'numeric',
+  });
+};
+
+const formatDateRangeLabel = (range?: DateRange) => {
+  if (!range) return '';
+  if (range.from === range.to) {
+    return formatDateOnly(range.from);
+  }
+  return `${formatDateOnly(range.from)} → ${formatDateOnly(range.to)}`;
+};
+
+const formatExecTime = (iso?: string) => {
+  if (!iso) return '';
+  const parsed = new Date(iso);
+  if (Number.isNaN(parsed.getTime())) {
+    return iso;
+  }
+  return parsed.toLocaleString(undefined, {
+    month: 'short',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+};
+
 interface CollapsibleSectionProps {
   title: string;
   columns: ColumnDef[];
@@ -114,14 +191,6 @@ const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({
 };
 
 // ---- Shape of the API response ---------------------------------------
-// Adjust this to match what your backend actually sends.
-interface AccountStatementsResponse {
-  cashSweep: RowData[];
-  futuresCash: RowData[];
-  equities: RowData[];
-  pnlBySymbol: RowData[];
-  summary: RowData[];
-}
 
 const AccountStatements: React.FC = () => {
   // Date filters
@@ -139,25 +208,29 @@ const AccountStatements: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // For now, pick the active account however you do it elsewhere
-  const [accountId] = useState<string>('PRIMARY'); // TODO: wire to real account selector
+  // Future enhancement: wire this to banner-selected account
+  const [accountId] = useState<string | null>(null);
 
   const loadData = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      const params: any = { accountId };
+      const params: Record<string, string | number> = {};
+
+      if (accountId) {
+        params.account_id = accountId;
+      }
 
       if (rangeMode === 'daysBack') {
-        params.daysBack = daysBack;
+        params.days_back = Math.max(1, daysBack);
       } else {
         if (fromDate) params.from = fromDate;
         if (toDate) params.to = toDate;
       }
 
       const res = await api.get<AccountStatementsResponse>(
-        '/account-statements',
+        '/trades/account-statement',
         { params }
       );
 
@@ -185,17 +258,42 @@ const AccountStatements: React.FC = () => {
   const equitiesRows = data?.equities ?? [];
   const pnlRows = data?.pnlBySymbol ?? [];
   const summaryRows = data?.summary ?? [];
+  const accountSummary = data?.account;
+  const dateRange = data?.date_range;
+
+  const tradesRows = useMemo<RowData[]>(() => {
+    if (!data?.trades) {
+      return [];
+    }
+    return data.trades.map((trade, index) => ({
+      id: trade.id ? String(trade.id) : `trade-${index}-${trade.exec_time}`,
+      symbol: trade.symbol,
+      side: trade.side,
+      qty: trade.quantity,
+      price: trade.price,
+      commission: trade.commission,
+      fees: trade.fees,
+      execTime: formatExecTime(trade.exec_time),
+      orderId: trade.order ? trade.order.toString() : undefined,
+    }));
+  }, [data?.trades]);
+
+  const accountDisplayName =
+    accountSummary?.display_name ||
+    accountSummary?.broker_account_id ||
+    'Active Account';
+  const dateRangeLabel = dateRange ? formatDateRangeLabel(dateRange) : 'Today';
 
   // Build symbol list from whatever sections make sense
   const allSymbols = useMemo(() => {
     const symbols = new Set<string>();
-    [equitiesRows, pnlRows].forEach((section) => {
+    [equitiesRows, pnlRows, tradesRows].forEach((section) => {
       section.forEach((row) => {
         if (row.symbol) symbols.add(row.symbol);
       });
     });
     return Array.from(symbols).sort();
-  }, [equitiesRows, pnlRows]);
+  }, [equitiesRows, pnlRows, tradesRows]);
 
   return (
     <div className="account-statements-page">
@@ -206,6 +304,17 @@ const AccountStatements: React.FC = () => {
           selected period.
         </p>
       </header>
+
+      <section className="account-statements-meta">
+        <div className="account-meta-item">
+          <span className="account-meta-label">Account</span>
+          <span className="account-meta-value">{accountDisplayName}</span>
+        </div>
+        <div className="account-meta-item">
+          <span className="account-meta-label">Date Range</span>
+          <span className="account-meta-value">{dateRangeLabel}</span>
+        </div>
+      </section>
 
       {/* Statement for: filter bar */}
       <section className="account-statements-filters">
@@ -383,6 +492,22 @@ const AccountStatements: React.FC = () => {
             { key: 'plYtd', label: 'P/L YTD', align: 'right' },
           ]}
           rows={pnlRows}
+          textFilter={textFilter}
+          symbolFilter={symbolFilter}
+        />
+
+        <CollapsibleSection
+          title="Trades"
+          columns={[
+            { key: 'execTime', label: 'Exec Time' },
+            { key: 'symbol', label: 'Symbol' },
+            { key: 'side', label: 'Side' },
+            { key: 'qty', label: 'Qty', align: 'right' },
+            { key: 'price', label: 'Price', align: 'right' },
+            { key: 'commission', label: 'Commission', align: 'right' },
+            { key: 'fees', label: 'Fees', align: 'right' },
+          ]}
+          rows={tradesRows}
           textFilter={textFilter}
           symbolFilter={symbolFilter}
         />

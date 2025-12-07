@@ -1,89 +1,91 @@
-ActAndPos – Accounts & Positions Service
+ActAndPos – Accounts & Positions Service (Updated)
 
-ActAndPos is the backend service that powers the Activity & Positions screens in ThorTrading. It provides a brokerage-agnostic view of:
+ThorTrading Core: Accounts, Orders (intraday), Positions, P&L Snapshot
 
-Trading accounts (live + paper)
+ActAndPos is the backend service powering the Activity & Positions screen in ThorTrading.
+It provides a brokerage-agnostic, real-time snapshot of:
 
-Intraday orders and fills
+Trading accounts (real + paper)
 
-Current positions and P/L
+Intraday orders
 
-The React ActivityPositions page consumes these APIs and renders a Thinkorswim-style “Today’s Trade Activity” + Position Statement dashboard.
+Current positions
+
+Current P&L computations
+
+It intentionally does not contain historical fills or trade execution logic—those now live in the Trades app. ActAndPos focuses entirely on “What do I have right now?”
 
 App Overview
 
-Django app: ActAndPos (verbose name “Accounts and Positions”) 
+Django App: ActAndPos (“Accounts and Positions”)
 
-apps
+Exposed via DRF serializers + simple function-based views
 
-Exposed via DRF (Django REST Framework) serializers + function-based views
+Mounted under /actandpos/... in the project router (typically /api/actandpos/...)
 
-Integrated into the main app router under /actandpos/... (see project-level URLs)
+Consumed by the React route: /app/activity, displayed inside the global layout
 
-Consumed by the React route /app/activity, wrapped by AppLayout and the global chrome.
+ActAndPos is the “live positions & account state” layer.
+The Trades app references ActAndPos models when filling orders and updating positions.
 
 Data Model
 Account
 
-Represents a single brokerage account (real Schwab or Paper Trading). 
-
-accounts
+Represents a user’s brokerage account (real Schwab or Paper).
 
 Key fields:
 
-broker: "SCHWAB" or "PAPER"
+broker – "SCHWAB" or "PAPER"
 
-broker_account_id: unique broker-side identifier
+broker_account_id – unique identifier
 
-display_name: human-friendly name (e.g., Rollover IRA, Paper Trading)
+display_name – e.g., Rollover IRA, Paper Account
 
-currency: default USD
+currency – default USD
 
 net_liq, cash
 
 stock_buying_power, option_buying_power, day_trading_buying_power
 
-updated_at: auto-updated timestamp
+updated_at
 
 Important property:
 
-ok_to_trade: True only if both net_liq > 0 and day_trading_buying_power > 0. Used by the API to signal whether the account is in good standing for new trades. 
+ok_to_trade – calculated:
+net_liq > 0 and day_trading_buying_power > 0
 
-accounts
+Used by both the Activity screen and the paper trading engine (Trades app) to indicate whether trading is permitted.
 
 Order
 
-Tracks all orders for today’s trade activity for an account. 
+Intraday order record for an account.
+These are today’s orders only — fills (Trade objects) are stored in the Trades app now.
 
-orders
+Key fields:
 
-Key concepts:
+account – FK → Account (related_name="orders")
 
-side: "BUY" / "SELL"
+symbol, asset_type (EQ, FUT, OPT, FX)
 
-status: "WORKING", "FILLED", "CANCELED", "PARTIAL", "REJECTED"
+side – "BUY" / "SELL"
 
-order_type: "MKT", "LMT", "STP", "STP_LMT"
+status – "WORKING", "FILLED", "CANCELED", "PARTIAL", "REJECTED"
 
-account: FK → Account (related_name="orders")
-
-symbol, asset_type (e.g. EQ, FUT, OPT, FX)
+order_type – "MKT", "LMT", "STP", "STP_LMT"
 
 quantity, limit_price, stop_price
 
 time_placed, time_last_update, time_canceled, time_filled
 
-Orders are later surfaced through the Activity API grouped by status.
+Orders are grouped by status in the /activity/today API.
 
 Position
 
-Represents the current position snapshot for an account. 
-
-positions
+Represents the current holdings snapshot for an account.
 
 Key fields:
 
-account: FK → Account (related_name="positions")
+account – FK → Account (related_name="positions")
 
 symbol, description, asset_type
 
@@ -91,158 +93,118 @@ quantity, avg_price, mark_price
 
 realized_pl_open, realized_pl_day
 
-multiplier: contract multiplier (e.g. ES = 50, CL = 1000)
+multiplier (e.g., ES=50, CL=1000, equities=1)
 
 currency, updated_at
 
-Important computed properties:
+Calculated fields:
 
-market_value = quantity * mark_price * multiplier
+market_value = qty × mark × multiplier
 
-cost_basis = quantity * avg_price * multiplier
+cost_basis = qty × avg_price × multiplier
 
-unrealized_pl = market_value - cost_basis
+unrealized_pl = market_value – cost_basis
 
-pl_percent = unrealized_pl / |cost_basis| * 100 (0 if cost_basis is 0) 
-
-positions
+pl_percent = unrealized_pl ÷ |cost_basis| × 100
 
 Uniqueness:
 
-unique_together = ("account", "symbol", "asset_type") — one row per symbol/asset type per account.
+(account, symbol, asset_type) ensures one row per unique position.
 
-Trade
-
-Represents individual fills that can feed account statements and P&L. 
-
-trades
-
-Key fields:
-
-account: FK → Account (related_name="trades")
-
-order: FK → Order (related_name="trades", nullable)
-
-exec_id: broker execution identifier
-
-symbol, side, quantity, price
-
-commission, fees
-
-exec_time: timestamp of fill
+The Trades app updates these Position rows when fills occur.
 
 Serializers
 AccountSummarySerializer
 
-Slim projection of Account used across the API and frontend. 
+Lightweight serializer used throughout ThorTrading (including the Trades app).
+Fields include:
 
-serializers
-
-Fields:
-
-id, broker, broker_account_id, display_name, currency
+Identity + broker metadata
 
 net_liq, cash
 
-stock_buying_power, option_buying_power, day_trading_buying_power
+all buying power fields
 
-ok_to_trade (read-only)
+ok_to_trade
 
 PositionSerializer
 
-Projection of Position for UI display. 
+Projects a Position into UI-ready values:
 
-serializers
+symbol, description, asset_type
 
-Includes:
+qty, avg_price, mark_price
 
-Identity: id, symbol, description, asset_type
+market_value, unrealized_pl, pl_percent
 
-Pricing: quantity, avg_price, mark_price
-
-P&L: market_value, unrealized_pl, pl_percent, realized_pl_open, realized_pl_day
+realized_pl_open, realized_pl_day
 
 currency
 
 OrderSerializer
 
-Projection of Order for the Activity screen. 
+Used by the Activity screen.
 
-serializers
-
-Fields:
-
-id, symbol, asset_type, side, quantity
-
-order_type, limit_price, stop_price
-
-status, time_placed, time_last_update, time_filled, time_canceled
+Includes all relevant intraday order details:
+id, symbol, side, qty, order_type, limit/stop, status, timestamps.
 
 Views & API Endpoints
 
-All endpoints live in ActAndPos.urls and are currently registered as: 
+Registered in ActAndPos.urls:
 
-urls
-
-/actandpos/positions
 /actandpos/activity/today
+/actandpos/positions
 
 
-(Actual prefix depends on project-level URL routing, typically /api/actandpos/....)
+(Project-level routes usually prefix these with /api.)
 
-Shared helper – get_active_account
+Account Selection: get_active_account
 
-Utility that chooses which account to use. 
-
-accounts
+Shared helper used across endpoints (and also by Trades during paper executions).
 
 Logic:
 
-If ?account_id=<pk> is present → get_object_or_404(Account, pk=account_id)
+If ?account_id=<id> is passed → load that account
 
-Otherwise, uses Account.objects.first()
+Else → use Account.objects.first()
 
-Raises ValueError if no accounts exist (API returns 400 with message).
+If none exist → return HTTP 400 with an error
 
 GET /actandpos/activity/today
 
-View: activity_today_view in views/orders.py
+Primary API powering the ActivityPositions React page.
 
-Purpose:
-Return a snapshot of today’s trade activity and current positions for the active account.
+View: activity_today_view
 
-Query params:
+Purpose
 
-account_id (optional) – primary key of Account; if omitted, defaults via get_active_account.
+Return today’s orders + current positions + account status for the active account.
 
-Logic:
+Logic
 
-Resolve account via get_active_account.
+Fetch account via get_active_account
 
-Filter Order by:
+Filter today’s orders by time_placed__date = today
 
-account=account
+Group into:
 
-time_placed__date = today
+working_orders
 
-Group orders into:
+filled_orders
 
-working – status="WORKING"
+canceled_orders
 
-filled – status="FILLED"
+Fetch current positions
 
-canceled – status="CANCELED"
+Compute account_status (net_liq, BP, ok_to_trade)
 
-Fetch current Position rows for the same account.
-
-Return:
-
+Response
 {
-  "account": { ...AccountSummarySerializer },
-  "working_orders": [ ...OrderSerializer ],
-  "filled_orders": [ ...OrderSerializer ],
-  "canceled_orders": [ ...OrderSerializer ],
-  "positions": [ ...PositionSerializer ],
+  "account": {...},
+  "working_orders": [...],
+  "filled_orders": [...],
+  "canceled_orders": [...],
+  "positions": [...],
   "account_status": {
     "ok_to_trade": true,
     "net_liq": "105472.85",
@@ -250,102 +212,96 @@ Return:
   }
 }
 
+Frontend Usage
 
-account_status is currently a convenience wrapper that re-exposes key account fields plus ok_to_trade. 
-
-orders
-
-Frontend usage:
-
-ActivityPositions.tsx hits /actandpos/activity/today every 15 seconds and renders:
-
-Top banner: Account name, Net Liq, BP
-
-Three order tables: Working / Filled / Canceled
-
-Position Statement table
-
-Account status footer (“OK TO TRADE” vs “REVIEW REQUIRED”).
+The React page polls this endpoint every 15 seconds to keep the dashboard live.
 
 GET /actandpos/positions
 
-View: positions_view in views/positions.py 
-
-positions
+View: positions_view
 
 Purpose:
-Return current positions plus account summary for the active account.
+Return current positions + account summary without the orders.
 
-Query params:
-
-account_id (optional) – same as above.
-
-Response:
-
-{
-  "account": { ...AccountSummarySerializer },
-  "positions": [ ...PositionSerializer ]
-}
-
-
-This endpoint is available for future UI (e.g., dedicated Positions page, mobile view, or other consumer services).
+Useful for standalone Positions pages or analytics.
 
 Django Admin
 
-Admin is fully wired for manual inspection and debugging. 
+Admin is fully wired for inspection and debugging:
 
-admin
+AccountAdmin
 
-AccountAdmin:
+broker, broker_account_id
 
-Shows broker, account ID, currency, net liq, cash, buying powers, ok_to_trade, updated_at.
+buying powers, net_liq, cash
 
-Inline positions and orders for that account.
+ok_to_trade
 
-PositionAdmin:
+inlines: positions + orders
 
-Shows quantities, prices, P/L, and updated timestamps.
+PositionAdmin
 
-Read-only computed fields: market_value, unrealized_pl, pl_percent.
+qty, avg_price, mark_price
 
-OrderAdmin:
+market_value, unrealized_pl, pl_percent
 
-Filters by status, side, order type, asset type, account.
+read-only computed fields
 
-Date hierarchy on time_placed for intraday history.
+OrderAdmin
 
-TradeAdmin:
+status, side, order_type
 
-Shows fills with commission, fees, exec_time.
+filters for quick intraday triage
 
-Searchable by symbol, account, exec_id, and order__broker_order_id.
+date hierarchy on time_placed
+
+Note: TradeAdmin now lives in the Trades app, since fills were moved there.
 
 Frontend Integration
 
-The main app router exposes /app/activity which renders ActivityPositions. 
+Route: /app/activity
+Component: ActivityPositions.tsx
 
-App
+Polls /actandpos/activity/today
 
-ActivityPositions is a polling client of /actandpos/activity/today, refreshing every 15 seconds to keep the dashboard live without WebSockets.
+Renders:
 
-The rest of the ThorTrading UI (Home, Futures, etc.) is wrapped by AppLayout, which provides the global banner where an account selector and paper-trading toggle can be mounted later.
+Account banner
 
-Future Extensions (Paper Trading & Account Selector)
+Working / Filled / Canceled orders
 
-Not implemented yet, but this is where the app will grow:
+Position statement
 
-Account selector / dropdown in Global banner, listing real + paper accounts using Account rows.
+Account status indicator
 
-Passing account_id from the selected account into:
+This page is wrapped in the global app layout, which will later host the account selector and (optionally) a paper/live switch.
 
-/actandpos/activity/today?account_id=...
+Relationship to the Trades App (Brief Reference)
 
-/actandpos/positions?account_id=...
+While ActAndPos owns Accounts, Orders, Positions,
+the Trades app owns:
 
-A paper trading engine that:
+Trade execution (paper engine)
 
-Creates Order + Trade records in response to simulated orders.
+Fills (Trade records)
 
-Updates Position rows and Account buying power & P/L as fills occur.
+Paper order APIs
 
-This markdown file describes the baseline structure that paper trading will plug into.
+Account Statement endpoints
+
+Trades depends on ActAndPos to update Accounts and Positions during fills.
+
+ActAndPos itself remains clean and focused:
+
+Live account snapshot + intraday orders + positions.
+No trade history, no execution engine inside this app.
+
+Future Extensions Inside ActAndPos
+
+Global account selector (frontend) wired into these endpoints
+
+Optional cached snapshot service for mobile/performance
+
+Additional projections: sector exposure, position sizing, risk metrics
+
+(Trade history, reporting, and statements will continue to live exclusively in the Trades app.)

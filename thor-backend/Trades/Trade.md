@@ -1,96 +1,126 @@
-Trades – Orders, Fills & Paper Trading Engine
+Trades – Executions, Paper Trading Engine, & Account Statements (Updated)
 
-The Trades app owns everything related to executions and trading behavior:
+ThorTrading Trading Layer
 
-Individual fills (Trade model)
+The Trades app owns everything related to executions, fills, paper trading logic, and now account statements.
 
-The paper trading engine (simulated fills, P&L, buying power updates)
+ActAndPos handles “What do I have right now?”
+Trades handles “What did I do?” and “Do a trade now.”
 
-Paper order APIs used by the React “Trade” workspace
+Trades depends on ActAndPos for:
 
-Django admin for reviewing fills
+Accounts
 
-It depends on ActAndPos for accounts, orders, and positions, but keeps all trading logic isolated from the “Accounts & Positions” app.
+Orders
+
+Positions
+
+ActAndPos does not depend on Trades.
+
+Trade
 
 App Overview
 
-Django app config: TradesConfig (Trades/apps.py) 
+Django app: Trades
 
-apps
+Trade rows stored in legacy table ActAndPos_trade (backward compatible)
 
-Database:
+Integrates with ActAndPos through:
 
-Trade rows live in the ActAndPos_trade table for backward compatibility. 
+Account (for balances and buying power)
 
-trade
+Order (status: WORKING → FILLED)
 
-Integrations:
+Position (qty/price/P&L updates)
 
-FK to ActAndPos.Account
+Exposes:
 
-FK to ActAndPos.Order
+Paper trading APIs
 
-Uses ActAndPos.Position and account fields when updating balances/positions. 
+Trade history
 
-paper_engine
+Account Statement API (new)
 
-In short: ActAndPos answers “what do I have?”, and Trades answers “what did I do?” and “do a trade now”.
+Core Responsibilities
+Trades App does:
 
-Data Model
-Trade model
+Create fills (Trade rows)
 
-File: Trades/models.py 
+Update Positions & Account balances
 
-trade
+Recompute P&L & buying power
 
-Represents an individual execution (fill), whether from live broker sync or paper trading.
+Validate orders, BP, sizes
 
-Key fields:
+Provide trade history
 
-account – FK → ActAndPos.Account (the account the fill belongs to)
+Provide Account Statements reporting endpoint
+
+Trades App does NOT:
+
+Hold live positions (ActAndPos does that)
+
+Hold account balances (ActAndPos)
+
+Pull market data (stub only)
+
+Own intraday orders (ActAndPos)
+
+1. Data Model – Trade
+
+Defined in Trades/models.py.
+
+
+Trade
+
+Represents a single execution (fill), submitted by the paper engine or a real broker sync (future).
+
+Key Fields
+
+account – FK → ActAndPos.Account
 
 order – FK → ActAndPos.Order (related_name="trades")
 
-symbol – instrument symbol (e.g. ES, AAPL)
+symbol
 
-side – BUY / SELL (uses Order.SIDE_CHOICES from ActAndPos)
+side – BUY / SELL
 
-quantity – filled quantity
+quantity
 
-price – execution price
+price
 
-commission – commission charged
+commission, fees
 
-fees – exchange/other fees
+exec_time
 
-exec_time – timestamp of the execution
+exec_id
 
-exec_id – broker/exchange execution ID
+Meta
 
-Meta:
+ordering = ("-exec_time",)
 
-ordering = ("-exec_time",) – newest fills first
+db_table = "ActAndPos_trade" (backward compatibility)
 
-db_table = "ActAndPos_trade" – reuses the legacy table, so no data is lost when splitting the app.
+Purpose
 
-String representation:
+Trade is the “ledger” of everything the user did, and is the backbone of:
 
-YYYY-MM-DD HH:MM:SS SIDE QTY SYMBOL
+P&L
 
+Statements
 
-This keeps trade history centralized and usable for statements, reports, and analytics.
+Execution history
 
-Serializers
+Analytics
 
-File: Trades/serializers.py 
-
-serializers
+2. Serializers
 
 TradeSerializer
 
-Simple DRF serializer for exposing fills in APIs:
 
-Fields:
+Trade
+
+Fields exposed to the frontend:
 
 id
 
@@ -108,380 +138,297 @@ fees
 
 exec_time
 
-order (FK id)
+account id
 
-account (FK id)
+order id
 
-Used by the paper-order APIs to return the created fill alongside the order/account snapshot.
+Used by:
 
-Paper Trading Engine
+Paper trade responses
 
-File: Trades/paper_engine.py 
+Account statements (trade history section)
 
-paper_engine
+3. Paper Trading Engine
 
-This module implements the v1 paper trading engine. It simulates fills and updates account/position state using the ActAndPos models:
+Located in Trades/paper_engine.py.
 
-Account – net liq, cash, buying power
 
-Order – intraday order record
+Trade
 
-Position – current holdings and P&L
+The engine simulates a complete lifecycle:
 
-Trade – execution/fill record (from this app)
+Validate order
 
-Key Components
-Data classes & errors
+Check buying power
+
+Create working order
+
+Create fill (Trade)
+
+Update position
+
+Update account balances
+
+Recompute net liq + BP
+
+Return a full snapshot
+
+Data Classes and Errors
 
 PaperOrderParams
 
-account: Account
+PaperTradingError
 
-symbol: str
+InvalidPaperOrder
 
-asset_type: str
+InsufficientBuyingPower
 
-side: str (BUY / SELL)
+Fill Price Logic
 
-quantity: Decimal
+LMT / STP_LMT → use limit price
 
-order_type: str (MKT, LMT, STP, STP_LMT)
+Others (MKT/STP) → stubbed price of 100 (to be replaced)
 
-limit_price: Decimal | None
+Position Updates
 
-stop_price: Decimal | None
+BUY:
 
-commission: Decimal = 0
+Increase quantity
 
-fees: Decimal = 0
+Recompute weighted average price
 
-Exceptions:
+Update realized P&L fields if closing short
 
-PaperTradingError – base class
+SELL:
 
-InvalidPaperOrder – bad input (side, type, qty, missing limit, etc.)
+Decrease quantity
 
-InsufficientBuyingPower – BP check fails before placing the order
+Calculate realized P&L
 
-_get_fill_price(params)
+Update realized_pl_day & realized_pl_open
 
-V1 logic:
+Account Updates
 
-If limit_price is present → use that as the fill price.
+Adjust cash
 
-Else, uses a stubbed “market” price of 100 (can be replaced with real quotes later).
+Adjust BP (simple v1 rules)
 
-_validate_params(params)
+Recompute net_liq based on all positions
 
-Enforces:
+The engine returns:
 
-account.broker == "PAPER"
+(order, trade, position, account)
 
-quantity > 0
+4. Paper Trading API
 
-side in {"BUY","SELL"}
+Located in Trades/paper_orders.py.
 
-order_type in {"MKT","LMT","STP","STP_LMT"}
 
-limit_price is required for LMT / STP_LMT orders.
+Trade
 
-place_paper_order(params: PaperOrderParams)
+All endpoints use:
 
-Main entry point for executing a paper trade. 
+get_active_account() from ActAndPos
 
-paper_engine
+Serializers from ActAndPos (AccountSummary, Order, Position)
 
-Steps (all wrapped in a DB transaction):
+TradeSerializer from Trades
 
-Validate parameters
+POST /trades/paper/order
 
-Raises InvalidPaperOrder if anything is wrong.
+Simple entrypoint → uses active account
 
-Lock and load account
+Input
 
-Account.objects.select_for_update().get(pk=params.account.pk)
+Symbol, asset_type, side, quantity, order_type, limit/stop
 
-Ensures consistent cash/BP updates under concurrency.
+Output
 
-Compute fill price & BP check
+account summary
 
-fill_price = _get_fill_price(params)
+order
 
-notional = fill_price * quantity
+resulting position
 
-If side == BUY and account.day_trading_buying_power < notional → raises InsufficientBuyingPower.
+POST /trades/paper/orders
 
-Create the WORKING Order
+Advanced entrypoint → requires account_id
 
-New Order row in ActAndPos:
+Output
 
-account, symbol, asset_type, side, quantity
+order
 
-order_type, limit_price, stop_price
+trade
 
-status = "WORKING"
+account summary
 
-time_placed = now
+updated positions list
 
-Create the Trade (fill)
+POST /trades/paper/orders/<id>/cancel
 
-New Trade row in this app:
+Cancels WORKING orders only.
 
-account, order, symbol, side, quantity
+5. Account Statements API (NEW)
 
-price = fill_price
+(This is now part of the Trades app.)
 
-commission, fees
+Purpose
 
-exec_time = now
+Provide the data for the React Account Statements page:
 
-Mark the order as filled:
+Date-range trade history
 
-status = "FILLED"
+Current positions snapshot
 
-time_filled = now
+P&L summary
 
-time_last_update = now
+Buying power summary
 
-Update or create Position
+Symbol filters & search filters
 
-Position.objects.select_for_update().get_or_create(...) by (account, symbol, asset_type).
+Why it lives in Trades
 
-For BUY:
+Because statements depend on Trade history, which exists only here.
 
-New weighted-average avg_price.
+ActAndPos → live snapshot
+Trades → historical ledger + reporting
 
-quantity increases.
+Endpoint (planned/active depending on your branch)
+GET /api/trades/account-statement
 
-mark_price set to fill_price.
+Query Params
 
-For SELL:
+account_id (optional)
 
-quantity decreases.
+days_back=1
+or
 
-Realized P&L for this leg:
+from=YYYY-MM-DD & to=YYYY-MM-DD
 
-(fill_price - avg_price) * quantity * multiplier
-
-Added to realized_pl_day and realized_pl_open.
-
-mark_price set to fill_price.
-
-Update Account cash & buying power
-
-trade_value = fill_price * quantity * multiplier
-
-total_cost = trade_value + commission + fees
-
-For BUY:
-
-cash -= total_cost
-
-For SELL:
-
-cash += trade_value - (commission + fees)
-
-Recompute net_liq:
-
-net_liq = cash + Σ(position.market_value) for all positions on that account.
-
-Simple v1 BP rules:
-
-stock_buying_power = net_liq * 4
-
-option_buying_power = net_liq * 2
-
-day_trading_buying_power = net_liq * 4
-
-Return
-
-(order, trade, position, account) for the view to serialize.
-
-Paper Trading API
-
-File: Trades/paper_orders.py 
-
-paper_orders
-
-This module exposes REST endpoints for the frontend to place and cancel paper trades.
-
-It uses:
-
-get_active_account(request) from ActAndPos for account selection
-
-AccountSummarySerializer, OrderSerializer, PositionSerializer (from ActAndPos)
-
-TradeSerializer (from Trades)
-
-place_paper_order (from the paper engine)
-
-1. POST /trades/paper/order – Paper trade using active account
-
-View: paper_order_view
-
-Typical mounted path (with project prefix): /api/trades/paper/order.
-
-Request body:
-
+Response Shape
 {
-  "symbol": "ES",
-  "asset_type": "FUT",
-  "side": "BUY",
-  "quantity": 1,
-  "order_type": "MKT",      // or "LMT", "STP", "STP_LMT"
-  "limit_price": 4800.25,   // for LMT/STP_LMT
-  "stop_price": null
+  account: AccountSummary,
+  date_range: { from, to },
+
+  cashSweep: [],
+  futuresCash: [],
+
+  equities: [...],        // from ActAndPos.Position
+  pnlBySymbol: [...],     // computed from Position
+
+  trades: [...],          // TradeSerializer rows (in date range)
+
+  summary: [...],         // BP, cash, net liq, etc.
 }
 
+6. FLOW: ActAndPos → Trades (Execution Flow)
 
-Uses get_active_account(request):
+Here’s the complete lifecycle showing how the two apps cooperate.
 
-Looks at ?account_id= query param, or
+STEP 1 — Frontend requests a trade
 
-Falls back to the default account. (From ActAndPos helper.)
-
-Builds PaperOrderParams.
-
-Calls place_paper_order.
-
-Response (201):
-
-{
-  "account": { /* AccountSummarySerializer */ },
-  "order": { /* OrderSerializer */ },
-  "position": { /* PositionSerializer */ }  // null if no position
-}
-
-
-Used by the Trade workspace ticket as a simple “fire-and-forget” entrypoint.
-
-2. POST /trades/paper/orders – Paper trade with explicit account + snapshot
-
-View: paper_order_create_view
-
-Path: /api/trades/paper/orders
-
-Request body:
-
-Same as above, but requires an account_id field:
-
-{
-  "account_id": 3,
-  "symbol": "AAPL",
-  "asset_type": "EQ",
-  "side": "BUY",
-  "quantity": "10",
-  "order_type": "MKT",
-  "limit_price": null,
-  "stop_price": null
-}
-
-
-Response (201):
-
-{
-  "order": { /* OrderSerializer */ },
-  "trade": { /* TradeSerializer */ },
-  "account": { /* AccountSummarySerializer */ },
-  "positions": [ /* PositionSerializer[] for this account */ ]
-}
-
-
-This is a richer API, returning both the new trade and the updated positions snapshot in one call.
-
-3. POST /trades/paper/orders/<pk>/cancel – Cancel a paper order
-
-View: paper_order_cancel_view
-
-Path: /api/trades/paper/orders/<int:pk>/cancel
-
-Rules:
-
-Looks up Order by pk.
-
-Ensures the linked account.broker == "PAPER".
-
-Only allows cancellation if status == "WORKING":
-
-If not, returns 400 with a message like:
-Only WORKING orders can be canceled (current status: FILLED).
-
-On success:
-
-Sets status = "CANCELED".
-
-Sets time_canceled and time_last_update.
-
-Returns the updated Order serialized.
-
-URL Configuration
-
-File: Trades/urls.py 
-
-urls
-
-from django.urls import path
-
-from .paper_orders import (
-    paper_order_view,
-    paper_order_create_view,
-    paper_order_cancel_view,
-)
-
-app_name = "Trades"
-
-urlpatterns = [
-    path("paper/order", paper_order_view, name="paper-order"),
-    path("paper/orders", paper_order_create_view, name="paper-orders-create"),
-    path("paper/orders/<int:pk>/cancel", paper_order_cancel_view, name="paper-orders-cancel"),
-]
-
-
-In the project-level urls.py, you typically include:
-
-path("api/trades/", include("Trades.urls", namespace="Trades")),
-
-
-which yields:
+React →
 
 POST /api/trades/paper/order
 
-POST /api/trades/paper/orders
+STEP 2 — Trades chooses the correct account
 
-POST /api/trades/paper/orders/<pk>/cancel
+Trades asks ActAndPos:
 
-Django Admin
+get_active_account(request)
 
-File: Trades/admin.py 
 
-admin
+or via direct account_id.
 
-TradeAdmin gives you a good view into trade history:
+STEP 3 — Trades validates & processes order
 
-list_display:
+Trades engine needs:
 
-account, order, symbol, side, quantity, price, commission, fees, exec_time.
+Account (ActAndPos)
 
-list_filter: side, account
+Position (ActAndPos)
 
-search_fields: by symbol, account display name, broker account ID, exec_id, and order__broker_order_id.
+Order (ActAndPos)
 
-date_hierarchy = "exec_time" for quick date-based navigation.
+Trade (Trades)
 
-ordering = ("-exec_time",).
+STEP 4 — Trades updates ActAndPos models
 
-Use this to inspect paper fills, debug trading behavior, or validate P&L.
+In the DB transaction:
 
-Frontend Integration (Summary)
+Create/update Order
 
-The Trade banner tab navigates to /app/trade (React).
+Create/update Position
 
-The Trade workspace page (Trades.tsx):
+Update Account fields:
 
-Loads the current account snapshot using /actandpos/activity/today.
+cash
 
-Renders a paper order ticket that POSTs to /api/trades/paper/order.
+net liq
 
-On success, it shows a toast and can refresh account/activity state.
+buying powers
 
-The Activity & Positions page (ActivityPositions.tsx) continues to use /actandpos/activity/today for read-only intraday views; it doesn’t know or care that the actual trading is handled by the Trades app
+ActAndPos is the source of truth for balances & holdings.
+
+STEP 5 — Trades creates the Trade (fill)
+
+Writes a new Trade row to ActAndPos_trade.
+(This is historical record for reporting & statements.)
+
+STEP 6 — Trades returns updated snapshot
+
+Response includes:
+
+Account summary
+
+Order
+
+Trade
+
+Current position(s)
+
+STEP 7 — React updates UI
+
+Activity & Positions repolls /api/actandpos/activity/today
+
+Account Statements queries /api/trades/account-statement
+
+7. Django Admin
+
+TradeAdmin exposes:
+
+trades list
+
+filters by side/account
+
+search by symbol, exec_id, order info
+
+date hierarchy for exec_time
+
+Used for debugging and reviewing fills.
+
+8. Frontend Integration Overview
+UI Page	Endpoints Used	Purpose
+Trade Workspace	/api/trades/paper/order	Create trades
+	/api/actandpos/activity/today	Refresh snapshot
+Activity & Positions	/api/actandpos/activity/today	Intraday orders + positions
+Account Statements	/api/trades/account-statement	Historical + snapshot reporting
+In Summary
+
+ActAndPos = live data (accounts, orders, positions)
+
+Trades = actions + history + reporting
+
+Trades now cleanly owns everything transactional:
+
+Executions
+
+Trade history
+
+P&L events
+
+Statements
+
+Paper engine
+
+ActAndPos owns current state and remains clean.
