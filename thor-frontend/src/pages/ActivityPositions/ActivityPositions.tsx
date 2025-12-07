@@ -1,6 +1,5 @@
 // src/pages/ActivityPositions/ActivityPositions.tsx
 import React, { useEffect, useState } from "react";
-import "./ActivityPositions.css";
 import api from "../../services/api";
 import type {
   ActivityTodayResponse,

@@ -129,7 +129,7 @@ const GlobalBanner: React.FC = () => {
   const childTabsByParent: Record<string, ChildTab[]> = {
     home: [
       { label: 'Activity & Positions', path: '/app/activity' },
-      { label: 'Account Statement', path: '/app/home' },
+      { label: 'Account Statement', path: '/app/account-statement' },
       { label: 'FX Report', path: '/app/home' },
     ],
     futures: [

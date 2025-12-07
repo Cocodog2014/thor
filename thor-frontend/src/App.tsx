@@ -10,6 +10,7 @@ import FutureRTD from './pages/Futures';
 import FutureHome from './pages/Futures/FuturesHome/FutureHome';
 import ActivityPositions from './pages/ActivityPositions';
 import Trades from './pages/Trade/Trades';
+import AccountStatement from './pages/AccountStatement/AccountStatement';
 import ProtectedRoute from './components/ProtectedRoute';
 import AuthLayout from './layouts/AuthLayout';
 import AppLayout from './layouts/AppLayout';
@@ -100,6 +101,7 @@ function App() {
                   <Container maxWidth={false} sx={{ p: 0 }}>
                     <Routes>
                       <Route path="home" element={<Home />} />
+                      <Route path="account-statement" element={<AccountStatement />} />
                       <Route path="futures" element={<FutureHome />} />
                       <Route
                         path="futures/rtd"
