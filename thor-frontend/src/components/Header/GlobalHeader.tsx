@@ -1,7 +1,7 @@
 import React from 'react';
 import { AppBar, Toolbar, Typography, Box, CssBaseline, Chip, Tooltip } from '@mui/material';
-import CollapsibleDrawer, { DEFAULT_WIDTH_OPEN, DEFAULT_WIDTH_CLOSED } from './CollapsibleDrawer';
-import { useTradingMode } from '../context/TradingModeContext';
+import CollapsibleDrawer, { DEFAULT_WIDTH_OPEN, DEFAULT_WIDTH_CLOSED } from '../Drawer/CollapsibleDrawer';
+import { useTradingMode } from '../../context/TradingModeContext';
 
 interface LayoutProps {
   children: React.ReactNode;

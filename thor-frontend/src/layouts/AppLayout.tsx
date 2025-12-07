@@ -1,6 +1,6 @@
 import React from 'react';
-import GlobalHeader from '../components/GlobalHeader';
-import GlobalBanner from '../components/GlobalBanner';
+import GlobalHeader from '../components/Header/GlobalHeader';
+import GlobalBanner from '../components/Banners/GlobalBanner';
 import { FooterRibbon } from '../components/Ribbons';
 
 type AppLayoutProps = {
