@@ -26,10 +26,19 @@ class ThorTradingConfig(AppConfig):
         try:
             from ThorTrading import globalmarkets_hooks  # noqa: F401
             logger.info("📡 ThorTrading GlobalMarkets hooks registered.")
-            try:
-                globalmarkets_hooks.bootstrap_open_markets()
-            except Exception:
-                logger.exception("❌ Failed to bootstrap ThorTrading workers for open markets")
+
+            def _bootstrap_hooks():
+                time.sleep(1.0)
+                try:
+                    globalmarkets_hooks.bootstrap_open_markets()
+                except Exception:
+                    logger.exception("❌ Failed to bootstrap ThorTrading workers for open markets")
+
+            threading.Thread(
+                target=_bootstrap_hooks,
+                name="ThorGlobalTimerBootstrap",
+                daemon=True,
+            ).start()
         except Exception:
             logger.exception("❌ Failed to import ThorTrading GlobalMarkets hooks")
 
