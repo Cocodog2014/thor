@@ -43,11 +43,12 @@ def _to_decimal(val):
 
 
 @api_view(["POST"])
-def paper_order_view(request):
+def order_create_active_view(request):
     """
-    POST /trades/paper/order
+    POST /trades/orders/active
 
-    Uses the active account (or ?account_id=).
+    Create an order for the *active* account (from session or ?account_id=),
+    route it through the unified order_engine, and return the updated snapshot.
     """
 
     try:
@@ -104,11 +105,12 @@ def paper_order_view(request):
 
 
 @api_view(["POST"])
-def paper_order_create_view(request):
+def order_create_view(request):
     """
-    POST /trades/paper/orders
+    POST /trades/orders
 
-    Create a PAPER order, immediately fill it, and return the updated snapshot.
+    Create an order for a specific account_id, immediately fill it via
+    the order_engine, and return the updated snapshot.
     """
 
     data = request.data
@@ -187,11 +189,12 @@ def paper_order_create_view(request):
 
 
 @api_view(["POST"])
-def paper_order_cancel_view(request, pk: int):
+def order_cancel_view(request, pk: int):
     """
-    POST /trades/paper/orders/<pk>/cancel
+    POST /trades/orders/<pk>/cancel
 
-    Cancel a WORKING paper order. No position/cash changes.
+    Cancel a WORKING order. Right now it only allows PAPER accounts,
+    but the name is generic so we can extend it to other brokers later.
     """
 
     try:
@@ -222,3 +225,4 @@ def paper_order_cancel_view(request, pk: int):
     order.save(update_fields=["status", "time_canceled", "time_last_update"])
 
     return Response(OrderSerializer(order).data, status=status.HTTP_200_OK)
+

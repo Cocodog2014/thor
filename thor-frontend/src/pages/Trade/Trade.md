@@ -1,347 +1,237 @@
-Trades Frontend – Trade Workspace & Paper Ticket
+Trades App – Trade Fills, Statements, and User-Facing Order APIs
 
-The Trades frontend is the React “Trade Workspace” for ThorTrading. It sits under the main AppLayout, uses the global banner/nav, and talks to:
+ThorTrading – Updated Architecture Documentation
 
-GET /actandpos/activity/today for the current account snapshot
+The Trades app is the user-facing trading layer of Thor.
+It no longer contains execution logic — the execution engine now fully lives inside ActAndPos.
 
-POST /trades/paper/order for paper trades
+Instead, Trades is responsible for:
 
-The goal is to give you a clean Trade screen where you can submit paper orders and see them reflected in the existing Activity & Positions views.
+Exposing API endpoints to create/cancel orders
 
-1. Layout & Routing
-App shell – AppLayout
+Storing Trade (fill) records
 
-AppLayout wraps all authenticated app pages (Home, Trade, Activity, etc.) with:
+Building account statements
 
-GlobalHeader (top AppBar)
+Returning snapshots that the frontend uses
 
-GlobalBanner (blue strip with connection status + nav tabs)
+Trades is the bridge between the UI and the ActAndPos ledger.
 
-Scrollable content area
+🔥 High-Level Architecture
+Frontend (React / TSX)
+        │
+        ▼
+Trades App (User-facing APIs)
+ - /orders/active
+ - /orders
+ - /orders/<id>/cancel
+ - /account-statement
+        │
+        ▼
+ActAndPos (Ledger + Engine)
+ - Accounts
+ - Orders
+ - Positions
+ - order_engine (PAPER + SCHWAB adapters)
 
-FooterRibbon at the bottom 
 
-AppLayout
+The frontend never talks to ActAndPos directly.
+All order requests go through the Trades app, which validates them, then hands them to the unified engine.
 
-const AppLayout: React.FC<AppLayoutProps> = ({ children, ...toggles }) => {
-  return (
-    <GlobalHeader {...toggles}>
-      <GlobalBanner />
-      <div className="app-content-scroll">
-        {children}
-      </div>
-      <FooterRibbon />
-    </GlobalHeader>
-  );
-};
+📌 Models in Trades
+Trade (Fill Model)
 
+Each execution/fill of an order becomes one Trade row.
 
-The Trade workspace is rendered inside this app-content-scroll region when the route matches /app/trade.
+Stored fields typically include:
 
-In the router (App.tsx), you should have something like:
+account
 
-<Route path="/app" element={<AppLayout ...>}>
-  <Route path="home" element={<Home />} />
-  <Route path="trade" element={<Trades />} />
-  <Route path="activity" element={<ActivityPositions />} />
-</Route>
+order
 
-2. Trade Workspace Pages
-2.1 TradeHome.tsx – simple placeholder
+symbol
 
-TradeHome is a minimal stub page that can be used as a landing view or parent wrapper if you later want multiple sub-tabs under Trade. 
+side
 
-TradeHome
+quantity
 
-const TradeHome: React.FC = () => (
-  <div style={{ padding: '1rem' }}>
-    <h1>Trade Workspace</h1>
-    <p>Trade tools will appear here once configured.</p>
-  </div>
-);
+price
 
+commission
 
-Right now, the real functionality lives in Trades.tsx (below). You can either:
+fees
 
-Route /app/trade → Trades, and ignore TradeHome, or
+exec_time
 
-Route /app/trade → TradeHome and mount Trades as a child component later.
+This model does not store order intent — only actual fills.
 
-2.2 Trades.tsx – main Trade Workspace + Paper Ticket
+It exists separately from ActAndPos.Order for correct ledger separation.
 
-File: src/pages/Trade/Trades.tsx 
+📌 Views in Trades
+1. Order Creation Views
+order_create_active_view
+POST /trades/orders/active
 
-Trades
 
-This is the primary Trade screen. It:
+Creates an order for the active account (session or ?account_id).
 
-Loads the current account via GET /actandpos/activity/today.
+Flow:
 
-Renders a PaperOrderTicket for paper trades.
+Validate user input
 
-Lets you manually refresh account info after trades.
+Build OrderParams
 
-Key imports:
+Call place_order() in ActAndPos.order_engine
 
-api – Axios instance pointing at your backend (/api/...).
+Engine creates:
 
-toast – from react-hot-toast for success/error messages.
+Order
 
-Types:
+Trade (fill)
 
-AccountSummary
+Position update
 
-ActivityTodayResponse
+Account update
 
-PaperOrderResponse
-from ../../types/actandpos.
+Trades returns a clean snapshot to the UI
 
-Data flow
+Use case:
+The frontend Quick Ticket (single active account mode).
 
-On mount (and when refreshCounter changes), Trades calls:
+order_create_view
+POST /trades/orders
 
-const response = await api.get<ActivityTodayResponse>("/actandpos/activity/today");
-setAccount(response.data.account);
 
+Creates an order for a specific account_id.
 
-If the request fails, it shows a friendly error message in the body.
+Used by:
 
-Component structure
-const Trades: React.FC = () => {
-  const [account, setAccount] = useState<AccountSummary | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [refreshCounter, setRefreshCounter] = useState(0);
+Multi-account dashboards
 
-  useEffect(() => {
-    // fetch account via /actandpos/activity/today
-  }, [refreshCounter]);
+Server-side processes
 
-  // loading + error states ...
+Admin / batch simulation
 
-  return (
-    <div className="trade-screen">
-      <header className="trade-header">
-        <div>
-          <h1>Trade Workspace</h1>
-          <p>We are building out the full experience. For now, use the paper ticket to send test orders.</p>
-        </div>
-        <button
-          type="button"
-          className="trade-refresh"
-          onClick={() => setRefreshCounter((prev) => prev + 1)}
-        >
-          Refresh Account
-        </button>
-      </header>
+2. Order Cancel Endpoint
+order_cancel_view
+POST /trades/orders/<pk>/cancel
 
-      <div className="trade-body">
-        <PaperOrderTicket
-          account={account}
-          onOrderPlaced={() => setRefreshCounter((prev) => prev + 1)}
-        />
-      </div>
-    </div>
-  );
-};
 
+Cancels a WORKING order.
 
-Refresh button increments refreshCounter, which re-runs the effect and re-fetches /actandpos/activity/today.
+Right now only PAPER supports cancelation (Schwab is stubbed).
 
-After each paper order, onOrderPlaced also increments refreshCounter, giving you a fresh snapshot of account state.
+The view updates:
 
-3. PaperOrderTicket Component
+Order.status → CANCELED
 
-Defined inside Trades.tsx. 
+time_canceled
 
-Trades
+time_last_update
 
-Purpose
+Positions/cash are untouched.
 
-A compact order ticket that submits paper trades to:
+3. Account Statements
+account_statement_view
+GET /trades/account-statement
 
-api.post<PaperOrderResponse>("/trades/paper/order", payload);
 
+Generates a human-readable trading statement for the selected account:
 
-matching the backend Trades app API (POST /api/trades/paper/order after routing).
+All Trade (fills) history
 
-Props
-type PaperOrderTicketProps = {
-  account: AccountSummary;
-  onOrderPlaced: () => void;
-};
+Current Position list
 
+Account summary (from ActAndPos)
 
-account – active account (display name, broker account id, etc.).
+P&L breakdown
 
-onOrderPlaced – callback to let the parent refresh account/activity data.
+Totals and daily aggregates
 
-Internal state
+This is a read-only reporting layer — it never modifies ledger data.
 
-symbol – text input, uppercased on submit.
+Statements correctly combine:
 
-side – "BUY" or "SELL".
+ActAndPos models (Accounts, Positions)
 
-quantity – string; converted to number on submit.
+Trades model (Trade fills)
 
-orderType – "MKT" (market) or "LMT" (limit).
+📌 Serializers
 
-limitPrice – numeric string; required for limit orders.
+Trades uses:
 
-submitting – boolean flag to disable the button while a request is in flight.
+TradeSerializer (internal to Trades)
 
-Validation logic
+AccountSummarySerializer (from ActAndPos)
 
-Before sending the API request, handleSubmit enforces:
+OrderSerializer and PositionSerializer (from ActAndPos)
 
-Symbol is not empty.
+This reinforces the separation:
 
-Quantity > 0.
+ActAndPos owns ledger data
 
-For LMT orders, limitPrice must be provided.
+Trades presents it to the UI
 
-If invalid, it uses toast.error(...) to show a message and early-return.
+📌 URL Structure (Updated & Clean)
+urlpatterns = [
+    path("orders/active", order_create_active_view, name="orders-create-active"),
+    path("orders", order_create_view, name="orders-create"),
+    path("orders/<int:pk>/cancel", order_cancel_view, name="orders-cancel"),
+    path("account-statement", account_statement_view, name="account-statement"),
+]
 
-Request body
 
-On successful validation, it builds:
+These URLs are neutral — not PAPER-specific — because orders now route through the unified engine.
 
-const payload = {
-  symbol: sym,                 // uppercase symbol
-  asset_type: "EQ",            // hard-coded for now
-  side,                        // "BUY" | "SELL"
-  quantity: qty,               // numeric
-  order_type: orderType,       // "MKT" | "LMT"
-  limit_price: orderType === "LMT" ? Number(limitPrice.trim()) : null,
-  stop_price: null,
-};
+📌 Responsibilities Summary
+Component	Lives In	Description
+Order model	ActAndPos	Intent to trade
+Position model	ActAndPos	Current holdings
+Account model	ActAndPos	Cash, net liq, buying power
+Execution engine	ActAndPos	PAPER & SCHWAB adapters
+Trade (fill) model	Trades	Execution events
+Order-create APIs	Trades	User entry + validation
+Statements	Trades	Reporting, not ledger
+📌 Why This Split Matters
 
+This structure matches real broker systems like:
 
-and posts to:
+Thinkorswim
 
-const response = await api.post<PaperOrderResponse>(
-  "/trades/paper/order",
-  payload
-);
+Interactive Brokers
 
-Response handling
+TradeStation
 
-Given a PaperOrderResponse:
+They all separate:
 
-interface PaperOrderResponse {
-  account: AccountSummary;
-  order: Order;
-  position: Position | null;
-}
+Ledger (accounts, positions, orders)
 
+Execution reports (fills)
 
-…it does:
+User APIs (order entry, reporting)
 
-toast.success("Paper BUY 1 ES submitted.") (message includes side, quantity, symbol).
+You are now aligned with real brokerage architecture — which means:
 
-Clears symbol, resets quantity to "1", clears limitPrice.
+Scalable
 
-Calls onOrderPlaced() so the parent (Trades) can refresh account data.
+Safe
 
-On error, it logs the error, extracts err.response.data.detail if available, and calls toast.error(...).
+Easy to extend
 
-UI / Layout
+Easy to plug in new brokers (Schwab → IBKR → crypto, etc.)
 
-The ticket is wrapped in:
+📌 Future Expansion
 
-<div className="trade-ticket">
-  <div className="trade-ticket-title">
-    Paper Trading – Quick Ticket ({account.display_name || account.broker_account_id})
-  </div>
-  <form className="trade-ticket-form" onSubmit={handleSubmit}>
-    {/* Symbol, Side, Qty, Type, Limit, Submit */}
-  </form>
-</div>
+Trades app can later include:
 
+WebSocket streaming for real-time order/position updates
 
-Styling lives in Trades.css (same folder), which you can expand to match your ThorTrading look and feel.
+Trade analytics (win% / expectancy / drawdown)
 
-4. Supporting Pieces
-Home Dashboard – Home.tsx
+Option strategy statements
 
-Home isn’t directly part of Trades, but it participates in the overall app layout where the Trade tab lives in the global banner. The Home page renders a draggable 2×3 grid of dashboard tiles (Global Markets, RTD, News, etc.). 
+Multi-account switching & routing
 
-Home
+Commission models
 
-const Home: React.FC = () => {
-  const { tiles, setTiles } = useDragAndDropTiles(BASE_TILES, { storageKey: STORAGE_KEY });
-
-  return (
-    <div className="home-screen">
-      <main className="home-content">
-        <TwoByThreeGridSortable tiles={tiles} onReorder={setTiles} />
-      </main>
-    </div>
-  );
-};
-
-
-This is the “Home” tab next to “Trade” in the global nav.
-
-AuthLayout
-
-Used for login / auth flows, not trade-specific, but included here for completeness. 
-
-AuthLayout
-
-const AuthLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <div style={{ display: 'flex', minHeight: '100vh', alignItems: 'flex-start', justifyContent: 'center' }}>
-    <div style={{ width: '100%', maxWidth: 560, marginTop: 64, padding: 16 }}>
-      {children}
-    </div>
-  </div>
-);
-
-Environment switching – scripts/switch-env.mjs
-
-Not Trade-specific, but important for making sure the frontend points at the correct backend (dev vs docker). 
-
-switch-env
-
-Usage (via npm script):
-
-node scripts/switch-env.mjs dev
-# or
-node scripts/switch-env.mjs docker
-
-
-This copies .env.<envName> → .env.local, which Vite uses for VITE_API_BASE_URL, ensuring calls like /actandpos/activity/today and /trades/paper/order hit the right backend instance.
-
-5. How it all feels from the user’s perspective
-
-User logs in and sees the Home dashboard under AppLayout.
-
-In the blue banner nav, they click Trade → router navigates to /app/trade.
-
-/app/trade renders <Trades /> inside AppLayout, so:
-
-Top: GlobalHeader + GlobalBanner (connection status, account label, tabs).
-
-Middle: Trade Workspace header + Paper Trading – Quick Ticket.
-
-They enter:
-
-Symbol: ES
-
-Side: BUY
-
-Qty: 1
-
-Type: MKT
-
-Hit Send Paper Order:
-
-Frontend POSTs to /trades/paper/order.
-
-Backend Trades app runs the paper engine, updates ActAndPos account/positions, returns order + account + position.
-
-UI shows a toast and refreshes account via /actandpos/activity/today.
-
-If they navigate to the Activity & Positions page (/app/activity), they see:
-
-The same account with updated orders / positions / P&L, because it’s reading the same underlying data.
+All without modifying ActAndPos.

@@ -1,307 +1,310 @@
-ActAndPos – Accounts & Positions Service (Updated)
+ActAndPos – Accounts, Orders, Positions, and the Unified Order Engine (Updated)
 
-ThorTrading Core: Accounts, Orders (intraday), Positions, P&L Snapshot
+ThorTrading Core: Live Account Snapshot + Order Routing + Position Management
 
-ActAndPos is the backend service powering the Activity & Positions screen in ThorTrading.
-It provides a brokerage-agnostic, real-time snapshot of:
+ActAndPos is the backend service powering:
 
-Trading accounts (real + paper)
+Live account view
 
 Intraday orders
 
-Current positions
+Position updating
 
-Current P&L computations
+Real-time P&L
 
-It intentionally does not contain historical fills or trade execution logic—those now live in the Trades app. ActAndPos focuses entirely on “What do I have right now?”
+Broker-agnostic order routing (PAPER + SCHWAB + future brokers)
 
-App Overview
+This app no longer contains paper-order APIs or statements (those live in the Trades app).
+Instead, ActAndPos is the book of record for:
 
-Django App: ActAndPos (“Accounts and Positions”)
+Accounts
 
-Exposed via DRF serializers + simple function-based views
+Orders
 
-Mounted under /actandpos/... in the project router (typically /api/actandpos/...)
+Positions
 
-Consumed by the React route: /app/activity, displayed inside the global layout
+The unified execution engine (order_engine.py)
 
-ActAndPos is the “live positions & account state” layer.
-The Trades app references ActAndPos models when filling orders and updating positions.
+Updated Architecture
+          Trades App (User-facing)
+         ─────────────────────────
+         /orders/active
+         /orders           → Calls →  order_engine.place_order()
+         /orders/<id>/cancel
+
+             ▲
+             │
+             ▼
+
+ActAndPos App (Ledger + Engine)
+────────────────────────────────
+Accounts     ← Database of real/paper accounts
+Orders       ← Intraday instructions
+Positions    ← Updated after fills
+order_engine ← Routes orders to PAPER / SCHWAB adapters
+
+
+ActAndPos now cleanly owns the truth:
+
+What accounts exist
+
+What positions exist
+
+What today’s orders are
+
+How orders update accounts and positions
+
+Trades owns:
+
+Trade history (fills)
+
+Statements
+
+User-facing “place order” endpoints
 
 Data Model
 Account
 
-Represents a user’s brokerage account (real Schwab or Paper).
+Represents a real Schwab or Paper account.
 
-Key fields:
+Important fields:
 
-broker – "SCHWAB" or "PAPER"
-
-broker_account_id – unique identifier
-
-display_name – e.g., Rollover IRA, Paper Account
-
-currency – default USD
+broker — "SCHWAB" or "PAPER"
 
 net_liq, cash
 
 stock_buying_power, option_buying_power, day_trading_buying_power
 
+current_cash, equity
+
 updated_at
 
-Important property:
+Property:
 
-ok_to_trade – calculated:
-net_liq > 0 and day_trading_buying_power > 0
+ok_to_trade → true when account has positive net liq & buying power
 
-Used by both the Activity screen and the paper trading engine (Trades app) to indicate whether trading is permitted.
+Accounts are updated only via the execution engine.
 
 Order
 
-Intraday order record for an account.
-These are today’s orders only — fills (Trade objects) are stored in the Trades app now.
+Intraday order record.
 
-Key fields:
+Fields:
 
-account – FK → Account (related_name="orders")
+account
 
-symbol, asset_type (EQ, FUT, OPT, FX)
+symbol, asset_type
 
-side – "BUY" / "SELL"
+side → BUY / SELL
 
-status – "WORKING", "FILLED", "CANCELED", "PARTIAL", "REJECTED"
-
-order_type – "MKT", "LMT", "STP", "STP_LMT"
+order_type → MKT / LMT / STP / STP_LMT
 
 quantity, limit_price, stop_price
 
-time_placed, time_last_update, time_canceled, time_filled
+status → WORKING, FILLED, CANCELED, PARTIAL, REJECTED
 
-Orders are grouped by status in the /activity/today API.
+time_placed, time_filled, time_canceled, time_last_update
+
+Orders represent intent, not fills.
+Fills live in the Trades app as Trade objects.
 
 Position
 
-Represents the current holdings snapshot for an account.
+One row per (account, symbol, asset_type).
 
-Key fields:
-
-account – FK → Account (related_name="positions")
-
-symbol, description, asset_type
+Fields:
 
 quantity, avg_price, mark_price
 
 realized_pl_open, realized_pl_day
 
-multiplier (e.g., ES=50, CL=1000, equities=1)
+multiplier (ES=50, CL=1000, EQ=1)
 
-currency, updated_at
+Computed:
 
-Calculated fields:
+market_value
 
-market_value = qty × mark × multiplier
+cost_basis
 
-cost_basis = qty × avg_price × multiplier
+unrealized_pl
 
-unrealized_pl = market_value – cost_basis
+pl_percent
 
-pl_percent = unrealized_pl ÷ |cost_basis| × 100
+Positions are automatically updated by the order engine.
 
-Uniqueness:
+Execution Engine – order_engine.py (Updated)
 
-(account, symbol, asset_type) ensures one row per unique position.
+ActAndPos now contains the unified order routing engine.
 
-The Trades app updates these Position rows when fills occur.
+OrderParams
+
+A broker-agnostic dataclass:
+
+@dataclass
+class OrderParams:
+    account: Account
+    symbol: str
+    asset_type: str
+    side: str
+    quantity: Decimal
+    order_type: str
+    limit_price: Decimal|None
+    stop_price: Decimal|None
+    commission: Decimal
+    fees: Decimal
+
+
+This single structure is used for all brokers.
+
+Routing Layer
+def place_order(params: OrderParams):
+    adapter = _get_adapter_for_account(params.account)
+    return adapter.place_order(params)
+
+Adapters:
+
+PaperBrokerAdapter
+
+Calls _place_order_paper
+
+Instantly fills the order
+
+Creates Order, Trade, updates Position & Account
+
+SchwabBrokerAdapter (stub)
+
+Validates Schwab account
+
+Prepares payload for Schwab’s API
+
+Will later poll Schwab fills and update Position/Account
+
+This makes brokers pluggable without touching business logic.
+
+Paper Execution Logic (summarized)
+
+Inside _place_order_paper:
+
+Validate params
+
+Lock account row
+
+Determine fill price
+
+Create WORKING Order
+
+Create Trade (fill)
+
+Update Order → FILLED
+
+Update Position:
+
+BUY → increase qty, recalculated avg_price
+
+SELL → decrease qty, record realized P/L
+
+Update Account:
+
+cash
+
+net_liq
+
+buying power fields
+
+Returns: (Order, Trade, Position, Account)
+
+Schwab Path (stub)
+
+Inside _place_order_schwab:
+
+Ensures correct broker
+
+Outlines steps for:
+
+building Schwab API payload
+
+sending order
+
+storing broker_order_id
+
+waiting for fills
+
+applying fills to Account & Position
+
+Currently raises NotImplementedError as a safety guard.
 
 Serializers
 AccountSummarySerializer
 
-Lightweight serializer used throughout ThorTrading (including the Trades app).
-Fields include:
-
-Identity + broker metadata
+Minimal view of an account:
 
 net_liq, cash
 
-all buying power fields
+buying power
 
 ok_to_trade
-
-PositionSerializer
-
-Projects a Position into UI-ready values:
-
-symbol, description, asset_type
-
-qty, avg_price, mark_price
-
-market_value, unrealized_pl, pl_percent
-
-realized_pl_open, realized_pl_day
-
-currency
 
 OrderSerializer
 
-Used by the Activity screen.
+Intraday order details.
+Used by /actandpos/activity/today.
 
-Includes all relevant intraday order details:
-id, symbol, side, qty, order_type, limit/stop, status, timestamps.
+PositionSerializer
 
-Views & API Endpoints
+UI-ready position attributes + computed P/L.
 
-Registered in ActAndPos.urls:
-
-/actandpos/activity/today
-/actandpos/positions
-
-
-(Project-level routes usually prefix these with /api.)
-
-Account Selection: get_active_account
-
-Shared helper used across endpoints (and also by Trades during paper executions).
-
-Logic:
-
-If ?account_id=<id> is passed → load that account
-
-Else → use Account.objects.first()
-
-If none exist → return HTTP 400 with an error
-
+Views & Endpoints (ActAndPos)
 GET /actandpos/activity/today
 
-Primary API powering the ActivityPositions React page.
+Returns:
 
-View: activity_today_view
+account summary
 
-Purpose
+today’s working orders
 
-Return today’s orders + current positions + account status for the active account.
+today’s filled orders
 
-Logic
+today’s canceled orders
 
-Fetch account via get_active_account
+current positions
 
-Filter today’s orders by time_placed__date = today
+account status (ok_to_trade, buying power, etc.)
 
-Group into:
-
-working_orders
-
-filled_orders
-
-canceled_orders
-
-Fetch current positions
-
-Compute account_status (net_liq, BP, ok_to_trade)
-
-Response
-{
-  "account": {...},
-  "working_orders": [...],
-  "filled_orders": [...],
-  "canceled_orders": [...],
-  "positions": [...],
-  "account_status": {
-    "ok_to_trade": true,
-    "net_liq": "105472.85",
-    "day_trading_buying_power": "6471.41"
-  }
-}
-
-Frontend Usage
-
-The React page polls this endpoint every 15 seconds to keep the dashboard live.
+This powers the Activity & Positions page.
 
 GET /actandpos/positions
 
-View: positions_view
+Positions + account snapshot without orders.
+Used for analytics pages.
 
-Purpose:
-Return current positions + account summary without the orders.
+Relationship to Trades App
+Feature	Lives In	Reason
+Orders (intent)	ActAndPos	Ledger model
+Positions	ActAndPos	Live holdings
+Accounts	ActAndPos	Book of record
+Fills (Trade)	Trades	Execution history
+Statements	Trades	User-facing reporting
+UI order creation APIs	Trades	Frontend integration
+Order Execution Engine	ActAndPos	Core business logic
 
-Useful for standalone Positions pages or analytics.
+The Trades app calls ActAndPos’s place_order but does not implement execution logic itself.
 
-Django Admin
+Future Extensions
 
-Admin is fully wired for inspection and debugging:
+ActAndPos will expand with:
 
-AccountAdmin
+Broker-agnostic snapshot caching
 
-broker, broker_account_id
+Risk metrics (exposure, leverage, correlations)
 
-buying powers, net_liq, cash
+Intraday margin and PDT rules
 
-ok_to_trade
+Broker heartbeat / account status tracking
 
-inlines: positions + orders
+Trades app expands with:
 
-PositionAdmin
+Fill polling for Schwab
 
-qty, avg_price, mark_price
+Historical reporting
 
-market_value, unrealized_pl, pl_percent
-
-read-only computed fields
-
-OrderAdmin
-
-status, side, order_type
-
-filters for quick intraday triage
-
-date hierarchy on time_placed
-
-Note: TradeAdmin now lives in the Trades app, since fills were moved there.
-
-Frontend Integration
-
-Route: /app/activity
-Component: ActivityPositions.tsx
-
-Polls /actandpos/activity/today
-
-Renders:
-
-Account banner
-
-Working / Filled / Canceled orders
-
-Position statement
-
-Account status indicator
-
-This page is wrapped in the global app layout, which will later host the account selector and (optionally) a paper/live switch.
-
-Relationship to the Trades App (Brief Reference)
-
-While ActAndPos owns Accounts, Orders, Positions,
-the Trades app owns:
-
-Trade execution (paper engine)
-
-Fills (Trade records)
-
-Paper order APIs
-
-Account Statement endpoints
-
-Trades depends on ActAndPos to update Accounts and Positions during fills.
-
-ActAndPos itself remains clean and focused:
-
-Live account snapshot + intraday orders + positions.
-No trade history, no execution engine inside this app.
-
-Future Extensions Inside ActAndPos
-
-Global account selector (frontend) wired into these endpoints
-
-Optional cached snapshot service for mobile/performance
-
-Additional projections: sector exposure, position sizing, risk metrics
-
-(Trade history, reporting, and statements will continue to live exclusively in the Trades app.)
+Option strategy statements
