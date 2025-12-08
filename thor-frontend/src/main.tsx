@@ -9,6 +9,7 @@ import App from './App.tsx'
 import theme from './theme'
 import './styles/global.css'
 import { AuthProvider } from './context/AuthContext'
+import { GlobalTimerProvider } from './context/GlobalTimerContext'
 
 // Create a client
 const queryClient = new QueryClient({
@@ -29,7 +30,9 @@ createRoot(document.getElementById('root')!).render(
         <CssBaseline />
         <BrowserRouter>
           <AuthProvider>
-            <App />
+            <GlobalTimerProvider>
+              <App />
+            </GlobalTimerProvider>
           </AuthProvider>
           <Toaster 
             position="top-right"

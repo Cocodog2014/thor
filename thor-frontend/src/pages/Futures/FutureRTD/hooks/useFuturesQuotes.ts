@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useGlobalTimer } from "../../../../context/GlobalTimerContext";
 import type { ApiResponse, MarketData } from "../types";
 
 type RollingVwapResponse = {
@@ -17,13 +18,18 @@ type UseFuturesQuotesResult = {
 export function useFuturesQuotes(pollMs: number): UseFuturesQuotesResult {
   console.log("useFuturesQuotes mounted with poll", pollMs);
 
+  const { tick } = useGlobalTimer();
+  const pollEveryTicks = Math.max(1, Math.round(pollMs / 1000));
+
   const [rows, setRows] = useState<MarketData[]>([]);
   const [total, setTotal] = useState<ApiResponse["total"] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
+  const [nextFetchTick, setNextFetchTick] = useState(0);
   // Prevent state updates after unmount (handles React StrictMode double-mount in dev)
   const mountedRef = useRef(true);
+  const bootstrapRef = useRef(false);
   useEffect(() => {
     mountedRef.current = true;
     return () => {
@@ -31,7 +37,7 @@ export function useFuturesQuotes(pollMs: number): UseFuturesQuotesResult {
     };
   }, []);
 
-  const fetchQuotes = useCallback(async () => {
+  const fetchQuotes = useCallback(async (reason: "initial" | "timer", currentTick: number) => {
 
     if (!hasLoadedOnce) {
       setLoading(true);
@@ -40,7 +46,11 @@ export function useFuturesQuotes(pollMs: number): UseFuturesQuotesResult {
     setError(null);
 
     try {
-      console.log("useFuturesQuotes: fetching /api/quotes/latest", new Date().toISOString());
+      console.log(
+        "useFuturesQuotes: fetching /api/quotes/latest",
+        new Date().toISOString(),
+        `(${reason})`
+      );
       const response = await fetch("/api/quotes/latest?consumer=futures_trading");
       if (!response.ok) {
         throw new Error(`Quote request failed (${response.status})`);
@@ -89,20 +99,22 @@ export function useFuturesQuotes(pollMs: number): UseFuturesQuotesResult {
       if (mountedRef.current) {
         setHasLoadedOnce(true);
         setLoading(false);
+        bootstrapRef.current = true;
+        setNextFetchTick(currentTick + pollEveryTicks);
       }
     }
-  }, [hasLoadedOnce]);
+  }, [hasLoadedOnce, pollEveryTicks]);
 
   useEffect(() => {
-    fetchQuotes();
+    fetchQuotes("initial", 0);
   }, [fetchQuotes]);
 
   useEffect(() => {
-    const id = setInterval(() => {
-      fetchQuotes();
-    }, pollMs);
-    return () => clearInterval(id);
-  }, [fetchQuotes, pollMs]);
+    if (!bootstrapRef.current) return;
+    if (tick === 0) return;
+    if (tick < nextFetchTick) return;
+    fetchQuotes("timer", tick);
+  }, [fetchQuotes, nextFetchTick, tick]);
 
   return { rows, total, loading, error, hasLoadedOnce };
 }

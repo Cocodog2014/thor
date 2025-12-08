@@ -1,63 +1,61 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import type { Market } from '../../types';
 import marketsService from '../../services/markets';
+import { useGlobalTimer } from '../../context/GlobalTimerContext';
 import './GlobalMarkets.css';
 
+const DEFAULT_REFRESH_TICKS = 1; // every second
+const MAX_BACKOFF_TICKS = 60; // cap retry window to 60 seconds
+
 const GlobalMarkets: React.FC = () => {
+  const { tick, now, marketStatus, statusError } = useGlobalTimer();
+
   const [markets, setMarkets] = useState<Market[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdate, setLastUpdate] = useState(new Date());
   const [isStale, setIsStale] = useState(false);
+  const [nextFetchTick, setNextFetchTick] = useState(0);
+
+  const backoffRef = useRef(DEFAULT_REFRESH_TICKS);
+  const bootstrapRef = useRef(false);
+
+  const fetchMarkets = useCallback(async (reason: 'initial' | 'timer', currentTick: number) => {
+    if (!bootstrapRef.current) {
+      setLoading(true);
+    }
+
+    try {
+      console.debug(`[GlobalMarkets] fetching (${reason})`);
+      const data = await marketsService.getAll();
+      const sortedMarkets = data.results.sort((a, b) => a.sort_order - b.sort_order);
+      setMarkets(sortedMarkets);
+      setLastUpdate(new Date());
+      setError(null);
+      setIsStale(false);
+      backoffRef.current = DEFAULT_REFRESH_TICKS;
+    } catch (err) {
+      console.error('[GlobalMarkets] fetch failed, backing off', err);
+      backoffRef.current = Math.min(backoffRef.current * 2, MAX_BACKOFF_TICKS);
+      setError(`Lost connection to global markets (retrying in ${backoffRef.current}s)`);
+      setIsStale(true);
+    } finally {
+      bootstrapRef.current = true;
+      setLoading(false);
+      setNextFetchTick(currentTick + backoffRef.current);
+    }
+  }, []);
 
   useEffect(() => {
-    let cancelled = false;
-    let timeoutId: ReturnType<typeof setTimeout> | null = null;
-    let currentDelay = 1000;
+    fetchMarkets('initial', 0);
+  }, [fetchMarkets]);
 
-    const scheduleNext = (delay: number) => {
-      if (cancelled) return;
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-      }
-      timeoutId = setTimeout(() => fetchMarkets('timer'), delay);
-    };
-
-    const fetchMarkets = async (reason: 'initial' | 'timer') => {
-      if (cancelled) return;
-      try {
-        console.debug(`[GlobalMarkets] fetching (${reason})`);
-        const data = await marketsService.getAll();
-        const sortedMarkets = data.results.sort((a, b) => a.sort_order - b.sort_order);
-        setMarkets(sortedMarkets);
-        setLastUpdate(new Date());
-        setError(null);
-        setIsStale(false);
-        currentDelay = 1000;
-        scheduleNext(1000);
-      } catch (err) {
-        console.error('[GlobalMarkets] fetch failed, backing off', err);
-        const nextDelay = Math.min(currentDelay * 2, 15000);
-        setError(
-          `Lost connection to global markets (retrying in ${(nextDelay / 1000).toFixed(1)}s)`
-        );
-        setIsStale(true);
-        currentDelay = nextDelay;
-        scheduleNext(nextDelay);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchMarkets('initial');
-
-    return () => {
-      cancelled = true;
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-      }
-    };
-  }, []);
+  useEffect(() => {
+    if (!bootstrapRef.current) return;
+    if (tick === 0) return;
+    if (tick < nextFetchTick) return;
+    fetchMarkets('timer', tick);
+  }, [tick, nextFetchTick, fetchMarkets]);
 
   if (loading) {
     return (
@@ -121,6 +119,7 @@ const GlobalMarkets: React.FC = () => {
   return (
     <div className="timezone-container">
       {error && <div className="error-message">⚠️ {error}</div>}
+      {statusError && <div className="error-message">⚠️ {statusError}</div>}
       <div className="markets-table-container">
         <div className="markets-table-header">
           <div className="last-update">
@@ -128,13 +127,36 @@ const GlobalMarkets: React.FC = () => {
               {isStale ? '🟡' : '🟢'}
             </span>
             {' '}
-            UTC time: {lastUpdate.toLocaleTimeString('en-US', {
+            UTC time: {now.toLocaleTimeString('en-US', {
               timeZone: 'UTC',
               hour12: false,
               hour: '2-digit',
               minute: '2-digit',
               second: '2-digit'
             })}
+            {' • '}Last update: {lastUpdate.toLocaleTimeString('en-US', {
+              timeZone: 'UTC',
+              hour12: false,
+              hour: '2-digit',
+              minute: '2-digit',
+              second: '2-digit'
+            })}
+          </div>
+          <div className="markets-table-status">
+            {marketStatus ? (
+              <>
+                <span>
+                  Active: {marketStatus.activeMarkets}/{marketStatus.totalMarkets}
+                </span>
+                {marketStatus.currentlyTrading.length > 0 && (
+                  <span className="currently-trading">
+                    Trading now: {marketStatus.currentlyTrading.slice(0, 3).join(', ')}
+                  </span>
+                )}
+              </>
+            ) : (
+              <span>Syncing market status…</span>
+            )}
           </div>
         </div>
         <table className="markets-table">

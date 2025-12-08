@@ -7,11 +7,13 @@ import type { AccountSummary, ParentTab, ChildTab } from './bannerTypes';
 import TopRow from './TopRow';
 import BalanceRow from './BalanceRow';
 import TabsRow from './TabsRow';
+import { useGlobalTimer } from '../../context/GlobalTimerContext';
 
 // Permanent banner under the AppBar, shows connection/account info + balances + tabs.
 const GlobalBanner: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { now } = useGlobalTimer();
 
   const [connectionStatus, setConnectionStatus] =
     useState<'connected' | 'disconnected'>('disconnected');
@@ -111,10 +113,14 @@ const GlobalBanner: React.FC = () => {
 
   const isConnected = connectionStatus === 'connected';
   const connectionLabel = isConnected ? 'Connected' : 'Disconnected';
+  const realtimeClock = now.toLocaleTimeString('en-US', {
+    hour12: false,
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  });
   const connectionDetails = isConnected
-    ? lastUpdate
-      ? `Realtime data · ${lastUpdate}`
-      : 'Realtime data'
+    ? `Realtime data · ${realtimeClock}${lastUpdate ? ` (last feed ${lastUpdate})` : ''}`
     : 'Waiting for live feed';
 
   // Parent (top) tabs
