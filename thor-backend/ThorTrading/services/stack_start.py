@@ -11,6 +11,14 @@ from django.core.management import call_command
 logger = logging.getLogger(__name__)
 
 
+def _truthy_env(name: str, default: str = "0") -> bool:
+    value = os.environ.get(name, default)
+    return str(value).lower() not in {"0", "false", "no", ""}
+
+
+GLOBAL_TIMER_ENABLED = _truthy_env("THOR_USE_GLOBAL_MARKET_TIMER", default="1")
+
+
 # =====================================================================
 #  EXCEL → REDIS POLLER SUPERVISOR
 # =====================================================================
@@ -212,16 +220,19 @@ def start_thor_background_stack(force: bool = False):
     # ----------------------------------------
     # 2. MARKET OPEN GRADER
     # ----------------------------------------
-    try:
-        t2 = threading.Thread(
-            target=start_market_open_grader_supervisor,
-            name="MarketOpenGraderSupervisor",
-            daemon=True,
-        )
-        t2.start()
-        logger.info("📊 Market Open Grader Supervisor started.")
-    except Exception:
-        logger.exception("❌ Failed to start Market Open Grader Supervisor")
+    if GLOBAL_TIMER_ENABLED:
+        logger.info("📊 Global timer mode enabled — skipping legacy Market Open Grader supervisor.")
+    else:
+        try:
+            t2 = threading.Thread(
+                target=start_market_open_grader_supervisor,
+                name="MarketOpenGraderSupervisor",
+                daemon=True,
+            )
+            t2.start()
+            logger.info("📊 Market Open Grader Supervisor started.")
+        except Exception:
+            logger.exception("❌ Failed to start Market Open Grader Supervisor")
 
     # ----------------------------------------
     # 3. MARKET OPEN CAPTURE SUPERVISOR
@@ -240,16 +251,19 @@ def start_thor_background_stack(force: bool = False):
     # ----------------------------------------
     # 4. 52-WEEK EXTREMES SUPERVISOR
     # ----------------------------------------
-    try:
-        t4 = threading.Thread(
-            target=start_52w_supervisor_wrapper,
-            name="Week52Supervisor",
-            daemon=True,
-        )
-        t4.start()
-        logger.info("📈 52-week Supervisor thread started.")
-    except Exception:
-        logger.exception("❌ Failed to start 52-week Supervisor thread")
+    if GLOBAL_TIMER_ENABLED:
+        logger.info("📈 Global timer mode enabled — skipping legacy 52-week supervisor thread.")
+    else:
+        try:
+            t4 = threading.Thread(
+                target=start_52w_supervisor_wrapper,
+                name="Week52Supervisor",
+                daemon=True,
+            )
+            t4.start()
+            logger.info("📈 52-week Supervisor thread started.")
+        except Exception:
+            logger.exception("❌ Failed to start 52-week Supervisor thread")
 
     # ----------------------------------------
     # 5. PRE-OPEN BACKTEST SUPERVISOR

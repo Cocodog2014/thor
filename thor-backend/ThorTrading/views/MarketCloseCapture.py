@@ -4,20 +4,11 @@ Provides an API endpoint to finalize intraday metrics for a market
 in case the automatic IntradayMarketSupervisor hook needs a manual
 override or re-run. Idempotent unless force=1 passed.
 """
-import logging
-from django.db.models import Max
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 
-from ThorTrading.models.MarketSession import MarketSession
-from ThorTrading.services.quotes import get_enriched_quotes_with_composite
-from ThorTrading.services.market_metrics import (
-    MarketCloseMetric,
-    MarketRangeMetric,
-)
-
-logger = logging.getLogger(__name__)
+from ThorTrading.services.MarketCloseCapture import capture_market_close
 
 
 class MarketCloseCaptureView(APIView):
@@ -37,58 +28,17 @@ class MarketCloseCaptureView(APIView):
         if not country:
             return Response({"error": "Missing 'country' query parameter"}, status=status.HTTP_400_BAD_REQUEST)
 
-        latest_session = (
-            MarketSession.objects.filter(country=country).aggregate(Max("session_number")).get("session_number__max")
-        )
-        if latest_session is None:
-            return Response({"error": f"No sessions found for country '{country}'"}, status=status.HTTP_404_NOT_FOUND)
+        result = capture_market_close(country, force=force)
 
-        # Idempotency check: if any row has market_close set, assume closed
-        already_closed = MarketSession.objects.filter(
-            country=country,
-            session_number=latest_session,
-            market_close__isnull=False,
-        ).exists()
-        if already_closed and not force:
-            return Response(
-                {
-                    "country": country,
-                    "session_number": latest_session,
-                    "status": "already-closed",
-                    "message": "Close metrics already populated; use force=1 to recompute.",
-                },
-                status=status.HTTP_200_OK,
-            )
+        status_map = {
+            "ok": status.HTTP_200_OK,
+            "already-closed": status.HTTP_200_OK,
+            "no-sessions": status.HTTP_404_NOT_FOUND,
+            "error": status.HTTP_500_INTERNAL_SERVER_ERROR,
+        }
+        http_status = status_map.get(result.get("status"), status.HTTP_200_OK)
 
-        try:
-            enriched, _ = get_enriched_quotes_with_composite()
-        except Exception as e:
-            logger.exception("Failed fetching enriched quotes for close capture %s", country)
-            return Response({"error": f"Quote fetch failed: {e}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-        try:
-            close_updated = MarketCloseMetric.update_for_country_on_close(country, enriched)
-        except Exception as e:
-            logger.exception("MarketCloseMetric failed for %s", country)
-            return Response({"error": f"MarketCloseMetric error: {e}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-        try:
-            range_updated = MarketRangeMetric.update_for_country_on_close(country)
-        except Exception as e:
-            logger.exception("MarketRangeMetric failed for %s", country)
-            return Response({"error": f"MarketRangeMetric error: {e}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-        return Response(
-            {
-                "country": country,
-                "session_number": latest_session,
-                "status": "ok",
-                "force": force,
-                "close_rows_updated": close_updated,
-                "range_rows_updated": range_updated,
-            },
-            status=status.HTTP_200_OK,
-        )
+        return Response(result, status=http_status)
 
 __all__ = ["MarketCloseCaptureView"]
 

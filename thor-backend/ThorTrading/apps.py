@@ -23,6 +23,16 @@ class ThorTradingConfig(AppConfig):
 
         logger = logging.getLogger(__name__)
 
+        try:
+            from ThorTrading import globalmarkets_hooks  # noqa: F401
+            logger.info("📡 ThorTrading GlobalMarkets hooks registered.")
+            try:
+                globalmarkets_hooks.bootstrap_open_markets()
+            except Exception:
+                logger.exception("❌ Failed to bootstrap ThorTrading workers for open markets")
+        except Exception:
+            logger.exception("❌ Failed to import ThorTrading GlobalMarkets hooks")
+
         # Allow disabling the automatic stack in specific processes (e.g., web)
         auto_start = os.environ.get("THOR_STACK_AUTO_START", "1").lower() not in {"0", "false", "no"}
         if not auto_start:

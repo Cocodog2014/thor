@@ -567,17 +567,19 @@ But avoid double-starting MarketGrader if hooks will start it (add idempotency c
 
 Phase 2 – Backend: Intraday/VWAP/52-Week Orchestration
 
-Wrap intraday supervisor, VWAP capturer, 52-week supervisor in start/stop APIs.
+✅ Status (Dec 2025) — Implemented in `ThorTrading/globalmarkets_hooks.py` + new services.
 
-Wire them into globalmarkets_hooks alongside the grading service.
+- Added `ThorTrading/services/vwap_capture.py`, a reusable VWAP minute capture worker with start/stop helpers.
+- globalmarkets_hooks now tracks active control markets; first open event starts:
+  - MarketOpen capture (per-market)
+  - Intraday supervisor worker for that market
+  - MarketGrader background thread (singleton)
+  - VWAP minute capture + 52-week monitor supervisors (global workers)
+- Close events finalize metrics, stop the intraday worker for that market, and only stop global workers (grader, VWAP capture, 52-week supervisor) after the *last* controlled market closes.
+- `apps.ThorTradingConfig.ready()` bootstraps already-open markets at process start so workers run even if no new signal fires.
+- `services/stack_start.py` now skips legacy MarketGrader + 52-week supervisors whenever `THOR_USE_GLOBAL_MARKET_TIMER=1`, preventing duplicate loops.
 
-Optionally add “is any control market open?” guards inside each loop for safety.
-
-Simplify start_thor_background_stack to primarily:
-
-Initialize infrastructure
-
-Log that workers are now under GlobalMarkets orchestration.
+Remaining clean-up: once GlobalMarkets orchestration covers all workers (including MarketOpen capture loop + pre-open/Excel supervisors), simplify `start_thor_background_stack` to only start legacy tasks explicitly requested for non-global deployments.
 
 Phase 3 – Frontend: Global Timer Provider
 

@@ -45,7 +45,7 @@ class Command(BaseCommand):
         # If you want to use the CLI interval, you can modify MarketGrader
         # to accept it or just leave it at the default.
         try:
-            start_grading_service()
+            start_grading_service(blocking=True)
         except KeyboardInterrupt:
             self.stdout.write(self.style.WARNING("MarketGrader interrupted by user (Ctrl+C)."))
         except Exception as e:
@@ -53,7 +53,7 @@ class Command(BaseCommand):
             self.stderr.write(self.style.ERROR(f"MarketGrader error: {e}"))
         finally:
             try:
-                stop_grading_service()
+                stop_grading_service(wait=True)
             except Exception:
                 logger.exception("Error while stopping MarketGrader")
             self.stdout.write(self.style.SUCCESS("MarketGrader stopped."))

@@ -7,12 +7,17 @@ This module ONLY manages Market.status and emits Django signals.
 It does NOT perform any data capture – other apps listen to signals for that.
 """
 import logging
+import os
 import threading
 from datetime import datetime
 from typing import Dict, Optional
 from django.conf import settings
 
 logger = logging.getLogger(__name__)
+
+
+def _global_timer_enabled() -> bool:
+    return os.environ.get("THOR_USE_GLOBAL_MARKET_TIMER", "1").lower() not in {"0", "false", "no"}
 
 
 class MarketMonitor:
@@ -53,25 +58,26 @@ class MarketMonitor:
         except Exception as e:
             logger.error(f"❌ Initial reconciliation failed: {e}", exc_info=True)
 
-        # After reconciliation, ensure intraday supervisor is running for any
-        # markets that are already OPEN (reconciliation may flip statuses but
-        # does not itself start workers).
-        try:
-            # Updated import path after modular refactor
-            from ThorTrading.services.intraday_supervisor import intraday_market_supervisor
-            from GlobalMarkets.models import Market
-            open_markets = Market.objects.filter(is_active=True, is_control_market=True, status='OPEN')
-            started = 0
-            for m in open_markets:
-                try:
-                    intraday_market_supervisor.on_market_open(m)
-                    started += 1
-                except Exception as ie:
-                    logger.error(f"❌ Failed starting intraday supervisor (reconcile) for {m.country}: {ie}")
-            if started:
-                logger.info(f"🚀 Intraday supervisor started for {started} already-open market(s)")
-        except Exception as e:
-            logger.error(f"❌ Post-reconcile intraday start failed: {e}")
+        if not _global_timer_enabled():
+            # After reconciliation, ensure intraday supervisor is running for any
+            # markets that are already OPEN (reconciliation may flip statuses but
+            # does not itself start workers).
+            try:
+                # Updated import path after modular refactor
+                from ThorTrading.services.intraday_supervisor import intraday_market_supervisor
+                from GlobalMarkets.models import Market
+                open_markets = Market.objects.filter(is_active=True, is_control_market=True, status='OPEN')
+                started = 0
+                for m in open_markets:
+                    try:
+                        intraday_market_supervisor.on_market_open(m)
+                        started += 1
+                    except Exception as ie:
+                        logger.error(f"❌ Failed starting intraday supervisor (reconcile) for {m.country}: {ie}")
+                if started:
+                    logger.info(f"🚀 Intraday supervisor started for {started} already-open market(s)")
+            except Exception as e:
+                logger.error(f"❌ Post-reconcile intraday start failed: {e}")
 
     def stop(self):
         """Cancel all timers and stop scheduling."""
@@ -169,6 +175,10 @@ class MarketMonitor:
         market.status = target_status
         market.save()  # This triggers post_save signal → signal handlers can capture
         logger.info(f"🔄 {market.country}: {prev} → {target_status}")
+
+        if _global_timer_enabled():
+            logger.debug("Global timer enabled; signal handlers will orchestrate workers for %s", market.country)
+            return
 
         # If market just opened, trigger futures open capture respecting flags
         if target_status == 'OPEN':

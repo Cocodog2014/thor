@@ -23,6 +23,7 @@ The grader does NOT:
 
 import time
 import logging
+import threading
 from django.utils import timezone
 from decimal import Decimal
 
@@ -54,6 +55,37 @@ from ThorTrading.models.MarketSession import MarketSession
 from LiveData.shared.redis_client import live_data_redis
 
 logger = logging.getLogger(__name__)
+
+_GRADER_THREAD: threading.Thread | None = None
+_GRADER_THREAD_LOCK = threading.Lock()
+_CONTROL_MARKET_CACHE = {
+    "timestamp": None,
+    "is_open": True,
+}
+
+
+def _any_control_markets_open() -> bool:
+    """Return True if any active control market is OPEN (cached for a few seconds)."""
+    cache_t = _CONTROL_MARKET_CACHE["timestamp"]
+    now = timezone.now()
+    if cache_t and (now - cache_t).total_seconds() < 5:
+        return _CONTROL_MARKET_CACHE["is_open"]
+
+    try:
+        from GlobalMarkets.models import Market
+
+        is_open = Market.objects.filter(
+            is_control_market=True,
+            is_active=True,
+            status="OPEN",
+        ).exists()
+    except Exception:
+        logger.debug("GlobalMarkets availability check failed; assuming markets open.", exc_info=True)
+        is_open = True
+
+    _CONTROL_MARKET_CACHE["timestamp"] = now
+    _CONTROL_MARKET_CACHE["is_open"] = is_open
+    return is_open
 
 
 class MarketGrader:
@@ -285,6 +317,10 @@ class MarketGrader:
 
         while self.running:
             try:
+                if not _any_control_markets_open():
+                    time.sleep(self.check_interval)
+                    continue
+
                 # Fetch all trades not yet resolved
                 pending_sessions = MarketSession.objects.filter(wndw='PENDING')
 
@@ -346,14 +382,54 @@ class MarketGrader:
 grader = MarketGrader()
 
 
-def start_grading_service():
-    """Start the grading service from CLI or background thread."""
-    grader.run_grading_loop()
+def start_grading_service(*, blocking: bool = False) -> bool:
+    """Start the grading service.
+
+    Args:
+        blocking: When True, run synchronously (used by management commands).
+    Returns:
+        bool indicating whether a new loop was started.
+    """
+
+    if blocking:
+        logger.info("MarketGrader starting in blocking mode.")
+        grader.run_grading_loop()
+        return True
+
+    global _GRADER_THREAD
+    with _GRADER_THREAD_LOCK:
+        if _GRADER_THREAD and _GRADER_THREAD.is_alive():
+            logger.info("MarketGrader already running; skip new start.")
+            return False
+
+        thread = threading.Thread(
+            target=grader.run_grading_loop,
+            name="MarketGraderLoop",
+            daemon=True,
+        )
+        thread.start()
+        _GRADER_THREAD = thread
+        logger.info("MarketGrader background thread started.")
+        return True
 
 
-def stop_grading_service():
-    """Stop the grading service."""
+def stop_grading_service(*, wait: bool = False):
+    """Stop the grading service (optionally waiting for the loop to exit)."""
+
+    global _GRADER_THREAD
     grader.stop()
+    if not wait:
+        return
+
+    thread = _GRADER_THREAD
+    if thread and thread.is_alive():
+        thread.join(timeout=10)
+
+    if thread and not thread.is_alive():
+        with _GRADER_THREAD_LOCK:
+            if _GRADER_THREAD is thread:
+                _GRADER_THREAD = None
+
 
 
 __all__ = ['start_grading_service', 'stop_grading_service', 'MarketGrader']
