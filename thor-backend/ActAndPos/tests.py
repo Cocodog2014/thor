@@ -1,8 +1,10 @@
 from decimal import Decimal
 
 from django.test import TestCase
+from rest_framework.test import APIRequestFactory
 
 from .models import Account
+from .views.accounts import get_active_account
 
 
 class PaperAccountDefaultsTests(TestCase):
@@ -31,3 +33,16 @@ class PaperAccountDefaultsTests(TestCase):
 		self.assertEqual(account.starting_balance, zero)
 		self.assertEqual(account.current_cash, zero)
 		self.assertEqual(account.equity, zero)
+
+
+class GetActiveAccountTests(TestCase):
+	def setUp(self):
+		self.factory = APIRequestFactory()
+
+	def test_auto_creates_default_paper_account(self):
+		request = self.factory.get("/actandpos/activity/today")
+		account = get_active_account(request)
+
+		self.assertEqual(Account.objects.count(), 1)
+		self.assertEqual(account.broker, "PAPER")
+		self.assertTrue(account.broker_account_id.startswith("PAPER-DEMO-"))

@@ -35,6 +35,12 @@ class InsufficientBuyingPower(PaperTradingError):
 
 @dataclass
 class OrderParams:
+    """
+    Generic order parameters for ALL brokers (PAPER, SCHWAB, etc.).
+
+    We keep this broker-agnostic. The router + adapters decide how to
+    interpret these fields for each backend.
+    """
     account: Account
     symbol: str
     asset_type: str
@@ -57,10 +63,11 @@ def _to_decimal(val: DecimalLike | None) -> Decimal | None:
 
 def _get_fill_price(params: OrderParams) -> Decimal:
     """
-    Simple v1 logic:
+    Simple v1 logic (PAPER only for now):
+
     - If a limit price is provided, use that.
     - Otherwise, pretend the current market price is 100.
-      (Later we can plug in real quotes here.)
+      (Later we can plug in real quotes here for PAPER too.)
     """
     if params.limit_price is not None:
         return params.limit_price
@@ -69,8 +76,10 @@ def _get_fill_price(params: OrderParams) -> Decimal:
 
 def _validate_params(params: OrderParams) -> None:
     """
-    Validation for PAPER orders. The router ensures only PAPER accounts
-    hit the PAPER path, but we keep this check as a safety net.
+    Validation for PAPER orders.
+
+    The router ensures only PAPER accounts hit the PAPER path, but we
+    keep this check as a safety net.
     """
     if params.account.broker != "PAPER":
         raise InvalidPaperOrder("Account is not a PAPER trading account.")
@@ -94,38 +103,33 @@ def _validate_params(params: OrderParams) -> None:
 class BrokerAdapter(Protocol):
     """
     Common interface for all broker adapters (paper, Schwab, etc.).
-    For now we only implement the PAPER adapter; SCHWAB is a stub.
+
+    Today:
+      - PAPER is fully implemented.
+      - SCHWAB is stubbed out and raises NotImplementedError.
     """
 
-    def place_order(self, params: OrderParams) -> Tuple[Order, Trade, Position, Account]:
-        ...
-
-
-class PaperBrokerAdapter:
-    """Adapter that runs the internal PAPER simulation logic."""
-
-    def place_order(self, params: OrderParams) -> Tuple[Order, Trade, Position, Account]:
-        return _place_order_paper(params)
-
-
+    
 class SchwabBrokerAdapter:
     """
-    Stub for future Schwab implementation.
+    Adapter for SCHWAB broker.
 
-    Right now, if you try to place an order on a SCHWAB account through
-    this engine, you'll get a clear NotImplementedError.
+    Right now this is a stub that just calls _place_order_schwab(),
+    which raises NotImplementedError with clear guidance.
+
+    When you wire in the real Schwab API, you will implement the body
+    of _place_order_schwab().
     """
 
     def place_order(self, params: OrderParams) -> Tuple[Order, Trade, Position, Account]:
-        raise NotImplementedError("Schwab live trading is not implemented yet.")
+        return _place_order_schwab(params)
 
 
 def _get_adapter_for_account(account: Account) -> BrokerAdapter:
     """
     Router helper: choose which adapter to use based on account.broker.
 
-    Account.broker is defined as SCHWAB/PAPER in the Account model:
-    see ActAndPos/models/accounts.py. :contentReference[oaicite:0]{index=0}
+    Account.broker is defined as SCHWAB/PAPER in the Account model.
     """
     if account.broker == "PAPER":
         return PaperBrokerAdapter()
@@ -149,6 +153,17 @@ def place_order(params: OrderParams) -> Tuple[Order, Trade, Position, Account]:
     adapter = _get_adapter_for_account(params.account)
     return adapter.place_order(params)
 
+
+# Optional: temporary compatibility wrapper so old call sites still work.
+def place_paper_order(params: OrderParams) -> Tuple[Order, Trade, Position, Account]:
+    """
+    Backwards-compatible wrapper around place_order.
+
+    TODO: remove this once all call sites are updated to use place_order().
+    """
+    return place_order(params)
+
+
 # --- PAPER implementation (moved from old place_paper_order) -----------------
 
 
@@ -160,9 +175,6 @@ def _place_order_paper(params: OrderParams) -> Tuple[Order, Trade, Position, Acc
     - immediately fill it
     - update Position & Account
     - return all four objects
-
-    This logic is directly lifted from the old paper_engine.place_paper_order,
-    with the indentation bug fixed in the account update block. :contentReference[oaicite:1]{index=1}
     """
 
     _validate_params(params)
@@ -256,7 +268,7 @@ def _place_order_paper(params: OrderParams) -> Tuple[Order, Trade, Position, Acc
 
     position.save()
 
-    # 4) Update Account cash & buying power (indentation fixed here)
+    # 4) Update Account cash & buying power
     trade_value = fill_price * params.quantity * mult
     total_cost = trade_value + params.commission + params.fees
 
@@ -286,3 +298,60 @@ def _place_order_paper(params: OrderParams) -> Tuple[Order, Trade, Position, Acc
 
     return order, trade, position, account
 
+
+# --- SCHWAB stub implementation ----------------------------------------------
+
+
+def _place_order_schwab(params: OrderParams) -> Tuple[Order, Trade, Position, Account]:
+    """
+    SCHWAB broker implementation (STUB).
+
+    This is here so the *shape* of the logic is ready. When you hook up
+    the real Schwab API, you'll implement the steps inside this function.
+
+    IMPORTANT: For now this ALWAYS raises NotImplementedError, so you
+    won't accidentally think Schwab trading is live.
+    """
+
+    account = params.account
+    if account.broker != "SCHWAB":
+        # Safety net – this path should only run for Schwab accounts.
+        raise ValueError(
+            f"_place_order_schwab called for non-Schwab account: {account.broker!r}"
+        )
+
+    # --- FUTURE IMPLEMENTATION PLAN (when Schwab API is wired in) -------------
+    #
+    # 1) Build Schwab API order payload from OrderParams:
+    #       - symbol
+    #       - side (BUY/SELL)
+    #       - quantity
+    #       - order_type (MKT/LMT/STP/STP_LMT)
+    #       - limit/stop prices if present
+    #
+    # 2) Send order to Schwab via REST/SDK.
+    #       - Capture Schwab's order ID: broker_order_id
+    #
+    # 3) Create a local Order row with:
+    #       status = "WORKING" or "PENDING"
+    #       broker_order_id = <value from Schwab>
+    #       time_placed = now
+    #
+    # 4) DO NOT create a Trade or update Position yet.
+    #       - Fills will come back asynchronously:
+    #           - via polling a Schwab endpoint, or
+    #           - a callback/webhook if available.
+    #
+    # 5) In a separate sync task:
+    #       - Fetch fills for broker_order_id
+    #       - Create Trade rows
+    #       - Update Position & Account (similar to PAPER logic)
+    #
+    # 6) Return a tuple of objects once implementation is ready.
+    #
+    # Until all that exists, we raise NotImplementedError.
+
+    raise NotImplementedError(
+        "Schwab order path is stubbed. Implement _place_order_schwab() "
+        "once the Schwab API client is available."
+    )
