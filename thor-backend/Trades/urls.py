@@ -1,6 +1,6 @@
 from django.urls import path
 
-from .views.orders import (
+from .views.trade_orders import (
     order_create_active_view,
     order_create_view,
     order_cancel_view,
