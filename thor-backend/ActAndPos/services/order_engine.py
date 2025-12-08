@@ -97,40 +97,31 @@ def _validate_params(params: OrderParams) -> None:
         raise InvalidPaperOrder("limit_price is required for limit orders.")
 
 
-# --- Broker adapter protocol & implementations -------------------------------
-
-
 class BrokerAdapter(Protocol):
-    """
-    Common interface for all broker adapters (paper, Schwab, etc.).
+        """Common interface for all broker adapters (paper, Schwab, etc.)."""
 
-    Today:
-      - PAPER is fully implemented.
-      - SCHWAB is stubbed out and raises NotImplementedError.
-    """
+        def place_order(self, params: OrderParams) -> Tuple[Order, Trade, Position, Account]:
+                ...
 
-    
+
+class PaperBrokerAdapter:
+    """Adapter that runs the internal PAPER simulation logic."""
+
+    def place_order(self, params: OrderParams) -> Tuple[Order, Trade, Position, Account]:
+        # delegate to the paper implementation below
+        return _place_order_paper(params)
+
+
 class SchwabBrokerAdapter:
-    """
-    Adapter for SCHWAB broker.
-
-    Right now this is a stub that just calls _place_order_schwab(),
-    which raises NotImplementedError with clear guidance.
-
-    When you wire in the real Schwab API, you will implement the body
-    of _place_order_schwab().
-    """
+    """Stub adapter for SCHWAB broker until real API wiring exists."""
 
     def place_order(self, params: OrderParams) -> Tuple[Order, Trade, Position, Account]:
         return _place_order_schwab(params)
 
 
 def _get_adapter_for_account(account: Account) -> BrokerAdapter:
-    """
-    Router helper: choose which adapter to use based on account.broker.
+    """Pick the correct adapter based on account.broker."""
 
-    Account.broker is defined as SCHWAB/PAPER in the Account model.
-    """
     if account.broker == "PAPER":
         return PaperBrokerAdapter()
     if account.broker == "SCHWAB":
@@ -152,16 +143,6 @@ def place_order(params: OrderParams) -> Tuple[Order, Trade, Position, Account]:
     """
     adapter = _get_adapter_for_account(params.account)
     return adapter.place_order(params)
-
-
-# Optional: temporary compatibility wrapper so old call sites still work.
-def place_paper_order(params: OrderParams) -> Tuple[Order, Trade, Position, Account]:
-    """
-    Backwards-compatible wrapper around place_order.
-
-    TODO: remove this once all call sites are updated to use place_order().
-    """
-    return place_order(params)
 
 
 # --- PAPER implementation (moved from old place_paper_order) -----------------
