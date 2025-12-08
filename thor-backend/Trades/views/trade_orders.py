@@ -42,6 +42,29 @@ def _to_decimal(val):
     return Decimal(str(val))
 
 
+def _field_error_response(field: str, exc: Exception) -> Response:
+    """Return a consistent JSON error payload for form validation issues."""
+
+    return Response({"field": field, "detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+def _normalize_symbol(raw):
+    """
+    Normalize and validate the instrument symbol.
+
+    - Uppercase & strip whitespace
+    - Require at least 1 character
+    - Require letters only (A–Z), no numbers or dots
+    """
+
+    symbol = (raw or "").upper().strip()
+    if not symbol:
+        raise ValueError("symbol is required.")
+    if not symbol.isalpha():
+        raise ValueError("symbol must contain letters only (no numbers or punctuation).")
+    return symbol
+
+
 @api_view(["POST"])
 def order_create_active_view(request):
     """
@@ -58,21 +81,34 @@ def order_create_active_view(request):
 
     data = request.data
 
-    symbol = (data.get("symbol") or "").upper().strip()
+    # --- symbol / core fields ---
+    try:
+        symbol = _normalize_symbol(data.get("symbol"))
+    except ValueError as exc:
+        return _field_error_response("symbol", exc)
+
     asset_type = (data.get("asset_type") or "EQ").upper()
     side = (data.get("side") or "").upper()
     order_type = (data.get("order_type") or "MKT").upper()
 
     try:
         quantity = _parse_decimal(data.get("quantity"), "quantity")
+    except ValueError as exc:
+        return _field_error_response("quantity", exc)
+
+    try:
         limit_price = _parse_decimal(
             data.get("limit_price"), "limit_price", allow_null=True
         )
+    except ValueError as exc:
+        return _field_error_response("limit_price", exc)
+
+    try:
         stop_price = _parse_decimal(
             data.get("stop_price"), "stop_price", allow_null=True
         )
     except ValueError as exc:
-        return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        return _field_error_response("stop_price", exc)
 
     params = OrderParams(
         account=account,
@@ -129,29 +165,36 @@ def order_create_view(request):
     except Account.DoesNotExist:
         return Response({"detail": "Account not found."}, status=status.HTTP_404_NOT_FOUND)
 
-    # core fields
-    symbol = data.get("symbol")
-    side = data.get("side")
-    order_type = data.get("order_type") or "MKT"
-    asset_type = data.get("asset_type") or "EQ"
+    # --- core fields ---
+    try:
+        symbol = _normalize_symbol(data.get("symbol"))
+    except ValueError as exc:
+        return _field_error_response("symbol", exc)
+
+    side = (data.get("side") or "").upper()
+    order_type = (data.get("order_type") or "MKT").upper()
+    asset_type = (data.get("asset_type") or "EQ").upper()
     quantity_raw = data.get("quantity")
 
-    if not symbol or not side or quantity_raw in (None, ""):
-        return Response(
-            {"detail": "symbol, side and quantity are required."},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
+    if not side:
+        return _field_error_response("side", ValueError("side is required."))
+    if quantity_raw in (None, ""):
+        return _field_error_response("quantity", ValueError("quantity is required."))
 
     try:
         quantity = Decimal(str(quantity_raw))
     except Exception:
-        return Response(
-            {"detail": "quantity must be a number."},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
+        return _field_error_response("quantity", ValueError("quantity must be a number."))
 
-    limit_price = _to_decimal(data.get("limit_price"))
-    stop_price = _to_decimal(data.get("stop_price"))
+    try:
+        limit_price = _to_decimal(data.get("limit_price"))
+    except ValueError as exc:
+        return _field_error_response("limit_price", exc)
+
+    try:
+        stop_price = _to_decimal(data.get("stop_price"))
+    except ValueError as exc:
+        return _field_error_response("stop_price", exc)
 
     params = OrderParams(
         account=account,

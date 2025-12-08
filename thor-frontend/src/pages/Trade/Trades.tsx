@@ -8,6 +8,16 @@ import type {
   PaperOrderResponse,
 } from "../../types/actandpos";
 
+const FIELD_LABELS: Record<string, string> = {
+  symbol: "Symbol",
+  side: "Side",
+  quantity: "Quantity",
+  order_type: "Order type",
+  asset_type: "Asset type",
+  limit_price: "Limit price",
+  stop_price: "Stop price",
+};
+
 const PaperOrderTicket: React.FC<{ account: AccountSummary; onOrderPlaced: () => void }> = ({
   account,
   onOrderPlaced,
@@ -62,8 +72,12 @@ const PaperOrderTicket: React.FC<{ account: AccountSummary; onOrderPlaced: () =>
       onOrderPlaced();
     } catch (err: any) {
       console.error("[TradeTicket] Failed to place order", err);
-      const detail = err?.response?.data?.detail;
-      toast.error(detail || "Failed to place paper order.");
+      const errorPayload = err?.response?.data;
+      const detail = errorPayload?.detail || "Failed to place paper order.";
+      const fieldLabel = errorPayload?.field
+        ? FIELD_LABELS[errorPayload.field] || errorPayload.field
+        : null;
+      toast.error(fieldLabel ? `${fieldLabel}: ${detail}` : detail);
     } finally {
       setSubmitting(false);
     }
@@ -91,7 +105,7 @@ const PaperOrderTicket: React.FC<{ account: AccountSummary; onOrderPlaced: () =>
           <input type="number" min={0} step="1" value={quantity} onChange={(e) => setQuantity(e.target.value)} />
         </label>
         <label>
-          Type
+          Order
           <select value={orderType} onChange={(e) => setOrderType(e.target.value as "MKT" | "LMT")}>
             <option value="MKT">Market</option>
             <option value="LMT">Limit</option>

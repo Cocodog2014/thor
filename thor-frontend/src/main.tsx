@@ -34,10 +34,17 @@ createRoot(document.getElementById('root')!).render(
               <App />
             </GlobalTimerProvider>
           </AuthProvider>
-          <Toaster 
+          <Toaster
             position="top-right"
             toastOptions={{
               duration: 4000,
+              className: "toast-default",
+              success: {
+                className: "toast-default toast-success",
+              },
+              error: {
+                className: "toast-default toast-error",
+              },
             }}
           />
         </BrowserRouter>

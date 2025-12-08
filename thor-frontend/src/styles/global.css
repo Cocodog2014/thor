@@ -176,22 +176,39 @@ h1, h2, h3, h4, h5, h6, p, span, div {
 /*           TOAST NOTIFICATIONS            */
 /* ========================================= */
 
-/* React Hot Toast styling to match black canvas */
-[data-sonner-toaster] {
-  --normal-bg: rgba(255, 255, 255, 0.1) !important;
-  --normal-border: rgba(255, 255, 255, 0.2) !important;
-  --normal-text: #ffffff !important;
+/* React Hot Toast dark styling so copy is readable */
+.react-hot-toast {
+  font-family: "Space Grotesk", "Sora", system-ui, sans-serif;
 }
 
-.Toastify__toast {
-  background-color: rgba(255, 255, 255, 0.1) !important;
-  color: white !important;
-  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+.toast-default {
+  background-color: rgba(5, 9, 18, 0.95) !important;
+  color: #f8fafc !important;
+  border: 1px solid rgba(148, 163, 184, 0.35) !important;
+  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.55) !important;
+  backdrop-filter: blur(6px);
+  border-radius: 12px !important;
+  font-weight: 500;
 }
 
-/* React Hot Toast specific selectors */
-div[role="status"] {
-  background-color: rgba(255, 255, 255, 0.1) !important;
-  color: white !important;
-  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+.toast-default .toast-icon svg {
+  color: #38bdf8 !important;
+}
+
+.toast-success {
+  border-color: rgba(52, 211, 153, 0.85) !important;
+  color: #dcfce7 !important;
+}
+
+.toast-success .toast-icon svg {
+  color: #34d399 !important;
+}
+
+.toast-error {
+  border-color: rgba(248, 113, 113, 0.9) !important;
+  color: #fee2e2 !important;
+}
+
+.toast-error .toast-icon svg {
+  color: #f87171 !important;
 }

@@ -165,10 +165,12 @@ def _place_order_paper(params: OrderParams) -> Tuple[Order, Trade, Position, Acc
 
     fill_price = _get_fill_price(params)
 
-    # Simple BP check: estimated notional vs day-trading BP.
+    # CASH ACCOUNT RULE:
+    # For BUY orders, you cannot spend more than your available cash.
     notional = fill_price * params.quantity
-    if params.side == "BUY" and account.day_trading_buying_power < notional:
-        raise InsufficientBuyingPower("Insufficient buying power for this order.")
+    if params.side == "BUY" and account.cash < notional:
+        raise InsufficientBuyingPower("Insufficient buying power for this order (cash account).")
+
 
     now = timezone.now()
 
@@ -222,6 +224,21 @@ def _place_order_paper(params: OrderParams) -> Tuple[Order, Trade, Position, Acc
     qty = params.quantity
     mult = position.multiplier or Decimal("1")
 
+    # 🚫 NO SHORT SELLING (CASH ACCOUNT RULE):
+    # You can only SELL up to the amount you already own.
+    if params.side == "SELL":
+        # No position at all, or already flat/short:
+        if position.quantity <= 0:
+            raise InvalidPaperOrder(
+                "Cannot sell: no existing long position (short selling is disabled)."
+            )
+
+        # Trying to sell more than you hold:
+        if qty > position.quantity:
+            raise InvalidPaperOrder(
+                "Cannot sell more than current position size (short selling is disabled)."
+            )
+
     if params.side == "BUY":
         q_old = position.quantity
         q_new = q_old + qty
@@ -264,13 +281,11 @@ def _place_order_paper(params: OrderParams) -> Tuple[Order, Trade, Position, Acc
 
     account.net_liq = account.cash + total_market_value
 
-    # Simple v1 BP rules
-    factor_equity = Decimal("4")
-    factor_options = Decimal("2")
-
-    account.stock_buying_power = account.net_liq * factor_equity
-    account.option_buying_power = account.net_liq * factor_options
-    account.day_trading_buying_power = account.net_liq * factor_equity
+    # CASH ACCOUNT RULES:
+    # Buying power is just your available cash (no leverage).
+    account.stock_buying_power = account.cash
+    account.option_buying_power = account.cash
+    account.day_trading_buying_power = account.cash
 
     account.current_cash = account.cash
     account.equity = account.net_liq
