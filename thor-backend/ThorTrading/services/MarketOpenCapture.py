@@ -14,6 +14,8 @@ from datetime import date as date_cls
 from django.conf import settings
 from django.utils import timezone
 
+from ThorTrading.views.MarketOpenCapture import capture_market_open as _view_capture_market_open
+
 logger = logging.getLogger(__name__)
 
 
@@ -58,7 +60,6 @@ def _has_capture_for_date(market, capture_date: date_cls) -> bool:
 
 def _scan_and_capture_once():
     from GlobalMarkets.models import Market
-    from ThorTrading.views.MarketOpenCapture import capture_market_open
 
     markets = Market.objects.filter(is_active=True, is_control_market=True)
 
@@ -99,4 +100,16 @@ def check_for_market_opens_and_capture() -> float:
 
     _scan_and_capture_once()
     return interval
+
+
+def capture_market_open(market):
+    """Proxy to the view-layer MarketOpenCapture service for backward compatibility."""
+
+    return _view_capture_market_open(market)
+
+
+__all__ = [
+    "capture_market_open",
+    "check_for_market_opens_and_capture",
+]
 
