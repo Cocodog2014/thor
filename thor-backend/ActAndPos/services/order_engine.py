@@ -116,6 +116,46 @@ def _evaluate_fill_decision(
     )
 
 
+def _quantize_money(value: Decimal) -> Decimal:
+    return value.quantize(Decimal("0.01"))
+
+
+def _calculate_account_commission(
+    account: Account,
+    fill_price: Decimal,
+    quantity: Decimal,
+    multiplier: Decimal,
+) -> Decimal:
+    scheme = account.commission_scheme
+    if scheme == "FLAT_PER_ORDER":
+        return _quantize_money(account.commission_flat_rate or Decimal("0"))
+
+    if scheme == "PCT_NOTIONAL":
+        rate = account.commission_percent_rate or Decimal("0")
+        notional = fill_price * quantity * (multiplier or Decimal("1"))
+        return _quantize_money(notional * rate)
+
+    return Decimal("0")
+
+
+def _resolve_trade_charges(
+    account: Account,
+    params: OrderParams,
+    fill_price: Decimal,
+    multiplier: Decimal,
+) -> Tuple[Decimal, Decimal]:
+    commission = params.commission or Decimal("0")
+    fees = params.fees or Decimal("0")
+
+    if commission == 0:
+        commission = _calculate_account_commission(account, fill_price, params.quantity, multiplier)
+
+    if fees == 0:
+        fees = _quantize_money(account.trade_fee_flat or Decimal("0"))
+
+    return commission, fees
+
+
 def _validate_params(params: OrderParams) -> None:
     """Basic validation that applies to all brokers managed by Thor."""
 
@@ -177,11 +217,23 @@ def _place_order_internal(params: OrderParams) -> Tuple[Order, Trade | None, Pos
     if should_fill and fill_price is None:
         raise InvalidOrderRequest("Unable to determine fill price for this order.")
 
-    if should_fill and params.side.upper() == "BUY":
-        trade_value = fill_price * params.quantity  # type: ignore[arg-type]
-        est_total_cost = trade_value + params.commission + params.fees
-        if account.cash < est_total_cost:
-            raise InsufficientBuyingPower("Insufficient buying power for this order (cash account).")
+    instrument_multiplier = (
+        existing_position.multiplier
+        if existing_position and existing_position.multiplier is not None
+        else Decimal("1")
+    )
+
+    commission = params.commission
+    fees = params.fees
+
+    if should_fill and fill_price is not None:
+        commission, fees = _resolve_trade_charges(account, params, fill_price, instrument_multiplier)
+
+        if params.side.upper() == "BUY":
+            trade_value = fill_price * params.quantity * instrument_multiplier  # type: ignore[arg-type]
+            est_total_cost = trade_value + commission + fees
+            if account.cash < est_total_cost:
+                raise InsufficientBuyingPower("Insufficient buying power for this order (cash account).")
 
     now = timezone.now()
 
@@ -210,8 +262,8 @@ def _place_order_internal(params: OrderParams) -> Tuple[Order, Trade | None, Pos
         side=params.side,
         quantity=params.quantity,
         price=fill_price,
-        commission=params.commission,
-        fees=params.fees,
+        commission=commission,
+        fees=fees,
         exec_time=now,
     )
 
@@ -276,12 +328,12 @@ def _place_order_internal(params: OrderParams) -> Tuple[Order, Trade | None, Pos
     position.save()
 
     trade_value = fill_price * params.quantity * mult
-    total_cost = trade_value + params.commission + params.fees
+    total_cost = trade_value + commission + fees
 
     if params.side.upper() == "BUY":
         account.cash -= total_cost
     else:
-        account.cash += trade_value - (params.commission + params.fees)
+        account.cash += trade_value - (commission + fees)
 
     positions = Position.objects.filter(account=account)
     total_market_value = sum((p.market_value for p in positions), Decimal("0"))

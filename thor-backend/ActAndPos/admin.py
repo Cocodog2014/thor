@@ -35,6 +35,36 @@ class AccountAdmin(admin.ModelAdmin):
 	ordering = ("-updated_at",)
 	readonly_fields = ("updated_at",)
 	inlines = [PositionInline, OrderInline]
+	fieldsets = (
+		(
+			"Account",
+			{
+				"fields": (
+					"display_name",
+					"broker",
+					"broker_account_id",
+					"currency",
+					"starting_balance",
+					"net_liq",
+					"cash",
+					"current_cash",
+					"equity",
+					"stock_buying_power",
+					"option_buying_power",
+					"day_trading_buying_power",
+					"updated_at",
+				),
+			},
+		),
+		(
+			"Per-Order Commissions",
+			{"fields": ("commission_scheme", "commission_flat_rate", "commission_percent_rate", "trade_fee_flat")},
+		),
+		(
+			"Monthly Billing",
+			{"fields": ("billing_plan", "billing_flat_monthly", "billing_performance_pct")},
+		),
+	)
 
 
 @admin.register(Position)
