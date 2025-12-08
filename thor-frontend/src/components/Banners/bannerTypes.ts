@@ -8,6 +8,9 @@ export interface AccountSummary {
   currency: string;
   net_liq: string;
   cash: string;
+  starting_balance: string;
+  current_cash: string;
+  equity: string;
   stock_buying_power: string;
   option_buying_power: string;
   day_trading_buying_power: string;

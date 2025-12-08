@@ -203,6 +203,9 @@ def place_paper_order(params: PaperOrderParams) -> Tuple[Order, Trade, Position,
     account.option_buying_power = account.net_liq * factor_options
     account.day_trading_buying_power = account.net_liq * factor_equity
 
+    account.current_cash = account.cash
+    account.equity = account.net_liq
+
     account.save()
 
     return order, trade, position, account
