@@ -19,8 +19,14 @@ const GlobalMarkets: React.FC = () => {
 
   const backoffRef = useRef(DEFAULT_REFRESH_TICKS);
   const bootstrapRef = useRef(false);
+  const inFlightRef = useRef(false);
 
   const fetchMarkets = useCallback(async (reason: 'initial' | 'timer', currentTick: number) => {
+    if (inFlightRef.current) {
+      return;
+    }
+    inFlightRef.current = true;
+
     if (!bootstrapRef.current) {
       setLoading(true);
     }
@@ -42,6 +48,7 @@ const GlobalMarkets: React.FC = () => {
     } finally {
       bootstrapRef.current = true;
       setLoading(false);
+      inFlightRef.current = false;
       setNextFetchTick(currentTick + backoffRef.current);
     }
   }, []);
