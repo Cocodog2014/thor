@@ -14,8 +14,6 @@ from LiveData.shared.redis_client import live_data_redis
 from ..models import Account, Order, Position
 from Trades.models import Trade
 
-DecimalLike = Decimal | str | float | int
-
 
 # --- Errors -----------------------------------------------------------------
 
@@ -53,14 +51,6 @@ class OrderParams:
     stop_price: Decimal | None = None
     commission: Decimal = Decimal("0")
     fees: Decimal = Decimal("0")
-
-
-def _to_decimal(val: DecimalLike | None) -> Decimal | None:
-    if val is None:
-        return None
-    if isinstance(val, Decimal):
-        return val
-    return Decimal(str(val))
 
 
 def _get_live_price_from_redis(symbol: str) -> Decimal | None:
@@ -159,6 +149,28 @@ def _place_order_internal(params: OrderParams) -> Tuple[Order, Trade | None, Pos
 
     account = Account.objects.select_for_update().get(pk=params.account.pk)
 
+    existing_position = None
+    if params.side.upper() == "SELL":
+        existing_position = (
+            Position.objects.select_for_update()
+            .filter(
+                account=account,
+                symbol=params.symbol,
+                asset_type=params.asset_type,
+            )
+            .first()
+        )
+
+        if existing_position is None or existing_position.quantity <= 0:
+            raise InvalidOrderRequest(
+                "Cannot submit sell order without an existing long position (short selling is disabled)."
+            )
+
+        if params.quantity > existing_position.quantity:
+            raise InvalidOrderRequest(
+                "Cannot sell more than current position size (short selling is disabled)."
+            )
+
     live_price = _get_live_price_from_redis(params.symbol)
     should_fill, fill_price = _evaluate_fill_decision(params, live_price)
 
@@ -166,8 +178,9 @@ def _place_order_internal(params: OrderParams) -> Tuple[Order, Trade | None, Pos
         raise InvalidOrderRequest("Unable to determine fill price for this order.")
 
     if should_fill and params.side.upper() == "BUY":
-        notional = fill_price * params.quantity  # type: ignore[arg-type]
-        if account.cash < notional:
+        trade_value = fill_price * params.quantity  # type: ignore[arg-type]
+        est_total_cost = trade_value + params.commission + params.fees
+        if account.cash < est_total_cost:
             raise InsufficientBuyingPower("Insufficient buying power for this order (cash account).")
 
     now = timezone.now()
@@ -207,18 +220,21 @@ def _place_order_internal(params: OrderParams) -> Tuple[Order, Trade | None, Pos
     order.time_last_update = now
     order.save(update_fields=["status", "time_filled", "time_last_update"])
 
-    position, _created = Position.objects.select_for_update().get_or_create(
-        account=account,
-        symbol=params.symbol,
-        asset_type=params.asset_type,
-        defaults={
-            "description": "",
-            "quantity": Decimal("0"),
-            "avg_price": fill_price,
-            "mark_price": fill_price,
-            "multiplier": Decimal("1"),
-        },
-    )
+    if existing_position is not None and params.side.upper() == "SELL":
+        position = existing_position
+    else:
+        position, _created = Position.objects.select_for_update().get_or_create(
+            account=account,
+            symbol=params.symbol,
+            asset_type=params.asset_type,
+            defaults={
+                "description": "",
+                "quantity": Decimal("0"),
+                "avg_price": fill_price,
+                "mark_price": fill_price,
+                "multiplier": Decimal("1"),
+            },
+        )
 
     qty = params.quantity
     mult = position.multiplier or Decimal("1")
