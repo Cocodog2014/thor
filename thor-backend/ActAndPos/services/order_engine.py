@@ -1,10 +1,10 @@
-# ActAndPos/services/paper_engine.py
+# ActAndPos/services/order_engine.py
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 from decimal import Decimal
-from typing import Tuple
+from typing import Tuple, Protocol
 
 from django.db import transaction
 from django.utils import timezone
@@ -12,8 +12,10 @@ from django.utils import timezone
 from ..models import Account, Order, Position
 from Trades.models import Trade
 
-
 DecimalLike = Decimal | str | float | int
+
+
+# --- Errors (still mainly used by PAPER path for now) ------------------------
 
 
 class PaperTradingError(Exception):
@@ -28,8 +30,11 @@ class InsufficientBuyingPower(PaperTradingError):
     """Raised when the account does not have enough BP."""
 
 
+# --- Generic order params (used for all brokers) -----------------------------
+
+
 @dataclass
-class PaperOrderParams:
+class OrderParams:
     account: Account
     symbol: str
     asset_type: str
@@ -50,7 +55,7 @@ def _to_decimal(val: DecimalLike | None) -> Decimal | None:
     return Decimal(str(val))
 
 
-def _get_fill_price(params: PaperOrderParams) -> Decimal:
+def _get_fill_price(params: OrderParams) -> Decimal:
     """
     Simple v1 logic:
     - If a limit price is provided, use that.
@@ -62,7 +67,11 @@ def _get_fill_price(params: PaperOrderParams) -> Decimal:
     return Decimal("100")
 
 
-def _validate_params(params: PaperOrderParams) -> None:
+def _validate_params(params: OrderParams) -> None:
+    """
+    Validation for PAPER orders. The router ensures only PAPER accounts
+    hit the PAPER path, but we keep this check as a safety net.
+    """
     if params.account.broker != "PAPER":
         raise InvalidPaperOrder("Account is not a PAPER trading account.")
 
@@ -79,11 +88,81 @@ def _validate_params(params: PaperOrderParams) -> None:
         raise InvalidPaperOrder("limit_price is required for limit orders.")
 
 
-@transaction.atomic
-def place_paper_order(params: PaperOrderParams) -> Tuple[Order, Trade, Position, Account]:
+# --- Broker adapter protocol & implementations -------------------------------
+
+
+class BrokerAdapter(Protocol):
     """
-    Main entry point: create a PAPER Order, immediately fill it,
-    update Position & Account, and return all four objects.
+    Common interface for all broker adapters (paper, Schwab, etc.).
+    For now we only implement the PAPER adapter; SCHWAB is a stub.
+    """
+
+    def place_order(self, params: OrderParams) -> Tuple[Order, Trade, Position, Account]:
+        ...
+
+
+class PaperBrokerAdapter:
+    """Adapter that runs the internal PAPER simulation logic."""
+
+    def place_order(self, params: OrderParams) -> Tuple[Order, Trade, Position, Account]:
+        return _place_order_paper(params)
+
+
+class SchwabBrokerAdapter:
+    """
+    Stub for future Schwab implementation.
+
+    Right now, if you try to place an order on a SCHWAB account through
+    this engine, you'll get a clear NotImplementedError.
+    """
+
+    def place_order(self, params: OrderParams) -> Tuple[Order, Trade, Position, Account]:
+        raise NotImplementedError("Schwab live trading is not implemented yet.")
+
+
+def _get_adapter_for_account(account: Account) -> BrokerAdapter:
+    """
+    Router helper: choose which adapter to use based on account.broker.
+
+    Account.broker is defined as SCHWAB/PAPER in the Account model:
+    see ActAndPos/models/accounts.py. :contentReference[oaicite:0]{index=0}
+    """
+    if account.broker == "PAPER":
+        return PaperBrokerAdapter()
+    if account.broker == "SCHWAB":
+        return SchwabBrokerAdapter()
+    raise ValueError(f"Unsupported broker: {account.broker!r}")
+
+
+# --- Public entry point: ORDER ROUTER ----------------------------------------
+
+
+def place_order(params: OrderParams) -> Tuple[Order, Trade, Position, Account]:
+    """
+    Main entry point for ALL orders (paper, Schwab, etc.).
+
+    The rest of the app should call THIS function.
+
+    It picks the correct adapter (Paper, Schwab, etc.) and delegates
+    to the broker-specific implementation.
+    """
+    adapter = _get_adapter_for_account(params.account)
+    return adapter.place_order(params)
+
+# --- PAPER implementation (moved from old place_paper_order) -----------------
+
+
+@transaction.atomic
+def _place_order_paper(params: OrderParams) -> Tuple[Order, Trade, Position, Account]:
+    """
+    PAPER broker implementation:
+    - create a PAPER Order
+    - immediately fill it
+    - update Position & Account
+    - return all four objects
+
+    This logic is directly lifted from the old paper_engine.place_paper_order,
+    with the indentation bug fixed in the account update block. :contentReference[oaicite:1]{index=1}
     """
 
     _validate_params(params)
@@ -177,7 +256,7 @@ def place_paper_order(params: PaperOrderParams) -> Tuple[Order, Trade, Position,
 
     position.save()
 
-        # 4) Update Account cash & buying power
+    # 4) Update Account cash & buying power (indentation fixed here)
     trade_value = fill_price * params.quantity * mult
     total_cost = trade_value + params.commission + params.fees
 
@@ -187,17 +266,14 @@ def place_paper_order(params: PaperOrderParams) -> Tuple[Order, Trade, Position,
         account.cash += trade_value - (params.commission + params.fees)
 
     # Recompute net liq from cash + market value of all positions
-    from decimal import Decimal as _D
-    from ..models import Position as _Pos
-
-    positions = _Pos.objects.filter(account=account)
-    total_market_value = sum((p.market_value for p in positions), _D("0"))
+    positions = Position.objects.filter(account=account)
+    total_market_value = sum((p.market_value for p in positions), Decimal("0"))
 
     account.net_liq = account.cash + total_market_value
 
     # Simple v1 BP rules
-    factor_equity = _D("4")
-    factor_options = _D("2")
+    factor_equity = Decimal("4")
+    factor_options = Decimal("2")
 
     account.stock_buying_power = account.net_liq * factor_equity
     account.option_buying_power = account.net_liq * factor_options
@@ -209,3 +285,4 @@ def place_paper_order(params: PaperOrderParams) -> Tuple[Order, Trade, Position,
     account.save()
 
     return order, trade, position, account
+

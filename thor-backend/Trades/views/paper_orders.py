@@ -11,16 +11,16 @@ from ActAndPos.serializers import (
     OrderSerializer,
     PositionSerializer,
 )
-from ActAndPos.views.accounts import get_active_account
-
-from ..serializers import TradeSerializer
-from ..services.paper_engine import (
-    PaperOrderParams,
-    place_paper_order,
+from ActAndPos.services.order_engine import (
+    OrderParams,
+    place_order,
     InsufficientBuyingPower,
     InvalidPaperOrder,
     PaperTradingError,
 )
+from ActAndPos.views.accounts import get_active_account
+
+from ..serializers import TradeSerializer
 
 
 def _parse_decimal(value, field_name: str, allow_null: bool = False):
@@ -73,7 +73,7 @@ def paper_order_view(request):
     except ValueError as exc:
         return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
-    params = PaperOrderParams(
+    params = OrderParams(
         account=account,
         symbol=symbol,
         asset_type=asset_type,
@@ -85,7 +85,7 @@ def paper_order_view(request):
     )
 
     try:
-        order, trade, position, account = place_paper_order(params)
+        order, trade, position, account = place_order(params)
     except InvalidPaperOrder as exc:
         return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
     except InsufficientBuyingPower as exc:
@@ -151,7 +151,7 @@ def paper_order_create_view(request):
     limit_price = _to_decimal(data.get("limit_price"))
     stop_price = _to_decimal(data.get("stop_price"))
 
-    params = PaperOrderParams(
+    params = OrderParams(
         account=account,
         symbol=symbol,
         asset_type=asset_type,
@@ -165,7 +165,7 @@ def paper_order_create_view(request):
     )
 
     try:
-        order, trade, _position, account = place_paper_order(params)
+        order, trade, _position, account = place_order(params)
     except InsufficientBuyingPower as exc:
         return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
     except InvalidPaperOrder as exc:
