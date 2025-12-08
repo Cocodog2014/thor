@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from decimal import Decimal
-from typing import Tuple, Protocol
+from typing import Tuple
 
 from django.db import transaction
 from django.utils import timezone
@@ -17,18 +17,18 @@ from Trades.models import Trade
 DecimalLike = Decimal | str | float | int
 
 
-# --- Errors (still mainly used by PAPER path for now) ------------------------
+# --- Errors -----------------------------------------------------------------
 
 
-class PaperTradingError(Exception):
-    """Base error for paper trading problems."""
+class OrderEngineError(Exception):
+    """Base error for order-engine problems."""
 
 
-class InvalidPaperOrder(PaperTradingError):
+class InvalidOrderRequest(OrderEngineError):
     """Raised when the request itself is invalid."""
 
 
-class InsufficientBuyingPower(PaperTradingError):
+class InsufficientBuyingPower(OrderEngineError):
     """Raised when the account does not have enough BP."""
 
 
@@ -38,7 +38,7 @@ class InsufficientBuyingPower(PaperTradingError):
 @dataclass
 class OrderParams:
     """
-    Generic order parameters for ALL brokers (PAPER, SCHWAB, etc.).
+    Generic order parameters for ALL brokers managed by Thor.
 
     We keep this broker-agnostic. The router + adapters decide how to
     interpret these fields for each backend.
@@ -82,180 +82,96 @@ def _get_live_price_from_redis(symbol: str) -> Decimal | None:
     return None
 
 
-def _get_fill_price(params: OrderParams) -> Decimal:
+def _evaluate_fill_decision(
+    params: OrderParams, live_price: Decimal | None
+) -> Tuple[bool, Decimal | None]:
     """
-    PAPER fill-price logic with live data + basic limit rules.
+    Determine whether an order should fill immediately and at what price.
 
-    - If order_type == "MKT":
-        * Use live market price from Redis.
-        * If no live price, reject the order.
-
-    - If order_type in ("LMT", "STP_LMT"):
-        * Require params.limit_price (already enforced in _validate_params).
-        * Use live price from Redis.
-        * BUY: fill only if live_price <= limit_price.
-        * SELL: fill only if live_price >= limit_price.
-        * If no live price or limit not reached, reject (IOC-style).
-
-    - Other order types (e.g. STP only) are not supported in PAPER yet.
+    Returns (should_fill_now, fill_price_or_none).
     """
 
     order_type = params.order_type.upper()
     side = params.side.upper()
 
-    # --- MARKET ORDERS ---
     if order_type == "MKT":
-        price = _get_live_price_from_redis(params.symbol)
-        if price is None:
-            raise InvalidPaperOrder(
+        if live_price is None:
+            raise InvalidOrderRequest(
                 "Cannot fill market order: no live market price available for "
-                "this symbol in PAPER mode. Start the TOS feed or use a "
+                "this symbol in the order engine. Start the TOS feed or use a "
                 "limit order with an explicit price."
             )
-        return price
+        return True, live_price
 
-    # --- LIMIT(-STYLE) ORDERS ---
     if order_type in ("LMT", "STP_LMT"):
-        if params.limit_price is None:
-            raise InvalidPaperOrder("limit_price is required for limit orders.")
+        limit_price = params.limit_price
+        if limit_price is None:
+            raise InvalidOrderRequest("limit_price is required for limit orders.")
 
-        live_price = _get_live_price_from_redis(params.symbol)
         if live_price is None:
-            raise InvalidPaperOrder(
-                "Cannot price limit order: no live market data available for "
-                "this symbol in PAPER mode."
-            )
+            # No market data yet – leave order working.
+            return False, None
 
-        # BUY LIMIT: only fill if live <= limit
-        if side == "BUY":
-            if live_price <= params.limit_price:
-                # In this simple engine, we fill at the limit price
-                return params.limit_price
-            else:
-                # v1 engine is IOC style: if it doesn't cross, we reject
-                raise InvalidPaperOrder(
-                    "Buy limit price not reached; order not filled in PAPER mode."
-                )
+        if side == "BUY" and live_price <= limit_price:
+            return True, limit_price
 
-        # SELL LIMIT: only fill if live >= limit
-        if side == "SELL":
-            if live_price >= params.limit_price:
-                return params.limit_price
-            else:
-                raise InvalidPaperOrder(
-                    "Sell limit price not reached; order not filled in PAPER mode."
-                )
+        if side == "SELL" and live_price >= limit_price:
+            return True, limit_price
 
-        raise InvalidPaperOrder("Unsupported side for limit order (must be BUY or SELL).")
+        return False, None
 
-    # --- Unsupported order types in PAPER v1 ---
-    raise InvalidPaperOrder(
-        f"Unsupported order_type for PAPER: {order_type}. "
+    raise InvalidOrderRequest(
+        f"Unsupported order_type for this engine: {order_type}. "
         "Only MKT and LMT/STP_LMT are supported right now."
     )
 
 
 def _validate_params(params: OrderParams) -> None:
-    """
-    Validation for PAPER orders.
-
-    The router ensures only PAPER accounts hit the PAPER path, but we
-    keep this check as a safety net.
-    """
-    if params.account.broker != "PAPER":
-        raise InvalidPaperOrder("Account is not a PAPER trading account.")
+    """Basic validation that applies to all brokers managed by Thor."""
 
     if params.quantity <= 0:
-        raise InvalidPaperOrder("Quantity must be positive.")
+        raise InvalidOrderRequest("Quantity must be positive.")
 
     if params.side not in ("BUY", "SELL"):
-        raise InvalidPaperOrder("Side must be BUY or SELL.")
+        raise InvalidOrderRequest("Side must be BUY or SELL.")
 
     if params.order_type not in ("MKT", "LMT", "STP", "STP_LMT"):
-        raise InvalidPaperOrder("Unsupported order_type for paper trading.")
+        raise InvalidOrderRequest("Unsupported order_type for this engine.")
 
     if params.order_type in ("LMT", "STP_LMT") and params.limit_price is None:
-        raise InvalidPaperOrder("limit_price is required for limit orders.")
+        raise InvalidOrderRequest("limit_price is required for limit orders.")
 
 
-class BrokerAdapter(Protocol):
-        """Common interface for all broker adapters (paper, Schwab, etc.)."""
+def place_order(params: OrderParams) -> Tuple[Order, Trade | None, Position | None, Account]:
+    """Main entry point for ALL accounts managed inside Thor."""
 
-        def place_order(self, params: OrderParams) -> Tuple[Order, Trade, Position, Account]:
-                ...
-
-
-class PaperBrokerAdapter:
-    """Adapter that runs the internal PAPER simulation logic."""
-
-    def place_order(self, params: OrderParams) -> Tuple[Order, Trade, Position, Account]:
-        # delegate to the paper implementation below
-        return _place_order_paper(params)
+    return _place_order_internal(params)
 
 
-class SchwabBrokerAdapter:
-    """Stub adapter for SCHWAB broker until real API wiring exists."""
-
-    def place_order(self, params: OrderParams) -> Tuple[Order, Trade, Position, Account]:
-        return _place_order_schwab(params)
-
-
-def _get_adapter_for_account(account: Account) -> BrokerAdapter:
-    """Pick the correct adapter based on account.broker."""
-
-    if account.broker == "PAPER":
-        return PaperBrokerAdapter()
-    if account.broker == "SCHWAB":
-        return SchwabBrokerAdapter()
-    raise ValueError(f"Unsupported broker: {account.broker!r}")
-
-
-# --- Public entry point: ORDER ROUTER ----------------------------------------
-
-
-def place_order(params: OrderParams) -> Tuple[Order, Trade, Position, Account]:
-    """
-    Main entry point for ALL orders (paper, Schwab, etc.).
-
-    The rest of the app should call THIS function.
-
-    It picks the correct adapter (Paper, Schwab, etc.) and delegates
-    to the broker-specific implementation.
-    """
-    adapter = _get_adapter_for_account(params.account)
-    return adapter.place_order(params)
-
-
-# --- PAPER implementation (moved from old place_paper_order) -----------------
+# --- INTERNAL ORDER EXECUTION -----------------------------------------------
 
 
 @transaction.atomic
-def _place_order_paper(params: OrderParams) -> Tuple[Order, Trade, Position, Account]:
-    """
-    PAPER broker implementation:
-    - create a PAPER Order
-    - immediately fill it
-    - update Position & Account
-    - return all four objects
-    """
+def _place_order_internal(params: OrderParams) -> Tuple[Order, Trade | None, Position | None, Account]:
+    """Execute an order against the internal simulation engine."""
 
     _validate_params(params)
 
-    # Lock account row – avoid race conditions if we ever do concurrency.
     account = Account.objects.select_for_update().get(pk=params.account.pk)
 
-    fill_price = _get_fill_price(params)
+    live_price = _get_live_price_from_redis(params.symbol)
+    should_fill, fill_price = _evaluate_fill_decision(params, live_price)
 
-    # CASH ACCOUNT RULE:
-    # For BUY orders, you cannot spend more than your available cash.
-    notional = fill_price * params.quantity
-    if params.side == "BUY" and account.cash < notional:
-        raise InsufficientBuyingPower("Insufficient buying power for this order (cash account).")
+    if should_fill and fill_price is None:
+        raise InvalidOrderRequest("Unable to determine fill price for this order.")
 
+    if should_fill and params.side.upper() == "BUY":
+        notional = fill_price * params.quantity  # type: ignore[arg-type]
+        if account.cash < notional:
+            raise InsufficientBuyingPower("Insufficient buying power for this order (cash account).")
 
     now = timezone.now()
 
-    # 1) Create the WORKING order
     order = Order.objects.create(
         account=account,
         symbol=params.symbol,
@@ -269,7 +185,11 @@ def _place_order_paper(params: OrderParams) -> Tuple[Order, Trade, Position, Acc
         time_placed=now,
     )
 
-    # 2) Create the Trade (fill)
+    if not should_fill:
+        return order, None, None, account
+
+    assert fill_price is not None  # for type checkers
+
     trade = Trade.objects.create(
         account=account,
         order=order,
@@ -282,13 +202,11 @@ def _place_order_paper(params: OrderParams) -> Tuple[Order, Trade, Position, Acc
         exec_time=now,
     )
 
-    # Mark order filled
     order.status = "FILLED"
     order.time_filled = now
     order.time_last_update = now
     order.save(update_fields=["status", "time_filled", "time_last_update"])
 
-    # 3) Update (or create) Position
     position, _created = Position.objects.select_for_update().get_or_create(
         account=account,
         symbol=params.symbol,
@@ -305,22 +223,17 @@ def _place_order_paper(params: OrderParams) -> Tuple[Order, Trade, Position, Acc
     qty = params.quantity
     mult = position.multiplier or Decimal("1")
 
-    # 🚫 NO SHORT SELLING (CASH ACCOUNT RULE):
-    # You can only SELL up to the amount you already own.
-    if params.side == "SELL":
-        # No position at all, or already flat/short:
+    if params.side.upper() == "SELL":
         if position.quantity <= 0:
-            raise InvalidPaperOrder(
+            raise InvalidOrderRequest(
                 "Cannot sell: no existing long position (short selling is disabled)."
             )
-
-        # Trying to sell more than you hold:
         if qty > position.quantity:
-            raise InvalidPaperOrder(
+            raise InvalidOrderRequest(
                 "Cannot sell more than current position size (short selling is disabled)."
             )
 
-    if params.side == "BUY":
+    if params.side.upper() == "BUY":
         q_old = position.quantity
         q_new = q_old + qty
 
@@ -333,11 +246,10 @@ def _place_order_paper(params: OrderParams) -> Tuple[Order, Trade, Position, Acc
         position.avg_price = avg_new
         position.mark_price = fill_price
 
-    else:  # SELL
+    else:
         q_old = position.quantity
         q_new = q_old - qty
 
-        # Realized P&L on this leg
         realized = (fill_price - position.avg_price) * qty * mult
         position.realized_pl_day += realized
         position.realized_pl_open += realized
@@ -347,23 +259,19 @@ def _place_order_paper(params: OrderParams) -> Tuple[Order, Trade, Position, Acc
 
     position.save()
 
-    # 4) Update Account cash & buying power
     trade_value = fill_price * params.quantity * mult
     total_cost = trade_value + params.commission + params.fees
 
-    if params.side == "BUY":
+    if params.side.upper() == "BUY":
         account.cash -= total_cost
     else:
         account.cash += trade_value - (params.commission + params.fees)
 
-    # Recompute net liq from cash + market value of all positions
     positions = Position.objects.filter(account=account)
     total_market_value = sum((p.market_value for p in positions), Decimal("0"))
 
     account.net_liq = account.cash + total_market_value
 
-    # CASH ACCOUNT RULES:
-    # Buying power is just your available cash (no leverage).
     account.stock_buying_power = account.cash
     account.option_buying_power = account.cash
     account.day_trading_buying_power = account.cash
@@ -376,59 +284,3 @@ def _place_order_paper(params: OrderParams) -> Tuple[Order, Trade, Position, Acc
     return order, trade, position, account
 
 
-# --- SCHWAB stub implementation ----------------------------------------------
-
-
-def _place_order_schwab(params: OrderParams) -> Tuple[Order, Trade, Position, Account]:
-    """
-    SCHWAB broker implementation (STUB).
-
-    This is here so the *shape* of the logic is ready. When you hook up
-    the real Schwab API, you'll implement the steps inside this function.
-
-    IMPORTANT: For now this ALWAYS raises NotImplementedError, so you
-    won't accidentally think Schwab trading is live.
-    """
-
-    account = params.account
-    if account.broker != "SCHWAB":
-        # Safety net – this path should only run for Schwab accounts.
-        raise ValueError(
-            f"_place_order_schwab called for non-Schwab account: {account.broker!r}"
-        )
-
-    # --- FUTURE IMPLEMENTATION PLAN (when Schwab API is wired in) -------------
-    #
-    # 1) Build Schwab API order payload from OrderParams:
-    #       - symbol
-    #       - side (BUY/SELL)
-    #       - quantity
-    #       - order_type (MKT/LMT/STP/STP_LMT)
-    #       - limit/stop prices if present
-    #
-    # 2) Send order to Schwab via REST/SDK.
-    #       - Capture Schwab's order ID: broker_order_id
-    #
-    # 3) Create a local Order row with:
-    #       status = "WORKING" or "PENDING"
-    #       broker_order_id = <value from Schwab>
-    #       time_placed = now
-    #
-    # 4) DO NOT create a Trade or update Position yet.
-    #       - Fills will come back asynchronously:
-    #           - via polling a Schwab endpoint, or
-    #           - a callback/webhook if available.
-    #
-    # 5) In a separate sync task:
-    #       - Fetch fills for broker_order_id
-    #       - Create Trade rows
-    #       - Update Position & Account (similar to PAPER logic)
-    #
-    # 6) Return a tuple of objects once implementation is ready.
-    #
-    # Until all that exists, we raise NotImplementedError.
-
-    raise NotImplementedError(
-        "Schwab order path is stubbed. Implement _place_order_schwab() "
-        "once the Schwab API client is available."
-    )

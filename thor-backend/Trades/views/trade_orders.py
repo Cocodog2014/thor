@@ -15,8 +15,8 @@ from ActAndPos.services.order_engine import (
     OrderParams,
     place_order,
     InsufficientBuyingPower,
-    InvalidPaperOrder,
-    PaperTradingError,
+    InvalidOrderRequest,
+    OrderEngineError,
 )
 from ActAndPos.views.accounts import get_active_account
 
@@ -123,7 +123,7 @@ def order_create_active_view(request):
 
     try:
         order, trade, position, account = place_order(params)
-    except InvalidPaperOrder as exc:
+    except InvalidOrderRequest as exc:
         return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
     except InsufficientBuyingPower as exc:
         return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
@@ -213,17 +213,18 @@ def order_create_view(request):
         order, trade, _position, account = place_order(params)
     except InsufficientBuyingPower as exc:
         return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
-    except InvalidPaperOrder as exc:
+    except InvalidOrderRequest as exc:
         return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
-    except PaperTradingError as exc:
+    except OrderEngineError as exc:
         return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
     positions = Position.objects.filter(account=account).order_by("symbol")
+    trade_payload = TradeSerializer(trade).data if trade is not None else None
 
     return Response(
         {
             "order": OrderSerializer(order).data,
-            "trade": TradeSerializer(trade).data,
+            "trade": trade_payload,
             "account": AccountSummarySerializer(account).data,
             "positions": PositionSerializer(positions, many=True).data,
         },
