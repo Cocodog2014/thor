@@ -1,7 +1,7 @@
 # ActAndPos/urls.py
 from django.urls import path
 
-from .views.orders import activity_today_view
+from .views.account_orders import activity_today_view
 from .views.positions import positions_view
 from .views.accounts import account_summary_view
 from .views.accounts_list import accounts_list_view
