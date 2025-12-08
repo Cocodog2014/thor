@@ -84,35 +84,74 @@ def _get_live_price_from_redis(symbol: str) -> Decimal | None:
 
 def _get_fill_price(params: OrderParams) -> Decimal:
     """
-    PAPER fill-price logic:
+    PAPER fill-price logic with live data + basic limit rules.
 
-    - If a limit price is provided, use that.
-    - If order_type == "MKT" and no limit price:
-        * Try live price from Redis (Thinkorswim -> Excel -> Redis).
-        * If no live price is available, reject the order.
-    - For other order types that need a price but have no limit,
-      we currently require a limit in PAPER mode.
+    - If order_type == "MKT":
+        * Use live market price from Redis.
+        * If no live price, reject the order.
+
+    - If order_type in ("LMT", "STP_LMT"):
+        * Require params.limit_price (already enforced in _validate_params).
+        * Use live price from Redis.
+        * BUY: fill only if live_price <= limit_price.
+        * SELL: fill only if live_price >= limit_price.
+        * If no live price or limit not reached, reject (IOC-style).
+
+    - Other order types (e.g. STP only) are not supported in PAPER yet.
     """
 
-    # 1) Explicit limit price always wins
-    if params.limit_price is not None:
-        return params.limit_price
+    order_type = params.order_type.upper()
+    side = params.side.upper()
 
-    # 2) MARKET order -> use live price from Redis
-    if params.order_type == "MKT":
+    # --- MARKET ORDERS ---
+    if order_type == "MKT":
         price = _get_live_price_from_redis(params.symbol)
         if price is None:
             raise InvalidPaperOrder(
-                "Cannot fill market order: no live market price available "
-                "for this symbol in PAPER mode. Start the TOS feed or use "
-                "a limit order with an explicit price."
+                "Cannot fill market order: no live market price available for "
+                "this symbol in PAPER mode. Start the TOS feed or use a "
+                "limit order with an explicit price."
             )
         return price
 
-    # 3) Any other order type that needs a price but has no limit
+    # --- LIMIT(-STYLE) ORDERS ---
+    if order_type in ("LMT", "STP_LMT"):
+        if params.limit_price is None:
+            raise InvalidPaperOrder("limit_price is required for limit orders.")
+
+        live_price = _get_live_price_from_redis(params.symbol)
+        if live_price is None:
+            raise InvalidPaperOrder(
+                "Cannot price limit order: no live market data available for "
+                "this symbol in PAPER mode."
+            )
+
+        # BUY LIMIT: only fill if live <= limit
+        if side == "BUY":
+            if live_price <= params.limit_price:
+                # In this simple engine, we fill at the limit price
+                return params.limit_price
+            else:
+                # v1 engine is IOC style: if it doesn't cross, we reject
+                raise InvalidPaperOrder(
+                    "Buy limit price not reached; order not filled in PAPER mode."
+                )
+
+        # SELL LIMIT: only fill if live >= limit
+        if side == "SELL":
+            if live_price >= params.limit_price:
+                return params.limit_price
+            else:
+                raise InvalidPaperOrder(
+                    "Sell limit price not reached; order not filled in PAPER mode."
+                )
+
+        raise InvalidPaperOrder("Unsupported side for limit order (must be BUY or SELL).")
+
+    # --- Unsupported order types in PAPER v1 ---
     raise InvalidPaperOrder(
-        "Cannot determine fill price: limit price is required for this "
-        "order type in PAPER mode."
+        f"Unsupported order_type for PAPER: {order_type}. "
+        "Only MKT and LMT/STP_LMT are supported right now."
     )
 
 
