@@ -9,6 +9,8 @@ from typing import Tuple, Protocol
 from django.db import transaction
 from django.utils import timezone
 
+from LiveData.shared.redis_client import live_data_redis
+
 from ..models import Account, Order, Position
 from Trades.models import Trade
 
@@ -61,17 +63,57 @@ def _to_decimal(val: DecimalLike | None) -> Decimal | None:
     return Decimal(str(val))
 
 
+def _get_live_price_from_redis(symbol: str) -> Decimal | None:
+    """Look up the latest quote for symbol from Redis and return a price."""
+
+    quote = live_data_redis.get_latest_quote(symbol.upper())
+    if not quote:
+        return None
+
+    for field in ("last", "bid", "ask", "close"):
+        value = quote.get(field)
+        if value in (None, "", "None"):
+            continue
+        try:
+            return Decimal(str(value))
+        except Exception:
+            continue
+
+    return None
+
+
 def _get_fill_price(params: OrderParams) -> Decimal:
     """
-    Simple v1 logic (PAPER only for now):
+    PAPER fill-price logic:
 
     - If a limit price is provided, use that.
-    - Otherwise, pretend the current market price is 100.
-      (Later we can plug in real quotes here for PAPER too.)
+    - If order_type == "MKT" and no limit price:
+        * Try live price from Redis (Thinkorswim -> Excel -> Redis).
+        * If no live price is available, reject the order.
+    - For other order types that need a price but have no limit,
+      we currently require a limit in PAPER mode.
     """
+
+    # 1) Explicit limit price always wins
     if params.limit_price is not None:
         return params.limit_price
-    return Decimal("100")
+
+    # 2) MARKET order -> use live price from Redis
+    if params.order_type == "MKT":
+        price = _get_live_price_from_redis(params.symbol)
+        if price is None:
+            raise InvalidPaperOrder(
+                "Cannot fill market order: no live market price available "
+                "for this symbol in PAPER mode. Start the TOS feed or use "
+                "a limit order with an explicit price."
+            )
+        return price
+
+    # 3) Any other order type that needs a price but has no limit
+    raise InvalidPaperOrder(
+        "Cannot determine fill price: limit price is required for this "
+        "order type in PAPER mode."
+    )
 
 
 def _validate_params(params: OrderParams) -> None:
