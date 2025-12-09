@@ -21,6 +21,7 @@ from django.conf.urls.static import static
 from django.http import JsonResponse
 from django.views.generic import RedirectView
 from GlobalMarkets.views import api_test_page, debug_market_times, sync_markets
+from LiveData.schwab import views as schwab_views
 
 
 admin.site.site_header = "Thor's Command Center"
@@ -67,6 +68,9 @@ urlpatterns = [
     path('test/', api_test_page, name='api_test'),  # API test page
     path('debug/', debug_market_times, name='debug_market_times'),  # Debug endpoint
     path('sync/', sync_markets, name='sync_markets'),  # Sync markets endpoint
+    # Public Schwab OAuth callback paths (support with/without trailing slash)
+    path('schwab/callback', schwab_views.oauth_callback, name='schwab_callback_public_root'),
+    path('schwab/callback/', schwab_views.oauth_callback, name='schwab_callback_public'),
     # TODO: Migrate OAuth callbacks after testing
     # Root-level OAuth callback to match Schwab portal setting (e.g., https://360edu.org/auth/callback)
     # path('auth/callback', schwab_auth_callback, name='schwab_auth_callback_root'),

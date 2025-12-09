@@ -274,21 +274,25 @@ SCHWAB_CLIENT_SECRET = config('SCHWAB_CLIENT_SECRET', default='')
 # Cloudflare Tunnel URL (for HTTPS OAuth callback in dev)
 CLOUDFLARE_TUNNEL_URL = config('CLOUDFLARE_TUNNEL_URL', default='')
 
-# OAuth Callback URL
-# In dev: Use Cloudflare tunnel for HTTPS (Schwab requires HTTPS)
-# In prod: Use production domain
+# Redirect URIs (must match Schwab developer portal)
+SCHWAB_REDIRECT_URI_PROD = config('SCHWAB_REDIRECT_URI', default='https://360edu.org/schwab/callback')
+SCHWAB_REDIRECT_URI_DEV = config('SCHWAB_REDIRECT_URI_DEV', default='')
+
+if not SCHWAB_REDIRECT_URI_DEV:
+    if CLOUDFLARE_TUNNEL_URL:
+        SCHWAB_REDIRECT_URI_DEV = f"{CLOUDFLARE_TUNNEL_URL.rstrip('/')}/schwab/callback"
+    else:
+        SCHWAB_REDIRECT_URI_DEV = 'http://localhost:8000/schwab/callback'
+
+SCHWAB_REDIRECT_URI = SCHWAB_REDIRECT_URI_DEV if DEBUG else SCHWAB_REDIRECT_URI_PROD
+
 if DEBUG and CLOUDFLARE_TUNNEL_URL:
-    SCHWAB_REDIRECT_URI = f"{CLOUDFLARE_TUNNEL_URL}/api/schwab/oauth/callback/"
-    
-    # Add tunnel domain to allowed hosts and CSRF trusted origins
+    # Add tunnel domain to allowed hosts and CSRF trusted origins for dev callbacks
     tunnel_domain = CLOUDFLARE_TUNNEL_URL.replace('https://', '').replace('http://', '')
     if tunnel_domain not in ALLOWED_HOSTS:
         ALLOWED_HOSTS.append(tunnel_domain)
     if CLOUDFLARE_TUNNEL_URL not in CSRF_TRUSTED_ORIGINS:
         CSRF_TRUSTED_ORIGINS.append(CLOUDFLARE_TUNNEL_URL)
-else:
-    # Production callback URL
-    SCHWAB_REDIRECT_URI = config('SCHWAB_REDIRECT_URI', default='https://360edu.org/api/schwab/oauth/callback/')
 
 # Structured logging for background supervisors and services
 LOGGING = {
