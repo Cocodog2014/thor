@@ -197,7 +197,7 @@ const CommanderWelcomeModal: React.FC<CommanderWelcomeModalProps> = ({ open, onD
               {sceneOneStage === 'captain' ? 'Captain on deck' : 'WARP CORE - STABLE     - SHIELDS - 100%'}
             </div>
           )}
-          {imageIndex === 1 && (
+          {imageIndex === 1 && previousImageIndex === null && (
             <div
               className={`commander-modal__callout commander-modal__callout--scene-two${sceneTwoCalloutVisible ? '' : ' is-hidden'}`}
             >
