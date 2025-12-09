@@ -1,5 +1,5 @@
 // src/pages/Home/Home.tsx
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import GlobalMarkets from "../GlobalMarkets/GlobalMarkets";
 import TwoByThreeGridSortable from "../../components/Grid2x3/TwoByThreeGridSortable";
@@ -35,23 +35,29 @@ const BASE_TILES: DashboardTile[] = [
 
 const STORAGE_KEY = "thor.home.tiles.order";
 
-const WELCOME_SESSION_KEY = "thor.home.welcomeDismissed";
+const WELCOME_PERSIST_KEY = "thor.home.welcome.dismissed";
 
 const Home: React.FC = () => {
-  const [showWelcome, setShowWelcome] = useState<boolean>(() => {
-    try {
-      return sessionStorage.getItem(WELCOME_SESSION_KEY) !== "true";
-    } catch {
-      return true;
-    }
-  });
+  const [showWelcome, setShowWelcome] = useState<boolean>(false);
+  const [hasLoadedPreference, setHasLoadedPreference] = useState(false);
   const { tiles, setTiles } = useDragAndDropTiles(BASE_TILES, { storageKey: STORAGE_KEY });
   const navigate = useNavigate();
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(WELCOME_PERSIST_KEY);
+      setShowWelcome(stored !== "true");
+    } catch {
+      setShowWelcome(true);
+    } finally {
+      setHasLoadedPreference(true);
+    }
+  }, []);
 
   const dismissWelcome = () => {
     setShowWelcome(false);
     try {
-      sessionStorage.setItem(WELCOME_SESSION_KEY, "true");
+      localStorage.setItem(WELCOME_PERSIST_KEY, "true");
     } catch {
       /* ignore sessionStorage restrictions */
     }
@@ -96,7 +102,7 @@ const Home: React.FC = () => {
   return (
     <div className="home-screen">
       <main className="home-content">
-        <CommanderWelcomeModal open={showWelcome} onDismiss={dismissWelcome} />
+        <CommanderWelcomeModal open={hasLoadedPreference && showWelcome} onDismiss={dismissWelcome} />
         <TwoByThreeGridSortable tiles={enhancedTiles} onReorder={setTiles} />
       </main>
     </div>
