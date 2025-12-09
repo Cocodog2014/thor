@@ -1,5 +1,26 @@
 Here is the clean, correct front-end ↔ back-end flow for your trading platform as of today, including what you already have, what needs to be added, and what you're missing.
 
+### 2025-12-09 Front-End Updates (Home Command Experience)
+
+- The home dashboard now launches a three-scene Commander Welcome modal (rendered from `CommanderWelcomeModal.tsx`) the first time a session loads. Dismissal state is persisted with the `thor.home.welcome.dismissed` sessionStorage key so returning users skip the sequence unless storage is cleared.
+- Scene 1 (“Captain on deck” → “Workhorse Stable shield 100 percent”) displays for 6s with staged callouts; hover/fade timings are handled inside the modal component.
+- Scene 2 shows “Engine room to Captain. Controls are yours.” for 4s once the Scene 1 → Scene 2 rotation completes. The Engage button is available only during Scene 2 and is disabled while the finale sequence is running.
+- Tapping Engage transitions to Scene 3 (“Your war room is activated…”) with a 3s message overlay before the modal auto-dismisses and routing returns to `/app/home`.
+- All three scenes use portal rendering, layered image animations, and timed callouts governed by React state hooks; CSS lives beside the component and includes rotate-in/out keyframes plus distinctive theming per scene.
+
+### Production Runtime Stack (Thor Cloud Footprint)
+
+- **Thor Web (Vite/React build served by Nginx/engineX container)** – static assets are built via `thor-frontend`, baked into the `thor-web` image, and fronted by the engineX reverse proxy. engineX terminates TLS, serves the SPA, and proxies API requests to the backend container network.
+- **Thor Backend (Django + Gunicorn)** – packaged as `thor-backend` service. Gunicorn workers run the Django app, expose the REST API, WebSocket endpoints, and upload/download routes. Requests from engineX hit this service over the internal Docker network.
+- **Thor Workers** – dedicated Celery/async worker container that shares the backend codebase but executes background jobs (paper engine fills, market data ingestion, scheduled account snaps). Pulled from the same image but launched with the worker entrypoint so long-running jobs don’t block the web tier.
+- **Redis** – central message bus + cache. Used for:
+        - Celery broker between Thor Web/Gunicorn and Thor Workers
+        - LiveData pub/sub channels (quotes, fills, telemetry)
+        - Short-lived session/cache data for dashboards
+- **PostgreSQL** – authoritative datastore for users, accounts, orders, positions, telemetry snapshots. Runs in its own container with mounted volume (`docker/postgres/data`). All Django apps point to this instance via internal hostname `postgres`.
+- **Networking** – docker compose wires all containers (engineX, thor-web, thor-backend, thor-workers, redis, postgres) onto the `thor_app_net`. Only engineX exposes ports to the host, so everything else stays private behind the proxy.
+- **Deploy Flow** – `docker-compose up -d --build` rebuilds thor-frontend + thor-backend images, restarts engineX, migrates postgres, and resurrects workers so the full stack stays in sync.
+
 ✅ FULL SYSTEM FLOW — FRONT + BACK FOR TRADING
 
 Customer Opens an Account
