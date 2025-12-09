@@ -60,6 +60,7 @@ const Home: React.FC = () => {
     } catch {
       /* ignore sessionStorage restrictions */
     }
+    navigate("/app/home");
   };
 
   const enhancedTiles = useMemo(() => {

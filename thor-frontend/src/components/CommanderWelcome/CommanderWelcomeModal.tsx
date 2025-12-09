@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import sceneOneImg from '../../assets/Scene 1.png';
 import sceneTwoImg from '../../assets/Scene 2.png';
+import sceneThreeImg from '../../assets/Scene 3.png';
 import './CommanderWelcomeModal.css';
 
 export interface CommanderWelcomeModalProps {
@@ -9,23 +10,27 @@ export interface CommanderWelcomeModalProps {
   onDismiss: () => void;
 }
 
-const modalImages = [sceneOneImg, sceneTwoImg];
+const modalImages = [sceneOneImg, sceneTwoImg, sceneThreeImg];
 const SCENE_ONE_DURATION = 6000;
 const SCENE_ONE_PHASE_DURATION = 2500;
 const CALLOUT_FADE_DURATION = 400;
 const SCENE_TWO_MESSAGE_DURATION = 4000;
 const IMAGE_TRANSITION_DURATION = 900;
+const SCENE_THREE_DISPLAY_DURATION = 5000;
 
 const CommanderWelcomeModal: React.FC<CommanderWelcomeModalProps> = ({ open, onDismiss }) => {
   const [imageIndex, setImageIndex] = useState(0);
   const [sceneOneStage, setSceneOneStage] = useState<'captain' | 'shield'>('captain');
   const [calloutVisible, setCalloutVisible] = useState(true);
   const [sceneTwoCalloutVisible, setSceneTwoCalloutVisible] = useState(false);
+  const [sceneThreeMessageVisible, setSceneThreeMessageVisible] = useState(false);
+  const [isEngaging, setIsEngaging] = useState(false);
   const [previousImageIndex, setPreviousImageIndex] = useState<number | null>(null);
   const timerRef = useRef<number | null>(null);
   const sceneOneTimerRef = useRef<number[]>([]);
   const sceneTwoTimerRef = useRef<number | null>(null);
   const imageTransitionTimerRef = useRef<number | null>(null);
+  const sceneThreeTimerRef = useRef<number | null>(null);
 
   const clearSceneOneTimers = () => {
     sceneOneTimerRef.current.forEach((id) => window.clearTimeout(id));
@@ -47,15 +52,25 @@ const CommanderWelcomeModal: React.FC<CommanderWelcomeModalProps> = ({ open, onD
     setPreviousImageIndex(null);
   };
 
+  const clearSceneThreeTimer = () => {
+    if (sceneThreeTimerRef.current) {
+      window.clearTimeout(sceneThreeTimerRef.current);
+      sceneThreeTimerRef.current = null;
+    }
+  };
+
   useEffect(() => {
     if (!open) {
       setImageIndex(0);
       setSceneOneStage('captain');
       setCalloutVisible(true);
       setSceneTwoCalloutVisible(false);
+      setSceneThreeMessageVisible(false);
+      setIsEngaging(false);
       clearImageTransition();
       clearSceneOneTimers();
       clearSceneTwoTimer();
+      clearSceneThreeTimer();
       if (timerRef.current) {
         window.clearTimeout(timerRef.current);
       }
@@ -110,7 +125,7 @@ const CommanderWelcomeModal: React.FC<CommanderWelcomeModalProps> = ({ open, onD
   }, [open, imageIndex]);
 
   useEffect(() => {
-    if (!open || imageIndex !== 1) {
+    if (!open || imageIndex !== 1 || isEngaging) {
       clearSceneTwoTimer();
       setSceneTwoCalloutVisible(false);
       return undefined;
@@ -123,7 +138,35 @@ const CommanderWelcomeModal: React.FC<CommanderWelcomeModalProps> = ({ open, onD
     }, SCENE_TWO_MESSAGE_DURATION);
 
     return clearSceneTwoTimer;
-  }, [open, imageIndex]);
+  }, [open, imageIndex, isEngaging]);
+
+  useEffect(() => () => {
+    clearSceneThreeTimer();
+  }, []);
+
+  const handleEngage = () => {
+    if (isEngaging || imageIndex !== 1) {
+      return;
+    }
+
+    setIsEngaging(true);
+    clearSceneTwoTimer();
+    clearImageTransition();
+    clearSceneThreeTimer();
+    setSceneThreeMessageVisible(false);
+    setPreviousImageIndex(1);
+    setImageIndex(2);
+
+    imageTransitionTimerRef.current = window.setTimeout(() => {
+      setPreviousImageIndex(null);
+      imageTransitionTimerRef.current = null;
+      setSceneThreeMessageVisible(true);
+      sceneThreeTimerRef.current = window.setTimeout(() => {
+        setSceneThreeMessageVisible(false);
+        onDismiss();
+      }, SCENE_THREE_DISPLAY_DURATION);
+    }, IMAGE_TRANSITION_DURATION);
+  };
 
   if (!open || typeof document === 'undefined') {
     return null;
@@ -151,7 +194,7 @@ const CommanderWelcomeModal: React.FC<CommanderWelcomeModalProps> = ({ open, onD
             <div
               className={`commander-modal__callout${calloutVisible ? '' : ' is-hidden'}`}
             >
-              {sceneOneStage === 'captain' ? 'Captain on deck' : 'Workhorse Stable shield 100 percent'}
+              {sceneOneStage === 'captain' ? 'Captain on deck' : 'WARP CORE - STABLE     - SHIELDS - 100%'}
             </div>
           )}
           {imageIndex === 1 && (
@@ -161,9 +204,21 @@ const CommanderWelcomeModal: React.FC<CommanderWelcomeModalProps> = ({ open, onD
               Engine room to Captain. Controls are yours.
             </div>
           )}
+          {imageIndex === 2 && sceneThreeMessageVisible && (
+            <div className="commander-modal__callout commander-modal__callout--scene-three">
+              <strong>Your war room is activated.</strong>
+              <span>The storm accelerates before you.</span>
+              <span>Lead with discipline—every move echoes across the battlefield.</span>
+            </div>
+          )}
         </div>
         {imageIndex === 1 && (
-          <button type="button" className="commander-modal__dismiss" onClick={onDismiss}>
+          <button
+            type="button"
+            className="commander-modal__dismiss"
+            onClick={handleEngage}
+            disabled={isEngaging}
+          >
             Engage
           </button>
         )}
