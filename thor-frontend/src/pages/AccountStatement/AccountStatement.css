@@ -1,276 +1,31 @@
-/* Account Statement page styles */
+/* Root page wrapper – make it behave like Activity & Positions */
 
 .account-statements-page {
-  max-width: 1440px;
-  margin: 0 auto;
-  padding: clamp(24px, 3vw, 48px);
   display: flex;
   flex-direction: column;
-  gap: 24px;
-  background: var(--bg-0);
-}
+  height: 100%;
+  width: 100%;
+  box-sizing: border-box;
 
-.account-statements-header {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
+  /* Tighter padding like AP screen */
+  padding: 0.5rem 0.5rem 0.75rem;
 
-.account-statements-header h1 {
-  font-family: var(--thor-font-title, 'Inter');
-  font-size: clamp(28px, 4vw, 40px);
-  color: var(--text-strong);
-}
+  /* Smaller gaps between blocks so page isn't tall when mostly empty */
+  gap: 0.75rem;
 
-.account-statements-subtitle {
-  color: var(--text-subtle);
-  font-size: 15px;
-}
-
-.account-statements-meta {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 16px;
-  padding: 20px 24px;
-  border: 1px solid var(--border-1);
-  border-radius: 16px;
-  background: linear-gradient(135deg, rgba(2, 6, 23, 0.85), rgba(3, 7, 18, 0.9));
-}
-
-.account-meta-item {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.account-meta-label {
-  font-size: 13px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-}
-
-.account-meta-value {
-  font-size: 20px;
-  color: var(--text-strong);
-}
-
-.account-statements-filters {
-  display: flex;
-  gap: 24px;
-  align-items: flex-end;
-  flex-wrap: wrap;
-  padding: 24px;
-  border-radius: 16px;
-  border: 1px solid var(--border-1);
-  background: var(--bg-1);
-}
-
-.filter-group {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.filter-group.wide {
-  flex: 1 1 520px;
-}
-
-.filter-group label,
-.filter-group-label-main {
-  font-size: 14px;
-  color: var(--text-muted);
-  font-weight: 600;
-}
-
-.statement-range-row {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  margin-top: 12px;
-}
-
-.statement-range-option {
-  display: flex;
-  gap: 12px;
-  align-items: flex-start;
   color: var(--text-normal);
+  background-color: transparent; /* sit on global bg-0 */
+  font-size: 0.9rem;
+
+  /* Let this page be the scroll area (like .ap-body) */
+  overflow-y: auto;
 }
 
-.statement-range-option input[type="radio"] {
-  accent-color: var(--accent-yellow);
-  margin-top: 6px;
-}
-
-.statement-range-text {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  font-size: 14px;
-}
-
-.account-statements-select,
-.statement-days-input,
-.statement-date-input,
-.account-row-filter-input {
-  background: var(--input-bg);
-  border: 1px solid var(--input-border);
-  color: var(--text-normal);
-  border-radius: 10px;
-  padding: 10px 12px;
-  font-size: 14px;
-  min-height: 40px;
-}
-
-.account-statements-select:focus,
-.statement-days-input:focus,
-.statement-date-input:focus,
-.account-row-filter-input:focus {
-  outline: 2px solid rgba(250, 204, 21, 0.35);
-  border-color: var(--accent-yellow);
-}
-
-.statement-days-input {
-  width: 80px;
-}
-
-.account-statements-apply-btn {
-  background: var(--accent-yellow);
-  color: #111;
-  border: none;
-  border-radius: 999px;
-  padding: 12px 28px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.account-statements-apply-btn:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 8px 25px rgba(250, 204, 21, 0.25);
-}
-
-.statement-range-help {
-  margin-top: 10px;
-  font-size: 13px;
-  color: var(--text-subtle);
-}
-
-.account-statements-subfilters {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 24px;
-  padding: 18px 24px;
-  border-radius: 16px;
-  border: 1px solid var(--border-1);
-  background: var(--bg-1);
-}
-
-.account-statements-subfilters .filter-group {
-  flex: 1 1 280px;
-}
-
+/* Sections wrapper: let it stretch to fill remaining space */
 .account-statements-sections {
   display: flex;
   flex-direction: column;
-  gap: 18px;
-}
-
-.account-section {
-  border: 1px solid var(--border-1);
-  border-radius: 16px;
-  background: var(--bg-1);
-  overflow: hidden;
-}
-
-.account-section-header {
-  width: 100%;
-  border: none;
-  background: var(--bg-2);
-  color: var(--text-strong);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 18px 24px;
-  cursor: pointer;
-  text-align: left;
-  font-size: 16px;
-  font-weight: 600;
-}
-
-.account-section-title {
-  flex: 1;
-}
-
-.account-section-toggle-icon {
-  font-size: 18px;
-  color: var(--accent-yellow);
-}
-
-.account-section-rowcount {
-  font-size: 13px;
-  color: var(--text-muted);
-}
-
-.account-statements-table-wrapper {
-  width: 100%;
-  overflow-x: auto;
-  background: var(--bg-1);
-}
-
-.account-statements-table {
-  width: 100%;
-  border-collapse: collapse;
-  min-width: 720px;
-}
-
-.account-statements-table th,
-.account-statements-table td {
-  padding: 14px 18px;
-  font-size: 14px;
-  border-bottom: 1px solid var(--border-1);
-}
-
-.account-statements-table th {
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  font-size: 12px;
-  color: var(--text-muted);
-  background: rgba(3, 7, 18, 0.65);
-}
-
-.account-statements-table tbody tr:hover {
-  background: var(--row-hover);
-}
-
-.align-right {
-  text-align: right;
-}
-
-.account-no-rows {
-  padding: 26px;
-  text-align: center;
-  color: var(--text-muted);
-  font-size: 15px;
-}
-
-@media (max-width: 900px) {
-  .account-statements-filters {
-    align-items: stretch;
-  }
-
-  .account-statements-apply-btn {
-    width: 100%;
-  }
-
-  .account-section-header {
-    flex-direction: column;
-    align-items: flex-start;
-  }
+  gap: 0.5rem;
+  flex: 1 1 auto;
+  min-height: 0;
 }
