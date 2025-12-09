@@ -1,12 +1,17 @@
+/* MarketSessions.css - Dark Theme v1
+ * Uses global theme variables from global.css
+ * This file controls the Futures Market Sessions dashboard layout and cards.
+ */
+
 /* Market Sessions Styles */
 
 .market-dashboard {
   width: 100%;
-  min-height: 100vh;
+  min-height: 100%;
   padding: 20px;
-  background: #0c0c0c;
-  color: #fff;
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: var(--bg-0);
+  color: var(--text-normal);
+  font-family: var(--thor-font-body);
 }
 
 .market-dashboard-header {
@@ -20,11 +25,13 @@
   letter-spacing: 0.08em;
   text-transform: uppercase;
   margin-bottom: 4px;
+  color: var(--text-strong);
 }
 
 .subtitle-text {
   opacity: 0.9;
   font-size: 0.8rem;
+  color: var(--text-muted);
 }
 
 .market-grid {
@@ -37,13 +44,14 @@
 /* Base card */
 
 .mo-rt-card {
-  background: #1e1e1e;
+  background: var(--bg-1);
   border-radius: 12px;
-  border: 1px solid rgba(255,255,255,0.12);
+  border: 1px solid var(--border-1);
   padding: 16px 18px;
   display: flex;
   flex-direction: row;
   gap: 16px;
+  box-shadow: var(--shadow-soft);
 }
 
 .mo-rt-left {
@@ -76,17 +84,17 @@
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  background: rgba(255,255,255,0.08);
+  background: rgba(255, 255, 255, 0.08);
 }
 
-.chip.sym { background: rgba(255,255,255,0.15); }
-.chip.signal { background: rgba(16,185,129,0.3); }
-.chip.status { background: rgba(255,193,7,0.25); }
-.chip.weight { background: rgba(0,0,0,0.4); }
-.chip.success { background: rgba(76,175,80,0.35); }
-.chip.error { background: rgba(244,67,54,0.35); }
-.chip.warning { background: rgba(255,152,0,0.35); }
-.chip.default { background: rgba(0,0,0,0.2); }
+.chip.sym { background: rgba(255, 255, 255, 0.15); }
+.chip.signal { background: rgba(16, 185, 129, 0.3); }
+.chip.status { background: rgba(245, 197, 24, 0.25); }
+.chip.weight { background: rgba(0, 0, 0, 0.4); }
+.chip.success { background: rgba(76, 175, 80, 0.35); }
+.chip.error { background: rgba(244, 67, 54, 0.35); }
+.chip.warning { background: rgba(255, 152, 0, 0.35); }
+.chip.default { background: rgba(0, 0, 0, 0.2); }
 
 .future-select-label {
   font-size: 11px;
@@ -97,12 +105,19 @@
 }
 
 .future-select {
-  background: rgba(0,0,0,0.5);
+  background: var(--input-bg);
   border-radius: 6px;
-  border: 1px solid rgba(255,255,255,0.2);
+  border: 1px solid var(--input-border);
   padding: 3px 8px;
-  color: #fff;
+  color: var(--text-normal);
   font-size: 12px;
+  font-family: var(--thor-font-body);
+}
+
+.future-select:focus {
+  outline: none;
+  border-color: var(--input-focus-border);
+  box-shadow: 0 0 0 1px var(--input-focus-border);
 }
 
 /* Top strip: Last + Close Δ */
@@ -118,11 +133,13 @@
   font-size: 32px;
   font-weight: 800;
   line-height: 1;
+  color: var(--text-strong);
 }
 
 .mo-rt-last .label {
   font-size: 13px;
   opacity: 0.75;
+  color: var(--text-muted);
 }
 
 .mo-rt-change {
@@ -142,21 +159,22 @@
 .mo-rt-change .label {
   font-size: 12px;
   opacity: 0.75;
+  color: var(--text-muted);
 }
 
 /* delta colors */
 
-.delta-positive { color: #5cc569; }
-.delta-negative { color: #f26d6d; }
-.delta-neutral { color: #fff; opacity: 0.85; }
+.delta-positive { color: var(--green); }
+.delta-negative { color: var(--red); }
+.delta-neutral { color: var(--text-normal); opacity: 0.85; }
 
 /* Placeholder card text */
 
 .mo-rt-placeholder {
   padding: 16px;
   border-radius: 10px;
-  border: 1px dashed rgba(255,255,255,0.25);
-  background: rgba(0,0,0,0.2);
+  border: 1px dashed rgba(255, 255, 255, 0.25);
+  background: rgba(0, 0, 0, 0.2);
   font-size: 0.9rem;
   line-height: 1.4;
   opacity: 0.85;
@@ -183,8 +201,8 @@
 }
 
 .session-summary-card {
-  background: rgba(255,255,255,0.03);
-  border: 1px solid rgba(255,255,255,0.1);
+  background: var(--bg-2);
+  border: 1px solid var(--border-1);
   border-radius: 10px;
   padding: 12px 14px;
 }
@@ -194,17 +212,20 @@
   text-transform: uppercase;
   letter-spacing: 0.08em;
   opacity: 0.7;
+  color: var(--text-muted);
   margin-bottom: 6px;
 }
 
 .summary-value {
   font-size: 18px;
   font-weight: 700;
+  color: var(--text-strong);
 }
 
 .summary-sub {
   font-size: 13px;
   opacity: 0.85;
+  color: var(--text-normal);
   margin-top: 4px;
 }
 
@@ -213,8 +234,8 @@
 .mo-rt-session-stats {
   margin-top: 10px;
   border-radius: 8px;
-  border: 1px solid rgba(255,255,255,0.1);
-  background: rgba(0,0,0,0.35);
+  border: 1px solid var(--border-1);
+  background: rgba(0, 0, 0, 0.35);
   padding: 8px 10px;
   font-size: 11px;
 }
@@ -232,7 +253,7 @@
   letter-spacing: 0.08em;
   font-size: 10px;
   opacity: 0.7;
-  border-bottom: 1px solid rgba(255,255,255,0.1);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   padding-bottom: 4px;
   margin-bottom: 4px;
 }
@@ -250,7 +271,7 @@
 .session-stats-row + .session-stats-row {
   margin-top: 6px;
   padding-top: 6px;
-  border-top: 1px dashed rgba(255,255,255,0.08);
+  border-top: 1px dashed rgba(255, 255, 255, 0.08);
 }
 
 /* numbers line up */
@@ -279,7 +300,7 @@
   height: 0;
   border-left: 6px solid transparent;
   border-right: 6px solid transparent;
-  border-bottom: 10px solid #5cc569;
+  border-bottom: 10px solid var(--green);
 }
 
 .triangle-down {
@@ -287,7 +308,7 @@
   height: 0;
   border-left: 6px solid transparent;
   border-right: 6px solid transparent;
-  border-top: 10px solid #f26d6d;
+  border-top: 10px solid var(--red);
 }
 
 .triangle-neutral {
@@ -306,3 +327,4 @@
     flex-direction: column;
   }
 }
+

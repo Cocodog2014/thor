@@ -1,16 +1,19 @@
-/* TOTAL composite card – orange gradient style */
+/* TotalCard.css - Dark Theme v1
+ * TOTAL composite card – orange gradient style
+ * Uses global theme variables from global.css
+ */
 
 .total-card {
-  background: linear-gradient(135deg, #ff9800, #ff5722);
+  background: linear-gradient(135deg, var(--thor-orange), #ff5722);
   border-radius: 10px;
   border: 1px solid rgba(255, 255, 255, 0.3);
   padding: 12px 14px 10px;
-  color: #fff;
-  font-family: inherit;
+  color: var(--text-strong);
+  font-family: var(--thor-font-body);
   display: flex;
   flex-direction: column;
   gap: 10px;
-  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--shadow-soft);
 }
 
 /* Header */
@@ -70,8 +73,9 @@
   border-radius: 999px;
   border: 1px solid rgba(255, 255, 255, 0.5);
   padding: 2px 8px;
-  color: #fff;
+  color: var(--text-strong);
   font-size: 0.7rem;
+  font-family: var(--thor-font-body);
 }
 
 /* Grid of 4 mini boxes */
@@ -147,3 +151,4 @@
     grid-template-columns: 1fr;
   }
 }
+

@@ -1,288 +1,252 @@
-/* src/pages/AccountStatements/AccountStatements.css */
+/* Account Statement page styles */
 
 .account-statements-page {
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: clamp(24px, 3vw, 48px);
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
-  padding: 1.5rem 1.75rem 2rem;
-  color: #e5e7eb;
-  background-color: transparent; /* let global black canvas show through */
-  font-size: 0.9rem;
+  gap: 24px;
+  background: var(--bg-0);
+}
+
+.account-statements-header {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
 .account-statements-header h1 {
-  margin: 0;
-  font-size: 1.4rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-family: var(--thor-font-title, 'Inter');
+  font-size: clamp(28px, 4vw, 40px);
+  color: var(--text-strong);
 }
 
 .account-statements-subtitle {
-  margin: 0.4rem 0 0;
-  color: #9ca3af;
-  font-size: 0.85rem;
+  color: var(--text-subtle);
+  font-size: 15px;
 }
 
 .account-statements-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem 1.5rem;
-  padding: 0.75rem 1rem;
-  background-color: #020617;
-  border-radius: 0.5rem;
-  border: 1px solid #1f2937;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+  padding: 20px 24px;
+  border: 1px solid var(--border-1);
+  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(2, 6, 23, 0.85), rgba(3, 7, 18, 0.9));
 }
 
 .account-meta-item {
   display: flex;
   flex-direction: column;
-  min-width: 200px;
+  gap: 4px;
 }
 
 .account-meta-label {
-  font-size: 0.7rem;
-  text-transform: uppercase;
+  font-size: 13px;
   letter-spacing: 0.08em;
-  color: #9ca3af;
+  text-transform: uppercase;
+  color: var(--text-muted);
 }
 
 .account-meta-value {
-  font-size: 0.95rem;
-  font-weight: 600;
-  color: #f3f4f6;
+  font-size: 20px;
+  color: var(--text-strong);
 }
-
-/* === TOP FILTER BAR (Statement for...) =============================== */
 
 .account-statements-filters {
   display: flex;
-  gap: 1.5rem;
-  align-items: flex-start;
-  padding: 0.75rem 1rem;
-  background-color: #111827;
-  border-radius: 0.5rem;
-  border: 1px solid #1f2937;
+  gap: 24px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  padding: 24px;
+  border-radius: 16px;
+  border: 1px solid var(--border-1);
+  background: var(--bg-1);
 }
 
 .filter-group {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
-  min-width: 180px;
+  gap: 8px;
 }
 
 .filter-group.wide {
-  flex: 1 1 auto;
-  min-width: 0;
+  flex: 1 1 520px;
 }
 
+.filter-group label,
 .filter-group-label-main {
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: #9ca3af;
+  font-size: 14px;
+  color: var(--text-muted);
+  font-weight: 600;
 }
 
 .statement-range-row {
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
-  margin-top: 0.15rem;
+  gap: 14px;
+  margin-top: 12px;
 }
 
 .statement-range-option {
   display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  font-size: 0.8rem;
-  color: #d1d5db;
+  gap: 12px;
+  align-items: flex-start;
+  color: var(--text-normal);
 }
 
-.statement-range-option input[type='radio'] {
-  accent-color: #fbbf24;
+.statement-range-option input[type="radio"] {
+  accent-color: var(--accent-yellow);
+  margin-top: 6px;
 }
 
 .statement-range-text {
-  display: inline-flex;
+  display: flex;
   flex-wrap: wrap;
-  align-items: center;
-  gap: 0.25rem;
+  gap: 10px;
+  font-size: 14px;
+}
+
+.account-statements-select,
+.statement-days-input,
+.statement-date-input,
+.account-row-filter-input {
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
+  color: var(--text-normal);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 14px;
+  min-height: 40px;
+}
+
+.account-statements-select:focus,
+.statement-days-input:focus,
+.statement-date-input:focus,
+.account-row-filter-input:focus {
+  outline: 2px solid rgba(250, 204, 21, 0.35);
+  border-color: var(--accent-yellow);
 }
 
 .statement-days-input {
-  width: 3rem;
-  background-color: #020617;
-  border-radius: 0.375rem;
-  border: 1px solid #374151;
-  padding: 0.15rem 0.4rem;
-  color: #e5e7eb;
-  font-size: 0.8rem;
+  width: 80px;
 }
-
-.statement-today-select {
-  min-width: 80px;
-}
-
-.statement-date-input {
-  min-width: 150px;
-}
-
-.statement-range-help {
-  margin: 0.4rem 0 0;
-  font-size: 0.75rem;
-  color: #6b7280;
-}
-
-.account-statements-select {
-  background-color: #020617;
-  color: #e5e7eb;
-  border-radius: 0.375rem;
-  border: 1px solid #374151;
-  padding: 0.3rem 0.5rem;
-  font-size: 0.85rem;
-}
-
-.account-statements-select:focus {
-  outline: none;
-  border-color: #fbbf24;
-  box-shadow: 0 0 0 1px #fbbf24;
-}
-
-/* Apply button (same as before) */
 
 .account-statements-apply-btn {
-  margin-left: auto;
-  padding: 0.45rem 1rem;
-  border-radius: 9999px;
-  border: 1px solid #facc15;
-  background: #facc15;
-  color: #111827;
-  font-size: 0.85rem;
+  background: var(--accent-yellow);
+  color: #111;
+  border: none;
+  border-radius: 999px;
+  padding: 12px 28px;
   font-weight: 600;
-  cursor: pointer;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
-  align-self: center;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .account-statements-apply-btn:hover {
-  background: #fbbf24;
+  transform: translateY(-1px);
+  box-shadow: 0 8px 25px rgba(250, 204, 21, 0.25);
 }
 
-/* === SECOND ROW: FILTER ROWS + SHOW BY SYMBOL ======================== */
+.statement-range-help {
+  margin-top: 10px;
+  font-size: 13px;
+  color: var(--text-subtle);
+}
 
 .account-statements-subfilters {
   display: flex;
   flex-wrap: wrap;
-  gap: 1rem 1.5rem;
-  align-items: flex-end;
-  padding: 0.6rem 1rem;
-  background-color: #020617;
-  border-radius: 0.5rem;
-  border: 1px solid #1f2937;
+  gap: 24px;
+  padding: 18px 24px;
+  border-radius: 16px;
+  border: 1px solid var(--border-1);
+  background: var(--bg-1);
 }
 
-.account-row-filter-input {
-  width: 220px;
+.account-statements-subfilters .filter-group {
+  flex: 1 1 280px;
 }
-
-.filter-group label {
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: #9ca3af;
-}
-
-/* === SECTIONS (Cash & Sweep, Equities, P&L, Summary) ================= */
 
 .account-statements-sections {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 18px;
 }
 
 .account-section {
-  border-radius: 0.5rem;
-  border: 1px solid #1f2937;
-  background-color: #020617;
+  border: 1px solid var(--border-1);
+  border-radius: 16px;
+  background: var(--bg-1);
   overflow: hidden;
 }
 
 .account-section-header {
   width: 100%;
   border: none;
-  background: #030712;
-  color: #e5e7eb;
-  padding: 0.45rem 0.75rem;
+  background: var(--bg-2);
+  color: var(--text-strong);
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px 24px;
   cursor: pointer;
-  font-size: 0.8rem;
-}
-
-.account-section-header:hover {
-  background: #111827;
-}
-
-.account-section-toggle-icon {
-  width: 1rem;
-  text-align: center;
-  font-size: 0.9rem;
+  text-align: left;
+  font-size: 16px;
+  font-weight: 600;
 }
 
 .account-section-title {
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  flex: 1 1 auto;
+  flex: 1;
+}
+
+.account-section-toggle-icon {
+  font-size: 18px;
+  color: var(--accent-yellow);
 }
 
 .account-section-rowcount {
-  font-size: 0.75rem;
-  color: #9ca3af;
+  font-size: 13px;
+  color: var(--text-muted);
 }
 
-/* === TABLE STYLES ==================================================== */
-
 .account-statements-table-wrapper {
-  overflow: auto;
+  width: 100%;
+  overflow-x: auto;
+  background: var(--bg-1);
 }
 
 .account-statements-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.85rem;
-}
-
-.account-statements-table thead {
-  background-color: #030712;
+  min-width: 720px;
 }
 
 .account-statements-table th,
 .account-statements-table td {
-  padding: 0.55rem 0.75rem;
-  border-bottom: 1px solid #111827;
-  text-align: left;
-  white-space: nowrap;
+  padding: 14px 18px;
+  font-size: 14px;
+  border-bottom: 1px solid var(--border-1);
 }
 
 .account-statements-table th {
-  font-size: 0.75rem;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: #9ca3af;
-}
-
-.account-statements-table tbody tr:nth-child(even) {
-  background-color: #020617;
-}
-
-.account-statements-table tbody tr:nth-child(odd) {
-  background-color: #020617;
+  letter-spacing: 0.05em;
+  font-size: 12px;
+  color: var(--text-muted);
+  background: rgba(3, 7, 18, 0.65);
 }
 
 .account-statements-table tbody tr:hover {
-  background-color: #111827;
+  background: var(--row-hover);
 }
 
 .align-right {
@@ -290,25 +254,23 @@
 }
 
 .account-no-rows {
+  padding: 26px;
   text-align: center;
-  color: #6b7280;
-  font-style: italic;
+  color: var(--text-muted);
+  font-size: 15px;
 }
 
-/* Old download button style kept in case you re-use it somewhere */
+@media (max-width: 900px) {
+  .account-statements-filters {
+    align-items: stretch;
+  }
 
-.account-statements-download-btn {
-  padding: 0.3rem 0.75rem;
-  border-radius: 9999px;
-  border: 1px solid #4b5563;
-  background: #020617;
-  color: #e5e7eb;
-  font-size: 0.8rem;
-  cursor: pointer;
+  .account-statements-apply-btn {
+    width: 100%;
+  }
+
+  .account-section-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
 }
-
-.account-statements-download-btn:disabled {
-  opacity: 0.5;
-  cursor: default;
-}
-

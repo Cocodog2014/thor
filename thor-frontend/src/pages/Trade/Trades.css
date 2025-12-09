@@ -1,54 +1,69 @@
+/* Trades.css - Dark Theme v1
+ * Uses global theme variables from global.css
+ */
+
 .trade-screen {
   display: flex;
   flex-direction: column;
   gap: 1rem;
   padding: 1.5rem;
-  color: #e8f4ff;
+  color: var(--text-normal);
+  background-color: transparent; /* sits on bg-0 */
 }
 
 .trade-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  background: #0b1a28;
-  border: 1px solid #12486b;
+  background: var(--bg-1);
+  border: 1px solid var(--border-1);
   border-radius: 8px;
   padding: 1rem;
+  box-shadow: var(--shadow-soft);
 }
 
 .trade-header h1 {
   margin: 0 0 0.25rem;
   font-size: 1.75rem;
+  color: var(--text-strong);
 }
 
 .trade-header p {
   margin: 0;
-  color: #9ec4ff;
+  color: var(--text-muted);
 }
 
 .trade-refresh {
-  background: #1f74ff;
+  background: var(--blue);
   border: none;
-  color: #fff;
+  color: #000;
   padding: 0.5rem 1rem;
   border-radius: 999px;
   cursor: pointer;
   font-weight: 600;
+  font-family: var(--thor-font-body);
+  transition: background-color 0.12s ease, transform 0.12s ease;
 }
 
 .trade-refresh:hover {
-  background: #4d92ff;
+  background: var(--blue-soft);
+  transform: translateY(-1px);
+}
+
+.trade-refresh:active {
+  transform: translateY(0);
 }
 
 .trade-body {
-  background: #020f17;
-  border: 1px solid #12486b;
+  background: var(--bg-1);
+  border: 1px solid var(--border-1);
   border-radius: 8px;
   padding: 1.5rem;
+  box-shadow: var(--shadow-soft);
 }
 
 .trade-error {
-  color: #ff8a8a;
+  color: var(--red-soft);
 }
 
 .trade-ticket {
@@ -59,7 +74,7 @@
 
 .trade-ticket-title {
   font-weight: 600;
-  color: #ffeb9c;
+  color: var(--accent-yellow);
 }
 
 .trade-ticket-form {
@@ -72,7 +87,7 @@
   display: flex;
   flex-direction: column;
   font-size: 0.85rem;
-  color: #bfe0ff;
+  color: var(--text-muted);
 }
 
 .trade-ticket-form input,
@@ -80,9 +95,22 @@
   margin-top: 0.25rem;
   padding: 0.4rem 0.5rem;
   border-radius: 4px;
-  border: 1px solid #1f4e79;
-  background: #031a2b;
-  color: #e8f4ff;
+  border: 1px solid var(--input-border);
+  background: var(--input-bg);
+  color: var(--text-normal);
+  font-family: var(--thor-font-body);
+}
+
+.trade-ticket-form input::placeholder,
+.trade-ticket-form select::placeholder {
+  color: var(--text-subtle);
+}
+
+.trade-ticket-form input:focus,
+.trade-ticket-form select:focus {
+  outline: none;
+  border-color: var(--input-focus-border);
+  box-shadow: 0 0 0 1px var(--input-focus-border);
 }
 
 .trade-ticket-form button {
@@ -90,10 +118,21 @@
   padding: 0.7rem 1rem;
   border: none;
   border-radius: 4px;
-  background: #28a745;
+  background: var(--green);
   color: #fff;
   font-weight: 700;
   cursor: pointer;
+  font-family: var(--thor-font-body);
+  transition: background-color 0.12s ease, transform 0.12s ease;
+}
+
+.trade-ticket-form button:hover:not(:disabled) {
+  background: var(--green-soft);
+  transform: translateY(-1px);
+}
+
+.trade-ticket-form button:active:not(:disabled) {
+  transform: translateY(0);
 }
 
 .trade-ticket-form button:disabled {
