@@ -21,6 +21,11 @@ from django.conf.urls.static import static
 from django.http import JsonResponse
 from django.views.generic import RedirectView
 from GlobalMarkets.views import api_test_page, debug_market_times, sync_markets
+
+
+admin.site.site_header = "Thor's Command Center"
+admin.site.site_title = "Thor Command Center"
+admin.site.index_title = "Thor Command Center"
 # Legacy import (can be removed after testing)
 # from SchwabLiveData.views import schwab_auth_callback
 # from SchwabLiveData.admin_views import cloudflared_control
