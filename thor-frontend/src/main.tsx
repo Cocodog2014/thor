@@ -4,7 +4,6 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { BrowserRouter } from 'react-router-dom'
 import { ThemeProvider } from '@mui/material/styles'
 import CssBaseline from '@mui/material/CssBaseline'
-import { Toaster } from 'react-hot-toast'
 import App from './App.tsx'
 import theme from './theme'
 import './styles/global.css'
@@ -34,19 +33,6 @@ createRoot(document.getElementById('root')!).render(
               <App />
             </GlobalTimerProvider>
           </AuthProvider>
-          <Toaster
-            position="top-right"
-            toastOptions={{
-              duration: 4000,
-              className: "toast-default",
-              success: {
-                className: "toast-default toast-success",
-              },
-              error: {
-                className: "toast-default toast-error",
-              },
-            }}
-          />
         </BrowserRouter>
       </ThemeProvider>
     </QueryClientProvider>

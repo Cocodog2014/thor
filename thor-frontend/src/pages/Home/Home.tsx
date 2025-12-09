@@ -6,6 +6,7 @@ import TwoByThreeGridSortable from "../../components/Grid2x3/TwoByThreeGridSorta
 import type { DashboardTile } from "../../components/Grid2x3/TwoByThreeGrid";
 import { useDragAndDropTiles } from "../../hooks/DragAndDrop";
 import CommanderWelcomeModal from "../../components/CommanderWelcome/CommanderWelcomeModal";
+import { HOME_WELCOME_DISMISSED_KEY } from "../../constants/storageKeys";
 
 type TileCTAProps = {
   description: string;
@@ -35,8 +36,6 @@ const BASE_TILES: DashboardTile[] = [
 
 const STORAGE_KEY = "thor.home.tiles.order";
 
-const WELCOME_PERSIST_KEY = "thor.home.welcome.dismissed";
-
 const Home: React.FC = () => {
   const [showWelcome, setShowWelcome] = useState<boolean>(false);
   const [hasLoadedPreference, setHasLoadedPreference] = useState(false);
@@ -45,7 +44,7 @@ const Home: React.FC = () => {
 
   useEffect(() => {
     try {
-      const stored = localStorage.getItem(WELCOME_PERSIST_KEY);
+      const stored = sessionStorage.getItem(HOME_WELCOME_DISMISSED_KEY);
       setShowWelcome(stored !== "true");
     } catch {
       setShowWelcome(true);
@@ -57,7 +56,7 @@ const Home: React.FC = () => {
   const dismissWelcome = () => {
     setShowWelcome(false);
     try {
-      localStorage.setItem(WELCOME_PERSIST_KEY, "true");
+      sessionStorage.setItem(HOME_WELCOME_DISMISSED_KEY, "true");
     } catch {
       /* ignore sessionStorage restrictions */
     }

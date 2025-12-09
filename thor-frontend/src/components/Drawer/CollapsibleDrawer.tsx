@@ -23,6 +23,7 @@ import {
   Public as PublicIcon,
 } from '@mui/icons-material';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { HOME_WELCOME_DISMISSED_KEY } from '../../constants/storageKeys';
 
 export interface CollapsibleDrawerProps {
   open: boolean;
@@ -67,6 +68,7 @@ const CollapsibleDrawer: React.FC<CollapsibleDrawerProps> = ({
     try {
       localStorage.removeItem('thor_access_token');
       localStorage.removeItem('thor_refresh_token');
+      sessionStorage.removeItem(HOME_WELCOME_DISMISSED_KEY);
     } catch {
       // Swallow errors from localStorage in restricted environments
     }
