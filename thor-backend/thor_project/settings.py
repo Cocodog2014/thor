@@ -69,9 +69,9 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
-    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -160,6 +160,11 @@ USE_TZ = True
 
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATICFILES_DIRS = [
+    BASE_DIR / 'static',
+]
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+WHITENOISE_MAX_AGE = 60 * 60 * 24 * 30
 
 
 # Default primary key field type
@@ -220,10 +225,18 @@ CORS_ALLOWED_ORIGINS = [
 CORS_ALLOW_CREDENTIALS = True
 
 # Initialize CSRF trusted origins (Cloudflare tunnel will be added dynamically below)
-CSRF_TRUSTED_ORIGINS = [
+_default_csrf_origins = [
+    'http://localhost',
+    'http://localhost:8000',
+    'http://localhost:8001',
+    'http://127.0.0.1',
+    'http://127.0.0.1:8000',
+    'http://127.0.0.1:8001',
     'https://localhost',
     'https://127.0.0.1',
-] if DEBUG else []
+]
+
+CSRF_TRUSTED_ORIGINS = _default_csrf_origins.copy() if DEBUG else []
 
 # Allow adding more CSRF trusted origins via env (comma-separated), e.g., https://thor.360edu.org
 _csrf_extra = [o.strip() for o in config('CSRF_TRUSTED_ORIGINS_EXTRA', default='').split(',') if o.strip()]
