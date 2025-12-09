@@ -1,10 +1,11 @@
 // src/pages/Home/Home.tsx
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import GlobalMarkets from "../GlobalMarkets/GlobalMarkets";
 import TwoByThreeGridSortable from "../../components/Grid2x3/TwoByThreeGridSortable";
 import type { DashboardTile } from "../../components/Grid2x3/TwoByThreeGrid";
 import { useDragAndDropTiles } from "../../hooks/DragAndDrop";
+import CommanderWelcomeModal from "../../components/CommanderWelcome/CommanderWelcomeModal";
 
 type TileCTAProps = {
   description: string;
@@ -34,9 +35,27 @@ const BASE_TILES: DashboardTile[] = [
 
 const STORAGE_KEY = "thor.home.tiles.order";
 
+const WELCOME_SESSION_KEY = "thor.home.welcomeDismissed";
+
 const Home: React.FC = () => {
+  const [showWelcome, setShowWelcome] = useState<boolean>(() => {
+    try {
+      return sessionStorage.getItem(WELCOME_SESSION_KEY) !== "true";
+    } catch {
+      return true;
+    }
+  });
   const { tiles, setTiles } = useDragAndDropTiles(BASE_TILES, { storageKey: STORAGE_KEY });
   const navigate = useNavigate();
+
+  const dismissWelcome = () => {
+    setShowWelcome(false);
+    try {
+      sessionStorage.setItem(WELCOME_SESSION_KEY, "true");
+    } catch {
+      /* ignore sessionStorage restrictions */
+    }
+  };
 
   const enhancedTiles = useMemo(() => {
     return tiles.map((tile) => {
@@ -77,6 +96,7 @@ const Home: React.FC = () => {
   return (
     <div className="home-screen">
       <main className="home-content">
+        <CommanderWelcomeModal open={showWelcome} onDismiss={dismissWelcome} />
         <TwoByThreeGridSortable tiles={enhancedTiles} onReorder={setTiles} />
       </main>
     </div>

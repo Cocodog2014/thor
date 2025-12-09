@@ -7,6 +7,7 @@
 @import '../components/Header/GlobalHeader.css';
 @import '../components/Banners/GlobalBanner.css';
 @import '../components/Drawer/CollapsibleDrawer.css';
+@import '../components/CommanderWelcome/CommanderWelcomeModal.css';
 @import '../pages/AccountStatement/AccountStatement.css';
 @import '../pages/Home/Home.css';
 @import '../pages/GlobalMarkets/GlobalMarkets.css';

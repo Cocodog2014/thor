@@ -1,7 +1,6 @@
 import React from 'react';
-import { AppBar, Toolbar, Typography, Box, CssBaseline, Chip, Tooltip } from '@mui/material';
+import { AppBar, Toolbar, Typography, Box, CssBaseline } from '@mui/material';
 import CollapsibleDrawer, { DEFAULT_WIDTH_OPEN, DEFAULT_WIDTH_CLOSED } from '../Drawer/CollapsibleDrawer';
-import { useTradingMode } from '../../context/TradingModeContext';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -15,7 +14,6 @@ interface LayoutProps {
 
 const GlobalHeader: React.FC<LayoutProps> = ({ children, onTradingActivityToggle, showTradingActivity, onGlobalMarketToggle, showGlobalMarket, onFuturesOnHomeToggle, showFuturesOnHome }) => {
   const [open, setOpen] = React.useState(false);
-  const { mode } = useTradingMode();
 
   const toggleDrawer = () => setOpen((v) => !v);
 
@@ -48,24 +46,7 @@ const GlobalHeader: React.FC<LayoutProps> = ({ children, onTradingActivityToggle
             ⚡🔨⚡ THOR'S WAR ROOM ⚡🔨⚡
           </Typography>
 
-          {/* Right-side Trading Mode indicator */}
-          <Box sx={{ width: 220, display: 'flex', justifyContent: 'flex-end' }}>
-            <Tooltip title={`Trading Mode: ${mode === 'live' ? 'Live Trading' : 'Paper Trading'}`} placement="left">
-              <Chip
-                label={mode === 'live' ? 'LIVE TRADING' : 'PAPER TRADING'}
-                color={mode === 'live' ? 'success' : 'warning'}
-                variant={mode === 'live' ? 'filled' : 'outlined'}
-                sx={{
-                  fontWeight: 700,
-                  letterSpacing: '0.06em',
-                  bgcolor: mode === 'live' ? 'success.main' : 'transparent',
-                  color: mode === 'live' ? '#fff' : 'warning.light',
-                  borderColor: 'warning.main',
-                }}
-                aria-label={`Current trading mode is ${mode}`}
-              />
-            </Tooltip>
-          </Box>
+          <Box sx={{ width: 220 }} />
         </Toolbar>
       </AppBar>
 
