@@ -76,13 +76,13 @@ thor-frontend/.env.dev → http://localhost:8000/api
 
 Production means:
 
-Gunicorn running Django backend inside Docker
+Gunicorn running Django backend inside Docker (behind Nginx)
 
 React frontend running in Docker (or pointed at Docker backend)
 
 Excel poller STILL RUNS ON WINDOWS (host), not inside Docker
 
-Everything talks via port 8001
+Everything talks via port 8001 routed through Nginx → web:8000
 
 ✔ STEP 1 — Start Excel → Redis poller for Docker
 
@@ -99,7 +99,7 @@ This keeps real-time data flowing into Docker Redis.
 cd A:\Thor
 docker compose build web
 
-✔ STEP 3 — Start the full production stack
+✔ STEP 3 — Start the full production stack (now includes Nginx proxy)
 cd A:\Thor
 docker compose up -d
 
@@ -107,15 +107,19 @@ docker compose up -d
 Services:
 
 Service	Purpose	Port
-thor_web	Gunicorn Django backend	8001
+thor_nginx	Reverse proxy + frontend entry	8001
+thor_web	Gunicorn Django backend (proxied)	internal :8000
 thor_redis	Redis message bus	6379
 thor_postgres	Postgres DB	5432
 thor_worker	Intraday + session workers	—
 
-Backend now at:
+Backend now at (via Nginx):
 👉 http://localhost:8001/api/
 
 👉 http://localhost:8001/admin/
+
+Nginx health check:
+👉 http://localhost:8001/nginx-health
 
 ✔ STEP 4 — Frontend pointed at Docker backend
 
