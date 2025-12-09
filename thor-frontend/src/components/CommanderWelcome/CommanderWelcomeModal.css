@@ -34,14 +34,37 @@
   position: relative;
   border-radius: 28px 28px 12px 12px;
   overflow: hidden;
+  aspect-ratio: 16 / 9;
 }
 
 .commander-modal__image {
   width: 100%;
-  height: auto;
-  display: block;
+  height: 100%;
   object-fit: cover;
+  position: absolute;
+  inset: 0;
+  display: block;
   filter: saturate(115%) contrast(105%);
+}
+
+.commander-modal__image.is-active {
+  position: relative;
+  height: auto;
+}
+
+.commander-modal__image.is-entering,
+.commander-modal__image.is-exiting {
+  pointer-events: none;
+}
+
+.commander-modal__image.is-entering {
+  animation: commander-image-rotate-in 900ms ease forwards;
+  z-index: 2;
+}
+
+.commander-modal__image.is-exiting {
+  animation: commander-image-rotate-out 900ms ease forwards;
+  z-index: 1;
 }
 
 .commander-modal__callout {
@@ -206,5 +229,27 @@
   50% {
     opacity: 1;
     transform: scale(1.15);
+  }
+}
+
+@keyframes commander-image-rotate-in {
+  from {
+    opacity: 0;
+    transform: perspective(1600px) rotateY(-18deg) scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: perspective(1600px) rotateY(0deg) scale(1);
+  }
+}
+
+@keyframes commander-image-rotate-out {
+  from {
+    opacity: 1;
+    transform: perspective(1600px) rotateY(0deg) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: perspective(1600px) rotateY(18deg) scale(0.94);
   }
 }
