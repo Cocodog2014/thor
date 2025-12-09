@@ -1,17 +1,21 @@
-/* CollapsibleDrawer.css - Drawer-specific styles wired through global.css */
+/* CollapsibleDrawer.css - Drawer-specific styles using global theme */
 
+/* Local drawer sizing tokens (safe to keep here) */
 :root {
   --drawer-open: 240px;
   --drawer-closed: 72px;
 }
 
-/* Drawer root and paper */
+/* Root drawer container */
 .thor-drawer {
   width: var(--drawer-closed) !important; /* Ensure the root also shrinks */
   flex-shrink: 0;
   white-space: nowrap;
 }
-.thor-drawer.open { width: var(--drawer-open) !important; }
+
+.thor-drawer.open {
+  width: var(--drawer-open) !important;
+}
 
 /* Control the actual visible width on the Paper element */
 .thor-drawer .MuiDrawer-paper {
@@ -19,18 +23,26 @@
   box-sizing: border-box;
   overflow-x: hidden;
   transition: width 200ms ease;
-  background: var(--thor-sidebar-gradient);
+
+  background: var(--thor-sidebar-gradient); /* from global.css */
+  color: var(--text-normal);
   border-right: none;
 }
-.thor-drawer.open .MuiDrawer-paper { width: var(--drawer-open) !important; }
-.thor-drawer.closed .MuiDrawer-paper { width: var(--drawer-closed) !important; }
 
-/* Toolbar toggle button */
+.thor-drawer.open .MuiDrawer-paper {
+  width: var(--drawer-open) !important;
+}
+
+.thor-drawer.closed .MuiDrawer-paper {
+  width: var(--drawer-closed) !important;
+}
+
+/* Toolbar toggle button (icon in header) */
 .thor-drawer-toggle {
   color: var(--thor-blue-primary);
 }
 
-/* Account info header */
+/* Account info header (text inside drawer top) */
 .thor-account-title {
   color: var(--thor-blue-primary) !important;
   font-weight: bold !important;
@@ -42,15 +54,27 @@
   justify-content: initial;
   padding-left: 20px;
   padding-right: 20px;
+  color: var(--text-normal);
 }
-.thor-drawer.closed .thor-nav-button { justify-content: center; }
 
-.thor-nav-button.Mui-selected {
-  background-color: rgba(25, 118, 210, 0.2);
-  border-right: 3px solid #1976d2;
+.thor-drawer.closed .thor-nav-button {
+  justify-content: center;
 }
+
+/* Selected nav item */
+.thor-nav-button.Mui-selected {
+  /* blue highlight using theme blue */
+  background-color: rgba(30, 136, 229, 0.18); /* approx var(--blue) @ ~18% */
+  border-right: 3px solid var(--thor-blue-primary);
+}
+
+.thor-nav-button.Mui-selected:hover {
+  background-color: rgba(30, 136, 229, 0.24);
+}
+
+/* Hover state for normal nav items */
 .thor-nav-button:hover {
-  background-color: rgba(25, 118, 210, 0.1);
+  background-color: rgba(255, 255, 255, 0.04);
 }
 
 /* Navigation icon/text */
@@ -60,11 +84,17 @@
   justify-content: center;
   color: var(--thor-blue-primary);
 }
-.thor-drawer.closed .thor-nav-icon { margin-right: auto; }
+
+.thor-drawer.closed .thor-nav-icon {
+  margin-right: auto;
+}
 
 .thor-nav-text {
-  color: #fff;
+  color: var(--text-normal);
   opacity: 1;
   transition: opacity 150ms ease;
 }
-.thor-drawer.closed .thor-nav-text { opacity: 0; }
+
+.thor-drawer.closed .thor-nav-text {
+  opacity: 0; /* hide labels in collapsed mode */
+}

@@ -1,3 +1,5 @@
+/* Futures / Global Moving Ribbon - themed to global.css */
+
 .footer-ribbon {
   height: 31px;
   min-height: 31px;
@@ -5,15 +7,16 @@
   display: flex;
   align-items: center;
   overflow: hidden;
-  border-top: 1px solid #262626;
-  background: #0c0c0c;
+
+  border-top: 1px solid var(--border-1);
+  background: var(--bg-0); /* sits on global black canvas */
 }
 
 .footer-ribbon-track {
   display: inline-block;
   white-space: nowrap;
   animation: footer-ribbon-scroll 40s linear infinite;
-  color: #d4d4d4;
+  color: var(--text-normal);
   font-size: 0.75rem;
   padding-left: 0.75rem;
 }
@@ -25,24 +28,25 @@
 
 .ribbon-symbol {
   font-weight: 600;
-  color: #fbbf24;
+  color: var(--accent-yellow); /* was #fbbf24 */
   margin-right: 0.25rem;
 }
 
 .ribbon-price {
-  color: #d4d4d4;
+  color: var(--text-normal);
   margin-right: 0.25rem;
 }
 
 .ribbon-change.positive {
-  color: #34d399;
+  color: var(--green); /* up */
 }
 
 .ribbon-change.negative {
-  color: #f87171;
+  color: var(--red);   /* down */
 }
 
 @keyframes footer-ribbon-scroll {
   0% { transform: translateX(0); }
   100% { transform: translateX(-50%); }
 }
+

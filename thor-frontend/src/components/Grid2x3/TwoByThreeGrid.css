@@ -1,6 +1,6 @@
 /* src/components/Grid2x3/TwoByThreeGrid.css */
-
 /* 2 columns × 3 rows grid - pages control outer container/padding */
+
 .tbt-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -13,44 +13,55 @@
   min-height: 0;
 }
 
-/* Each tile */
+/* ========================================= */
+/*               TILE BACKGROUNDS            */
+/* ========================================= */
+
+/* All tiles share same border + shadow */
 .tbt-tile {
   border-radius: 0.5rem;
   padding: 0.5rem 0.65rem;
   display: flex;
   flex-direction: column;
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
   min-height: 0;
   overflow: hidden;
+
+  border: 1px solid var(--border-1);
+  box-shadow: var(--shadow-soft);
 }
 
-.tbt-tile-1 { background: #181818; }
-.tbt-tile-2 { background: #141414; }
-.tbt-tile-3 { background: #101010; }
-.tbt-tile-4 { background: #0c0c0c; }
-.tbt-tile-5 { background: #080808; }
-.tbt-tile-6 { background: #050505; }
+/* Sequential depth tiles mapped to global backgrounds */
+.tbt-tile-1 { background: var(--bg-1); }
+.tbt-tile-2 { background: var(--bg-1); }
+.tbt-tile-3 { background: var(--bg-1); }
+.tbt-tile-4 { background: var(--bg-2); }
+.tbt-tile-5 { background: var(--bg-2); }
+.tbt-tile-6 { background: var(--bg-2); }
 
-/* Header */
+/* ========================================= */
+/*                   HEADER                  */
+/* ========================================= */
+
 .tbt-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   margin-bottom: 0.25rem;
   font-size: 0.75rem;
+  color: var(--text-normal);
 }
 
 .tbt-drag-handle {
   cursor: grab;
   background: transparent;
   border: 0;
-  color: #9e9e9e;
+  color: var(--text-muted);
   font-size: 0.9rem;
   line-height: 1;
   padding: 0 0.25rem;
   margin-right: 0.25rem;
 }
+
 .tbt-drag-handle:active {
   cursor: grabbing;
 }
@@ -59,29 +70,37 @@
   font-weight: 600;
   font-size: 1.2rem;
   line-height: 1.2;
+  color: var(--text-strong);
 }
 
 .tbt-slot {
   font-size: 0.625rem;
+  color: var(--text-subtle);
   opacity: 0.7;
 }
 
-/* Body - scrollable container for tile content */
+/* ========================================= */
+/*                    BODY                   */
+/* ========================================= */
+
 .tbt-body {
   flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
+
   font-size: 0.75rem;
-  color: #d4d4d4;
-  text-align: center;
+  color: var(--text-normal);
   opacity: 0.85;
+
+  text-align: center;
   min-height: 0;
-  overflow-x: hidden;  /* Never allow horizontal scroll - apps must fit width */
-  overflow-y: auto;    /* Allow vertical scroll when content is too tall */
+
+  overflow-x: hidden;   /* Never allow horizontal scroll */
+  overflow-y: auto;     /* Vertical scroll allowed for long content */
 }
 
-/* When tile has custom content (not just hint text), adjust alignment */
+/* When tile has custom content (not just hint text), stretch content */
 .tbt-body:has(> *:not(.tbt-hint)) {
   align-items: stretch;
   justify-content: stretch;
@@ -89,4 +108,5 @@
 
 .tbt-hint {
   margin: 0;
+  color: var(--text-muted);
 }

@@ -1,31 +1,318 @@
-/* Root page wrapper – make it behave like Activity & Positions */
+/* src/pages/AccountStatements/AccountStatements.css */
 
 .account-statements-page {
   display: flex;
   flex-direction: column;
-  height: 100%;
-  width: 100%;
-  box-sizing: border-box;
-
-  /* Tighter padding like AP screen */
-  padding: 0.5rem 0.5rem 0.75rem;
-
-  /* Smaller gaps between blocks so page isn't tall when mostly empty */
-  gap: 0.75rem;
-
+  gap: 1.25rem;
+  padding: 1.5rem 1.75rem 2rem;
   color: var(--text-normal);
-  background-color: transparent; /* sit on global bg-0 */
+  background-color: transparent; /* let global black canvas show through */
   font-size: 0.9rem;
-
-  /* Let this page be the scroll area (like .ap-body) */
-  overflow-y: auto;
 }
 
-/* Sections wrapper: let it stretch to fill remaining space */
+/* Header */
+
+.account-statements-header h1 {
+  margin: 0;
+  font-size: 1.4rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-strong);
+}
+
+.account-statements-subtitle {
+  margin: 0.4rem 0 0;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+/* Account meta bar */
+
+.account-statements-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.5rem;
+  padding: 0.75rem 1rem;
+  background-color: var(--bg-1);      /* #020617 */
+  border-radius: 0.5rem;
+  border: 1px solid var(--border-1);  /* #1f2937 */
+}
+
+.account-meta-item {
+  display: flex;
+  flex-direction: column;
+  min-width: 200px;
+}
+
+.account-meta-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);           /* #9ca3af */
+}
+
+.account-meta-value {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-strong);          /* #f3f4f6 */
+}
+
+/* === TOP FILTER BAR (Statement for...) =============================== */
+
+.account-statements-filters {
+  display: flex;
+  gap: 1.5rem;
+  align-items: flex-start;
+  padding: 0.75rem 1rem;
+  background-color: var(--bg-3);      /* #111827 */
+  border-radius: 0.5rem;
+  border: 1px solid var(--border-1);  /* #1f2937 */
+}
+
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 180px;
+}
+
+.filter-group.wide {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.filter-group-label-main {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+
+.statement-range-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-top: 0.15rem;
+}
+
+.statement-range-option {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.8rem;
+  color: var(--text-normal);
+}
+
+.statement-range-option input[type='radio'] {
+  accent-color: var(--accent-yellow); /* #fbbf24 */
+}
+
+.statement-range-text {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.statement-days-input {
+  width: 3rem;
+  background-color: var(--bg-1);        /* #020617 */
+  border-radius: 0.375rem;
+  border: 1px solid var(--border-2);    /* #374151 */
+  padding: 0.15rem 0.4rem;
+  color: var(--text-normal);
+  font-size: 0.8rem;
+}
+
+.statement-today-select {
+  min-width: 80px;
+}
+
+.statement-date-input {
+  min-width: 150px;
+}
+
+.statement-range-help {
+  margin: 0.4rem 0 0;
+  font-size: 0.75rem;
+  color: var(--text-subtle);           /* #6b7280 */
+}
+
+.account-statements-select {
+  background-color: var(--bg-1);
+  color: var(--text-normal);
+  border-radius: 0.375rem;
+  border: 1px solid var(--border-2);   /* #374151 */
+  padding: 0.3rem 0.5rem;
+  font-size: 0.85rem;
+}
+
+.account-statements-select:focus {
+  outline: none;
+  border-color: var(--accent-yellow);
+  box-shadow: 0 0 0 1px var(--accent-yellow);
+}
+
+/* Apply button */
+
+.account-statements-apply-btn {
+  margin-left: auto;
+  padding: 0.45rem 1rem;
+  border-radius: 9999px;
+  border: 1px solid var(--accent-yellow);
+  background: var(--accent-yellow);
+  color: #111827;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  align-self: center;
+}
+
+.account-statements-apply-btn:hover {
+  background: var(--accent-yellow-soft);
+}
+
+/* === SECOND ROW: FILTER ROWS + SHOW BY SYMBOL ======================== */
+
+.account-statements-subfilters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem 1.5rem;
+  align-items: flex-end;
+  padding: 0.6rem 1rem;
+  background-color: var(--bg-1);      /* #020617 */
+  border-radius: 0.5rem;
+  border: 1px solid var(--border-1);  /* #1f2937 */
+}
+
+.account-row-filter-input {
+  width: 220px;
+}
+
+.filter-group label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+
+/* === SECTIONS (Cash & Sweep, Equities, P&L, Summary) ================= */
+
 .account-statements-sections {
   display: flex;
   flex-direction: column;
+  gap: 0.75rem;
+}
+
+.account-section {
+  border-radius: 0.5rem;
+  border: 1px solid var(--border-1);
+  background-color: var(--bg-1);      /* #020617 */
+  overflow: hidden;
+}
+
+.account-section-header {
+  width: 100%;
+  border: none;
+  background: var(--bg-2);            /* #030712 */
+  color: var(--text-normal);
+  padding: 0.45rem 0.75rem;
+  display: flex;
+  align-items: center;
   gap: 0.5rem;
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+
+.account-section-header:hover {
+  background: var(--bg-3);            /* #111827 */
+}
+
+.account-section-toggle-icon {
+  width: 1rem;
+  text-align: center;
+  font-size: 0.9rem;
+}
+
+.account-section-title {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
   flex: 1 1 auto;
-  min-height: 0;
+}
+
+.account-section-rowcount {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+/* === TABLE STYLES ==================================================== */
+
+.account-statements-table-wrapper {
+  overflow: auto;
+}
+
+.account-statements-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.account-statements-table thead {
+  background-color: var(--bg-2);      /* #030712 */
+}
+
+.account-statements-table th,
+.account-statements-table td {
+  padding: 0.55rem 0.75rem;
+  border-bottom: 1px solid var(--bg-3);  /* #111827 line between rows */
+  text-align: left;
+  white-space: nowrap;
+}
+
+.account-statements-table th {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+
+.account-statements-table tbody tr:nth-child(even) {
+  background-color: var(--bg-1);
+}
+
+.account-statements-table tbody tr:nth-child(odd) {
+  background-color: var(--bg-1);
+}
+
+.account-statements-table tbody tr:hover {
+  background-color: var(--bg-3);
+}
+
+.align-right {
+  text-align: right;
+}
+
+.account-no-rows {
+  text-align: center;
+  color: var(--text-subtle);
+  font-style: italic;
+}
+
+/* Old download button style kept in case you re-use it somewhere */
+
+.account-statements-download-btn {
+  padding: 0.3rem 0.75rem;
+  border-radius: 9999px;
+  border: 1px solid var(--border-2);  /* #4b5563-ish */
+  background: var(--bg-1);
+  color: var(--text-normal);
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.account-statements-download-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
 }
