@@ -68,7 +68,10 @@ Frontend now alive at:
 👉 http://localhost:5173
 
 Frontend reads API from:
-thor-frontend/.env.local → `/api` (always relative!)
+thor-frontend/.env.local
+- `npm run dev:local` copies `.env.dev` → `.env.local` automatically
+- `VITE_API_BASE_URL=/api` (always relative!)
+- `VITE_PROXY_TARGET=http://127.0.0.1:8000` (Vite proxy)
 
 🧠 Why only `/api`?
 - Locally: the Vite dev server proxies `/api` → http://127.0.0.1:8000 so no port juggling.
@@ -136,7 +139,11 @@ cd A:\Thor\thor-frontend
 npm run dev:docker
 
 
-`npm run dev:docker` copies `.env.docker` → `.env.local`, which also pins `VITE_API_BASE_URL=/api`. When the production tunnel (`https://thor.360edu.org`) hits nginx on 8001, nginx serves the React build and proxies `/api` + `/admin` to Gunicorn.
+`npm run dev:docker` copies `.env.docker` → `.env.local` with:
+- `VITE_API_BASE_URL=/api`
+- `VITE_PROXY_TARGET=http://localhost:8001`
+
+Nginx listens on 8001, serves the React build, and proxies `/api` + `/admin` to Gunicorn when the production tunnel (`https://thor.360edu.org`) forwards requests.
 
 Or build production frontend in Docker (optional).
 

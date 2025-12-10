@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "dev:local": "vite",
+    "dev:local": "node ./scripts/switch-env.mjs dev && vite",
     "dev:docker": "node ./scripts/switch-env.mjs docker && vite",
     "env:docker": "node ./scripts/switch-env.mjs docker",
     "build": "tsc -b && vite build",
