@@ -1,6 +1,6 @@
 /**
  * Environment switch helper
- * Copies one of the template files (.env.dev, .env.docker, etc.) into
+ * Copies one of the template files (.env.docker, etc.) into
  * .env.local so Vite and the React app point at the correct backend
  * (local runserver vs Docker/Gunicorn). Use via npm scripts.
  */

@@ -68,7 +68,7 @@ Frontend now alive at:
 👉 http://localhost:5173
 
 Frontend reads API from:
-thor-frontend/.env.dev → http://localhost:8000/api
+thor-frontend/.env.local → http://localhost:8000/api
 
 ==========================================
 ⭐ 2. PRODUCTION MODE (Docker Desktop)
