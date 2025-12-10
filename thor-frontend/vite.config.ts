@@ -17,9 +17,13 @@ export default defineConfig(({ mode }) => {
       // Allow access from Cloudflare tunnel
       allowedHosts: [
         'thor.360edu.org',
+        'dev-thor.360edu.org',
         'localhost',
         '127.0.0.1',
       ],
+      hmr: {
+        clientPort: 443,
+      },
       // Proxy API calls from the frontend dev server to Django backend
       proxy: {
         '/api': {

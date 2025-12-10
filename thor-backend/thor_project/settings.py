@@ -31,14 +31,15 @@ SECRET_KEY = config('SECRET_KEY', default='django-insecure-h=t6s&0w5sb$fcu(0h#^o
 DEBUG = config('DEBUG', default=True, cast=bool)
 
 ALLOWED_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0']
-# Note: Cloudflare tunnel domain is added dynamically below if configured
+# Note: Cloudflare tunnel domains (thor/dev-thor) are added for dev automatically
+DEFAULT_TUNNEL_HOSTS = ['thor.360edu.org', 'dev-thor.360edu.org']
 
 # Allow additional hosts via env (comma-separated). Useful for tunnels and staging hosts.
 _extra_hosts = [h.strip() for h in config('ALLOWED_HOSTS_EXTRA', default='').split(',') if h.strip()]
 
 # In development, also allow common tunnel domains so callbacks through HTTPS work.
 if DEBUG:
-    ALLOWED_HOSTS += []  # ngrok removed; Cloudflare domain added via env
+    ALLOWED_HOSTS += DEFAULT_TUNNEL_HOSTS
 
 ALLOWED_HOSTS += _extra_hosts
 
@@ -220,6 +221,7 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:5174",  # Vite development server alternate port
     "http://127.0.0.1:5174",
     "https://thor.360edu.org",  # Cloudflare tunnel domain
+    "https://dev-thor.360edu.org",  # Secondary Cloudflare tunnel domain
 ]
 
 CORS_ALLOW_CREDENTIALS = True
@@ -237,6 +239,9 @@ _default_csrf_origins = [
 ]
 
 CSRF_TRUSTED_ORIGINS = _default_csrf_origins.copy() if DEBUG else []
+
+if DEBUG:
+    CSRF_TRUSTED_ORIGINS.extend([f'https://{host}' for host in DEFAULT_TUNNEL_HOSTS])
 
 # Allow adding more CSRF trusted origins via env (comma-separated), e.g., https://thor.360edu.org
 _csrf_extra = [o.strip() for o in config('CSRF_TRUSTED_ORIGINS_EXTRA', default='').split(',') if o.strip()]
