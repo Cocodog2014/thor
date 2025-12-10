@@ -68,7 +68,14 @@ Frontend now alive at:
 👉 http://localhost:5173
 
 Frontend reads API from:
-thor-frontend/.env.local → http://localhost:8000/api
+thor-frontend/.env.local → `/api` (always relative!)
+
+🧠 Why only `/api`?
+- Locally: the Vite dev server proxies `/api` → http://127.0.0.1:8000 so no port juggling.
+- Over the dev tunnel (`https://dev-thor.360edu.org`): Cloudflare forwards `/api` → Django on 8000.
+- Inside Docker/nginx: `/api` is proxied to `web:8000`.
+
+Keep `VITE_API_BASE_URL=/api` in `.env.local` so every axios/fetch call hits the right backend automatically.
 
 ==========================================
 ⭐ 2. PRODUCTION MODE (Docker Desktop)
@@ -129,6 +136,8 @@ cd A:\Thor\thor-frontend
 npm run dev:docker
 
 
+`npm run dev:docker` copies `.env.docker` → `.env.local`, which also pins `VITE_API_BASE_URL=/api`. When the production tunnel (`https://thor.360edu.org`) hits nginx on 8001, nginx serves the React build and proxies `/api` + `/admin` to Gunicorn.
+
 Or build production frontend in Docker (optional).
 
 ==========================================
@@ -161,11 +170,19 @@ is set in docker-compose.yml.
 🔵 Development Mode
 Excel RTD → poll_tos_excel → Redis (Docker) → Django runserver → Frontend (5173)
 
+Cloudflare dev tunnel:
+`dev-thor.360edu.org` → Vite (5173) for `/`, `/src/*`
+`dev-thor.360edu.org` → Django (8000) for `/api`, `/admin`, `/static`, `/media`
+
 🟠 Production Mode
 Excel RTD → poll_tos_excel (host) → Redis (Docker) 
         → Django (Gunicorn in docker)
         → Thor worker (intraday + sessions)
-        → Frontend (docker/local)
+   → Frontend (docker/local)
+
+Cloudflare prod tunnel:
+`thor.360edu.org` → nginx:8001 (serves React build)
+`thor.360edu.org/api` → nginx proxy → `web:8000`
 
 ==========================================
 ⭐ 6. Improvements Added
@@ -207,4 +224,10 @@ Open three terminals (or PowerShell windows).
 3. cd A:\Thor\thor-frontend
    npm run dev:local
 
-4. cd A:cloudflared tunnel run thor
+4. cd A:\Thor
+    cloudflared tunnel run thor
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Production
+
+cd A:\Thor\thor-frontend
+   npm run dev:docker
