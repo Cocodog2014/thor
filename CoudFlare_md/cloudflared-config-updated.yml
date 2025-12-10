@@ -10,6 +10,9 @@ ingress:
   - hostname: thor.360edu.org
     path: /src/*
     service: http://localhost:5173
+  - hostname: dev-thor.360edu.org
+    path: /src/*
+    service: http://localhost:5173
   # Django dev (port 8000) for admin and API
   - hostname: thor.360edu.org
     path: /admin/*
@@ -26,10 +29,32 @@ ingress:
   - hostname: thor.360edu.org
     path: /media/*
     service: http://localhost:8000
+  - hostname: dev-thor.360edu.org
+    path: /admin/*
+    service: http://localhost:8000
+  - hostname: dev-thor.360edu.org
+    path: /admin
+    service: http://localhost:8000
+  - hostname: dev-thor.360edu.org
+    path: /api/*
+    service: http://localhost:8000
+  - hostname: dev-thor.360edu.org
+    path: /static/*
+    service: http://localhost:8000
+  - hostname: dev-thor.360edu.org
+    path: /media/*
+    service: http://localhost:8000
 
   # Everything else (/) → React dev server on 5173
   - hostname: thor.360edu.org
     service: http://localhost:5173
+  - hostname: dev-thor.360edu.org
+    service: http://localhost:5173
 
-  # Catch-all 404
+  # ========== PRODUCTION SITE ==========
+  # thor.360edu.org → Docker stack on host port 8001
+  - hostname: thor.360edu.org
+    service: http://localhost:8001
+
+  # ========== DEFAULT ==========
   - service: http_status:404

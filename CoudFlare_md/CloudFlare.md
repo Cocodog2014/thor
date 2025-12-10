@@ -5,8 +5,8 @@ Cloudflare Tunnel provides HTTPS access to your local computer — nothing here 
 
 ⚡ 1. What the Tunnel Does
 
-When the tunnel is running, the domain https://thor.360edu.org
- securely forwards requests to your local machine:
+When the tunnel is running, the domains https://thor.360edu.org
+and https://dev-thor.360edu.org securely forward requests to your local machine:
 
 URL Path	Local Service	Description
 /	localhost:5173	React (Vite) frontend
@@ -27,7 +27,7 @@ Cloudflare Tunnel uses:
 C:\Users\sutto\.cloudflared\config.yml
 
 
-This file contains your routing rules. Here is the correct version (backed up in your MD folder):
+This file contains your routing rules. Here is the correct version (backed up in your MD folder and kept in sync with both tunnel hostnames):
 
 
 Backup(.cloudflared)
@@ -36,7 +36,15 @@ tunnel: thor
 credentials-file: C:\Users\sutto\.cloudflared\556698d2-2814-415f-a31e-4c3c49c1e120.json
 
 ingress:
-  # Django backend
+  # Ensure TS/JS modules load from Vite on both domains
+  - hostname: thor.360edu.org
+    path: /src/*
+    service: http://localhost:5173
+  - hostname: dev-thor.360edu.org
+    path: /src/*
+    service: http://localhost:5173
+
+  # Django backend (admin, API, static/media)
   - hostname: thor.360edu.org
     path: /admin/*
     service: http://localhost:8000
@@ -52,9 +60,26 @@ ingress:
   - hostname: thor.360edu.org
     path: /media/*
     service: http://localhost:8000
+  - hostname: dev-thor.360edu.org
+    path: /admin/*
+    service: http://localhost:8000
+  - hostname: dev-thor.360edu.org
+    path: /admin
+    service: http://localhost:8000
+  - hostname: dev-thor.360edu.org
+    path: /api/*
+    service: http://localhost:8000
+  - hostname: dev-thor.360edu.org
+    path: /static/*
+    service: http://localhost:8000
+  - hostname: dev-thor.360edu.org
+    path: /media/*
+    service: http://localhost:8000
 
-  # React frontend
+  # Everything else → React dev server on 5173
   - hostname: thor.360edu.org
+    service: http://localhost:5173
+  - hostname: dev-thor.360edu.org
     service: http://localhost:5173
 
   # Catch-all
@@ -63,9 +88,11 @@ ingress:
 
 This config ensures perfect separation:
 
-Frontend traffic → Vite
+Frontend traffic → Vite (both thor/dev-thor domains)
 
 API & admin traffic → Django
+
+🔁 Dev domain reminder: `.env.local` must keep `VITE_API_BASE_URL=/api` so the browser sends requests to the same hostname it loaded from (Cloudflare rewrites /api → localhost:8000).
 
 📁 3. What’s in the /CloudFlareMD Folder?
 
@@ -154,17 +181,17 @@ Closing it turns off the tunnel.
 🧪 6. Testing That Everything Works
 ✔️ Frontend (React)
 
-https://thor.360edu.org/
+https://thor.360edu.org/  or  https://dev-thor.360edu.org/
 
-→ Should show Thor login screen
+→ Should show Thor login screen (same instance)
 
 ✔️ Django Admin
 
-https://thor.360edu.org/admin/
+https://thor.360edu.org/admin/  or  https://dev-thor.360edu.org/admin/
 
 ✔️ API Root
 
-https://thor.360edu.org/api/
+https://thor.360edu.org/api/  (dev-thor equivalent works too)
 
 ✔️ Local fallback (always available)
 
@@ -237,6 +264,6 @@ Your /CloudFlareMD folder keeps everything documented and backed up
 
 You start 3 terminals → Django, Vite, Cloudflare
 
-You now have a professional, rock-solid dev URL:
-https://thor.360edu.org
+You now have professional, rock-solid dev URLs:
+https://thor.360edu.org and https://dev-thor.360edu.org
 
