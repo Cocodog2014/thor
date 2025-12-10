@@ -3,14 +3,27 @@ import axios from 'axios';
 /**
  * API base URL
  *
- * We read this from Vite environment variables:
- *   VITE_API_BASE_URL=http://localhost:8001/api   (Docker / Gunicorn)
- *   VITE_API_BASE_URL=http://localhost:8000/api   (local runserver)
- *
- * If it is NOT set for some reason, we fall back to '/api' so
- * the old Vite proxy behaviour keeps working.
+ * We read this from Vite environment variables when provided (dev scripts, Docker, etc.).
+ * If the env var is missing we fall back to window.location.origin + `/api` so
+ * Cloudflare-hosted builds automatically call the correct domain, and finally '/api'
+ * to keep the old Vite proxy behaviour as a last resort.
  */
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api';
+const trimTrailingSlash = (value: string) => value.replace(/\/+$/, '');
+
+const resolveApiBaseUrl = (): string => {
+  const envValue = import.meta.env.VITE_API_BASE_URL?.trim();
+  if (envValue) {
+    return trimTrailingSlash(envValue);
+  }
+
+  if (typeof window !== 'undefined' && window.location?.origin) {
+    return `${trimTrailingSlash(window.location.origin)}/api`;
+  }
+
+  return '/api';
+};
+
+const API_BASE_URL = resolveApiBaseUrl();
 
 // Create axios instance with base configuration
 const api = axios.create({
