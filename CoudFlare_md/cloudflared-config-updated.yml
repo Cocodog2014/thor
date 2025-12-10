@@ -1,0 +1,31 @@
+# Reference copy of the active Cloudflare tunnel config.
+# The live file that cloudflared reads is stored at:
+#   C:\Users\sutto\.cloudflared\config.yml
+# Update both locations whenever ingress rules change.
+tunnel: thor
+credentials-file: C:\Users\sutto\.cloudflared\556698d2-2814-415f-a31e-4c3c49c1e120.json
+
+ingress:
+  # Django dev (port 8000) for admin and API
+  - hostname: thor.360edu.org
+    path: /admin/*
+    service: http://localhost:8000
+  - hostname: thor.360edu.org
+    path: /admin
+    service: http://localhost:8000
+  - hostname: thor.360edu.org
+    path: /api/*
+    service: http://localhost:8000
+  - hostname: thor.360edu.org
+    path: /static/*
+    service: http://localhost:8000
+  - hostname: thor.360edu.org
+    path: /media/*
+    service: http://localhost:8000
+
+  # Everything else (/) → React dev server on 5173
+  - hostname: thor.360edu.org
+    service: http://localhost:5173
+
+  # Catch-all 404
+  - service: http_status:404
