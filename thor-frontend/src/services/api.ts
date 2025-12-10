@@ -1,29 +1,26 @@
 import axios from 'axios';
 
 /**
- * API base URL
- *
- * We read this from Vite environment variables when provided (dev scripts, Docker, etc.).
- * If the env var is missing we fall back to window.location.origin + `/api` so
- * Cloudflare-hosted builds automatically call the correct domain, and finally '/api'
- * to keep the old Vite proxy behaviour as a last resort.
+ * Resolve API base URL in a way that works for:
+ * - Local dev (localhost:5173 → localhost:8000)
+ * - Cloudflare tunnel (thor.360edu.org → /api)
+ * - Docker (using VITE_API_BASE_URL inside containers)
  */
-const trimTrailingSlash = (value: string) => value.replace(/\/+$/, '');
-
-const resolveApiBaseUrl = (): string => {
-  const envValue = import.meta.env.VITE_API_BASE_URL?.trim();
-  if (envValue) {
-    return trimTrailingSlash(envValue);
+const API_BASE_URL = (() => {
+  const envUrl = import.meta.env.VITE_API_BASE_URL?.trim();
+  if (envUrl) {
+    return envUrl;
   }
 
-  if (typeof window !== 'undefined' && window.location?.origin) {
-    return `${trimTrailingSlash(window.location.origin)}/api`;
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname;
+    if (host === 'localhost' || host === '127.0.0.1') {
+      return 'http://localhost:8000/api';
+    }
   }
 
   return '/api';
-};
-
-const API_BASE_URL = resolveApiBaseUrl();
+})();
 
 // Create axios instance with base configuration
 const api = axios.create({
