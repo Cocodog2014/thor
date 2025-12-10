@@ -6,6 +6,10 @@ tunnel: thor
 credentials-file: C:\Users\sutto\.cloudflared\556698d2-2814-415f-a31e-4c3c49c1e120.json
 
 ingress:
+# --- NEW: make sure TS/JS modules go to Vite dev ---
+  - hostname: thor.360edu.org
+    path: /src/*
+    service: http://localhost:5173
   # Django dev (port 8000) for admin and API
   - hostname: thor.360edu.org
     path: /admin/*

@@ -1,358 +1,242 @@
-![ is this correct
-]({D0A5AB28-6635-4E5A-85BF-8EC5B536E7D3}.png)# Cloudflare Tunnel for Thor (plan for next week)
+🌐 Cloudflare Tunnel — Thor Development Guide (Final Master Document)
 
-This guide wires thor.360edu.org to your local Django dev server (port 8000) using Cloudflare Tunnel. No app changes are required right now; this is a ready-to-run plan for later.
+This document explains exactly how Thor uses Cloudflare Tunnel in development, how to start it, how routing works, and how to recover your configuration instantly.
+Cloudflare Tunnel provides HTTPS access to your local computer — nothing here is hosted or deployed on Cloudflare servers.
 
-Note: Our app already supports root-level OAuth callback routes at `/auth/callback` and `/schwab/callback`, and the Schwab login endpoint is `/api/schwab/auth/login/`. We’ll point the Schwab portal to the tunnel host when you’re ready.
+⚡ 1. What the Tunnel Does
 
----
+When the tunnel is running, the domain https://thor.360edu.org
+ securely forwards requests to your local machine:
 
-## A) One-time Cloudflare setup (Free plan)
+URL Path	Local Service	Description
+/	localhost:5173	React (Vite) frontend
+/admin/	localhost:8000	Django Admin Panel
+/api/	localhost:8000	Django API endpoints
+/static/	localhost:8000	Django static files
+/media/	localhost:8000	Django media files
 
-1) Add the domain to Cloudflare (Free plan)
-- Add `360edu.org` in the Cloudflare dashboard.
-- Update nameservers at Network Solutions to the two nameservers Cloudflare provides.
-- Wait until the domain shows Active in Cloudflare.
+Cloudflare handles HTTPS
+Your PC handles the actual application
 
-We will use `thor.360edu.org` for the backend tunnel. Your main site remains unchanged.
+This allows full Schwab OAuth testing, API calls, and local dev — all through a real, secure domain.
 
----
+⚙️ 2. The Cloudflare Config File
 
-## B) Install and authenticate cloudflared (Windows)
+Cloudflare Tunnel uses:
 
-Open PowerShell and either install via Chocolatey or download the exe to PATH.
+C:\Users\sutto\.cloudflared\config.yml
 
-```powershell
-# Install with Chocolatey
-choco install cloudflared -y
 
-# Or download cloudflared.exe and add it to PATH
-```
+This file contains your routing rules. Here is the correct version (backed up in your MD folder):
 
-Authenticate cloudflared with your Cloudflare account:
 
-```powershell
-cloudflared tunnel login
-```
+Backup(.cloudflared)
 
-This opens the browser; pick your Cloudflare account and zone (`360edu.org`).
-
----
-
-## Step 1 — Confirm the correct binary and service path (Windows)
-
-Goal: Ensure the cloudflared binary on PATH matches the Windows service binary, and that the service uses the expected config/credentials.
-
-- Expected binary path (verified on this machine):
-  - C:\Program Files (x86)\cloudflared\cloudflared.exe
-- Windows Service (verified):
-  - Name: cloudflared
-  - DisplayName: Cloudflared agent
-  - StartType: Manual (controlled via admin dashboard)
-  - BinaryPath (ImagePath): C:\Program Files (x86)\cloudflared\cloudflared.exe
-- Service config and credentials (verified):
-  - Config: C:\ProgramData\cloudflared\config.yml
-  - Credentials file: C:\ProgramData\cloudflared\<TUNNEL-UUID>.json
-- User profile config (optional, used for foreground runs):
-  - Config: %USERPROFILE%\.cloudflared\config.yml
-  - Credentials file: %USERPROFILE%\.cloudflared\<TUNNEL-UUID>.json
-
-Quick checks you can run in PowerShell:
-
-```powershell
-# 1) Confirm the resolved binary on PATH
-where.exe cloudflared
-Get-Command cloudflared | Select-Object -Property Path
-
-# 2) Confirm the Windows service and its binary path
-Get-Service cloudflared | Format-Table Name,DisplayName,Status,StartType
-sc.exe qc cloudflared
-reg query "HKLM\SYSTEM\CurrentControlSet\Services\cloudflared" /v ImagePath
-
-# 3) Confirm service config and credentials exist
-Test-Path "C:\ProgramData\cloudflared\config.yml"
-Get-ChildItem "C:\ProgramData\cloudflared" | Format-Table Name,FullName,Length
-
-# 4) Confirm the tunnel is present
-cloudflared tunnel list
-```
-
-What “good” looks like:
-- The resolved binary path(s) output only C:\Program Files (x86)\cloudflared\cloudflared.exe.
-- The service exists, is set to Manual start (controlled via admin), and ImagePath matches the same binary.
-- C:\ProgramData\cloudflared\config.yml exists and references a credentials-file that also exists in the same folder.
-- `cloudflared tunnel list` shows your tunnel (e.g., `thor`) and a UUID.
-
-If something’s off:
-- Multiple binaries found: remove stale copies from PATH or prefer the full path in scripts.
-- Service missing config/creds in ProgramData: copy your user profile credentials JSON to ProgramData and point config.yml to it, or re-run `cloudflared service install`.
-- Service running but stuck (e.g., StopPending): try `Restart-Service cloudflared` and check Windows Event Viewer > Application logs for cloudflared.
-
-Once these checks pass, proceed to create/route the tunnel below.
-
----
-
-## C) Create the tunnel and DNS route
-
-Create a named tunnel (Cloudflare returns a UUID and writes a credentials JSON file under %USERPROFILE%\.cloudflared):
-
-```powershell
-cloudflared tunnel create thor-local
-```
-
-Route the subdomain to the tunnel:
-
-```powershell
-cloudflared tunnel route dns thor-local thor.360edu.org
-```
-
----
-
-## D) Configure the tunnel to proxy Django (localhost:8000)
-
-Create `%USERPROFILE%\.cloudflared\config.yml` with:
-
-```yaml
-tunnel: thor-local
-credentials-file: C:\Users\<YourWindowsUser>\.cloudflared\<YOUR-UUID>.json
+tunnel: thor
+credentials-file: C:\Users\sutto\.cloudflared\556698d2-2814-415f-a31e-4c3c49c1e120.json
 
 ingress:
+  # Django backend
   - hostname: thor.360edu.org
+    path: /admin/*
     service: http://localhost:8000
+  - hostname: thor.360edu.org
+    path: /admin
+    service: http://localhost:8000
+  - hostname: thor.360edu.org
+    path: /api/*
+    service: http://localhost:8000
+  - hostname: thor.360edu.org
+    path: /static/*
+    service: http://localhost:8000
+  - hostname: thor.360edu.org
+    path: /media/*
+    service: http://localhost:8000
+
+  # React frontend
+  - hostname: thor.360edu.org
+    service: http://localhost:5173
+
+  # Catch-all
   - service: http_status:404
-```
 
-Replace `<YourWindowsUser>` and `<YOUR-UUID>` with your actual values from step C.
 
----
+This config ensures perfect separation:
 
-## E) Run the tunnel
+Frontend traffic → Vite
 
-Keep it running while you develop, or install as a service so it auto-starts.
+API & admin traffic → Django
 
-```powershell
-# Foreground run (good for testing)
-cloudflared tunnel run thor-local
+📁 3. What’s in the /CloudFlareMD Folder?
 
-# Optional: install as a Windows service
-# cloudflared service install
-# cloudflared tunnel run thor-local
-```
+This folder holds all documentation and backup configs related to Cloudflare Tunnel:
 
----
+CloudFlareConfigUpdateYML
 
-## F) Point Schwab and the app to the new HTTPS callback
+CloudflareTunnel.md (this document)
 
-In the Schwab Developer Portal (Thor Trading app), add the callback URL:
+CLOUDFLARE_SETUP_COMPLETE.md
 
-```
-https://thor.360edu.org/schwab/callback
-```
+RESTART_CLOUDFLARED.md
 
-Also keep your existing production callback if applicable.
+SUCCESS_CLOUDFLARE_WORKING.md
 
-Update your local `.env` for development. Prefer using the dev override so production stays unchanged:
+These are developer reference files, not used by Cloudflare itself.
 
-```
-SCHWAB_REDIRECT_URI=https://360edu.org/auth/callback                    # production
-SCHWAB_REDIRECT_URI_DEV=https://thor.360edu.org/schwab/callback        # dev via Cloudflare
-```
+🔍 Why this folder exists
 
-Restart Django so the new env values are picked up.
+To keep all Cloudflare knowledge in one place
 
-Routes that must exist (already implemented):
+To avoid losing the correct config.yml
 
----
+To let any developer restore or understand the tunnel fast
 
-## G) Verification checklist and URLs
+To ensure consistency if Windows or Cloudflare overwrites files
 
-Public domain via Cloudflare Tunnel:
-- https://thor.360edu.org
+📄 4. What Is CloudFlareConfigUpdateYML?
 
-Backend base (through tunnel):
-- https://thor.360edu.org/api/
+CloudFlareConfigUpdateYML is your reference copy of the working Cloudflare config.yml.
 
-Schwab OAuth endpoints:
-- Start login (local): http://localhost:8000/api/schwab/auth/login/
-- Start login (through tunnel): https://thor.360edu.org/api/schwab/auth/login/
-- OAuth callback (root): https://thor.360edu.org/schwab/callback
-- OAuth callback (app): https://thor.360edu.org/api/schwab/auth/callback
+It is:
 
-Provider diagnostics:
-- Health: https://thor.360edu.org/api/schwab/provider/health/?provider=schwab
-- Status: https://thor.360edu.org/api/schwab/provider/status/?provider=schwab
-- Debug GET: https://thor.360edu.org/api/schwab/debug/get/?path=/v1/accounts
+Not used directly by Cloudflare
 
-What to enter in Schwab Developer Portal:
-- Redirect URI: https://thor.360edu.org/schwab/callback
+Not read when the tunnel runs
 
-Quick tests:
-1) Start Django locally on port 8000.
-2) Visit Health: https://thor.360edu.org/api/schwab/provider/health/?provider=schwab (auth.configured should be true when .env is set)
-3) Start OAuth: https://thor.360edu.org/api/schwab/auth/login/ (should redirect to Schwab)
-4) Complete consent and verify callback to https://thor.360edu.org/schwab/callback exchanges code for tokens.
+Only for you (developer backup + restore)
 
-## G) Test the full OAuth flow
+Why it exists
 
-1) Start Django on port 8000.
-2) Ensure `cloudflared tunnel run thor-local` is running.
-3) Visit:
+Windows, Cloudflare updates, or service reinstalls sometimes overwrite:
 
-- Start login locally: `http://127.0.0.1:8000/api/schwab/auth/login/`
-- After Schwab approval, you should land on `https://thor.360edu.org/schwab/callback` (Cloudflare terminates TLS and forwards to localhost), and the app will exchange the `code` for tokens.
+C:\Users\sutto\.cloudflared\config.yml
 
-Useful verification endpoints:
-- Provider status: `http://127.0.0.1:8000/api/schwab/provider/status/?provider=schwab`
-- Debug raw GET: `http://127.0.0.1:8000/api/schwab/debug/get/?path=/v1/accounts`
 
----
+If that happens, simply:
 
-## Notes and safety
+How to restore the tunnel config
 
-- If a Schwab client secret was previously exposed, regenerate it in the portal and update `.env`.
-- Ensure `.env` stays out of Git (it’s in `.gitignore`).
-- Windows Firewall can remain on; Cloudflare Tunnel uses outbound connections only.
-- If you later deploy the backend, you can keep `thor.360edu.org` and repoint the tunnel/DNS to that server instead of localhost.
-- For non-DEBUG environments, add `thor.360edu.org` to Django `ALLOWED_HOSTS` and `CSRF_TRUSTED_ORIGINS` (or use an env-driven allowlist).
+Open CloudFlareConfigUpdateYML
 
----
+Copy contents
 
-## Auto-Recovery (Windows Service)
+Paste into:
 
-If Cloudflared crashes or is terminated, configure Windows Service recovery to auto-restart.
+C:\Users\sutto\.cloudflared\config.yml
 
-Option A — Run the helper script (elevates automatically):
 
-```powershell
-./scripts/configure_cloudflared_recovery.ps1
-```
+Restart Cloudflare:
 
-Option B — Run commands manually (PowerShell as Administrator):
+cloudflared tunnel run thor
 
-```powershell
-sc.exe failure cloudflared reset= 86400 actions= restart/5000/restart/10000/""/15000
-sc.exe failureflag cloudflared 1
-```
 
-Verify settings:
+Instant recovery — no debugging.
 
-```powershell
-sc.exe qfailure cloudflared
-```
+🧩 5. STARTUP GUIDE — Run Thor Through Cloudflare
 
-✅ Why: Auto-restarts after 5 s and again after 10 s; resets the counter every 24 h. OK proceed.
+(3-terminal workflow)
 
----
+Terminal 1 — Start Django Backend
+cd A:\Thor\thor-backend
+python manage.py runserver 0.0.0.0:8000
 
-## Control from Django Admin (dev-only)
+Terminal 2 — Start React Frontend
+cd A:\Thor\thor-frontend
+npm run dev:local
 
-Goal: Start/Stop the Cloudflare Tunnel from the Django Admin without running Django as Administrator. We’ll use two Windows Scheduled Tasks that run with highest privileges and are triggered on-demand by Django.
+Terminal 3 — Start Cloudflare Tunnel
+cloudflared tunnel run thor
 
-Why this approach
-- No UAC prompts during normal use; credentials are stored once in the tasks
-- Django can remain non-admin
-- Simple, auditable, and Windows-native
 
-One-time Windows setup (create two on-demand tasks)
-1) Open Task Scheduler → Create Task…
-   - General: Name = CloudflaredStart; check “Run with highest privileges”; “Run whether user is logged on or not”
-   - Actions: Start a program → Program/script: powershell.exe
-     - Arguments: -NoProfile -ExecutionPolicy Bypass -Command "Start-Service cloudflared"
-   - Triggers: none required (on-demand)
-   - Conditions/Settings: as you prefer
-   - On save, enter your Windows credentials (stored securely by Task Scheduler)
+👉 This terminal must stay open.
+Closing it turns off the tunnel.
 
-2) Create a second task CloudflaredStop with the same settings, but Action Arguments:
-   - -NoProfile -ExecutionPolicy Bypass -Command "Stop-Service cloudflared"
+🧪 6. Testing That Everything Works
+✔️ Frontend (React)
 
-Optional: create tasks to toggle auto-start on boot
-- CloudflaredAutoStartOn: -Command "Set-Service cloudflared -StartupType Automatic"
-- CloudflaredAutoStartOff: -Command "Set-Service cloudflared -StartupType Manual"
+https://thor.360edu.org/
 
-CLI alternative (run PowerShell as Administrator):
+→ Should show Thor login screen
 
-```powershell
-# Create on-demand tasks you can trigger with `schtasks /Run` later
-schtasks /Create /TN CloudflaredStart /TR "powershell -NoProfile -ExecutionPolicy Bypass -Command Start-Service cloudflared" /SC ONCE /SD 01/01/1990 /ST 00:00 /RL HIGHEST /F
-schtasks /Create /TN CloudflaredStop  /TR "powershell -NoProfile -ExecutionPolicy Bypass -Command Stop-Service cloudflared"  /SC ONCE /SD 01/01/1990 /ST 00:00 /RL HIGHEST /F
+✔️ Django Admin
 
-# Optional: tasks to toggle auto-start on boot
-schtasks /Create /TN CloudflaredAutoStartOn  /TR "powershell -NoProfile -ExecutionPolicy Bypass -Command Set-Service cloudflared -StartupType Automatic" /SC ONCE /SD 01/01/1990 /ST 00:00 /RL HIGHEST /F
-schtasks /Create /TN CloudflaredAutoStartOff /TR "powershell -NoProfile -ExecutionPolicy Bypass -Command Set-Service cloudflared -StartupType Manual"     /SC ONCE /SD 01/01/1990 /ST 00:00 /RL HIGHEST /F
+https://thor.360edu.org/admin/
 
-# Quick test (does not require admin once tasks exist)
-schtasks /Run /TN CloudflaredStart
-schtasks /Run /TN CloudflaredStop
-```
+✔️ API Root
 
-Minimal Django wiring plan (SchwabLiveData app)
-- Location (dev convenience):
-  - Services: `thor-backend/SchwabLiveData/services/cloudflared.py`
-  - Admin UI: `thor-backend/SchwabLiveData/admin.py` (admin-only view with Start/Stop buttons and status)
+https://thor.360edu.org/api/
 
-- Service helpers (to be implemented):
-  - get_status(): returns one of running|stopped|pending|unknown (uses `sc.exe query cloudflared`)
-  - start(): `schtasks /Run /TN CloudflaredStart`
-  - stop(): `schtasks /Run /TN CloudflaredStop`
-  - optional: autostart_on()/autostart_off() via the optional tasks above
+✔️ Local fallback (always available)
 
-- Admin view behavior:
-  - Shows current status pill (Running/Stopped/Pending)
-  - Buttons: Start Tunnel, Stop Tunnel (POST)
-  - On action: trigger the task, then poll status up to ~15s and display result or a clear error
-  - Permissions: superuser-only; hide in production or behind DEBUG
+http://localhost:5173
+ (frontend)
 
-Status and troubleshooting commands
-```powershell
-# Check status
-sc.exe query cloudflared | findstr /i STATE
-Get-Service cloudflared | Format-Table Status,StartType,Name
+http://localhost:8000
+ (backend)
 
-# Manually start/stop (admin shell)
-Start-Service cloudflared
-Stop-Service cloudflared
+🔁 7. Restarting Cloudflare Tunnel (If Something Breaks)
 
-# Trigger via tasks (no admin shell needed after creation)
-schtasks /Run /TN CloudflaredStart
-schtasks /Run /TN CloudflaredStop
-```
+If you modify the config or Cloudflare hangs:
 
-Security notes
-- Keep this feature dev-only and restricted to superusers
-- Tasks store credentials; prefer a dev box/local admin account (not a shared production account)
-- The tunnel exposes your machine via thor.360edu.org; treat “On” as public exposure
+Stop the tunnel
+Get-Process cloudflared | Stop-Process -Force
 
-Placement rationale: SchwabLiveData
-- This control is primarily for developing and testing the Schwab OAuth flow through the tunnel, so placing the helpers and admin UI in `SchwabLiveData` keeps it close to that workflow. If we later generalize system controls, we can move these utilities to a dedicated `system` or `core` app.
+Restart it
+cloudflared tunnel run thor
 
----
 
-## Do not implement yet
+This restart process is also documented in:
 
-This document is a plan for next week. We are not changing the app right now. If desired later, we can also add convenience routes like `/schwab/login` and `/schwab/accounts`, but the current endpoints already support the full OAuth flow and testing.
 
-Start-Service cloudflared
-Get-Service cloudflared
-Stop-Service cloudflared
-Restart-Service cloudflared
+RESTART_CLOUDFLARED
 
-Set-Service cloudflared -StartupType Manual
+🔍 8. Troubleshooting Quick Guide
+❌ Frontend not loading
 
+Check Vite:
 
-Set-Service cloudflared -StartupType Manual
+Get-Process node
 
-\\\\Quick one-click Start/Stop (with elevation)////
 
-If you want desktop buttons that auto-elevate:
+Restart:
 
-Start Cloudflared.cmd
+cd A:\Thor\thor-frontend
+npm run dev:local
 
-@echo off
-powershell -NoProfile -Command "Start-Process powershell -Verb RunAs -ArgumentList 'Start-Service cloudflared'"
+❌ Admin/API failing
 
+Check Django:
 
-Stop Cloudflared.cmd
+Get-Process python
 
-@echo off
-powershell -NoProfile -Command "Start-Process powershell -Verb RunAs -ArgumentList 'Stop-Service cloudflared'"
+
+Restart:
+
+python manage.py runserver
+
+❌ Wrong routing / white screen
+
+Likely config.yml overwritten → Restore from CloudFlareConfigUpdateYML.
+
+❌ Tunnel running but domain not loading
+
+Restart Cloudflare:
+
+Get-Process cloudflared | Stop-Process -Force
+cloudflared tunnel run thor
+
+🎉 9. Summary — Your Final Cloudflare Workflow
+
+Thor is NOT hosted on Cloudflare
+
+Cloudflare Tunnel simply forwards traffic → your dev machine
+
+The tunnel enables full HTTPS, OAuth, and API testing
+
+Your /CloudFlareMD folder keeps everything documented and backed up
+
+You start 3 terminals → Django, Vite, Cloudflare
+
+You now have a professional, rock-solid dev URL:
+https://thor.360edu.org
 

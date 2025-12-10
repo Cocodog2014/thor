@@ -190,3 +190,21 @@ Easy to follow
 Impossible to confuse dev/prod paths
 
 Ready for teammates or future you
+
+
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+Start everything in the right order
+
+Open three terminals (or PowerShell windows).
+
+1. cd A:\Thor\thor-backend
+   python manage.py runserver 0.0.0.0:8000
+
+2. cd A:\Thor\thor-backend
+   python manage.py poll_tos_excel --interval 1
+
+3. cd A:\Thor\thor-frontend
+   npm run dev:local
+
+4. cd A:cloudflared tunnel run thor
