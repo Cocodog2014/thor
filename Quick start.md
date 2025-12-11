@@ -238,3 +238,8 @@ Production
 
 cd A:\Thor\thor-frontend
    npm run dev:docker
+
+http://localhost:8080/
+
+users tom@gmail.com
+pw Coco1464#
