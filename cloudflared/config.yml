@@ -1,4 +1,4 @@
-﻿tunnel: thor
+tunnel: thor
 credentials-file: /etc/cloudflared/thor.json
 
 ingress:
