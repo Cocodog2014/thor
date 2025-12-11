@@ -51,3 +51,15 @@ class SchwabTraderAPI:
             'long_stock_value': f"${bal.get('longMarketValue', 0):,.2f}",
             'equity_percentage': f"{bal.get('equity', 0):.2f}%"
         }
+
+    def fetch_positions(self, account_hash):
+        """
+        Placeholder for positions fetch – implement once OAuth is confirmed.
+        """
+        raise NotImplementedError("Positions endpoint not implemented yet")
+
+    def fetch_balances(self, account_hash):
+        """
+        Placeholder for balances fetch – implement once OAuth is confirmed.
+        """
+        raise NotImplementedError("Balances endpoint not implemented yet")

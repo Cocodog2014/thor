@@ -22,38 +22,41 @@ logger = logging.getLogger(__name__)
 def oauth_start(request):
     """
     Start Schwab OAuth flow.
-    
+
     Redirects user to Schwab authorization page.
     """
-    from django.conf import settings
     from urllib.parse import urlencode
-    
-    # Build OAuth authorization URL
-    client_id = getattr(settings, 'SCHWAB_CLIENT_ID', None)
+
+    # Raw client_id from settings (no suffix)
+    raw_client_id = getattr(settings, 'SCHWAB_CLIENT_ID', None)
     redirect_uri = getattr(settings, 'SCHWAB_REDIRECT_URI', None)
-    
-    if not client_id or not redirect_uri:
+
+    if not raw_client_id or not redirect_uri:
         return JsonResponse({
             "error": "Schwab OAuth not configured",
             "message": "Set SCHWAB_CLIENT_ID and SCHWAB_REDIRECT_URI in settings"
         }, status=500)
-    
-    # Schwab OAuth authorization endpoint
+
+    # Schwab wants @AMER.OAUTHAP suffix on the client_id for the auth step
+    client_id_for_auth = (
+        raw_client_id if raw_client_id.endswith("@AMER.OAUTHAP")
+        else f"{raw_client_id}@AMER.OAUTHAP"
+    )
+
     auth_url = "https://api.schwabapi.com/v1/oauth/authorize"
-    
+
     params = {
-        'client_id': client_id,
+        'client_id': client_id_for_auth,
         'redirect_uri': redirect_uri,
         'response_type': 'code',
-        'scope': 'api'  # Adjust scopes as needed
+        'scope': 'api',  # standard scope from Schwab docs
     }
-    
+
     oauth_url = f"{auth_url}?{urlencode(params)}"
-    
+
     logger.info(f"Starting Schwab OAuth for user {request.user.username}")
     logger.info(f"Redirect URI: {redirect_uri}")
-    
-    # Redirect to Schwab
+
     return HttpResponseRedirect(oauth_url)
 
 
