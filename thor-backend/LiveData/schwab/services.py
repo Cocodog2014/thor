@@ -7,6 +7,8 @@ import requests
 from typing import Dict, List
 from decimal import Decimal
 
+from LiveData.shared.redis_client import live_data_redis
+
 logger = logging.getLogger(__name__)
 
 
@@ -41,25 +43,99 @@ class SchwabTraderAPI:
     def get_account_summary(self, account_hash):
         data = self.fetch_account_details(account_hash)
         acct = data.get('securitiesAccount', {})
-        bal = acct.get('currentBalances', {})
+        bal = acct.get('currentBalances', {}) or {}
+
+        def _money(value):
+            try:
+                return f"${float(value):,.2f}"
+            except Exception:
+                return "$0.00"
+
+        def _pct(value):
+            try:
+                return f"{float(value):.2f}%"
+            except Exception:
+                return "0.00%"
+
         return {
-            'net_liquidating_value': f"${bal.get('liquidationValue', 0):,.2f}",
-            'stock_buying_power': f"${bal.get('stockBuyingPower', 0):,.2f}",
-            'option_buying_power': f"${bal.get('optionBuyingPower', 0):,.2f}",
-            'day_trading_buying_power': f"${bal.get('dayTradingBuyingPower', 0):,.2f}",
-            'available_funds_for_trading': f"${bal.get('availableFunds', 0):,.2f}",
-            'long_stock_value': f"${bal.get('longMarketValue', 0):,.2f}",
-            'equity_percentage': f"{bal.get('equity', 0):.2f}%"
+            'net_liquidating_value': _money(bal.get('liquidationValue', 0)),
+            'stock_buying_power': _money(bal.get('stockBuyingPower', 0)),
+            'option_buying_power': _money(bal.get('optionBuyingPower', 0)),
+            'day_trading_buying_power': _money(bal.get('dayTradingBuyingPower', 0)),
+            'available_funds_for_trading': _money(bal.get('availableFunds', 0)),
+            'long_stock_value': _money(bal.get('longMarketValue', 0)),
+            'equity_percentage': _pct(bal.get('equity', 0))
         }
 
-    def fetch_positions(self, account_hash):
+    def fetch_positions(self, account_hash: str) -> List[Dict]:
         """
-        Placeholder for positions fetch – implement once OAuth is confirmed.
+        Fetch positions for an account and publish them to Redis.
         """
-        raise NotImplementedError("Positions endpoint not implemented yet")
+        data = self.fetch_account_details(account_hash, include_positions=True)
+        acct = data.get("securitiesAccount", {}) or {}
+        raw_positions = acct.get("positions", []) or []
 
-    def fetch_balances(self, account_hash):
+        normalized: List[Dict] = []
+
+        for pos in raw_positions:
+            instrument = pos.get("instrument", {}) or {}
+            symbol = instrument.get("symbol") or instrument.get("underlyingSymbol")
+            asset_type = instrument.get("assetType")
+
+            long_qty = pos.get("longQuantity") or 0
+            short_qty = pos.get("shortQuantity") or 0
+            quantity = Decimal(str(long_qty or 0)) - Decimal(str(short_qty or 0))
+
+            avg_price = Decimal(str(pos.get("averagePrice", 0) or 0))
+            market_value = Decimal(str(pos.get("marketValue", 0) or 0))
+
+            position_payload = {
+                "symbol": symbol,
+                "asset_type": asset_type,
+                "quantity": float(quantity),
+                "average_price": float(avg_price),
+                "market_value": float(market_value),
+                "raw_position": pos,
+            }
+
+            normalized.append(position_payload)
+
+            try:
+                live_data_redis.publish_position(account_hash, position_payload)
+            except Exception as e:
+                logger.error(f"Failed to publish Schwab position for {symbol}: {e}")
+
+        return normalized
+
+    def fetch_balances(self, account_hash: str) -> Dict:
         """
-        Placeholder for balances fetch – implement once OAuth is confirmed.
+        Fetch balances for an account and publish them to Redis.
         """
-        raise NotImplementedError("Balances endpoint not implemented yet")
+        data = self.fetch_account_details(account_hash, include_positions=False)
+
+        acct = data.get("securitiesAccount", {}) or {}
+        bal = acct.get("currentBalances", {}) or {}
+
+        def _num(key, default=0):
+            try:
+                return float(bal.get(key, default) or 0)
+            except Exception:
+                return float(default)
+
+        balance_payload: Dict = {
+            "cash": _num("cashBalance"),
+            "available_funds": _num("availableFunds"),
+            "buying_power": _num("buyingPower") or _num("stockBuyingPower"),
+            "liquidation_value": _num("liquidationValue"),
+            "long_market_value": _num("longMarketValue"),
+            "short_market_value": _num("shortMarketValue"),
+            "equity": _num("equity"),
+            "raw_balances": bal,
+        }
+
+        try:
+            live_data_redis.publish_balance(account_hash, balance_payload)
+        except Exception as e:
+            logger.error(f"Failed to publish Schwab balances for {account_hash}: {e}")
+
+        return balance_payload
