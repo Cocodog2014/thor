@@ -63,6 +63,12 @@ Leave this window running so Redis gets updated every second.
 cd A:\Thor\thor-frontend
 npm run dev:local
 
+==========================================
+⭐ 5. OPTIONAL — Cloudflare Tunnel for External Access
+==========================================
+cd A:\Thor
+cloudflared tunnel run dev-thor
+
 
 Frontend now alive at:
 👉 http://localhost:5173
