@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
+import os
 from pathlib import Path
 from decouple import Config, RepositoryEnv
 
@@ -272,6 +273,9 @@ FRONTEND_BASE_URL = config('FRONTEND_BASE_URL', default='http://localhost:5173/'
 # LiveData - Schwab OAuth Configuration
 # ============================================================================
 
+SCHWAB_ENV = os.getenv("SCHWAB_ENV") or config('SCHWAB_ENV', default='disabled')
+SCHWAB_ENABLED = SCHWAB_ENV == "dev"
+
 # Schwab API credentials (get from Schwab Developer Portal)
 SCHWAB_CLIENT_ID = config('SCHWAB_CLIENT_ID', default='')
 SCHWAB_CLIENT_SECRET = config('SCHWAB_CLIENT_SECRET', default='')
@@ -279,17 +283,11 @@ SCHWAB_CLIENT_SECRET = config('SCHWAB_CLIENT_SECRET', default='')
 # Cloudflare Tunnel URL (for HTTPS OAuth callback in dev)
 CLOUDFLARE_TUNNEL_URL = config('CLOUDFLARE_TUNNEL_URL', default='')
 
-# Redirect URIs (must match Schwab developer portal)
-SCHWAB_REDIRECT_URI_PROD = config('SCHWAB_REDIRECT_URI', default='https://360edu.org/schwab/callback')
-SCHWAB_REDIRECT_URI_DEV = config('SCHWAB_REDIRECT_URI_DEV', default='')
-
-if not SCHWAB_REDIRECT_URI_DEV:
-    if CLOUDFLARE_TUNNEL_URL:
-        SCHWAB_REDIRECT_URI_DEV = f"{CLOUDFLARE_TUNNEL_URL.rstrip('/')}/schwab/callback"
-    else:
-        SCHWAB_REDIRECT_URI_DEV = 'http://localhost:8000/schwab/callback'
-
-SCHWAB_REDIRECT_URI = SCHWAB_REDIRECT_URI_DEV if DEBUG else SCHWAB_REDIRECT_URI_PROD
+# Schwab OAuth redirect URI (must match Schwab Developer Portal exactly)
+SCHWAB_REDIRECT_URI = config(
+    'SCHWAB_REDIRECT_URI',
+    default='https://dev-thor.360edu.org/api/schwab/callback'
+)
 
 if DEBUG and CLOUDFLARE_TUNNEL_URL:
     # Add tunnel domain to allowed hosts and CSRF trusted origins for dev callbacks
