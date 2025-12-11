@@ -107,6 +107,16 @@ services:
       - "8080:80"             # Optional local preview: http://localhost:8080
     restart: unless-stopped
 
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: thor_cloudflared
+    restart: unless-stopped
+    command: tunnel --config /etc/cloudflared/config.yml run thor
+    volumes:
+      - ./cloudflared:/etc/cloudflared
+    depends_on:
+      - frontend
+
 volumes:
   postgres_data:
   static_volume:
