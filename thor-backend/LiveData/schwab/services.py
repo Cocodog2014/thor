@@ -8,6 +8,7 @@ from typing import Dict, List
 from decimal import Decimal
 
 from LiveData.shared.redis_client import live_data_redis
+from ActAndPos.models import Account, Position
 
 logger = logging.getLogger(__name__)
 
@@ -67,75 +68,118 @@ class SchwabTraderAPI:
             'equity_percentage': _pct(bal.get('equity', 0))
         }
 
+    def _get_account_record(self, account_hash: str) -> Account | None:
+        return Account.objects.filter(broker="SCHWAB", broker_account_id=account_hash).first()
+
     def fetch_positions(self, account_hash: str) -> List[Dict]:
-        """
-        Fetch positions for an account and publish them to Redis.
-        """
+        """Fetch positions for an account, persist them, and publish to Redis."""
         data = self.fetch_account_details(account_hash, include_positions=True)
         acct = data.get("securitiesAccount", {}) or {}
         raw_positions = acct.get("positions", []) or []
+
+        account = self._get_account_record(account_hash)
+        if not account:
+            logger.warning("Schwab account %s not registered in Thor", account_hash)
+            return []
 
         normalized: List[Dict] = []
 
         for pos in raw_positions:
             instrument = pos.get("instrument", {}) or {}
             symbol = instrument.get("symbol") or instrument.get("underlyingSymbol")
-            asset_type = instrument.get("assetType")
+            if not symbol:
+                continue
 
-            long_qty = pos.get("longQuantity") or 0
-            short_qty = pos.get("shortQuantity") or 0
-            quantity = Decimal(str(long_qty or 0)) - Decimal(str(short_qty or 0))
+            raw_asset = (instrument.get("assetType") or "EQ").upper()
+            asset_type = "EQ" if raw_asset in {"EQ", "EQUITY"} else raw_asset
 
-            avg_price = Decimal(str(pos.get("averagePrice", 0) or 0))
-            market_value = Decimal(str(pos.get("marketValue", 0) or 0))
+            long_qty = Decimal(str(pos.get("longQuantity") or 0))
+            short_qty = Decimal(str(pos.get("shortQuantity") or 0))
+            quantity = long_qty - short_qty
 
-            position_payload = {
+            avg_price = Decimal(str(pos.get("averagePrice") or 0))
+            market_value = Decimal(str(pos.get("marketValue") or 0))
+            mark_price = Decimal("0")
+            if quantity:
+                try:
+                    mark_price = market_value / quantity
+                except Exception:
+                    mark_price = Decimal("0")
+
+            position, _ = Position.objects.update_or_create(
+                account=account,
+                symbol=symbol,
+                asset_type=asset_type,
+                defaults={
+                    "quantity": quantity,
+                    "avg_price": avg_price,
+                    "mark_price": mark_price,
+                },
+            )
+
+            payload = {
                 "symbol": symbol,
                 "asset_type": asset_type,
                 "quantity": float(quantity),
-                "average_price": float(avg_price),
-                "market_value": float(market_value),
-                "raw_position": pos,
+                "avg_price": float(avg_price),
+                "mark_price": float(position.mark_price),
+                "market_value": float(position.market_value),
             }
 
-            normalized.append(position_payload)
+            normalized.append(payload)
 
             try:
-                live_data_redis.publish_position(account_hash, position_payload)
+                live_data_redis.publish_position(account_hash, payload)
             except Exception as e:
-                logger.error(f"Failed to publish Schwab position for {symbol}: {e}")
+                logger.error("Failed to publish Schwab position for %s: %s", symbol, e)
 
         return normalized
 
     def fetch_balances(self, account_hash: str) -> Dict:
-        """
-        Fetch balances for an account and publish them to Redis.
-        """
+        """Fetch balances for an account, persist them, and publish to Redis."""
         data = self.fetch_account_details(account_hash, include_positions=False)
 
         acct = data.get("securitiesAccount", {}) or {}
         bal = acct.get("currentBalances", {}) or {}
 
-        def _num(key, default=0):
-            try:
-                return float(bal.get(key, default) or 0)
-            except Exception:
-                return float(default)
+        account = self._get_account_record(account_hash)
+        if not account:
+            logger.warning("Schwab account %s not registered in Thor", account_hash)
+            return {}
 
-        balance_payload: Dict = {
-            "cash": _num("cashBalance"),
-            "available_funds": _num("availableFunds"),
-            "buying_power": _num("buyingPower") or _num("stockBuyingPower"),
-            "liquidation_value": _num("liquidationValue"),
-            "long_market_value": _num("longMarketValue"),
-            "short_market_value": _num("shortMarketValue"),
-            "equity": _num("equity"),
-            "raw_balances": bal,
+        def _dec(key, default=Decimal("0")):
+            return Decimal(str(bal.get(key, default) or default))
+
+        account.cash = _dec("cashBalance")
+        account.current_cash = account.cash
+        account.net_liq = _dec("liquidationValue")
+        account.equity = _dec("equity", account.net_liq)
+        account.stock_buying_power = _dec("stockBuyingPower")
+        account.option_buying_power = _dec("optionBuyingPower")
+        account.day_trading_buying_power = _dec("dayTradingBuyingPower")
+        account.save(update_fields=[
+            "cash",
+            "current_cash",
+            "net_liq",
+            "equity",
+            "stock_buying_power",
+            "option_buying_power",
+            "day_trading_buying_power",
+            "updated_at",
+        ])
+
+        payload: Dict = {
+            "cash": float(account.cash),
+            "net_liq": float(account.net_liq),
+            "equity": float(account.equity),
+            "stock_buying_power": float(account.stock_buying_power),
+            "option_buying_power": float(account.option_buying_power),
+            "day_trading_buying_power": float(account.day_trading_buying_power),
         }
 
         try:
-            live_data_redis.publish_balance(account_hash, balance_payload)
+            live_data_redis.publish_balance(account_hash, payload)
         except Exception as e:
-            logger.error(f"Failed to publish Schwab balances for {account_hash}: {e}")
+            logger.error("Failed to publish Schwab balances for %s: %s", account_hash, e)
 
-        return balance_payload
+        return payload

@@ -157,7 +157,7 @@ Or build production frontend in Docker (optional).
 ⭐ 3. OPTIONAL — Cloudflare Tunnel for External Access
 ==========================================
 cd A:\Thor
-cloudflared tunnel run thor
+cloudflared tunnel run dev-thor
 
 ==========================================
 ⭐ 4. OPTIONAL — Manual Market Open / Grader Commands
@@ -249,3 +249,11 @@ http://localhost:8080/
 
 users tom@gmail.com
 pw Coco1464#
+
+
+schwab+++++++++++++++++++++++++++++++++++++++++++++++++
+
+https://dev-thor.360edu.org/api/schwab/oauth/start/
+
+USAMexico4
+

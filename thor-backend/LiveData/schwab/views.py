@@ -10,6 +10,8 @@ from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_http_methods
 from django.conf import settings
 
+from ActAndPos.models import Account
+
 from .models import SchwabToken
 from .tokens import exchange_code_for_tokens, get_token_expiry
 from .services import SchwabTraderAPI
@@ -117,9 +119,29 @@ def list_accounts(request):
         
         api = SchwabTraderAPI(request.user)
         accounts = api.fetch_accounts()
-        
+
+        enriched_accounts = []
+
+        for acct in accounts:
+            account_hash = acct.get('hashValue') or acct.get('accountNumber') or acct.get('accountId')
+            if not account_hash:
+                continue
+
+            display_name = acct.get('displayName') or acct.get('nickname') or account_hash
+
+            account_obj, _ = Account.objects.get_or_create(
+                broker='SCHWAB',
+                broker_account_id=account_hash,
+                defaults={'display_name': display_name, 'currency': 'USD'},
+            )
+
+            acct_copy = acct.copy()
+            acct_copy['thor_account_id'] = account_obj.id
+            acct_copy['broker_account_id'] = account_hash
+            enriched_accounts.append(acct_copy)
+
         return JsonResponse({
-            "accounts": accounts
+            "accounts": enriched_accounts
         })
         
     except NotImplementedError:
