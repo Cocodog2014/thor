@@ -4,6 +4,7 @@ Views for user authentication and management.
 from rest_framework import generics, permissions, status, serializers
 from rest_framework.response import Response
 from rest_framework_simplejwt.views import TokenObtainPairView
+from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from django.contrib.auth import get_user_model, authenticate
 from .serializers import RegisterSerializer, UserSerializer
@@ -67,9 +68,11 @@ class RegisterView(generics.CreateAPIView):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
+        refresh = RefreshToken.for_user(user)
         return Response({
             'user': UserSerializer(user).data,
-            'message': 'User created successfully. Please login.'
+            'refresh': str(refresh),
+            'access': str(refresh.access_token),
         }, status=status.HTTP_201_CREATED)
 
 
