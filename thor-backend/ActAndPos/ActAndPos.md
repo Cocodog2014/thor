@@ -25,6 +25,21 @@ Positions
 
 The unified execution engine (order_engine.py)
 
+### Code Map (Dec 2025)
+
+| Path | Purpose |
+| --- | --- |
+| admin.py | Django admin customization for Accounts, Orders, and Positions |
+| apps.py | Registers the app and imports `seed_default_paper_account` on startup |
+| seed_default_paper_account.py | Signal that seeds a paper account whenever a new user is created |
+| models/ | Account / Order / Position models and shared enums |
+| serializers.py | DRF serializers (AccountSummary, Order, Position) |
+| services/order_engine.py | Unified order engine used by Trades and future brokers |
+| views/accounts.py | Helper endpoints plus active-account resolution logic |
+| views/activity.py | Implements `/actandpos/activity/today` responses for the UI |
+| tests.py | Regression tests for paper defaults, account ownership, and helpers |
+| Paper Trading Engine.md | Reference doc detailing the internal paper execution flow |
+
 Updated Architecture
           Trades App (User-facing)
          ─────────────────────────

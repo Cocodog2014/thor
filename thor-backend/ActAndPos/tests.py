@@ -62,3 +62,15 @@ class GetActiveAccountTests(TestCase):
 		expected_prefix = f"PAPER-{self.user.id}-"
 		self.assertTrue(account.broker_account_id.startswith(expected_prefix))
 		self.assertEqual(account.user, self.user)
+
+
+class DefaultPaperAccountSignalTests(TestCase):
+	def test_signal_creates_paper_account_for_new_user(self):
+		user = get_user_model().objects.create_user(
+			email="signal-test@example.com",
+			password="pass123",
+		)
+
+		accounts = Account.objects.filter(user=user, broker="PAPER")
+		self.assertEqual(accounts.count(), 1)
+		self.assertTrue(accounts.first().broker_account_id.startswith(f"PAPER-{user.id}-"))
