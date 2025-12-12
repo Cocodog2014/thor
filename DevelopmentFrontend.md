@@ -372,6 +372,24 @@ The frontend is now:
 ✔ Free of old hex-coded greys/blacks
 ✔ With restored functionality (collapsibles, hover states, tabs)
 
+10. Auth & Token Lifecycle (Dec 2025)
+
+Recent fixes (Dev-1 branch) harden authentication between the React app and the Django API:
+
+• Storage keys are centralized in src/constants/storageKeys.ts: AUTH_ACCESS_TOKEN_KEY = thor_access_token and AUTH_REFRESH_TOKEN_KEY = thor_refresh_token. No other keys should be used for JWTs.
+• AuthContext.tsx owns token state. Login now calls login(accessToken, refreshToken?) which persists both keys and immediately updates axios defaults via setAuthHeader(). Logout clears both keys and removes the Authorization header.
+• ProtectedRoute reads useAuth().isAuthenticated instead of hitting localStorage directly, so React state is the source of truth and future storage changes won’t break routing guards.
+• api.ts no longer re-injects Authorization from localStorage on every request. AuthContext is the only place that sets/clears api.defaults.headers.common.Authorization. The request interceptor’s role is now just to strip that header from public endpoints.
+• The refresh interceptor still rotates access tokens via /users/token/refresh/ and forces a full logout (clearing both keys + redirecting to /auth/login) if refresh fails.
+
+Acceptance tests for the auth flow:
+
+1. Login as admin, call GET /api/users/profile/ — response must show admin@360edu.org. Logout. Check Application → Local Storage: thor_access_token and thor_refresh_token should be deleted. If not, fix logout.
+2. Login as tom@gmail.com — thor_access_token must change, axios requests must authenticate as Tom (profile endpoint returns Tom).
+3. Leave the frontend idle until the access token expires. The next API call should transparently refresh using thor_refresh_token; if refresh fails (expired/invalid), the app must redirect to /auth/login and both storage keys must be cleared.
+
+These rules prevent “token drift” where the UI shows one user while API requests go out as another. Any future auth work (broker connections, multi-user dashboards, etc.) should continue to run through AuthContext so there is a single place managing JWTs.
+
 If you'd like, I can now:
 
 ✅ Put this MD into Canvas as an editable document
