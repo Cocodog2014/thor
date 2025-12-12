@@ -23,7 +23,7 @@ def _create_default_paper_account(user) -> Account:
 
 
 def get_active_account(request):
-    """Pick account via ?account_id query parameter or return the first record."""
+    """Pick account via ?account_id query parameter or return the first record for this user."""
 
     user = getattr(request, "user", None)
     if not user or not user.is_authenticated:
