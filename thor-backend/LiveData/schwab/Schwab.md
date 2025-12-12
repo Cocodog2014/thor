@@ -12,7 +12,7 @@ The **Schwab** app inside LiveData handles:
   - Fetch positions and balances (and publish them to Redis)
   - Return a formatted account summary for the frontend
 
-It is intentionally **minimal and stateless**: it has **one model** (`SchwabToken`) and otherwise treats Schwab as the system of record for positions, balances, and account details.
+It is intentionally **minimal and stateless**: it has **one model** (`BrokerConnection`) and otherwise treats Schwab as the system of record for positions, balances, and account details.
 
 ---
 
@@ -40,62 +40,56 @@ label = 'SchwabLiveData' – preserves old migration/table names.
 
 No startup side-effects yet; ready() is a no-op placeholder.
 
-Model: SchwabToken
-models.py defines a single model to store OAuth tokens per user:
+Model: BrokerConnection
+models.py defines a reusable broker-connection model so future brokers (IBKR, etc.) can share the same storage:
 
-python
-Copy code
-class SchwabToken(models.Model):
-    """
-    OAuth tokens for Schwab API access.
-    
-    Each user can connect one Schwab account. The access/refresh tokens
-    are stored here and automatically refreshed when needed.
-    """
-    
-    user = models.OneToOneField(
+```python
+class BrokerConnection(models.Model):
+    BROKER_SCHWAB = "SCHWAB"
+    BROKER_CHOICES = [
+        (BROKER_SCHWAB, "Charles Schwab"),
+    ]
+
+    user = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
-        related_name='schwab_token',
-        help_text="Thor user who owns this Schwab connection"
+        related_name="broker_connections",
+        help_text="Thor user who owns this broker connection",
     )
-    
+    broker = models.CharField(
+        max_length=32,
+        choices=BROKER_CHOICES,
+        default=BROKER_SCHWAB,
+        help_text="Broker identifier (e.g. SCHWAB)",
+    )
     access_token = models.TextField(
-        help_text="Short-lived OAuth access token (typically 30 minutes)"
+        help_text="Short-lived OAuth access token (typically 30 minutes)",
     )
-    
     refresh_token = models.TextField(
-        help_text="Long-lived refresh token (typically 7 days)"
+        help_text="Long-lived refresh token (typically 7 days)",
     )
-    
     access_expires_at = models.BigIntegerField(
-        help_text="Unix timestamp when access token expires"
+        help_text="Unix timestamp when access token expires",
     )
-    
-    # Optional metadata
-    schwab_account_id = models.CharField(
+    broker_account_id = models.CharField(
         max_length=64,
         blank=True,
-        help_text="Primary Schwab account ID (if available)"
+        help_text="Primary broker account ID (if cached)",
     )
-    
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     @property
     def is_expired(self) -> bool:
-        """Check if access token is expired."""
         import time
         return time.time() >= self.access_expires_at
+```
+
 Notes:
 
-One-to-one with the Django User model (user.schwab_token).
-
-Stores access token, refresh token, and a Unix timestamp for expiration.
-
-Optional schwab_account_id can cache the primary Schwab account.
-
-is_expired is a convenience property for client code.
+- Users can store multiple connections (one per broker) via `broker_connections`.
+- The helper property `user.schwab_token` now proxies to `BrokerConnection` with broker=`SCHWAB` for backward compatibility.
+- Future brokers can reuse the same model without schema changes.
 
 Token helpers (tokens.py)
 tokens.py defines helper functions for OAuth token exchange/refresh:
@@ -280,7 +274,7 @@ def oauth_callback(request):
     try:
         token_data = exchange_code_for_tokens(auth_code)
         
-        SchwabToken.objects.update_or_create(
+        BrokerConnection.objects.update_or_create(
             user=request.user,
             defaults={
                 'access_token': token_data['access_token'],
@@ -505,7 +499,7 @@ Schwab redirects back to:
 
 GET /schwab/oauth/callback/?code=...
 
-Tokens are saved in SchwabToken for that user.
+Tokens are saved in BrokerConnection for that user.
 
 Later, the frontend:
 

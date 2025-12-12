@@ -12,7 +12,7 @@ from django.conf import settings
 
 from ActAndPos.models import Account
 
-from .models import SchwabToken
+from .models import BrokerConnection
 from .tokens import exchange_code_for_tokens, get_token_expiry
 from .services import SchwabTraderAPI
 
@@ -80,8 +80,9 @@ def oauth_callback(request):
         token_data = exchange_code_for_tokens(auth_code)
         
         # Save tokens to database
-        SchwabToken.objects.update_or_create(
+        BrokerConnection.objects.update_or_create(
             user=request.user,
+            broker=BrokerConnection.BROKER_SCHWAB,
             defaults={
                 'access_token': token_data['access_token'],
                 'refresh_token': token_data['refresh_token'],
@@ -112,7 +113,7 @@ def list_accounts(request):
     List all Schwab accounts for the authenticated user.
     """
     try:
-        if not hasattr(request.user, 'schwab_token'):
+        if not request.user.schwab_token:
             return JsonResponse({
                 "error": "No Schwab account connected"
             }, status=404)
@@ -130,6 +131,7 @@ def list_accounts(request):
             display_name = acct.get('displayName') or acct.get('nickname') or account_hash
 
             account_obj, _ = Account.objects.get_or_create(
+                user=request.user,
                 broker='SCHWAB',
                 broker_account_id=account_hash,
                 defaults={'display_name': display_name, 'currency': 'USD'},
@@ -162,7 +164,7 @@ def get_positions(request, account_id):
     Publishes positions to Redis for consumption by other apps.
     """
     try:
-        if not hasattr(request.user, 'schwab_token'):
+        if not request.user.schwab_token:
             return JsonResponse({
                 "error": "No Schwab account connected"
             }, status=404)
@@ -193,7 +195,7 @@ def get_balances(request, account_id):
     Publishes balances to Redis for consumption by other apps.
     """
     try:
-        if not hasattr(request.user, 'schwab_token'):
+        if not request.user.schwab_token:
             return JsonResponse({
                 "error": "No Schwab account connected"
             }, status=404)
@@ -226,7 +228,7 @@ def account_summary(request):
         - account_hash: Schwab encrypted account number (optional, uses first account if omitted)
     """
     try:
-        if not hasattr(request.user, 'schwab_token'):
+        if not request.user.schwab_token:
             return JsonResponse({
                 "error": "No Schwab account connected",
                 "connected": False

@@ -19,7 +19,7 @@ Detailed technical flow (perfect for implementation + debugging)
            │ Thor Backend (LiveData.schwab OAuth)     │
            │ - Receives OAuth callback (code=...)     │
            │ - Exchanges code → access + refresh token│
-           │ - Stores tokens in SchwabToken(user)     │
+           │ - Stores tokens in BrokerConnection(user)│
            └──────────────┬──────────────────────────┘
                           │
      ┌────────────────────┼──────────────────────┐
@@ -77,7 +77,7 @@ In callback:
 
 exchange_code_for_tokens()
 ↓
-SchwabToken(user).save()
+BrokerConnection(user).save()
 
 STEP 2 — Fetch Schwab Balances + Positions
 
@@ -183,7 +183,7 @@ P/L Calculations
 Activity / Order Tracking
 
 ✔ Final Summary Diagram (most compact)
-Schwab → (OAuth) → SchwabToken(user)
+Schwab → (OAuth) → BrokerConnection(user)
         → (API) → SchwabTraderAPI.fetch_*
                 → normalize data
                 → update ActAndPos.Account

@@ -19,8 +19,10 @@ class SchwabTraderAPI:
     def __init__(self, user):
         self.user = user
         self.token = user.schwab_token
+        if not self.token:
+            raise RuntimeError("User does not have an active Schwab connection.")
         if self.token.is_expired:
-            logger.warning(f"Access token expired")
+            logger.warning("Schwab access token expired for %s", user.email)
     
     def _get_headers(self):
         return {
@@ -69,7 +71,13 @@ class SchwabTraderAPI:
         }
 
     def _get_account_record(self, account_hash: str) -> Account | None:
-        return Account.objects.filter(broker="SCHWAB", broker_account_id=account_hash).first()
+        return (
+            Account.objects.filter(
+                user=self.user, broker="SCHWAB", broker_account_id=account_hash
+            )
+            .select_related("user")
+            .first()
+        )
 
     def fetch_positions(self, account_hash: str) -> List[Dict]:
         """Fetch positions for an account, persist them, and publish to Redis."""

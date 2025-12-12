@@ -21,7 +21,7 @@ Architecture Diagram
 │    - poll_tos_excel.py → bg polling daemon (optional)                    │
 │                                                                          │
 │  schwab/                                                                 │
-│    - models.py (SchwabToken storage)                                     │
+│    - models.py (BrokerConnection storage)                                │
 │    - views.py   (OAuth redirects, account list, positions, balances)     │
 │    - services.py (SchwabTraderAPI wrapper)                               │
 │                                                                          │
@@ -91,7 +91,7 @@ LiveData/
     urls.py
 
   schwab/
-    models.py          # SchwabToken (OAuth storage)
+    models.py          # BrokerConnection (OAuth storage)
     tokens.py          # Token refresh helpers
     services.py        # SchwabTraderAPI (fetch accounts, positions, balances)
     views.py           # OAuth redirect, account summary, positions, balances
@@ -208,7 +208,7 @@ Cold-start snapshot
 Apps like FutureTrading
 
 Schwab Provider (LiveData/schwab)
-models.py — SchwabToken
+models.py — BrokerConnection
 
 Stores:
 
@@ -229,7 +229,7 @@ Redirects user to Schwab login page.
 
 GET /schwab/oauth/callback/
 
-Stores OAuth tokens in SchwabToken.
+Stores OAuth tokens in BrokerConnection.
 
 GET /schwab/accounts/
 
@@ -398,7 +398,7 @@ Ensure providers are actually calling publish_quote()
 
 Token expired?
 
-SchwabToken.is_expired helps detect
+BrokerConnection.is_expired helps detect
 
 services.exchange_code_for_tokens() refreshes tokens
 

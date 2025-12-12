@@ -182,6 +182,19 @@ class CustomUser(AbstractUser):
         """Check if user can manage other users."""
         return self.is_admin()
     
+    # Broker connection helpers -------------------------------------------------
+    def get_broker_connection(self, broker: str):
+        """Return the first broker connection for the provided broker code."""
+        manager = getattr(self, "broker_connections", None)
+        if manager is None:
+            return None
+        return manager.filter(broker=broker).first()
+
+    @property
+    def schwab_token(self):
+        """Backward-compatible accessor for Schwab broker connection."""
+        return self.get_broker_connection("SCHWAB")
+
     def save(self, *args, **kwargs):
         """Override save to set display_name if not provided."""
         if not self.display_name and (self.first_name or self.last_name):
