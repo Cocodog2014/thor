@@ -17,6 +17,8 @@ import AppLayout from './layouts/AppLayout';
 import Register from './pages/User/Register';
 import User, { Login as UserLogin } from './pages/User';
 import { TradingModeProvider } from './context/TradingModeContext';
+import BrokersPage from './pages/User/Brokers/BrokersPage';
+import SchwabCallbackPage from './pages/User/Brokers/SchwabCallbackPage';
 
 // New Schwab-style homepage
 import Home from './pages/Home/Home';
@@ -117,6 +119,11 @@ function App() {
                       <Route path="activity" element={<ActivityPositions />} />
                       {/* Stock trading removed */}
                       <Route path="user" element={<User />} />
+                      <Route path="user/brokers" element={<BrokersPage />} />
+                      <Route
+                        path="user/brokers/schwab/callback"
+                        element={<SchwabCallbackPage />}
+                      />
                       <Route path="*" element={<Navigate to="home" replace />} />
                     </Routes>
                   </Container>

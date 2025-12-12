@@ -62,6 +62,14 @@ const TopRow: React.FC<TopRowProps> = ({
         ) : (
           <span className="home-account-id">No accounts</span>
         )}
+        <button
+          className="home-quick-link"
+          type="button"
+          onClick={() => onNavigate('/app/user/brokers')}
+          style={{ marginLeft: 8 }}
+        >
+          <span>🔌</span>Connect Broker Account
+        </button>
       </div>
 
       <div className="global-banner-right">
@@ -84,7 +92,11 @@ const TopRow: React.FC<TopRowProps> = ({
         <button className="home-quick-link" type="button">
           <span>💭</span>Chat Rooms
         </button>
-        <button className="home-quick-link" type="button">
+        <button
+          className="home-quick-link"
+          type="button"
+          onClick={() => onNavigate('/app/user/brokers')}
+        >
           <span>⚙️</span>Setup
         </button>
       </div>

@@ -19,6 +19,7 @@
 @import '../pages/User/User.css';
 @import '../pages/User/Login.css';
 @import '../pages/User/Register.css';
+@import '../pages/User/Brokers/BrokersPage.css';
 @import '../components/Ribbons/FooterRibbon.css';
 @import '../components/Grid2x3/TwoByThreeGrid.css';
 @import '../components/Grid2x2/TwoByTwoGrid.css';
