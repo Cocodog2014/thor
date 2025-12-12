@@ -1,7 +1,7 @@
 """
 Views for user authentication and management.
 """
-from rest_framework import generics, permissions, status, serializers
+from rest_framework import generics, permissions, status, serializers, authentication
 from rest_framework.response import Response
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -63,6 +63,7 @@ class RegisterView(generics.CreateAPIView):
     queryset = User.objects.all()
     serializer_class = RegisterSerializer
     permission_classes = (permissions.AllowAny,)
+    authentication_classes = ()
     
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)

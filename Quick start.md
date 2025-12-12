@@ -62,6 +62,9 @@ Leave this window running so Redis gets updated every second.
 ✔ STEP 4 — Start Frontend (local)
 ![alt text](image.png)
 
+cd A:\Thor\thor-frontend
+npm run dev:local
+
 ==========================================
 ⭐ 5. OPTIONAL — Cloudflare Tunnel for External Access
 ==========================================
