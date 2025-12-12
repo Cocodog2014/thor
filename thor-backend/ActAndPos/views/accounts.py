@@ -2,17 +2,19 @@ from uuid import uuid4
 
 from django.shortcuts import get_object_or_404
 from rest_framework.decorators import api_view
+from rest_framework.exceptions import NotAuthenticated
 from rest_framework.response import Response
 
 from ..models import Account
 from ..serializers import AccountSummarySerializer
 
 
-def _create_default_paper_account() -> Account:
+def _create_default_paper_account(user) -> Account:
     """Bootstrap a default PAPER account so the UI always has data."""
 
     broker_account_id = f"PAPER-DEMO-{uuid4().hex[:8].upper()}"
     return Account.objects.create(
+        user=user,
         broker="PAPER",
         broker_account_id=broker_account_id,
         display_name="Paper Trading (Auto)",
@@ -22,13 +24,19 @@ def _create_default_paper_account() -> Account:
 def get_active_account(request):
     """Pick account via ?account_id query parameter or return the first record."""
 
-    account_id = request.query_params.get("account_id")
-    if account_id:
-        return get_object_or_404(Account, pk=account_id)
+    user = getattr(request, "user", None)
+    if not user or not user.is_authenticated:
+        raise NotAuthenticated("Authentication required to access trading accounts.")
 
-    account = Account.objects.order_by("id").first()
+    account_id = request.query_params.get("account_id")
+    qs = Account.objects.filter(user=user).order_by("id")
+
+    if account_id:
+        return get_object_or_404(qs, pk=account_id)
+
+    account = qs.first()
     if account is None:
-        account = _create_default_paper_account()
+        account = _create_default_paper_account(user)
     return account
 
 
@@ -36,9 +44,5 @@ def get_active_account(request):
 def account_summary_view(request):
     """Return a simple account summary payload for the selected account."""
 
-    try:
-        account = get_active_account(request)
-    except ValueError as exc:
-        return Response({"detail": str(exc)}, status=400)
-
+    account = get_active_account(request)
     return Response(AccountSummarySerializer(account).data)

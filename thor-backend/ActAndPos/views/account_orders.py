@@ -17,10 +17,7 @@ from .accounts import get_active_account
 def activity_today_view(request):
     """GET /actandpos/activity/today?account_id=123 – intraday order + position snapshot."""
 
-    try:
-        account = get_active_account(request)
-    except ValueError as exc:
-        return Response({"detail": str(exc)}, status=400)
+    account = get_active_account(request)
 
     today = timezone.localdate()
     base_qs = Order.objects.filter(account=account, time_placed__date=today)

@@ -85,6 +85,8 @@ ok_to_trade → true when account has positive net liq & buying power
 
 Accounts are updated only via the execution engine.
 
+**User ownership (Dec 2025):** each `Account` row now has a `user` FK pointing to `AUTH_USER_MODEL`. Existing rows were backfilled to the primary admin account and the column is now non-nullable, so every account must belong to a user. Default paper accounts are created per-user and tied to the authenticated request, eliminating the “first account wins” bug.
+
 Order
 
 Intraday order record.

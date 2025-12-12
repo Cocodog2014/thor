@@ -19,6 +19,7 @@ class OrderInline(admin.TabularInline):
 class AccountAdmin(admin.ModelAdmin):
 	list_display = (
 		"display_name",
+		"user",
 		"broker",
 		"broker_account_id",
 		"currency",
@@ -30,7 +31,7 @@ class AccountAdmin(admin.ModelAdmin):
 		"ok_to_trade",
 		"updated_at",
 	)
-	list_filter = ("broker", "currency")
+	list_filter = ("user", "broker", "currency")
 	search_fields = ("display_name", "broker_account_id")
 	ordering = ("-updated_at",)
 	readonly_fields = ("updated_at",)
@@ -71,6 +72,7 @@ class AccountAdmin(admin.ModelAdmin):
 class PositionAdmin(admin.ModelAdmin):
 	list_display = (
 		"account",
+		"account_user",
 		"symbol",
 		"description",
 		"asset_type",
@@ -83,10 +85,22 @@ class PositionAdmin(admin.ModelAdmin):
 		"currency",
 		"updated_at",
 	)
-	list_filter = ("asset_type", "currency", "account")
-	search_fields = ("symbol", "description", "account__display_name", "account__broker_account_id")
+	list_filter = ("account__user", "asset_type", "currency", "account")
+	search_fields = (
+		"symbol",
+		"description",
+		"account__display_name",
+		"account__broker_account_id",
+		"account__user__email",
+	)
 	ordering = ("account", "symbol")
 	readonly_fields = ("updated_at", "market_value", "unrealized_pl", "pl_percent")
+
+	def account_user(self, obj):
+		return obj.account.user
+
+	account_user.short_description = "User"
+	account_user.admin_order_field = "account__user"
 
 
 @admin.register(Order)

@@ -1,5 +1,6 @@
 from decimal import Decimal
 
+from django.conf import settings
 from django.db import models
 
 
@@ -23,6 +24,12 @@ class Account(models.Model):
         ("MONTHLY_PERF", "Monthly performance share"),
     ]
 
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="trading_accounts",
+        help_text="Owner of this trading account.",
+    )
     broker = models.CharField(max_length=20, choices=BROKER_CHOICES, default="PAPER")
     broker_account_id = models.CharField(max_length=64, unique=True)
     display_name = models.CharField(max_length=128, blank=True)

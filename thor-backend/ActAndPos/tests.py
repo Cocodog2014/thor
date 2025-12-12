@@ -1,5 +1,6 @@
 from decimal import Decimal
 
+from django.contrib.auth import get_user_model
 from django.test import TestCase
 from rest_framework.test import APIRequestFactory
 
@@ -8,8 +9,15 @@ from .views.accounts import get_active_account
 
 
 class PaperAccountDefaultsTests(TestCase):
+	def setUp(self):
+		self.user = get_user_model().objects.create_user(
+			email="paper@test.com",
+			password="pass123",
+		)
+
 	def test_paper_account_seeds_balances(self):
 		account = Account.objects.create(
+			user=self.user,
 			broker="PAPER",
 			broker_account_id="PAPER-001",
 			display_name="Test Paper",
@@ -24,6 +32,7 @@ class PaperAccountDefaultsTests(TestCase):
 
 	def test_real_account_does_not_override_balances(self):
 		account = Account.objects.create(
+			user=self.user,
 			broker="SCHWAB",
 			broker_account_id="SCH-001",
 			display_name="Real Account",
@@ -38,11 +47,17 @@ class PaperAccountDefaultsTests(TestCase):
 class GetActiveAccountTests(TestCase):
 	def setUp(self):
 		self.factory = APIRequestFactory()
+		self.user = get_user_model().objects.create_user(
+			email="captain@test.com",
+			password="pass123",
+		)
 
 	def test_auto_creates_default_paper_account(self):
 		request = self.factory.get("/actandpos/activity/today")
+		request.user = self.user
 		account = get_active_account(request)
 
 		self.assertEqual(Account.objects.count(), 1)
 		self.assertEqual(account.broker, "PAPER")
 		self.assertTrue(account.broker_account_id.startswith("PAPER-DEMO-"))
+		self.assertEqual(account.user, self.user)
