@@ -178,19 +178,11 @@ Typically used in the app router when defining /app/* routes.
 
 Key responsibilities
 
-Reads authentication state from:
+- Reads authentication state from the shared `useAuth()` hook. AuthContext (not localStorage) is the single source of truth, so routing stays in sync with the axios Authorization header.
+- If `isAuthenticated` is false it redirects via `<Navigate>` to `/auth/login?next=…`.
+- If the user is authenticated it renders the requested route element (usually inside `GlobalHeader` + `GlobalBanner`).
 
-Context/hook (e.g., useAuth()), or
-
-Redux / other store (depending on current implementation).
-
-If user is not authenticated:
-
-Redirects (via <Navigate>) to a configured redirectTo path.
-
-If user is authenticated:
-
-Renders the requested route’s element (often inside GlobalHeader + GlobalBanner).
+Logout is centralized: the drawer’s “Sign out” button calls `useAuth().logout()`, which clears both `thor_access_token` and `thor_refresh_token` keys and removes the default Authorization header. Do not manipulate tokens directly inside individual components.
 
 Example usage
 
