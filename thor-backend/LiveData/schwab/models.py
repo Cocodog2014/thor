@@ -53,6 +53,11 @@ class BrokerConnection(models.Model):
         help_text="Primary broker account ID (if cached)",
     )
 
+    trading_enabled = models.BooleanField(
+        default=False,
+        help_text="When true, Thor may send live orders for this connection.",
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

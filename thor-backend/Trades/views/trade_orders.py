@@ -17,6 +17,7 @@ from ActAndPos.services.order_engine import (
     InsufficientBuyingPower,
     InvalidOrderRequest,
     OrderEngineError,
+    TradingApprovalRequired,
 )
 from ActAndPos.views.accounts import get_active_account
 
@@ -123,6 +124,8 @@ def order_create_active_view(request):
 
     try:
         order, trade, position, account = place_order(params)
+    except TradingApprovalRequired as exc:
+        return Response({"detail": str(exc)}, status=status.HTTP_403_FORBIDDEN)
     except InvalidOrderRequest as exc:
         return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
     except InsufficientBuyingPower as exc:
@@ -161,7 +164,7 @@ def order_create_view(request):
         )
 
     try:
-        account = Account.objects.get(pk=account_id)
+        account = Account.objects.get(pk=account_id, user=request.user)
     except Account.DoesNotExist:
         return Response({"detail": "Account not found."}, status=status.HTTP_404_NOT_FOUND)
 
@@ -211,6 +214,8 @@ def order_create_view(request):
 
     try:
         order, trade, _position, account = place_order(params)
+    except TradingApprovalRequired as exc:
+        return Response({"detail": str(exc)}, status=status.HTTP_403_FORBIDDEN)
     except InsufficientBuyingPower as exc:
         return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
     except InvalidOrderRequest as exc:

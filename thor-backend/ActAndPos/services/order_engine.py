@@ -30,6 +30,10 @@ class InsufficientBuyingPower(OrderEngineError):
     """Raised when the account does not have enough BP."""
 
 
+class TradingApprovalRequired(OrderEngineError):
+    """Raised when a live broker connection is not approved for trading."""
+
+
 # --- Generic order params (used for all brokers) -----------------------------
 
 
@@ -172,6 +176,33 @@ def _validate_params(params: OrderParams) -> None:
         raise InvalidOrderRequest("limit_price is required for limit orders.")
 
 
+def _assert_trading_enabled(account: Account) -> None:
+    """Ensure the user has been approved to trade with the live broker."""
+
+    if account.broker == "PAPER":
+        return
+
+    user = account.user
+
+    try:
+        connection = user.get_broker_connection(account.broker)
+    except AttributeError:
+        manager = getattr(user, "broker_connections", None)
+        connection = (
+            manager.filter(broker=account.broker).first() if manager is not None else None
+        )
+
+    if connection is None:
+        raise TradingApprovalRequired(
+            "No broker connection found for this account. Connect your broker before trading."
+        )
+
+    if not getattr(connection, "trading_enabled", False):
+        raise TradingApprovalRequired(
+            "Trading is disabled for this broker connection until an admin approves it."
+        )
+
+
 def place_order(params: OrderParams) -> Tuple[Order, Trade | None, Position | None, Account]:
     """Main entry point for ALL accounts managed inside Thor."""
 
@@ -188,6 +219,8 @@ def _place_order_internal(params: OrderParams) -> Tuple[Order, Trade | None, Pos
     _validate_params(params)
 
     account = Account.objects.select_for_update().get(pk=params.account.pk)
+
+    _assert_trading_enabled(account)
 
     existing_position = None
     if params.side.upper() == "SELL":

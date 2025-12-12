@@ -5,10 +5,15 @@ This app provides identity & access management with a CustomUser model
 that extends Django's AbstractUser with trading-specific fields.
 """
 
+from typing import TYPE_CHECKING, Optional
+
 from django.contrib.auth.models import AbstractUser, BaseUserManager
 from django.db import models
 from django.core.validators import RegexValidator
 from django.utils import timezone
+
+if TYPE_CHECKING:
+    from LiveData.schwab.models import BrokerConnection
 
 
 class CustomUserManager(BaseUserManager):
@@ -183,8 +188,9 @@ class CustomUser(AbstractUser):
         return self.is_admin()
     
     # Broker connection helpers -------------------------------------------------
-    def get_broker_connection(self, broker: str):
+    def get_broker_connection(self, broker: str) -> Optional["BrokerConnection"]:
         """Return the first broker connection for the provided broker code."""
+
         manager = getattr(self, "broker_connections", None)
         if manager is None:
             return None

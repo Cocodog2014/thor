@@ -76,6 +76,10 @@ class BrokerConnection(models.Model):
         blank=True,
         help_text="Primary broker account ID (if cached)",
     )
+    trading_enabled = models.BooleanField(
+        default=False,
+        help_text="When true, Thor may send live orders for this connection.",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -89,6 +93,7 @@ Notes:
 
 - Users can store multiple connections (one per broker) via `broker_connections`.
 - The helper property `user.schwab_token` now proxies to `BrokerConnection` with broker=`SCHWAB` for backward compatibility.
+- `trading_enabled` stays `False` until an admin flips it on in Django admin, which puts the account into "read-only" mode (balances/positions sync, but trading is blocked).
 - Future brokers can reuse the same model without schema changes.
 
 Token helpers (tokens.py)
@@ -198,6 +203,13 @@ OAuth flow:
 oauth_start
 
 oauth_callback
+
+### Trading approval / read-only mode
+
+- Every `BrokerConnection` starts with `trading_enabled=False`. Users can immediately finish OAuth and sync balances/positions because the LiveData views never check this flag.
+- Django admin exposes the toggle via the *Broker Connection* entry, so an owner/admin can flip `trading_enabled` once they are comfortable letting that user route live orders.
+- The unified order engine in [ActAndPos/services/order_engine.py](../../ActAndPos/services/order_engine.py#L1) calls `_assert_trading_enabled()` for any non-paper account. When the flag is still `False`, it raises `TradingApprovalRequired`, which the Trades API returns as HTTP 403 with the message “Trading is disabled…until an admin approves it.”
+- Paper accounts skip the check entirely, so local testing and paper trading continue to work.
 
 Data endpoints:
 
