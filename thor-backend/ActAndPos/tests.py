@@ -59,5 +59,6 @@ class GetActiveAccountTests(TestCase):
 
 		self.assertEqual(Account.objects.count(), 1)
 		self.assertEqual(account.broker, "PAPER")
-		self.assertTrue(account.broker_account_id.startswith("PAPER-DEMO-"))
+		expected_prefix = f"PAPER-{self.user.id}-"
+		self.assertTrue(account.broker_account_id.startswith(expected_prefix))
 		self.assertEqual(account.user, self.user)

@@ -12,7 +12,8 @@ from ..serializers import AccountSummarySerializer
 def _create_default_paper_account(user) -> Account:
     """Bootstrap a default PAPER account so the UI always has data."""
 
-    broker_account_id = f"PAPER-DEMO-{uuid4().hex[:8].upper()}"
+    user_id = getattr(user, "pk", None) or "NOUSER"
+    broker_account_id = f"PAPER-{user_id}-{uuid4().hex[:8].upper()}"
     return Account.objects.create(
         user=user,
         broker="PAPER",
