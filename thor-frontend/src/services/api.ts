@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { AUTH_ACCESS_TOKEN_KEY, AUTH_REFRESH_TOKEN_KEY } from '../constants/storageKeys';
 
 /**
  * Resolve API base URL in a way that works for:
@@ -31,7 +32,24 @@ const api = axios.create({
   timeout: 10000, // 10 seconds timeout
 });
 
+const readStoredToken = (key: string): string | null => {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+};
 
+export const setAuthHeader = (token: string | null) => {
+  if (token) {
+    api.defaults.headers.common.Authorization = `Bearer ${token}`;
+  } else {
+    delete api.defaults.headers.common.Authorization;
+  }
+};
 
 // Public endpoints that don't require authentication
 const PUBLIC_ENDPOINTS = [
@@ -43,27 +61,17 @@ const PUBLIC_ENDPOINTS = [
 // Request interceptor
 api.interceptors.request.use(
   (config) => {
-    // Skip auth headers for public endpoints
-    const isPublic = PUBLIC_ENDPOINTS.some(endpoint => 
+    const isPublic = PUBLIC_ENDPOINTS.some(endpoint =>
       config.url?.startsWith(endpoint)
     );
-    
-    if (!isPublic) {
-      // Attach JWT access token if present
-      try {
-        const token = localStorage.getItem('thor_access_token');
-        if (token) {
-          (config.headers = config.headers || {}).Authorization = `Bearer ${token}`;
-        }
-      } catch {
-        // Ignore storage access errors (private mode, disabled storage)
-      }
+
+    if (isPublic && config.headers?.Authorization) {
+      delete config.headers.Authorization;
     }
+
     return config;
   },
-  (error) => {
-    return Promise.reject(error);
-  }
+  (error) => Promise.reject(error)
 );
 
 // Response interceptor
@@ -85,14 +93,15 @@ api.interceptors.response.use(
       
       try {
         // Try to refresh the token
-        const refreshToken = localStorage.getItem('thor_refresh_token');
+        const refreshToken = readStoredToken(AUTH_REFRESH_TOKEN_KEY);
         if (refreshToken) {
           const { data } = await axios.post(`${API_BASE_URL}/users/token/refresh/`, {
           refresh: refreshToken,
           });
           
           // Store new access token
-          localStorage.setItem('thor_access_token', data.access);
+          localStorage.setItem(AUTH_ACCESS_TOKEN_KEY, data.access);
+          setAuthHeader(data.access);
           
           // Retry original request with new token
           originalRequest.headers.Authorization = `Bearer ${data.access}`;
@@ -101,8 +110,9 @@ api.interceptors.response.use(
       } catch (refreshError) {
         // Refresh failed, clear tokens and redirect to login
         try {
-          localStorage.removeItem('thor_access_token');
-          localStorage.removeItem('thor_refresh_token');
+          localStorage.removeItem(AUTH_ACCESS_TOKEN_KEY);
+          localStorage.removeItem(AUTH_REFRESH_TOKEN_KEY);
+          setAuthHeader(null);
         } catch {
           // Swallow storage removal errors
         }

@@ -24,6 +24,7 @@ import {
 } from '@mui/icons-material';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { HOME_WELCOME_DISMISSED_KEY } from '../../constants/storageKeys';
+import { useAuth } from '../../context/AuthContext';
 
 export interface CollapsibleDrawerProps {
   open: boolean;
@@ -61,16 +62,16 @@ const CollapsibleDrawer: React.FC<CollapsibleDrawerProps> = ({
 }) => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { logout } = useAuth();
 
   // Width is now controlled via CSS classes; constants kept for GlobalHeader layout.
 
   const signOut = () => {
+    logout();
     try {
-      localStorage.removeItem('thor_access_token');
-      localStorage.removeItem('thor_refresh_token');
       sessionStorage.removeItem(HOME_WELCOME_DISMISSED_KEY);
     } catch {
-      // Swallow errors from localStorage in restricted environments
+      // Ignore sessionStorage errors
     }
     navigate('/auth/login');
   };

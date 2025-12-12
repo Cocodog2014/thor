@@ -39,15 +39,7 @@ const Login: React.FC = () => {
         throw new Error("Missing access token in response");
       }
 
-      login(accessToken);
-
-      if (refreshToken) {
-        try {
-          localStorage.setItem("thor_refresh_token", refreshToken);
-        } catch {
-          // ignore storage errors (private mode, etc.)
-        }
-      }
+      login(accessToken, refreshToken ?? null);
 
       toast.success("Welcome back, commander.");
       navigate(redirectTarget, { replace: true });

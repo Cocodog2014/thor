@@ -1,44 +1,72 @@
-import React, { createContext, useContext, useMemo, useState } from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { setAuthHeader } from '../services/api';
+import { AUTH_ACCESS_TOKEN_KEY, AUTH_REFRESH_TOKEN_KEY } from '../constants/storageKeys';
 
 type AuthContextValue = {
   isAuthenticated: boolean;
   token: string | null;
-  login: (token: string) => void;
+  login: (accessToken: string, refreshToken?: string | null) => void;
   logout: () => void;
 };
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
-// Use the same key as the rest of the app ('thor_access_token') to stay consistent
-const ACCESS_KEY = 'thor_access_token';
-const REFRESH_KEY = 'thor_refresh_token';
+const readStoredAccessToken = () => {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+  try {
+    return localStorage.getItem(AUTH_ACCESS_TOKEN_KEY);
+  } catch {
+    return null;
+  }
+};
+
+const persistTokens = (accessToken: string, refreshToken?: string | null) => {
+  if (typeof window === 'undefined') {
+    return;
+  }
+  try {
+    localStorage.setItem(AUTH_ACCESS_TOKEN_KEY, accessToken);
+    if (refreshToken) {
+      localStorage.setItem(AUTH_REFRESH_TOKEN_KEY, refreshToken);
+    } else {
+      localStorage.removeItem(AUTH_REFRESH_TOKEN_KEY);
+    }
+  } catch {
+    // Ignore storage issues (private mode, etc.)
+  }
+};
+
+const clearStoredTokens = () => {
+  if (typeof window === 'undefined') {
+    return;
+  }
+  try {
+    localStorage.removeItem(AUTH_ACCESS_TOKEN_KEY);
+    localStorage.removeItem(AUTH_REFRESH_TOKEN_KEY);
+  } catch {
+    // Ignore storage errors
+  }
+};
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [token, setToken] = useState<string | null>(() => {
-    try {
-      return localStorage.getItem(ACCESS_KEY);
-    } catch {
-      return null;
-    }
+    return readStoredAccessToken();
   });
 
-  const login = (newToken: string) => {
-    setToken(newToken);
-    try {
-      localStorage.setItem(ACCESS_KEY, newToken);
-    } catch {
-      // Ignore storage errors (private mode, disabled storage, etc.)
-    }
+  useEffect(() => {
+    setAuthHeader(token);
+  }, [token]);
+
+  const login = (accessToken: string, refreshToken?: string | null) => {
+    setToken(accessToken);
+    persistTokens(accessToken, refreshToken);
   };
 
   const logout = () => {
     setToken(null);
-    try {
-      localStorage.removeItem(ACCESS_KEY);
-      localStorage.removeItem(REFRESH_KEY);
-    } catch {
-      // Ignore storage errors on logout
-    }
+    clearStoredTokens();
   };
 
   // Keep a boolean for convenience
