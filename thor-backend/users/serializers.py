@@ -23,7 +23,7 @@ class RegisterSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = User
-        fields = ('username', 'email', 'password', 'password_confirm', 'first_name', 'last_name')
+        fields = ('email', 'password', 'password_confirm')
     
     def validate(self, attrs):
         """Validate that passwords match."""
@@ -37,5 +37,5 @@ class RegisterSerializer(serializers.ModelSerializer):
         # CustomUserManager.create_user expects (email, password, **extra_fields)
         email = validated_data.pop('email')
         password = validated_data.pop('password')
-        user = User.objects.create_user(email, password, **validated_data)
+        user = User.objects.create_user(email, password)
         return user

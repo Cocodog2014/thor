@@ -54,6 +54,7 @@ export const setAuthHeader = (token: string | null) => {
 // Public endpoints that don't require authentication
 const PUBLIC_ENDPOINTS = [
   '/global-markets/markets',
+  '/global-markets/stats',
   '/quotes',
   '/vwap',
 ];

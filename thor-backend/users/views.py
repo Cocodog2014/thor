@@ -54,12 +54,9 @@ class RegisterView(generics.CreateAPIView):
     
     POST /api/users/register/
     {
-        "username": "thor",
-        "email": "admin@360edu.org",
-        "password": "Coco1464#",
-        "password_confirm": "Coco1464#",
-        "first_name": "Thor",
-        "last_name": "User"
+        "email": "user@example.com",
+        "password": "StrongPassw0rd!",
+        "password_confirm": "StrongPassw0rd!"
     }
     """
     queryset = User.objects.all()
