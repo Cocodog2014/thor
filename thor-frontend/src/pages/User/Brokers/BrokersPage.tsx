@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { useLocation } from "react-router-dom";
 import api from "../../../services/api";
 
 type SchwabAccount = {
@@ -11,15 +12,18 @@ type SchwabSummary = {
 };
 
 export default function BrokersPage() {
+  const location = useLocation();
   const [loading, setLoading] = useState(true);
   const [accounts, setAccounts] = useState<SchwabAccount[]>([]);
   const [summary, setSummary] = useState<SchwabSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
   const isConnected = accounts.length > 0;
   const tradingEnabled = Boolean(summary?.trading_enabled);
+  const justConnected = new URLSearchParams(location.search).get("connected") === "1";
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     setError(null);
 
@@ -45,12 +49,12 @@ export default function BrokersPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   const connectSchwab = async () => {
     setError(null);
     try {
-      const res = await api.post("/schwab/oauth/start/");
+      const res = await api.get("/schwab/oauth/start/");
       const authUrl = res.data?.auth_url;
       if (!authUrl) {
         setError("No auth_url returned from server.");
@@ -64,7 +68,18 @@ export default function BrokersPage() {
 
   useEffect(() => {
     load();
-  }, []);
+  }, [load]);
+
+  useEffect(() => {
+    if (!justConnected) {
+      return;
+    }
+
+    setNotice("Schwab connection updated. Refreshing data…");
+    load();
+    const timeout = setTimeout(() => setNotice(null), 4000);
+    return () => clearTimeout(timeout);
+  }, [justConnected, load]);
 
   const statusText = loading
     ? "Loading…"
@@ -84,6 +99,12 @@ export default function BrokersPage() {
       {error && (
         <div className="brokers-error">
           <strong>{error}</strong>
+        </div>
+      )}
+
+      {notice && (
+        <div className="brokers-notice">
+          <strong>{notice}</strong>
         </div>
       )}
 

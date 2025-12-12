@@ -12,7 +12,7 @@ export default function SchwabCallbackPage() {
       try {
         await api.get(`/schwab/oauth/callback/${loc.search}`);
         setMsg("Connected! Redirecting…");
-        setTimeout(() => nav("/app/user/brokers", { replace: true }), 600);
+        setTimeout(() => nav("/app/user/brokers?connected=1", { replace: true }), 600);
       } catch {
         setMsg("Schwab connect failed. Please try again.");
       }

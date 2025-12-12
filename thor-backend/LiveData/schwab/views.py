@@ -5,7 +5,7 @@ Handles OAuth flow and API endpoints for Schwab integration.
 """
 
 import logging
-from django.http import JsonResponse, HttpResponseRedirect
+from django.http import JsonResponse
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_http_methods
 from django.conf import settings
@@ -59,7 +59,7 @@ def oauth_start(request):
     logger.info(f"Starting Schwab OAuth for user {request.user.username}")
     logger.info(f"Redirect URI: {redirect_uri}")
 
-    return HttpResponseRedirect(oauth_url)
+    return JsonResponse({"auth_url": oauth_url})
 
 
 @login_required

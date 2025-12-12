@@ -3,7 +3,7 @@ Test views for Schwab OAuth without login requirement.
 Use these for initial testing, then switch to real views.
 """
 
-from django.http import JsonResponse, HttpResponseRedirect
+from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 from django.conf import settings
 from urllib.parse import urlencode
@@ -41,11 +41,10 @@ def oauth_start_test(request):
     
     oauth_url = f"{auth_url}?{urlencode(params)}"
     
-    logger.info(f"Starting Schwab OAuth (test mode)")
+    logger.info("Starting Schwab OAuth (test mode)")
     logger.info(f"Redirect URI: {redirect_uri}")
-    
-    # Redirect to Schwab
-    return HttpResponseRedirect(oauth_url)
+
+    return JsonResponse({"auth_url": oauth_url})
 
 
 @require_http_methods(["GET"])
