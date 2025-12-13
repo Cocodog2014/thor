@@ -61,11 +61,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = (accessToken: string, refreshToken?: string | null) => {
     setToken(accessToken);
+    setAuthHeader(accessToken);
     persistTokens(accessToken, refreshToken);
   };
 
   const logout = () => {
     setToken(null);
+    setAuthHeader(null);
     clearStoredTokens();
   };
 

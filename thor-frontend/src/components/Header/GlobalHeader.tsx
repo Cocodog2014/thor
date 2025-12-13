@@ -96,12 +96,15 @@ const GlobalHeader: React.FC<LayoutProps> = ({ children, onTradingActivityToggle
             className="header-title"
           >
             <span className="header-title__primary">⚡🔨⚡ THOR'S WAR ROOM ⚡🔨⚡</span>
-            {commanderDisplay && (
-              <span className="header-title__commander">{commanderDisplay}</span>
-            )}
           </Typography>
 
-          <Box sx={{ width: 220 }} />
+          <Box className="header-identity">
+            {commanderDisplay && (
+              <Typography component="span" className="header-identity__text">
+                {commanderDisplay}
+              </Typography>
+            )}
+          </Box>
         </Toolbar>
       </AppBar>
 
