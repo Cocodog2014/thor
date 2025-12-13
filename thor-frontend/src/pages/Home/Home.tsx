@@ -5,7 +5,7 @@ import GlobalMarkets from "../GlobalMarkets/GlobalMarkets";
 import TwoByThreeGridSortable from "../../components/Grid2x3/TwoByThreeGridSortable";
 import type { DashboardTile } from "../../components/Grid2x3/TwoByThreeGrid";
 import { useDragAndDropTiles } from "../../hooks/DragAndDrop";
-import CommanderWelcomeModal from "../../components/CommanderWelcome/CommanderWelcomeModal";
+import CommanderWelcomeModal from "../../components/modals/CommanderWelcome/CommanderWelcomeModal";
 import { HOME_WELCOME_DISMISSED_KEY } from "../../constants/storageKeys";
 
 type TileCTAProps = {

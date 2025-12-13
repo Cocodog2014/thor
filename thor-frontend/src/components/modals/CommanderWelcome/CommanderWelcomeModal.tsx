@@ -1,8 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import sceneOneImg from '../../assets/Scene 1.png';
-import sceneTwoImg from '../../assets/Scene 2.png';
-import sceneThreeImg from '../../assets/Scene 3.png';
+import sceneOneImg from '../../../assets/Scene 1.png';
+import sceneTwoImg from '../../../assets/Scene 2.png';
+import sceneThreeImg from '../../../assets/Scene 3.png';
 import './CommanderWelcomeModal.css';
 
 export interface CommanderWelcomeModalProps {

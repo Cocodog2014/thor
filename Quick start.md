@@ -240,7 +240,7 @@ Open three terminals (or PowerShell windows).
    npm run dev:local
 
 4. cd A:\Thor
-    cloudflared tunnel run thor
+    cloudflared tunnel run dev-thor
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 Production
 

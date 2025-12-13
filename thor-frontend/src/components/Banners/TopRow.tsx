@@ -1,6 +1,7 @@
 // TopRow.tsx
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import type { AccountSummary } from './bannerTypes';
+import BrokersAccountModal from '../modals/BrokersAccount/BrokersAccountModal';
 
 interface TopRowProps {
   isConnected: boolean;
@@ -21,8 +22,62 @@ const TopRow: React.FC<TopRowProps> = ({
   onAccountChange,
   onNavigate,
 }) => {
+  const [showPaperGuard, setShowPaperGuard] = useState(false);
+
+  const selectedAccount = useMemo(() => {
+    if (!accounts.length) {
+      return null;
+    }
+    if (selectedAccountId === null) {
+      return accounts[0];
+    }
+    return accounts.find((acct) => acct.id === selectedAccountId) ?? accounts[0];
+  }, [accounts, selectedAccountId]);
+
+  const brokerLabel = (selectedAccount?.broker ?? '').toLowerCase();
+  const isPaperAccount = brokerLabel === 'paper';
+  const isApproved = Boolean(selectedAccount?.ok_to_trade);
+
+  const statusLabel = (() => {
+    if (!selectedAccount) {
+      return 'No accounts available';
+    }
+    if (isPaperAccount) {
+      return 'Mode: Paper';
+    }
+    if (!isApproved) {
+      return 'Needs setup';
+    }
+    const brokerName = selectedAccount.display_name || selectedAccount.broker || 'Brokerage';
+    return `Live: ${brokerName}`;
+  })();
+
+  const statusVariant = !selectedAccount
+    ? 'warning'
+    : isPaperAccount
+    ? 'paper'
+    : isApproved
+    ? 'live'
+    : 'warning';
+
+  const handleStartBrokerageAccount = () => {
+    if (!selectedAccount || isPaperAccount) {
+      setShowPaperGuard(true);
+      return;
+    }
+
+    onNavigate('/app/trade');
+  };
+
+  const handleCloseModal = () => setShowPaperGuard(false);
+  const handleGoToSetup = () => {
+    setShowPaperGuard(false);
+    onNavigate('/app/user/brokers');
+  };
+
   return (
-    <div className="global-banner-row global-banner-row-top">
+    <>
+      <div className="global-banner-row global-banner-row-top">
       <div className="global-banner-left">
         <span
           className={`home-connection ${
@@ -46,29 +101,32 @@ const TopRow: React.FC<TopRowProps> = ({
 
         {/* Account dropdown replaces hard-coded account id */}
         {accounts.length > 0 ? (
-          <select
-            className="home-account-select"
-            aria-label="Select trading account"
-            value={selectedAccountId ?? ''}
-            onChange={(e) => onAccountChange(Number(e.target.value))}
-          >
-            {accounts.map((acct) => (
-              <option key={acct.id} value={acct.id}>
-                {acct.broker_account_id}
-                {acct.display_name ? ` (${acct.display_name})` : ''}
-              </option>
-            ))}
-          </select>
+          <>
+            <select
+              className="home-account-select"
+              aria-label="Select trading account"
+              value={selectedAccountId ?? ''}
+              onChange={(e) => onAccountChange(Number(e.target.value))}
+            >
+              {accounts.map((acct) => (
+                <option key={acct.id} value={acct.id}>
+                  {acct.broker_account_id}
+                  {acct.display_name ? ` (${acct.display_name})` : ''}
+                </option>
+              ))}
+            </select>
+            <span className={`account-mode-pill ${statusVariant}`}>{statusLabel}</span>
+          </>
         ) : (
           <span className="home-account-id">No accounts</span>
         )}
         <button
           className="home-quick-link"
           type="button"
-          onClick={() => onNavigate('/app/user/brokers')}
+          onClick={handleStartBrokerageAccount}
           style={{ marginLeft: 8 }}
         >
-          <span>🔌</span>Connect Broker Account
+          <span>🚀</span>Start Brokerage Account
         </button>
       </div>
 
@@ -97,10 +155,17 @@ const TopRow: React.FC<TopRowProps> = ({
           type="button"
           onClick={() => onNavigate('/app/user/brokers')}
         >
-          <span>⚙️</span>Setup
+          <span>⚙️</span>Setup Brokerage Account
         </button>
       </div>
-    </div>
+      </div>
+
+      <BrokersAccountModal
+        open={showPaperGuard}
+        onClose={handleCloseModal}
+        onGoToSetup={handleGoToSetup}
+      />
+    </>
   );
 };
 

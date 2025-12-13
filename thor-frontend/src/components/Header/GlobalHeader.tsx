@@ -1,6 +1,14 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { AppBar, Toolbar, Typography, Box, CssBaseline } from '@mui/material';
 import CollapsibleDrawer, { DEFAULT_WIDTH_OPEN, DEFAULT_WIDTH_CLOSED } from '../Drawer/CollapsibleDrawer';
+import api from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
+
+type UserProfile = {
+  first_name?: string | null;
+  last_name?: string | null;
+  email?: string | null;
+};
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -13,7 +21,51 @@ interface LayoutProps {
 }
 
 const GlobalHeader: React.FC<LayoutProps> = ({ children, onTradingActivityToggle, showTradingActivity, onGlobalMarketToggle, showGlobalMarket, onFuturesOnHomeToggle, showFuturesOnHome }) => {
-  const [open, setOpen] = React.useState(false);
+  const [open, setOpen] = useState(false);
+  const [commanderDisplay, setCommanderDisplay] = useState<string | null>(null);
+  const { token } = useAuth();
+
+  useEffect(() => {
+    let active = true;
+
+    const fetchProfile = async () => {
+      try {
+        const { data } = await api.get<UserProfile>('/users/profile/');
+        if (!active) {
+          return;
+        }
+
+        const last = data?.last_name?.trim();
+        const first = data?.first_name?.trim();
+        const email = data?.email?.trim();
+
+        if (last) {
+          setCommanderDisplay(`Commander ${last}`);
+        } else if (first) {
+          setCommanderDisplay(`Commander ${first}`);
+        } else if (email) {
+          setCommanderDisplay(email);
+        } else {
+          setCommanderDisplay(null);
+        }
+      } catch (error) {
+        if (active) {
+          console.error('GlobalHeader: failed to load commander identity', error);
+          setCommanderDisplay(null);
+        }
+      }
+    };
+
+    if (token) {
+      fetchProfile();
+    } else {
+      setCommanderDisplay(null);
+    }
+
+    return () => {
+      active = false;
+    };
+  }, [token]);
 
   const toggleDrawer = () => setOpen((v) => !v);
 
@@ -39,11 +91,14 @@ const GlobalHeader: React.FC<LayoutProps> = ({ children, onTradingActivityToggle
           {/* Centered Title */}
           <Typography 
             variant="h4" 
-            noWrap 
+            noWrap={false}
             component="div" 
             className="header-title"
           >
-            ⚡🔨⚡ THOR'S WAR ROOM ⚡🔨⚡
+            <span className="header-title__primary">⚡🔨⚡ THOR'S WAR ROOM ⚡🔨⚡</span>
+            {commanderDisplay && (
+              <span className="header-title__commander">{commanderDisplay}</span>
+            )}
           </Typography>
 
           <Box sx={{ width: 220 }} />

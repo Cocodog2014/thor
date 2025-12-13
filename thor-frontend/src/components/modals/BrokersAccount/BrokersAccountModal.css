@@ -1,0 +1,69 @@
+.brokers-guard-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1200;
+  padding: 1.5rem;
+}
+
+.brokers-guard-panel {
+  width: min(420px, 100%);
+  background: var(--bg-1);
+  border: 1px solid var(--border-1);
+  border-radius: 18px;
+  padding: var(--thor-spacing-lg);
+  box-shadow: var(--shadow-soft);
+  color: var(--text-normal);
+}
+
+.brokers-guard-panel h3 {
+  margin-top: 0;
+  margin-bottom: var(--thor-spacing-sm);
+  font-family: var(--thor-font-title);
+  color: var(--text-strong);
+  font-size: 1.75rem;
+}
+
+.brokers-guard-body {
+  margin: 0 0 var(--thor-spacing-md) 0;
+  color: var(--text-muted);
+  line-height: 1.5;
+  font-size: 1.1rem;
+}
+
+.brokers-guard-actions {
+  display: flex;
+  gap: var(--thor-spacing-sm);
+  flex-wrap: wrap;
+}
+
+.brokers-guard-primary,
+.brokers-guard-secondary {
+  flex: 1;
+  min-width: 120px;
+  padding: 0.65rem 1rem;
+  border-radius: 999px;
+  font-weight: 600;
+  border: 1px solid var(--border-1);
+  cursor: pointer;
+  transition: transform 150ms ease, background 150ms ease, color 150ms ease;
+}
+
+.brokers-guard-primary {
+  background: var(--accent-yellow);
+  color: #000;
+  border-color: var(--accent-yellow);
+}
+
+.brokers-guard-secondary {
+  background: transparent;
+  color: var(--text-normal);
+}
+
+.brokers-guard-primary:hover,
+.brokers-guard-secondary:hover {
+  transform: translateY(-1px);
+}

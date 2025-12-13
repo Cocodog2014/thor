@@ -100,6 +100,33 @@
   font-weight: 600;
 }
 
+.account-mode-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.15rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border: 1px solid var(--border-1);
+  background: var(--bg-2);
+  color: var(--text-muted);
+}
+
+.account-mode-pill.paper {
+  border-color: var(--blue-soft);
+  color: var(--blue-soft);
+}
+
+.account-mode-pill.live {
+  border-color: var(--green);
+  color: var(--green);
+}
+
+.account-mode-pill.warning {
+  border-color: var(--accent-yellow);
+  color: var(--accent-yellow-soft);
+}
+
 /* Quick links / contact links */
 
 .home-contact-link,
