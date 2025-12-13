@@ -100,9 +100,14 @@ const GlobalHeader: React.FC<LayoutProps> = ({ children, onTradingActivityToggle
 
           <Box className="header-identity">
             {commanderDisplay && (
-              <Typography component="span" className="header-identity__text">
-                {commanderDisplay}
-              </Typography>
+              <>
+                <Typography component="span" className="header-identity__label">
+                  Commander in charge
+                </Typography>
+                <Typography component="span" className="header-identity__text">
+                  {commanderDisplay}
+                </Typography>
+              </>
             )}
           </Box>
         </Toolbar>
