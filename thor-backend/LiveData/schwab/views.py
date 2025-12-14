@@ -41,11 +41,9 @@ def oauth_start(request):
             "message": "Set SCHWAB_CLIENT_ID and SCHWAB_REDIRECT_URI in settings"
         }, status=500)
 
-    # Schwab wants @AMER.OAUTHAP suffix on the client_id for the auth step
-    client_id_for_auth = (
-        raw_client_id if raw_client_id.endswith("@AMER.OAUTHAP")
-        else f"{raw_client_id}@AMER.OAUTHAP"
-    )
+    # Schwab wants @AMER.OAUTHAP suffix on the client_id for TOKEN endpoint only,
+    # NOT for the authorize endpoint. Use raw client_id for authorize.
+    client_id_for_auth = raw_client_id
 
     auth_url = "https://api.schwabapi.com/v1/oauth/authorize"
 
@@ -59,7 +57,10 @@ def oauth_start(request):
     oauth_url = f"{auth_url}?{urlencode(params)}"
 
     logger.info(f"Starting Schwab OAuth for user {request.user.username}")
+    logger.info(f"Raw client_id: {raw_client_id}")
+    logger.info(f"Client_id for auth: {client_id_for_auth}")
     logger.info(f"Redirect URI: {redirect_uri}")
+    logger.info(f"Auth URL: {oauth_url}")
 
     return JsonResponse({"auth_url": oauth_url})
 
