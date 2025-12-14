@@ -286,7 +286,7 @@ CLOUDFLARE_TUNNEL_URL = config('CLOUDFLARE_TUNNEL_URL', default='')
 # Schwab OAuth redirect URI (must match Schwab Developer Portal exactly)
 SCHWAB_REDIRECT_URI = config(
     'SCHWAB_REDIRECT_URI',
-    default='https://dev-thor.360edu.org/api/schwab/callback'
+    default='https://dev-thor.360edu.org/schwab/callback'
 )
 
 if DEBUG and CLOUDFLARE_TUNNEL_URL:
