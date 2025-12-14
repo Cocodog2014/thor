@@ -10,7 +10,9 @@ Ensure these are set in your `.env` file:
 ```bash
 SCHWAB_CLIENT_ID=your_client_id
 SCHWAB_CLIENT_SECRET=your_client_secret
-SCHWAB_REDIRECT_URI=https://360edu.org/auth/callback
+SCHWAB_ENV=production
+SCHWAB_REDIRECT_URI=https://dev-thor.360edu.org/schwab/callback
+SCHWAB_REDIRECT_URI_DEV=https://dev-thor.360edu.org/schwab/callback
 ```
 
 ### 2. Complete OAuth Flow

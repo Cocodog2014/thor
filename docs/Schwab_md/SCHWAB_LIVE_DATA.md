@@ -15,18 +15,17 @@ Excel Live remains the default provider (no breaking changes). To view Schwab st
 
 ## Endpoints (backend)
 
-- Start OAuth: `GET /api/schwab/auth/login/`
-- OAuth callback (app): `GET /api/schwab/auth/callback`
-- OAuth callback (root-level convenience):
-    - `GET /auth/callback`
-    - `GET /schwab/callback`
+- Start OAuth: `GET /api/schwab/oauth/start/`
+- OAuth callback (API namespace): `GET /api/schwab/oauth/callback/`
+- OAuth callback (public root-level convenience):
+    - `GET /schwab/callback` (and `/schwab/callback/`)
 - Provider status: `GET /api/schwab/provider/status/?provider=schwab`
 - Provider health: `GET /api/schwab/provider/health/?provider=schwab`
 - Debug raw GET: `GET /api/schwab/debug/get/?path=/v1/accounts`
 
 Files that define these routes:
 - `thor-backend/SchwabLiveData/urls.py` (under `/api/schwab/...`)
-- `thor-backend/thor_project/urls.py` (root-level `/auth/callback` and `/schwab/callback`)
+- `thor-backend/thor_project/urls.py` (root-level `/schwab/callback` mirror)
 
 ## Configuration (.env)
 
@@ -40,10 +39,11 @@ SCHWAB_CLIENT_ID=...
 SCHWAB_CLIENT_SECRET=...
 SCHWAB_BASE_URL=https://api.schwabapi.com
 SCHWAB_SCOPES=read
+SCHWAB_ENV=production
 
-# Redirects
-SCHWAB_REDIRECT_URI=https://360edu.org/auth/callback            # production
-SCHWAB_REDIRECT_URI_DEV=https://thor.360edu.org/schwab/callback  # dev via Cloudflare
+# Redirects (must match exactly what the Schwab portal lists)
+SCHWAB_REDIRECT_URI=https://dev-thor.360edu.org/schwab/callback
+SCHWAB_REDIRECT_URI_DEV=https://dev-thor.360edu.org/schwab/callback
 
 # Optional overrides
 SCHWAB_AUTH_URL=   # default: <BASE_URL>/oauth2/authorize
@@ -51,8 +51,8 @@ SCHWAB_TOKEN_URL=  # default: <BASE_URL>/oauth2/token
 ```
 
 Important:
-- SCHWAB_REDIRECT_URI_DEV must EXACTLY match the callback configured in the Schwab portal (host + path).
-- Keep production redirect (SCHWAB_REDIRECT_URI) unchanged; dev uses the DEV override when present.
+- Schwab owns the callback selection. Whatever URL is saved in the portal must be copied into **both** `SCHWAB_REDIRECT_URI` and `SCHWAB_REDIRECT_URI_DEV`.
+- Our shared dev tunnel uses `https://dev-thor.360edu.org/schwab/callback`, so leave both env vars at that value unless you also update the Schwab portal entry.
 
 ## Token storage
 
@@ -65,7 +65,7 @@ Saved fields include: `access_token`, `refresh_token`, `expires_in`, `expires_at
 
 1) Run backend on 8000.
 2) Start ngrok and copy the HTTPS forwarding URL.
-3) Set `SCHWAB_REDIRECT_URI_DEV` in `.env` to `https://<ngrok>.ngrok-free.app/auth/callback` (or `/schwab/callback` if you prefer that route) and ensure the same is configured in the Schwab portal.
+3) If you must use a temporary tunnel (ngrok, etc.), update the Schwab portal callback **first**, then set both `SCHWAB_REDIRECT_URI` and `SCHWAB_REDIRECT_URI_DEV` in `.env` to that exact URL before restarting Django.
 4) Visit: `http://localhost:8000/api/schwab/auth/login/`, approve, and complete OAuth.
 5) Check status: `http://localhost:8000/api/schwab/provider/status/?provider=schwab`.
      - Expect `tokens.present: true` and `connected: true` (not expired).

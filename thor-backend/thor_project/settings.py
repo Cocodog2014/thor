@@ -273,8 +273,8 @@ FRONTEND_BASE_URL = config('FRONTEND_BASE_URL', default='http://localhost:5173/'
 # LiveData - Schwab OAuth Configuration
 # ============================================================================
 
-SCHWAB_ENV = os.getenv("SCHWAB_ENV") or config('SCHWAB_ENV', default='disabled')
-SCHWAB_ENABLED = SCHWAB_ENV == "dev"
+SCHWAB_ENV = (os.getenv("SCHWAB_ENV") or config('SCHWAB_ENV', default='disabled')).strip().lower()
+SCHWAB_ENABLED = SCHWAB_ENV in {"dev", "development", "prod", "production"}
 
 # Schwab API credentials (get from Schwab Developer Portal)
 SCHWAB_CLIENT_ID = config('SCHWAB_CLIENT_ID', default='')

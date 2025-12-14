@@ -151,12 +151,13 @@ Documentation:
 ```bash
 SCHWAB_CLIENT_ID=your_client_id_here
 SCHWAB_CLIENT_SECRET=your_secret_here
-SCHWAB_REDIRECT_URI=https://360edu.org/auth/callback
-SCHWAB_REDIRECT_URI_DEV=https://thor.360edu.org/schwab/callback
+SCHWAB_ENV=production
+SCHWAB_REDIRECT_URI=https://dev-thor.360edu.org/schwab/callback
+SCHWAB_REDIRECT_URI_DEV=https://dev-thor.360edu.org/schwab/callback
 ```
 
 ### Schwab Developer Portal
-- Callback URL must match `SCHWAB_REDIRECT_URI_DEV`
+- Callback URL must match `SCHWAB_REDIRECT_URI` (and `SCHWAB_REDIRECT_URI_DEV`, which we keep identical)
 - Scopes: Read account data and positions
 
 ## Key Features

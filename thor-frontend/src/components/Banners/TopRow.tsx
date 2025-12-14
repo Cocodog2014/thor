@@ -2,6 +2,7 @@
 import React, { useMemo, useState } from 'react';
 import type { AccountSummary } from './bannerTypes';
 import BrokersAccountModal from '../modals/BrokersAccount/BrokersAccountModal';
+import api from '../../services/api';
 
 interface TopRowProps {
   isConnected: boolean;
@@ -23,6 +24,7 @@ const TopRow: React.FC<TopRowProps> = ({
   onNavigate,
 }) => {
   const [showPaperGuard, setShowPaperGuard] = useState(false);
+  const [connectError, setConnectError] = useState<string | null>(null);
 
   const selectedAccount = useMemo(() => {
     if (!accounts.length) {
@@ -60,13 +62,29 @@ const TopRow: React.FC<TopRowProps> = ({
     ? 'live'
     : 'warning';
 
+  const launchSchwabConnect = async () => {
+    try {
+      setConnectError(null);
+      const { data } = await api.get('/schwab/oauth/start/');
+      const authUrl = data?.auth_url;
+      if (!authUrl) {
+        setConnectError('Unable to start Schwab OAuth (missing URL).');
+        return;
+      }
+      window.location.href = authUrl;
+    } catch (error) {
+      console.error('GlobalBanner: failed to start Schwab OAuth', error);
+      setConnectError('Unable to reach Schwab. Try again or visit Broker Connections.');
+    }
+  };
+
   const handleStartBrokerageAccount = () => {
     if (!selectedAccount || isPaperAccount) {
       setShowPaperGuard(true);
       return;
     }
 
-    onNavigate('/app/trade');
+    launchSchwabConnect();
   };
 
   const handleCloseModal = () => setShowPaperGuard(false);
@@ -153,10 +171,15 @@ const TopRow: React.FC<TopRowProps> = ({
         <button
           className="home-quick-link"
           type="button"
-          onClick={() => onNavigate('/app/user/brokers')}
+          onClick={launchSchwabConnect}
         >
           <span>⚙️</span>Setup Brokerage Account
         </button>
+        {connectError && (
+          <span className="home-banner-error" role="status">
+            {connectError}
+          </span>
+        )}
       </div>
       </div>
 

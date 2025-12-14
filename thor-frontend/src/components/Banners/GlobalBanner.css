@@ -150,6 +150,13 @@
   color: var(--accent-yellow-soft);
 }
 
+.home-banner-error {
+  color: var(--red-soft);
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin-left: 0.5rem;
+}
+
 /* --------------------------------------------- */
 /* ROW 2: Balances */
 /* --------------------------------------------- */

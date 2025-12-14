@@ -72,7 +72,7 @@ urlpatterns = [
     path('schwab/callback', schwab_views.oauth_callback, name='schwab_callback_public_root'),
     path('schwab/callback/', schwab_views.oauth_callback, name='schwab_callback_public'),
     # TODO: Migrate OAuth callbacks after testing
-    # Root-level OAuth callback to match Schwab portal setting (e.g., https://360edu.org/auth/callback)
+    # Root-level OAuth callback placeholder if Schwab portal requires a different path
     # path('auth/callback', schwab_auth_callback, name='schwab_auth_callback_root'),
     # Alternate root-level path if your Schwab portal uses /schwab/callback
     # path('schwab/callback', schwab_auth_callback, name='schwab_auth_callback_alt'),
