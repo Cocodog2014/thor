@@ -6,9 +6,11 @@ Handles OAuth flow and API endpoints for Schwab integration.
 
 import logging
 from django.http import JsonResponse
-from django.contrib.auth.decorators import login_required
-from django.views.decorators.http import require_http_methods
 from django.conf import settings
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework import status
 
 from ActAndPos.models import Account
 
@@ -19,8 +21,8 @@ from .services import SchwabTraderAPI
 logger = logging.getLogger(__name__)
 
 
-@login_required
-@require_http_methods(["GET"])
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def oauth_start(request):
     """
     Start Schwab OAuth flow.
@@ -62,8 +64,8 @@ def oauth_start(request):
     return JsonResponse({"auth_url": oauth_url})
 
 
-@login_required
-@require_http_methods(["GET"])
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def oauth_callback(request):
     """
     Handle OAuth callback from Schwab.
@@ -106,8 +108,8 @@ def oauth_callback(request):
         return JsonResponse({"error": str(e)}, status=500)
 
 
-@login_required
-@require_http_methods(["GET"])
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def list_accounts(request):
     """
     List all Schwab accounts for the authenticated user.
@@ -155,8 +157,8 @@ def list_accounts(request):
         return JsonResponse({"error": str(e)}, status=500)
 
 
-@login_required
-@require_http_methods(["GET"])
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def get_positions(request, account_id):
     """
     Fetch positions for a specific account.
@@ -186,8 +188,8 @@ def get_positions(request, account_id):
         return JsonResponse({"error": str(e)}, status=500)
 
 
-@login_required
-@require_http_methods(["GET"])
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def get_balances(request, account_id):
     """
     Fetch balances for a specific account.
@@ -217,8 +219,8 @@ def get_balances(request, account_id):
         return JsonResponse({"error": str(e)}, status=500)
 
 
-@login_required
-@require_http_methods(["GET"])
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def account_summary(request):
     """
     Get account summary for display in the frontend.

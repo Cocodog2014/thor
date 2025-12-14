@@ -10,7 +10,7 @@ export default function SchwabCallbackPage() {
   useEffect(() => {
     (async () => {
       try {
-        await api.get(`/schwab/oauth/callback/${loc.search}`);
+        await api.get(`schwab/oauth/callback/${loc.search}`);
         setMsg("Connected! Redirecting…");
         setTimeout(() => nav("/app/user/brokers?connected=1", { replace: true }), 600);
       } catch {

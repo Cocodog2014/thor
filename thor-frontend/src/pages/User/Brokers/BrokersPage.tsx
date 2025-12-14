@@ -29,8 +29,8 @@ export default function BrokersPage() {
 
     try {
       const [acctRes, summaryRes] = await Promise.allSettled([
-        api.get("/schwab/accounts/"),
-        api.get("/schwab/account/summary/"),
+        api.get("schwab/accounts/"),
+        api.get("schwab/account/summary/"),
       ]);
 
       if (acctRes.status === "fulfilled") {
@@ -54,7 +54,7 @@ export default function BrokersPage() {
   const connectSchwab = async () => {
     setError(null);
     try {
-      const res = await api.get("/schwab/oauth/start/");
+      const res = await api.get("schwab/oauth/start/");
       const authUrl = res.data?.auth_url;
       if (!authUrl) {
         setError("No auth_url returned from server.");

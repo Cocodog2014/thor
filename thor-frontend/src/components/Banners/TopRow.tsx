@@ -65,7 +65,7 @@ const TopRow: React.FC<TopRowProps> = ({
   const launchSchwabConnect = async () => {
     try {
       setConnectError(null);
-      const { data } = await api.get('/schwab/oauth/start/');
+      const { data } = await api.get('schwab/oauth/start/');
       const authUrl = data?.auth_url;
       if (!authUrl) {
         setConnectError('Unable to start Schwab OAuth (missing URL).');
