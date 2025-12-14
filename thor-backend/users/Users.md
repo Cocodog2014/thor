@@ -15,7 +15,7 @@ users/
 ├── models.py           # CustomUser model with trading-specific fields
 ├── admin.py            # Enhanced admin interface for user management
 ├── apps.py             # App configuration
-├── views.py            # User management views (future development)
+├── views.py            # Authentication + profile API endpoints (DRF + SimpleJWT)
 └── migrations/         # Database migrations
 ```
 
@@ -130,6 +130,24 @@ Comprehensive admin interface extending Django's `UserAdmin`:
 - Auto-sets display_name on user creation if not provided
 - Optimized queryset with select_related for performance
 - Helpful success messages for bulk actions
+
+## API Layer
+
+The users app ships with a thin REST API implemented via Django REST Framework and Simple JWT.
+
+### Serializers
+- **`UserSerializer`** – Read/write serializer used by the profile endpoint. It currently exposes `id`, `username`, `email`, `first_name`, and `last_name` (plus `is_staff` as read-only). Trading-specific fields (role, phone, timezone, etc.) are not yet editable over the API.
+- **`RegisterSerializer`** – Minimal registration serializer that accepts `email`, `password`, and `password_confirm`, enforcing an 8-character minimum and matching passwords before delegating to `CustomUserManager.create_user()`.
+
+### Views & Endpoints
+| Endpoint | Method(s) | Description | Permission |
+| --- | --- | --- | --- |
+| `/api/users/login/` | `POST` | Returns JWT refresh + access tokens using email + password via `CustomTokenObtainPairView`. | AllowAny |
+| `/api/users/token/refresh/` | `POST` | Exchange refresh token for a new access token (`TokenRefreshView`). | AllowAny |
+| `/api/users/register/` | `POST` | Creates a minimal user account and returns tokens in the response body. | AllowAny |
+| `/api/users/profile/` | `GET`, `PUT`, `PATCH` | Retrieve or update the authenticated user record through `UserProfileView`/`UserSerializer`. | IsAuthenticated |
+
+All authentication flows use email as the credential because `CustomUser.USERNAME_FIELD = 'email'`. The custom token serializer ensures we still call Django's `authenticate()` API so any additional auth backends continue to work.
 
 ## Role-Based Access Control
 
@@ -283,19 +301,23 @@ updated_at TIMESTAMP NOT NULL
 
 ## API Considerations
 
-### Future API Endpoints
-- `GET /api/users/me/` - Get current user profile
-- `PUT /api/users/me/` - Update current user profile
-- `POST /api/users/me/change-password/` - Change password
-- `POST /api/users/me/enable-mfa/` - Enable MFA
-- `POST /api/users/me/disable-mfa/` - Disable MFA
+### Current Endpoints
+- `POST /api/users/login/` – Obtain access + refresh tokens using the custom Simple JWT view (email/password only).
+- `POST /api/users/token/refresh/` – Refresh an access token when it expires.
+- `POST /api/users/register/` – Create a bare user (email + password) and immediately return JWTs.
+- `GET|PUT|PATCH /api/users/profile/` – Retrieve or update the authenticated user. Updates are limited to the `UserSerializer` fields documented above.
 
-### Admin API Endpoints (Admin/Owner only)
-- `GET /api/users/` - List all users
-- `POST /api/users/` - Create new user
-- `GET /api/users/{id}/` - Get user details
-- `PUT /api/users/{id}/` - Update user
-- `DELETE /api/users/{id}/` - Deactivate user
+### Future Enhancements
+- `GET /api/users/me/` + `PUT /api/users/me/` – Expand the profile endpoint to cover phone, timezone, MFA flag, etc.
+- `POST /api/users/me/change-password/` – Allow password rotation without leaving the app.
+- `POST /api/users/me/enable-mfa/` / `disable-mfa/` – Wire up MFA flows once the provider is selected.
+
+### Admin API Endpoints (Planned)
+- `GET /api/users/` – List all users
+- `POST /api/users/` – Create new user with role assignments
+- `GET /api/users/{id}/` – Get user details
+- `PUT /api/users/{id}/` – Update user metadata/roles
+- `DELETE /api/users/{id}/` – Deactivate user accounts instead of hard deletes
 
 ## Migration Strategy
 

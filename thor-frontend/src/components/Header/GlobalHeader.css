@@ -89,9 +89,14 @@
   font-size: 0.7rem;
   letter-spacing: 0.4em;
   text-transform: uppercase;
-  color: #ffe08a;
-  text-shadow: 0 0 4px rgba(255, 215, 0, 0.6);
-  opacity: 0.95;
+  background: linear-gradient(180deg, #fff4d0 0%, #ffd37c 35%, #bf7932 70%, #5c1d0c 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: #ffd37c;
+  text-shadow:
+    0px 0px 16px rgba(255, 234, 0, 0.35),
+    3px 3px 1px rgba(75, 22, 6, 0.65);
+  filter: drop-shadow(0px 4px 4px rgba(0, 0, 0, 0.5));
 }
 
 .header-identity__text {
@@ -99,8 +104,15 @@
   font-size: 1.45rem;
   letter-spacing: 0.24em;
   text-transform: uppercase;
-  color: #ffffff;
-  text-shadow: 0 0 12px rgba(255, 255, 255, 0.55), 0 0 18px rgba(255, 170, 0, 0.35);
+  background: linear-gradient(180deg, #fff4d0 0%, #ffd37c 35%, #bf7932 70%, #5c1d0c 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: #ffd37c;
+  text-shadow:
+    0px 0px 16px rgba(255, 234, 0, 0.45),
+    3px 3px 1px rgba(75, 22, 6, 0.65),
+    -2px -2px 1px rgba(255, 255, 255, 0.25);
+  filter: drop-shadow(0px 5px 5px rgba(0, 0, 0, 0.55));
   white-space: nowrap;
 }
 
