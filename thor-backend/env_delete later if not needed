@@ -1,0 +1,30 @@
+# Django Settings
+DEBUG=True
+SECRET_KEY=your-secret-key-here
+
+# Database (if not using defaults)
+# DB_NAME=thor_db
+# DB_USER=thor_user
+# DB_PASSWORD=thor_password
+# DB_HOST=localhost
+# DB_PORT=5432
+
+# Redis
+REDIS_URL=redis://localhost:6379/0
+
+# Frontend URL
+FRONTEND_BASE_URL=http://localhost:5173/
+
+# ==============================================================================
+# Schwab API Configuration
+# ==============================================================================
+# Get these from https://developer.schwab.com/ after creating an app
+# IMPORTANT: These are NOT your brokerage login credentials!
+# These are API credentials from the developer portal.
+
+# TODO: Replace with your actual Schwab Developer Portal credentials
+SCHWAB_CLIENT_ID=your_client_id_here
+SCHWAB_CLIENT_SECRET=your_client_secret_here
+
+# Cloudflare Tunnel URL (for HTTPS OAuth in dev)
+CLOUDFLARE_TUNNEL_URL=https://thor.360edu.org

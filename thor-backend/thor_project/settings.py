@@ -286,7 +286,7 @@ CLOUDFLARE_TUNNEL_URL = config('CLOUDFLARE_TUNNEL_URL', default='')
 # Schwab OAuth redirect URI (must match Schwab Developer Portal exactly)
 SCHWAB_REDIRECT_URI = config(
     'SCHWAB_REDIRECT_URI',
-    default='https://dev-thor.360edu.org/schwab/callback'
+    default='https://dev-thor.360edu.org/api/schwab/oauth/callback/'
 )
 
 if DEBUG and CLOUDFLARE_TUNNEL_URL:
@@ -322,5 +322,14 @@ LOGGING = {
 
 # Ensure Django trusts Cloudflare's TLS headers and only marks cookies secure in production
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
-SESSION_COOKIE_SECURE = not DEBUG
-CSRF_COOKIE_SECURE = not DEBUG
+USE_X_FORWARDED_HOST = True
+
+# Only force HTTPS in production (not in DEBUG mode for local development)
+SECURE_SSL_REDIRECT = False  # Disable HTTPS redirect entirely in dev/prod
+
+SESSION_COOKIE_SAMESITE = "Lax"
+CSRF_COOKIE_SAMESITE = "Lax"
+
+SESSION_COOKIE_SECURE = False  # Allow HTTP cookies in development
+CSRF_COOKIE_SECURE = False     # Allow HTTP CSRF cookies in development
+
