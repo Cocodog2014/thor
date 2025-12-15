@@ -1,5 +1,15 @@
 from django.db import models
 
+# Canonical country choices (enforced at model level)
+COUNTRY_CHOICES = (
+    ("USA", "USA"),
+    ("Pre_USA", "Pre_USA"),
+    ("China", "China"),
+    ("Japan", "Japan"),
+    ("United Kingdom", "United Kingdom"),
+    ("India", "India"),
+)
+
 class FutureTrading24Hour(models.Model):
     """
     Rolling 24-hour global session stats (JP→US).
@@ -7,7 +17,11 @@ class FutureTrading24Hour(models.Model):
     """
     session_group = models.CharField(max_length=32, db_index=True, help_text="Shared key with MarketSession.capture_group")
     session_date = models.DateField(db_index=True)
-    country = models.CharField(max_length=32)
+    country = models.CharField(
+        max_length=32,
+        choices=COUNTRY_CHOICES,
+        help_text="Market region (canonical values only)"
+    )
     future = models.CharField(max_length=20)
     prev_close_24h = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True)
     open_price_24h = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True)
@@ -28,3 +42,4 @@ class FutureTrading24Hour(models.Model):
         ]
         verbose_name = '24-Hour Global Session'
         verbose_name_plural = '24-Hour Global Sessions'
+
