@@ -320,9 +320,15 @@ LOGGING = {
     },
 }
 
-# Ensure Django trusts Cloudflare's TLS headers and only marks cookies secure in production
-SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
-USE_X_FORWARDED_HOST = True
+# Only trust proxy-provided HTTPS headers when explicitly enabled
+TRUST_PROXY_SSL_HEADERS = config('TRUST_PROXY_SSL_HEADERS', default=not DEBUG, cast=bool)
+
+if TRUST_PROXY_SSL_HEADERS:
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    USE_X_FORWARDED_HOST = True
+else:
+    SECURE_PROXY_SSL_HEADER = None
+    USE_X_FORWARDED_HOST = False
 
 # Only force HTTPS in production (not in DEBUG mode for local development)
 SECURE_SSL_REDIRECT = False  # Disable HTTPS redirect entirely in dev/prod

@@ -81,6 +81,10 @@ thor-frontend/.env.local
 - `VITE_API_BASE_URL=/api` (always relative!)
 - `VITE_PROXY_TARGET=http://127.0.0.1:8000` (Vite proxy)
 
+Need HTTPS callbacks (Schwab tunnel testing)?
+- `set TRUST_PROXY_SSL_HEADERS=1` (or add to `.env`) before `python manage.py runserver` so Django trusts Cloudflare's `X-Forwarded-Proto`.
+- Leave it unset for pure local HTTP to avoid auto-redirecting to https://localhost.
+
 🧠 Why only `/api`?
 - Locally: the Vite dev server proxies `/api` → http://127.0.0.1:8000 so no port juggling.
 - Over the dev tunnel (`https://dev-thor.360edu.org`): Cloudflare forwards `/api` → Django on 8000.
