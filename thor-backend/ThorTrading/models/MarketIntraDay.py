@@ -21,6 +21,8 @@ class MarketIntraday(models.Model):
         choices=COUNTRY_CHOICES,
         help_text="Market region (canonical values only)"
     )
+    future = models.CharField(max_length=32, help_text="Future symbol (e.g., ES, YM, NQ)")
+    market_code = models.CharField(max_length=32, help_text="Market code (e.g., USA, JPN, LON)")
     twentyfour = models.ForeignKey('FutureTrading24Hour', on_delete=models.CASCADE, related_name='intraday_bars')
     open_1m = models.DecimalField(max_digits=32, decimal_places=4)
     high_1m = models.DecimalField(max_digits=32, decimal_places=4)
