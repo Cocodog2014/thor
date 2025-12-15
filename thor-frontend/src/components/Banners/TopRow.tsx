@@ -168,13 +168,6 @@ const TopRow: React.FC<TopRowProps> = ({
         <button className="home-quick-link" type="button">
           <span>💭</span>Chat Rooms
         </button>
-        <button
-          className="home-quick-link"
-          type="button"
-          onClick={launchSchwabConnect}
-        >
-          <span>⚙️</span>Setup Brokerage Account
-        </button>
         {connectError && (
           <span className="home-banner-error" role="status">
             {connectError}
