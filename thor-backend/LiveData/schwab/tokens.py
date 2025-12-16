@@ -162,7 +162,11 @@ def get_token_expiry(expires_in: int, buffer_seconds: Optional[int] = None) -> i
     return int(time.time()) + int(expires_in or 0)
 
 
-def ensure_valid_access_token(connection, buffer_seconds: Optional[int] = None):
+def ensure_valid_access_token(
+    connection,
+    buffer_seconds: Optional[int] = None,
+    force_refresh: bool = False,
+):
     """Refresh Schwab tokens when the current access token is nearing expiry."""
     if not connection:
         raise RuntimeError("No Schwab connection available to refresh.")
@@ -171,7 +175,7 @@ def ensure_valid_access_token(connection, buffer_seconds: Optional[int] = None):
     now = int(time.time())
     expires_at = int(connection.access_expires_at or 0)
 
-    if expires_at - buffer > now:
+    if not force_refresh and expires_at - buffer > now:
         return connection
 
     lock_name = f"schwab:refresh:{connection.user_id}"
@@ -180,8 +184,11 @@ def ensure_valid_access_token(connection, buffer_seconds: Optional[int] = None):
     if hasattr(cache, "lock"):
         lock = cache.lock(lock_name, timeout=10)
 
+    lock_acquired = False
     if lock:
-        lock.acquire(blocking=True, timeout=5)
+        lock_acquired = lock.acquire(blocking=True, timeout=5)
+        if not lock_acquired:
+            logger.warning("Proceeding without Schwab refresh lock for user_id=%s", connection.user_id)
 
     try:
         # Another request may have refreshed while we waited for the lock
@@ -193,7 +200,7 @@ def ensure_valid_access_token(connection, buffer_seconds: Optional[int] = None):
 
         payload = refresh_tokens(connection.refresh_token)
     finally:
-        if lock:
+        if lock and lock_acquired:
             try:
                 lock.release()
             except Exception:
@@ -204,7 +211,7 @@ def ensure_valid_access_token(connection, buffer_seconds: Optional[int] = None):
 
     refresh_token_value = payload.get("refresh_token") or connection.refresh_token
     expires_in = payload.get("expires_in") or 0
-    new_expiry = get_token_expiry(expires_in, buffer_seconds=buffer)
+    new_expiry = get_token_expiry(expires_in)
 
     connection.access_token = access_token
     connection.refresh_token = refresh_token_value

@@ -30,18 +30,34 @@ class SchwabTraderAPI:
             "Authorization": f"Bearer {self.token.access_token}",
             "Accept": "application/json"
         }
+
+    def _request(self, method: str, path: str, *, retry_on_unauthorized: bool = True, **kwargs):
+        url = f"{self.BASE_URL}{path}"
+        request_kwargs = dict(kwargs)
+        request_kwargs.setdefault("timeout", 10)
+
+        response = requests.request(method, url, headers=self._get_headers(), **request_kwargs)
+
+        if response.status_code == 401 and retry_on_unauthorized:
+            logger.warning("Schwab API 401 for %s %s — attempting token refresh", method, path)
+            self.token = ensure_valid_access_token(self.user.schwab_token, force_refresh=True)
+            response = requests.request(
+                method,
+                url,
+                headers=self._get_headers(),
+                **request_kwargs,
+            )
+
+        response.raise_for_status()
+        return response
     
     def fetch_accounts(self):
-        url = f"{self.BASE_URL}/accounts"
-        response = requests.get(url, headers=self._get_headers(), timeout=10)
-        response.raise_for_status()
+        response = self._request("GET", "/accounts")
         return response.json()
     
     def fetch_account_details(self, account_hash, include_positions=True):
-        url = f"{self.BASE_URL}/accounts/{account_hash}"
         params = {"fields": "positions"} if include_positions else {}
-        response = requests.get(url, headers=self._get_headers(), params=params, timeout=10)
-        response.raise_for_status()
+        response = self._request("GET", f"/accounts/{account_hash}", params=params)
         return response.json()
     
     def get_account_summary(self, account_hash):
