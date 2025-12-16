@@ -10,6 +10,7 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
 from ActAndPos.models import Position
+from ActAndPos.models.snapshots import AccountDailySnapshot
 from ActAndPos.serializers import AccountSummarySerializer
 from ActAndPos.views.accounts import get_active_account
 
@@ -79,6 +80,12 @@ def account_statement_view(request):
     except ValueError as exc:
         return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
+    latest_snapshot = (
+        AccountDailySnapshot.objects.filter(account=account)
+        .order_by("-trading_date", "-captured_at")
+        .first()
+    )
+
     today = timezone.localdate()
     days_back_param = request.query_params.get("days_back")
     from_param = request.query_params.get("from")
@@ -125,24 +132,36 @@ def account_statement_view(request):
     ]
 
     account_summary = AccountSummarySerializer(account).data
+    if latest_snapshot:
+        snapshot_overrides = {
+            "net_liq": latest_snapshot.net_liq,
+            "cash": latest_snapshot.cash,
+            "stock_buying_power": latest_snapshot.stock_buying_power,
+            "option_buying_power": latest_snapshot.option_buying_power,
+            "day_trading_buying_power": latest_snapshot.day_trading_buying_power,
+            "equity": latest_snapshot.equity,
+        }
+        for key, value in snapshot_overrides.items():
+            account_summary[key] = _as_str(value)
 
+    value_source = latest_snapshot or account
     summary_rows = [
-        {"id": "net_liq", "metric": "Net Liquidating Value", "value": _as_str(account.net_liq)},
-        {"id": "cash", "metric": "Cash", "value": _as_str(account.cash)},
+        {"id": "net_liq", "metric": "Net Liquidating Value", "value": _as_str(value_source.net_liq)},
+        {"id": "cash", "metric": "Cash", "value": _as_str(value_source.cash)},
         {
             "id": "stock_bp",
             "metric": "Stock Buying Power",
-            "value": _as_str(account.stock_buying_power),
+            "value": _as_str(value_source.stock_buying_power),
         },
         {
             "id": "option_bp",
             "metric": "Option Buying Power",
-            "value": _as_str(account.option_buying_power),
+            "value": _as_str(value_source.option_buying_power),
         },
         {
             "id": "dt_bp",
             "metric": "Day Trading Buying Power",
-            "value": _as_str(account.day_trading_buying_power),
+            "value": _as_str(value_source.day_trading_buying_power),
         },
     ]
 
