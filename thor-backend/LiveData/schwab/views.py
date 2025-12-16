@@ -6,8 +6,11 @@ Handles OAuth flow and API endpoints for Schwab integration.
 
 import logging
 import time
+from urllib.parse import urlencode
+
 from django.http import JsonResponse
 from django.conf import settings
+from django.shortcuts import redirect
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -63,8 +66,6 @@ def oauth_start(request):
 
     Redirects user to Schwab authorization page.
     """
-    from urllib.parse import urlencode
-
     # Raw client_id from settings (no suffix)
     raw_client_id = getattr(settings, 'SCHWAB_CLIENT_ID', None)
     redirect_uri = getattr(settings, 'SCHWAB_REDIRECT_URI', None)
@@ -128,11 +129,11 @@ def oauth_callback(request):
         )
         
         logger.info(f"Successfully connected Schwab account for {request.user.username}")
-        
-        return JsonResponse({
-            "success": True,
-            "message": "Schwab account connected successfully"
-        })
+
+        # Send user back to the frontend after successful connect
+        frontend_url = getattr(settings, "FRONTEND_BASE_URL", "https://dev-thor.360edu.org").rstrip("/")
+        params = urlencode({"schwab": "connected"})
+        return redirect(f"{frontend_url}/broker-connections?{params}")
         
     except NotImplementedError:
         return JsonResponse({
