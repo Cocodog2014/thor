@@ -557,7 +557,7 @@ const AccountStatements: React.FC = () => {
             { key: 'metric', label: 'Metric' },
             { key: 'value', label: 'Value', align: 'right' },
           ]}
-          rows={summaryRows}
+          rows={normalizedSummaryRows}
           textFilter={textFilter}
           symbolFilter={symbolFilter}
         />
