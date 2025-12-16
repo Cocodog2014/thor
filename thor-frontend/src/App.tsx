@@ -29,27 +29,12 @@ import Home from './pages/Home/Home';
 function App() {
   const location = useLocation();
 
-  const [showTradingActivity, setShowTradingActivity] = useState(false);
-  const [showGlobalMarket, setShowGlobalMarket] = useState(true); // Show by default
-  const [showFuturesOnHome, setShowFuturesOnHome] = useState(true); // Toggle for split view
   const [showMarketOpenDashboard, setShowMarketOpenDashboard] = useState(false); // Market Open Dashboard toggle
 
   // Routes that should have full-width layout (no Container)
   // Only /app/home needs to be full-width for the Schwab-style dashboard.
   const fullWidthRoutes = ['/app/home', '/app/futures'];
   const isFullWidth = fullWidthRoutes.includes(location.pathname);
-
-  const toggleTradingActivity = () => {
-    setShowTradingActivity((prev) => !prev);
-  };
-
-  const toggleGlobalMarket = () => {
-    setShowGlobalMarket((prev) => !prev);
-  };
-
-  const toggleFuturesOnHome = () => {
-    setShowFuturesOnHome((prev) => !prev);
-  };
 
   const toggleMarketOpenDashboard = () => {
     setShowMarketOpenDashboard((prev) => !prev);
@@ -81,14 +66,7 @@ function App() {
         element={
           <ProtectedRoute>
             <TradingModeProvider>
-              <AppLayout
-                onTradingActivityToggle={toggleTradingActivity}
-                showTradingActivity={showTradingActivity}
-                onGlobalMarketToggle={toggleGlobalMarket}
-                showGlobalMarket={showGlobalMarket}
-                onFuturesOnHomeToggle={toggleFuturesOnHome}
-                showFuturesOnHome={showFuturesOnHome}
-              >
+              <AppLayout>
                 {isFullWidth ? (
                   // Full-width routes (no MUI Container)
                   <Routes>

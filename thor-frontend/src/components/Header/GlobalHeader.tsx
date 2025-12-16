@@ -12,15 +12,9 @@ type UserProfile = {
 
 interface LayoutProps {
   children: React.ReactNode;
-  onTradingActivityToggle?: () => void;
-  showTradingActivity?: boolean;
-  onGlobalMarketToggle?: () => void;
-  showGlobalMarket?: boolean;
-  onFuturesOnHomeToggle?: () => void;
-  showFuturesOnHome?: boolean;
 }
 
-const GlobalHeader: React.FC<LayoutProps> = ({ children, onTradingActivityToggle, showTradingActivity, onGlobalMarketToggle, showGlobalMarket, onFuturesOnHomeToggle, showFuturesOnHome }) => {
+const GlobalHeader: React.FC<LayoutProps> = ({ children }) => {
   const [open, setOpen] = useState(false);
   const [commanderDisplay, setCommanderDisplay] = useState<string | null>(null);
   const { token } = useAuth();
@@ -119,12 +113,6 @@ const GlobalHeader: React.FC<LayoutProps> = ({ children, onTradingActivityToggle
     onToggle={toggleDrawer} 
     widthOpen={DEFAULT_WIDTH_OPEN} 
     widthClosed={DEFAULT_WIDTH_CLOSED}
-    onTradingActivityToggle={onTradingActivityToggle}
-    showTradingActivity={showTradingActivity}
-    onGlobalMarketToggle={onGlobalMarketToggle}
-    showGlobalMarket={showGlobalMarket}
-    onFuturesOnHomeToggle={onFuturesOnHomeToggle}
-    showFuturesOnHome={showFuturesOnHome}
   />
 
       {/* Main Content */}

@@ -13,14 +13,10 @@ import {
   Divider,
 } from '@mui/material';
 import {
-  Home as HomeIcon,
   ChevronLeft as ChevronLeftIcon,
   ChevronRight as ChevronRightIcon,
-  TrendingUp as TrendingUpIcon,
   AdminPanelSettings as AdminPanelSettingsIcon,
-  AccountBalance as TradingActivityIcon,
   Logout as LogoutIcon,
-  Public as PublicIcon,
 } from '@mui/icons-material';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { HOME_WELCOME_DISMISSED_KEY } from '../../constants/storageKeys';
@@ -31,20 +27,12 @@ export interface CollapsibleDrawerProps {
   onToggle: () => void;
   widthOpen?: number;
   widthClosed?: number;
-  onTradingActivityToggle?: () => void;
-  showTradingActivity?: boolean;
-  onGlobalMarketToggle?: () => void;
-  showGlobalMarket?: boolean;
-  onFuturesOnHomeToggle?: () => void;
-  showFuturesOnHome?: boolean;
 }
 
 export const DEFAULT_WIDTH_OPEN = 240;
 export const DEFAULT_WIDTH_CLOSED = 72;
 
 const navigationItems = [
-  { text: 'Home', icon: <HomeIcon />, path: '/app/home' },
-  // Removed problematic 'Futures' direct route; use 'Futures on Home' toggle below instead
   { text: 'Django Admin', icon: <AdminPanelSettingsIcon />, path: 'http://127.0.0.1:8000/admin/', external: true },
 ];
 
@@ -53,12 +41,6 @@ const CollapsibleDrawer: React.FC<CollapsibleDrawerProps> = ({
   onToggle,
   // widthOpen = DEFAULT_WIDTH_OPEN,
   // widthClosed = DEFAULT_WIDTH_CLOSED,
-  onTradingActivityToggle,
-  showTradingActivity = false,
-  onGlobalMarketToggle,
-  showGlobalMarket = false,
-  onFuturesOnHomeToggle,
-  showFuturesOnHome = false,
 }) => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -149,48 +131,6 @@ const CollapsibleDrawer: React.FC<CollapsibleDrawerProps> = ({
             </ListItemButton>
           </ListItem>
         );})}
-
-        {/* Global Market (TimeZone) Toggle */}
-        <ListItem disablePadding sx={{ display: 'block' }}>
-          <ListItemButton
-            className="thor-nav-button"
-            selected={showGlobalMarket}
-            onClick={onGlobalMarketToggle}
-          >
-            <ListItemIcon className="thor-nav-icon">
-              <PublicIcon />
-            </ListItemIcon>
-            <ListItemText primary="Global Market" className="thor-nav-text" />
-          </ListItemButton>
-        </ListItem>
-
-        {/* Futures card toggle for home dashboard */}
-        <ListItem disablePadding sx={{ display: 'block' }}>
-          <ListItemButton
-            className="thor-nav-button"
-            selected={showFuturesOnHome}
-            onClick={onFuturesOnHomeToggle}
-          >
-            <ListItemIcon className="thor-nav-icon">
-              <TrendingUpIcon />
-            </ListItemIcon>
-            <ListItemText primary="Futures on Home" className="thor-nav-text" />
-          </ListItemButton>
-        </ListItem>
-
-  {/* Trading Activity Toggle */}
-        <ListItem disablePadding sx={{ display: 'block' }}>
-          <ListItemButton
-            className="thor-nav-button"
-            selected={showTradingActivity}
-            onClick={onTradingActivityToggle}
-          >
-            <ListItemIcon className="thor-nav-icon">
-              <TradingActivityIcon />
-            </ListItemIcon>
-            <ListItemText primary="Trading Activity" className="thor-nav-text" />
-          </ListItemButton>
-        </ListItem>
       </List>
 
       {/* Sign out at bottom */}
