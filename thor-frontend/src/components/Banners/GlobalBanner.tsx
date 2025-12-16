@@ -10,6 +10,7 @@ import TabsRow from './TabsRow';
 import SchwabHealthCard from './SchwabHealthCard';
 import { useGlobalTimer } from '../../context/GlobalTimerContext';
 import { useAuth } from '../../context/AuthContext';
+import { BANNER_SELECTED_ACCOUNT_ID_KEY } from '../../constants/bannerKeys';
 
 type UserProfile = {
   is_staff?: boolean;
@@ -156,14 +157,29 @@ const GlobalBanner: React.FC = () => {
 
         setAccounts(accountList);
 
-        // Default to the first account if none selected yet
-        if (accountList.length > 0) {
-          setSelectedAccountId((prev) => (prev === null ? accountList[0].id : prev));
+        if (accountList.length === 0) {
+          setSelectedAccountId(null);
+          return;
+        }
+
+        let restored: number | null = null;
+        try {
+          const raw = sessionStorage.getItem(BANNER_SELECTED_ACCOUNT_ID_KEY);
+          restored = raw ? Number(raw) : null;
+        } catch {
+          restored = null;
+        }
+
+        if (restored && accountList.some((acct) => acct.id === restored)) {
+          setSelectedAccountId(restored);
+        } else {
+          setSelectedAccountId(accountList[0]?.id ?? null);
         }
       } catch (error) {
         if (!isMounted) return;
         console.error('Failed to load accounts list', error);
         setAccounts([]);
+        setSelectedAccountId(null);
       }
     };
 
@@ -251,6 +267,15 @@ const GlobalBanner: React.FC = () => {
     navigate(path);
   };
 
+  const handleAccountChange = (id: number) => {
+    setSelectedAccountId(id);
+    try {
+      sessionStorage.setItem(BANNER_SELECTED_ACCOUNT_ID_KEY, String(id));
+    } catch {
+      // Ignore storage errors (private browsing, quota, etc.).
+    }
+  };
+
   return (
     <div
       className="global-banner"
@@ -263,7 +288,7 @@ const GlobalBanner: React.FC = () => {
         connectionDetails={connectionDetails}
         accounts={accounts}
         selectedAccountId={selectedAccountId}
-        onAccountChange={(id) => setSelectedAccountId(id)}
+        onAccountChange={handleAccountChange}
         onNavigate={(path) => navigate(path)}
         schwabHealth={schwabHealth}
       />

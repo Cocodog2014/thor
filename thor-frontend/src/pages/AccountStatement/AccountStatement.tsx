@@ -1,6 +1,7 @@
 // src/pages/AccountStatements/AccountStatements.tsx
 import React, { useEffect, useMemo, useState } from 'react';
 import api from "../../services/api";
+import { BANNER_SELECTED_ACCOUNT_ID_KEY } from "../../constants/bannerKeys";
 
 type ColumnDef = {
   key: string;
@@ -208,8 +209,16 @@ const AccountStatements: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Future enhancement: wire this to banner-selected account
-  const [accountId] = useState<string | null>(null);
+  const [accountId, setAccountId] = useState<string | null>(null);
+
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(BANNER_SELECTED_ACCOUNT_ID_KEY);
+      setAccountId(raw ? raw : null);
+    } catch {
+      setAccountId(null);
+    }
+  }, []);
 
   const loadData = async () => {
     try {
