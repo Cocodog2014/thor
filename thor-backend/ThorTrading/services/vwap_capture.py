@@ -134,14 +134,18 @@ class VWAPMinuteCaptureService:
                 if self._last_minute_per_symbol.get(sym) == current_minute:
                     continue
                 try:
-                    VwapMinute.objects.create(
+                    defaults = {
+                        "last_price": _dec(quote.get("last")),
+                        "cumulative_volume": _int(quote.get("volume")),
+                    }
+                    _, created = VwapMinute.objects.update_or_create(
                         symbol=sym,
                         timestamp_minute=current_minute,
-                        last_price=_dec(quote.get("last")),
-                        cumulative_volume=_int(quote.get("volume")),
+                        defaults=defaults,
                     )
                     self._last_minute_per_symbol[sym] = current_minute
-                    self._stats.rows_created += 1
+                    if created:
+                        self._stats.rows_created += 1
                 except Exception:
                     logger.exception("VWAP row creation failed for %s", sym)
             # Heartbeat every 10 samples
