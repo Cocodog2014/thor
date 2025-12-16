@@ -175,6 +175,12 @@ class SchwabTraderAPI:
             except Exception:
                 return default
 
+        def _pick_first(*values):
+            for candidate in values:
+                if candidate is not None:
+                    return candidate
+            return Decimal("0")
+
         account.cash = _dec(bal.get("cashBalance"))
         account.current_cash = account.cash
         account.net_liq = _dec(bal.get("liquidationValue"))
@@ -183,6 +189,21 @@ class SchwabTraderAPI:
         account.stock_buying_power = _dec(bal.get("stockBuyingPower", bal.get("buyingPower")))
         account.option_buying_power = _dec(bal.get("optionBuyingPower"))
         account.day_trading_buying_power = _dec(bal.get("dayTradingBuyingPower"))
+        available_funds = _dec(
+            _pick_first(
+                bal.get("availableFunds"),
+                bal.get("availableFundsForTrading"),
+                bal.get("availableFundsForTradingEquity"),
+            )
+        )
+        long_stock_value = _dec(bal.get("longMarketValue"))
+        raw_equity_pct = bal.get("equityPercentage")
+        equity_pct = _dec(raw_equity_pct) if raw_equity_pct is not None else Decimal("0")
+        if raw_equity_pct is None and account.net_liq:
+            try:
+                equity_pct = (account.equity / account.net_liq) * Decimal("100")
+            except Exception:
+                equity_pct = Decimal("0")
         account.save(update_fields=[
             "cash",
             "current_cash",
@@ -201,6 +222,9 @@ class SchwabTraderAPI:
             "stock_buying_power": float(account.stock_buying_power),
             "option_buying_power": float(account.option_buying_power),
             "day_trading_buying_power": float(account.day_trading_buying_power),
+            "available_funds_for_trading": float(available_funds),
+            "long_stock_value": float(long_stock_value),
+            "equity_percentage": float(equity_pct),
         }
 
         try:

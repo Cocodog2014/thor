@@ -254,11 +254,21 @@ def get_balances(request, account_id):
             }, status=404)
         
         api = SchwabTraderAPI(request.user)
-        api.fetch_balances(account_id)
-        
+        payload = api.fetch_balances(account_id)
+
+        if not payload:
+            return JsonResponse({
+                "error": "Unable to fetch balances from Schwab",
+                "success": False
+            }, status=502)
+
+        redis_channel = f"live_data:balances:{account_id}"
+
         return JsonResponse({
             "success": True,
-            "message": f"Balances published to Redis for account {account_id}"
+            "message": f"Balances published to Redis for account {account_id}",
+            "balances": payload,
+            "redis_channel": redis_channel
         })
         
     except NotImplementedError:
@@ -321,14 +331,20 @@ def account_summary(request):
             except Exception:
                 return "$0.00"
 
+        def _pct(v):
+            try:
+                return f"{float(v):.2f}%"
+            except Exception:
+                return "0.00%"
+
         summary = {
             "net_liquidating_value": _money(balances_payload.get("net_liq", 0)),
             "stock_buying_power": _money(balances_payload.get("stock_buying_power", 0)),
             "option_buying_power": _money(balances_payload.get("option_buying_power", 0)),
             "day_trading_buying_power": _money(balances_payload.get("day_trading_buying_power", 0)),
-            "available_funds_for_trading": _money(0),  # optional: you can add this to fetch_balances payload later
-            "long_stock_value": _money(0),            # optional: add later if you want it
-            "equity_percentage": "0.00%",             # optional: add later if you want it
+            "available_funds_for_trading": _money(balances_payload.get("available_funds_for_trading", 0)),
+            "long_stock_value": _money(balances_payload.get("long_stock_value", 0)),
+            "equity_percentage": _pct(balances_payload.get("equity_percentage", 0)),
         }
 
         return JsonResponse({
