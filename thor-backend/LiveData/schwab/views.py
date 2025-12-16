@@ -306,35 +306,38 @@ def account_summary(request):
             chosen = accounts[0]
 
         sec = (chosen or {}).get('securitiesAccount', {}) or {}
-        bal = (sec.get('currentBalances', {}) or {})
+        account_id = sec.get('accountNumber')  # what your /accounts payload actually contains
 
-        def _money(value):
+        if not account_id:
+            return JsonResponse({"error": "Unable to get account identifier"}, status=500)
+
+        # ✅ THOR WAY: persist + publish via the existing service method
+        balances_payload = api.fetch_balances(account_id)  # publishes to Redis + updates Account
+
+        # Format UI summary from the normalized balances payload
+        def _money(v):
             try:
-                return f"${float(value):,.2f}"
+                return f"${float(v):,.2f}"
             except Exception:
                 return "$0.00"
 
-        def _pct(value):
-            try:
-                return f"{float(value):.2f}%"
-            except Exception:
-                return "0.00%"
-
         summary = {
-            "net_liquidating_value": _money(bal.get('liquidationValue', 0)),
-            "stock_buying_power": _money(bal.get('stockBuyingPower', bal.get('buyingPower', 0))),
-            "option_buying_power": _money(bal.get('optionBuyingPower', 0)),
-            "day_trading_buying_power": _money(bal.get('dayTradingBuyingPower', 0)),
-            "available_funds_for_trading": _money(bal.get('availableFunds', 0)),
-            "long_stock_value": _money(bal.get('longMarketValue', 0)),
-            "equity_percentage": _pct(bal.get('equityPercentage', 0)),
+            "net_liquidating_value": _money(balances_payload.get("net_liq", 0)),
+            "stock_buying_power": _money(balances_payload.get("stock_buying_power", 0)),
+            "option_buying_power": _money(balances_payload.get("option_buying_power", 0)),
+            "day_trading_buying_power": _money(balances_payload.get("day_trading_buying_power", 0)),
+            "available_funds_for_trading": _money(0),  # optional: you can add this to fetch_balances payload later
+            "long_stock_value": _money(0),            # optional: add later if you want it
+            "equity_percentage": "0.00%",             # optional: add later if you want it
         }
 
         return JsonResponse({
             "success": True,
-            "account_number": sec.get('accountNumber'),
+            "account_number": account_id,
+            "balances_published": True,
             "summary": summary
         })
+
 
     except Exception as e:
         logger.error(f"Failed to fetch account summary: {e}")
