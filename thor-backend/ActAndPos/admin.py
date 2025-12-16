@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Account, Order, Position
+from .models import Account, AccountDailySnapshot, Order, Position
 
 
 class PositionInline(admin.TabularInline):
@@ -124,4 +124,26 @@ class OrderAdmin(admin.ModelAdmin):
 	search_fields = ("symbol", "account__display_name", "account__broker_account_id", "broker_order_id")
 	date_hierarchy = "time_placed"
 	ordering = ("-time_placed",)
+	list_select_related = ("account",)
+
+
+@admin.register(AccountDailySnapshot)
+class AccountDailySnapshotAdmin(admin.ModelAdmin):
+	list_display = (
+		"account",
+		"trading_date",
+		"net_liq",
+		"cash",
+		"equity",
+		"stock_buying_power",
+		"captured_at",
+	)
+	list_filter = ("trading_date", "account", "account__user", "account__broker")
+	search_fields = (
+		"account__display_name",
+		"account__broker_account_id",
+		"account__user__email",
+	)
+	ordering = ("-trading_date", "-captured_at")
+	date_hierarchy = "trading_date"
 	list_select_related = ("account",)
