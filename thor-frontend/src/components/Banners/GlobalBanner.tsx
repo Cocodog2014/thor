@@ -271,6 +271,11 @@ const GlobalBanner: React.FC = () => {
     setSelectedAccountId(id);
     try {
       sessionStorage.setItem(BANNER_SELECTED_ACCOUNT_ID_KEY, String(id));
+      window.dispatchEvent(
+        new CustomEvent('thor:selectedAccountChanged', {
+          detail: { accountId: id },
+        }),
+      );
     } catch {
       // Ignore storage errors (private browsing, quota, etc.).
     }

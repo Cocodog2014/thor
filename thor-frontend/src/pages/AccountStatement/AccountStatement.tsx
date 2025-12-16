@@ -214,10 +214,24 @@ const AccountStatements: React.FC = () => {
   useEffect(() => {
     try {
       const raw = sessionStorage.getItem(BANNER_SELECTED_ACCOUNT_ID_KEY);
-      setAccountId(raw ? raw : null);
+      setAccountId(raw || null);
     } catch {
       setAccountId(null);
     }
+  }, []);
+
+  useEffect(() => {
+    const handleSelectedAccountChanged = (event: Event) => {
+      const detail = (event as CustomEvent<{ accountId?: number | string }>).detail;
+      if (detail && detail.accountId != null) {
+        setAccountId(String(detail.accountId));
+      }
+    };
+
+    window.addEventListener('thor:selectedAccountChanged', handleSelectedAccountChanged);
+    return () => {
+      window.removeEventListener('thor:selectedAccountChanged', handleSelectedAccountChanged);
+    };
   }, []);
 
   const loadData = async () => {
@@ -269,6 +283,22 @@ const AccountStatements: React.FC = () => {
   const summaryRows = data?.summary ?? [];
   const accountSummary = data?.account;
   const dateRange = data?.date_range;
+
+  const normalizedSummaryRows = useMemo(() => {
+    if (!summaryRows.length) {
+      return summaryRows;
+    }
+
+    const netLiqRow = summaryRows.find((row) => row.id === 'net_liq');
+    const fallbackNetLiq = accountSummary?.net_liq ?? '';
+    const netLiqValue = netLiqRow?.value ?? fallbackNetLiq;
+
+    return summaryRows.map((row) =>
+      row.id === 'dt_bp'
+        ? { ...row, value: netLiqValue }
+        : row
+    );
+  }, [summaryRows, accountSummary?.net_liq]);
 
   const tradesRows = useMemo<RowData[]>(() => {
     if (!data?.trades) {
