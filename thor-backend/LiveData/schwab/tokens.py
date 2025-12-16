@@ -181,11 +181,12 @@ def ensure_valid_access_token(connection, buffer_seconds: Optional[int] = None):
         lock = cache.lock(lock_name, timeout=10)
 
     if lock:
-        lock.acquire(blocking=True)
+        lock.acquire(blocking=True, timeout=5)
 
     try:
         # Another request may have refreshed while we waited for the lock
         connection.refresh_from_db()
+        now = int(time.time())
         expires_at = int(connection.access_expires_at or 0)
         if expires_at - buffer > now:
             return connection
