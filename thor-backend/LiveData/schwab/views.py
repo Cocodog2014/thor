@@ -274,11 +274,8 @@ def get_balances(request, account_id):
 @permission_classes([IsAuthenticated])
 def account_summary(request):
     """
-    Get account summary for display in the frontend.
-    
-    Returns formatted account balance and buying power information.
-    Query params:
-        - account_hash: Schwab encrypted account number (optional, uses first account if omitted)
+    UI-ready summary built from /trader/v1/accounts payload.
+    Avoids relying on hashValue, which Schwab may omit.
     """
     try:
         if not request.user.schwab_token:
@@ -286,44 +283,59 @@ def account_summary(request):
                 "error": "No Schwab account connected",
                 "connected": False
             }, status=404)
-        
+
         api = SchwabTraderAPI(request.user)
-        
-        # Get account_hash from query params, or fetch first account
-        account_hash = request.GET.get('account_hash')
-        
-        if not account_hash:
-            # Fetch all accounts and use the first one
-            accounts = api.fetch_accounts()
-            if not accounts:
-                return JsonResponse({
-                    "error": "No Schwab accounts found"
-                }, status=404)
+        accounts = api.fetch_accounts() or []
 
-            # Get the first account's identifier, inspecting nested structures
-            first_account = accounts[0] or {}
-            sec = first_account.get('securitiesAccount', {}) or {}
-            account_hash = (
-                first_account.get('hashValue')
-                or sec.get('hashValue')
-                or first_account.get('accountNumber')
-                or sec.get('accountNumber')
-            )
+        if not accounts:
+            return JsonResponse({
+                "error": "No Schwab accounts found"
+            }, status=404)
 
-            if not account_hash:
-                return JsonResponse({
-                    "error": "Unable to get account identifier"
-                }, status=500)
-        
-        # Fetch account summary
-        summary = api.get_account_summary(account_hash)
-        
+        requested_number = request.GET.get('account_number')
+
+        chosen = None
+        for acct in accounts:
+            sec = (acct or {}).get('securitiesAccount', {}) or {}
+            acct_num = sec.get('accountNumber')
+            if requested_number and acct_num == requested_number:
+                chosen = acct
+                break
+
+        if not chosen:
+            chosen = accounts[0]
+
+        sec = (chosen or {}).get('securitiesAccount', {}) or {}
+        bal = (sec.get('currentBalances', {}) or {})
+
+        def _money(value):
+            try:
+                return f"${float(value):,.2f}"
+            except Exception:
+                return "$0.00"
+
+        def _pct(value):
+            try:
+                return f"{float(value):.2f}%"
+            except Exception:
+                return "0.00%"
+
+        summary = {
+            "net_liquidating_value": _money(bal.get('liquidationValue', 0)),
+            "stock_buying_power": _money(bal.get('stockBuyingPower', bal.get('buyingPower', 0))),
+            "option_buying_power": _money(bal.get('optionBuyingPower', 0)),
+            "day_trading_buying_power": _money(bal.get('dayTradingBuyingPower', 0)),
+            "available_funds_for_trading": _money(bal.get('availableFunds', 0)),
+            "long_stock_value": _money(bal.get('longMarketValue', 0)),
+            "equity_percentage": _pct(bal.get('equityPercentage', 0)),
+        }
+
         return JsonResponse({
             "success": True,
-            "account_hash": account_hash,
+            "account_number": sec.get('accountNumber'),
             "summary": summary
         })
-        
+
     except Exception as e:
         logger.error(f"Failed to fetch account summary: {e}")
         return JsonResponse({
