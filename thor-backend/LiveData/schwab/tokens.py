@@ -8,12 +8,22 @@ import base64
 import time
 import logging
 import urllib.parse
-from typing import Dict
+from typing import Dict, Optional
 
 import requests
 from django.conf import settings
 
 logger = logging.getLogger(__name__)
+
+
+def _default_expiry_buffer() -> int:
+    try:
+        return int(getattr(settings, "SCHWAB_TOKEN_EXPIRY_BUFFER", 60))
+    except Exception:
+        return 60
+
+
+_EXPIRY_BUFFER_SECONDS = _default_expiry_buffer()
 
 
 def _get_base_token_url() -> str:
@@ -137,14 +147,49 @@ def refresh_tokens(refresh_token: str) -> Dict[str, any]:
     return payload
 
 
-def get_token_expiry(expires_in: int) -> int:
+def get_token_expiry(expires_in: int, buffer_seconds: Optional[int] = None) -> int:
     """
     Calculate Unix timestamp for when token expires.
 
     Args:
         expires_in: Seconds until expiration (from OAuth response)
+        buffer_seconds: Seconds to subtract so we refresh a little early.
 
     Returns:
         Unix timestamp of expiration time
     """
-    return int(time.time()) + int(expires_in or 0)
+    buffer = _EXPIRY_BUFFER_SECONDS if buffer_seconds is None else max(0, int(buffer_seconds))
+    seconds = max(0, int(expires_in or 0) - buffer)
+    return int(time.time()) + seconds
+
+
+def ensure_valid_access_token(connection, buffer_seconds: Optional[int] = None):
+    """Refresh Schwab tokens when the current access token is nearing expiry."""
+    if not connection:
+        raise RuntimeError("No Schwab connection available to refresh.")
+
+    buffer = _EXPIRY_BUFFER_SECONDS if buffer_seconds is None else max(0, int(buffer_seconds))
+    now = int(time.time())
+    expires_at = int(connection.access_expires_at or 0)
+
+    if expires_at - buffer > now:
+        return connection
+
+    payload = refresh_tokens(connection.refresh_token)
+    access_token = payload.get("access_token")
+    if not access_token:
+        raise RuntimeError("Schwab refresh did not return an access_token")
+
+    refresh_token_value = payload.get("refresh_token") or connection.refresh_token
+    expires_in = payload.get("expires_in") or 0
+    new_expiry = get_token_expiry(expires_in, buffer_seconds=buffer)
+
+    connection.access_token = access_token
+    connection.refresh_token = refresh_token_value
+    connection.access_expires_at = new_expiry
+    connection.save(
+        update_fields=["access_token", "refresh_token", "access_expires_at", "updated_at"]
+    )
+
+    logger.info("Schwab OAuth: access token refreshed for user_id=%s", connection.user_id)
+    return connection

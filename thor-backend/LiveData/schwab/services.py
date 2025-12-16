@@ -9,6 +9,7 @@ from decimal import Decimal
 
 from LiveData.shared.redis_client import live_data_redis
 from ActAndPos.models import Account, Position
+from .tokens import ensure_valid_access_token
 
 logger = logging.getLogger(__name__)
 
@@ -18,11 +19,11 @@ class SchwabTraderAPI:
     
     def __init__(self, user):
         self.user = user
-        self.token = user.schwab_token
-        if not self.token:
+        connection = getattr(user, "schwab_token", None)
+        if not connection:
             raise RuntimeError("User does not have an active Schwab connection.")
-        if self.token.is_expired:
-            logger.warning("Schwab access token expired for %s", user.email)
+
+        self.token = ensure_valid_access_token(connection)
     
     def _get_headers(self):
         return {
