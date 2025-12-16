@@ -28,6 +28,23 @@ const formatSeconds = (seconds?: number) => {
 const SchwabHealthCard: React.FC<SchwabHealthCardProps> = ({ health }) => {
   const [expanded, setExpanded] = useState(true);
 
+  const summary = useMemo(() => {
+    if (!health) {
+      return 'No Schwab data';
+    }
+
+    const parts = [
+      health.connected ? 'Connected' : 'Not connected',
+      health.token_expired ? 'Token expired' : 'Token active',
+    ];
+
+    if (health.seconds_until_expiry !== undefined && health.seconds_until_expiry !== null) {
+      parts.push(`${formatSeconds(health.seconds_until_expiry)} left`);
+    }
+
+    return parts.filter(Boolean).join(' • ');
+  }, [health]);
+
   if (!health) {
     return null;
   }
@@ -64,18 +81,6 @@ const SchwabHealthCard: React.FC<SchwabHealthCardProps> = ({ health }) => {
     },
   ];
 
-  const summary = useMemo(() => {
-    const parts = [
-      health.connected ? 'Connected' : 'Not connected',
-      health.token_expired ? 'Token expired' : 'Token active',
-    ];
-
-    if (health.seconds_until_expiry !== undefined && health.seconds_until_expiry !== null) {
-      parts.push(`${formatSeconds(health.seconds_until_expiry)} left`);
-    }
-
-    return parts.filter(Boolean).join(' • ');
-  }, [health.connected, health.token_expired, health.seconds_until_expiry]);
 
   const bodyId = 'schwab-health-card-body';
 
@@ -85,7 +90,7 @@ const SchwabHealthCard: React.FC<SchwabHealthCardProps> = ({ health }) => {
         type="button"
         className="schwab-health-card__header"
         onClick={() => setExpanded((prev) => !prev)}
-        aria-expanded={expanded}
+        aria-expanded={expanded ? 'true' : 'false'}
         aria-controls={bodyId}
       >
         <span className="schwab-health-card__toggle" aria-hidden="true">
@@ -99,7 +104,7 @@ const SchwabHealthCard: React.FC<SchwabHealthCardProps> = ({ health }) => {
         id={bodyId}
         className="schwab-health-card__body"
         hidden={!expanded}
-        aria-hidden={!expanded}
+        aria-hidden={expanded ? 'false' : 'true'}
       >
         <div className="schwab-health-row">
           {stats.map(({ label, value, variant }) => (
