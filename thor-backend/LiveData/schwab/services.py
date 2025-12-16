@@ -4,7 +4,7 @@ Schwab Trading API client.
 
 import logging
 import requests
-from typing import Dict, List
+from typing import Dict, List, Optional
 from decimal import Decimal
 
 from LiveData.shared.redis_client import live_data_redis
@@ -70,7 +70,7 @@ class SchwabTraderAPI:
             'equity_percentage': _pct(bal.get('equity', 0))
         }
 
-    def _get_account_record(self, account_hash: str) -> Account | None:
+    def _get_account_record(self, account_hash: str) -> Optional[Account]:
         return (
             Account.objects.filter(
                 user=self.user, broker="SCHWAB", broker_account_id=account_hash
@@ -143,28 +143,46 @@ class SchwabTraderAPI:
 
         return normalized
 
-    def fetch_balances(self, account_hash: str) -> Dict:
-        """Fetch balances for an account, persist them, and publish to Redis."""
-        data = self.fetch_account_details(account_hash, include_positions=False)
+    def _find_account_snapshot(self, account_number: str) -> Optional[Dict]:
+        accounts = self.fetch_accounts() or []
+        for acct in accounts:
+            sec = (acct or {}).get("securitiesAccount", {}) or {}
+            number = sec.get("accountNumber")
+            if number is None:
+                continue
+            if str(number) == str(account_number):
+                return acct
+        return None
 
-        acct = data.get("securitiesAccount", {}) or {}
-        bal = acct.get("currentBalances", {}) or {}
-
-        account = self._get_account_record(account_hash)
-        if not account:
-            logger.warning("Schwab account %s not registered in Thor", account_hash)
+    def fetch_balances(self, account_number: str) -> Dict:
+        """Fetch balances for an account_number, persist them, and publish to Redis."""
+        snapshot = self._find_account_snapshot(account_number)
+        if not snapshot:
+            logger.warning("Schwab account %s not found in /accounts payload", account_number)
             return {}
 
-        def _dec(key, default=Decimal("0")):
-            return Decimal(str(bal.get(key, default) or default))
+        sec = (snapshot or {}).get("securitiesAccount", {}) or {}
+        bal = (sec.get("currentBalances", {}) or {})
 
-        account.cash = _dec("cashBalance")
+        account = self._get_account_record(account_number)
+        if not account:
+            logger.warning("Schwab account %s not registered in Thor", account_number)
+            return {}
+
+        def _dec(value, default=Decimal("0")):
+            try:
+                return Decimal(str(value if value is not None else default))
+            except Exception:
+                return default
+
+        account.cash = _dec(bal.get("cashBalance"))
         account.current_cash = account.cash
-        account.net_liq = _dec("liquidationValue")
-        account.equity = _dec("equity", account.net_liq)
-        account.stock_buying_power = _dec("stockBuyingPower")
-        account.option_buying_power = _dec("optionBuyingPower")
-        account.day_trading_buying_power = _dec("dayTradingBuyingPower")
+        account.net_liq = _dec(bal.get("liquidationValue"))
+        equity_val = bal.get("equity", account.net_liq)
+        account.equity = _dec(equity_val, account.net_liq)
+        account.stock_buying_power = _dec(bal.get("stockBuyingPower", bal.get("buyingPower")))
+        account.option_buying_power = _dec(bal.get("optionBuyingPower"))
+        account.day_trading_buying_power = _dec(bal.get("dayTradingBuyingPower"))
         account.save(update_fields=[
             "cash",
             "current_cash",
@@ -186,8 +204,8 @@ class SchwabTraderAPI:
         }
 
         try:
-            live_data_redis.publish_balance(account_hash, payload)
+            live_data_redis.publish_balance(account_number, payload)
         except Exception as e:
-            logger.error("Failed to publish Schwab balances for %s: %s", account_hash, e)
+            logger.error("Failed to publish Schwab balances for %s: %s", account_number, e)
 
         return payload
