@@ -1,6 +1,8 @@
 import logging
 import threading
 import os
+from typing import Optional
+
 from django.utils import timezone
 from django.db import transaction
 
@@ -17,6 +19,30 @@ from .feed_24h import update_24h_for_country
 from .intraday_bars import update_intraday_bars_for_country
 from .session_volume import update_session_volume_for_country
 from .vwap_precompute import precompute_rolling_vwap
+
+COUNTRY_CODE_MAP = {
+    "United States": "USA",
+    "USA": "USA",
+    "US": "USA",
+    "America": "USA",
+    "Japan": "JP",
+    "JP": "JP",
+    "China": "CN",
+    "CN": "CN",
+    "United Kingdom": "UK",
+    "Great Britain": "UK",
+    "UK": "UK",
+    "England": "UK",
+}
+
+
+def normalize_country_code(raw: Optional[str]) -> Optional[str]:
+    if raw is None:
+        return None
+    trimmed = raw.strip()
+    if not trimmed:
+        return trimmed
+    return COUNTRY_CODE_MAP.get(trimmed, COUNTRY_CODE_MAP.get(trimmed.upper(), trimmed.upper()))
 
 logger = logging.getLogger(__name__)
 
@@ -44,35 +70,37 @@ class IntradayMarketSupervisor:
     # Public API
     # ------------------------------------------------------------------
     def on_market_open(self, market):
+        country = self._get_normalized_country(market)
         if self.disabled:
-            logger.info("Intraday metrics disabled; skipping worker start for %s", market.country)
+            logger.info("Intraday metrics disabled; skipping worker start for %s", country)
             return
         if not self._tracking_enabled(market):
             logger.info(
                 "Intraday metrics disabled for %s (is_active=%s, enable_futures_capture=%s)",
-                market.country,
+                country,
                 getattr(market, "is_active", True),
                 getattr(market, "enable_futures_capture", True),
             )
             return
         with self._lock:
             if market.id in self._workers:
-                logger.info("Intraday worker already active for %s", market.country)
+                logger.info("Intraday worker already active for %s", country)
                 return
             stop_event = threading.Event()
             thread = threading.Thread(
                 target=self._worker_loop,
-                name=f"Intraday-{market.country}",
+                name=f"Intraday-{country}",
                 args=(market, stop_event),
                 daemon=True,
             )
             self._workers[market.id] = (thread, stop_event)
             thread.start()
-            logger.info("Intraday metrics worker STARTED for %s", market.country)
+            logger.info("Intraday metrics worker STARTED for %s", country)
 
     def on_market_close(self, market):
+        country = self._get_normalized_country(market)
         if self.disabled:
-            logger.info("Intraday metrics disabled; skipping close handling for %s", market.country)
+            logger.info("Intraday metrics disabled; skipping close handling for %s", country)
             return
         with self._lock:
             worker = self._workers.pop(market.id, None)
@@ -80,31 +108,31 @@ class IntradayMarketSupervisor:
                 thread, stop_event = worker
                 stop_event.set()
                 thread.join(timeout=5)
-                logger.info("Intraday metrics worker STOPPED for %s", market.country)
+                logger.info("Intraday metrics worker STOPPED for %s", country)
 
         # Finalize metrics
         try:
             enriched, composite = get_enriched_quotes_with_composite()
         except Exception:
-            logger.exception("Failed to fetch quotes for close metrics (%s)", market.country)
+            logger.exception("Failed to fetch quotes for close metrics (%s)", country)
             return
         try:
-            MarketCloseMetric.update_for_country_on_close(market.country, enriched)
+            MarketCloseMetric.update_for_country_on_close(country, enriched)
         except Exception:
-            logger.exception("MarketCloseMetric failed for %s", market.country)
+            logger.exception("MarketCloseMetric failed for %s", country)
         try:
-            MarketRangeMetric.update_for_country_on_close(market.country)
+            MarketRangeMetric.update_for_country_on_close(country)
         except Exception:
-            logger.exception("MarketRangeMetric failed for %s", market.country)
+            logger.exception("MarketRangeMetric failed for %s", country)
 
     # ------------------------------------------------------------------
     # Worker loop
     # ------------------------------------------------------------------
     def _worker_loop(self, market, stop_event):
+        country = self._get_normalized_country(market)
         if self.disabled:
-            logger.info("Intraday worker requested for %s but supervisor is disabled", market.country)
+            logger.info("Intraday worker requested for %s but supervisor is disabled", country)
             return
-        country = market.country
         logger.info("Intraday worker loop started for %s", country)
 
         while not stop_event.is_set():
@@ -156,9 +184,18 @@ class IntradayMarketSupervisor:
         try:
             market.refresh_from_db(fields=["is_active", "enable_futures_capture"])
         except Exception:
-            logger.info("Market %s no longer exists; stopping intraday worker", getattr(market, "country", "?"))
+            logger.info("Market %s no longer exists; stopping intraday worker", self._get_normalized_country(market))
             return False
         return self._tracking_enabled(market)
+
+    def _get_normalized_country(self, market) -> str:
+        raw = getattr(market, "country", None)
+        normalized = normalize_country_code(raw)
+        if normalized:
+            return normalized
+        if raw:
+            return raw.strip() or "?"
+        return "?"
 
 
 # Global singleton
