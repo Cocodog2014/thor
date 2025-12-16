@@ -12,6 +12,7 @@ from typing import Dict, Optional
 
 import requests
 from django.conf import settings
+from django.core.cache import cache
 
 logger = logging.getLogger(__name__)
 
@@ -158,9 +159,7 @@ def get_token_expiry(expires_in: int, buffer_seconds: Optional[int] = None) -> i
     Returns:
         Unix timestamp of expiration time
     """
-    buffer = _EXPIRY_BUFFER_SECONDS if buffer_seconds is None else max(0, int(buffer_seconds))
-    seconds = max(0, int(expires_in or 0) - buffer)
-    return int(time.time()) + seconds
+    return int(time.time()) + int(expires_in or 0)
 
 
 def ensure_valid_access_token(connection, buffer_seconds: Optional[int] = None):
@@ -175,7 +174,29 @@ def ensure_valid_access_token(connection, buffer_seconds: Optional[int] = None):
     if expires_at - buffer > now:
         return connection
 
-    payload = refresh_tokens(connection.refresh_token)
+    lock_name = f"schwab:refresh:{connection.user_id}"
+    # Acquire a short-lived lock to avoid parallel refreshes across requests/processes
+    lock = None
+    if hasattr(cache, "lock"):
+        lock = cache.lock(lock_name, timeout=10)
+
+    if lock:
+        lock.acquire(blocking=True)
+
+    try:
+        # Another request may have refreshed while we waited for the lock
+        connection.refresh_from_db()
+        expires_at = int(connection.access_expires_at or 0)
+        if expires_at - buffer > now:
+            return connection
+
+        payload = refresh_tokens(connection.refresh_token)
+    finally:
+        if lock:
+            try:
+                lock.release()
+            except Exception:
+                logger.exception("Failed to release Schwab refresh lock %s", lock_name)
     access_token = payload.get("access_token")
     if not access_token:
         raise RuntimeError("Schwab refresh did not return an access_token")
