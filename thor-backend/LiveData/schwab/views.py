@@ -130,10 +130,12 @@ def oauth_callback(request):
         
         logger.info(f"Successfully connected Schwab account for {request.user.username}")
 
-        # Send user back to the frontend after successful connect
-        frontend_url = getattr(settings, "FRONTEND_BASE_URL", "https://dev-thor.360edu.org").rstrip("/")
-        params = urlencode({"schwab": "connected"})
-        return redirect(f"{frontend_url}/broker-connections?{params}")
+        frontend_base = getattr(settings, "FRONTEND_BASE_URL", "https://dev-thor.360edu.org").rstrip("/")
+        params = urlencode({
+            "broker": "schwab",
+            "status": "connected"
+        })
+        return redirect(f"{frontend_base}/?{params}")
         
     except NotImplementedError:
         return JsonResponse({
@@ -162,11 +164,24 @@ def list_accounts(request):
         enriched_accounts = []
 
         for acct in accounts:
-            account_hash = acct.get('hashValue') or acct.get('accountNumber') or acct.get('accountId')
+            sec = acct.get('securitiesAccount', {}) or {}
+            account_hash = (
+                acct.get('hashValue')
+                or sec.get('hashValue')
+                or acct.get('accountNumber')
+                or sec.get('accountNumber')
+                or acct.get('accountId')
+            )
             if not account_hash:
                 continue
 
-            display_name = acct.get('displayName') or acct.get('nickname') or account_hash
+            display_name = (
+                acct.get('displayName')
+                or sec.get('displayName')
+                or acct.get('nickname')
+                or sec.get('accountNumber')
+                or account_hash
+            )
 
             account_obj, _ = Account.objects.get_or_create(
                 user=request.user,
@@ -284,11 +299,17 @@ def account_summary(request):
                 return JsonResponse({
                     "error": "No Schwab accounts found"
                 }, status=404)
-            
-            # Get the first account's hashValue
-            first_account = accounts[0]
-            account_hash = first_account.get('hashValue')
-            
+
+            # Get the first account's identifier, inspecting nested structures
+            first_account = accounts[0] or {}
+            sec = first_account.get('securitiesAccount', {}) or {}
+            account_hash = (
+                first_account.get('hashValue')
+                or sec.get('hashValue')
+                or first_account.get('accountNumber')
+                or sec.get('accountNumber')
+            )
+
             if not account_hash:
                 return JsonResponse({
                     "error": "Unable to get account identifier"
