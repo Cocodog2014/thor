@@ -262,6 +262,8 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
+        _SCHWAB_ACCOUNTS_CACHE.clear()
+
         tz_now = timezone.localtime(timezone.now())
         trading_date: date
         if options.get("trading_date"):

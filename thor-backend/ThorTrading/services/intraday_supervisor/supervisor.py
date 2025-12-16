@@ -14,6 +14,8 @@ from ThorTrading.services.market_metrics import (
     MarketCloseMetric,
     MarketRangeMetric,
 )
+from ThorTrading.services.account_snapshots import trigger_account_daily_snapshots
+from LiveData.shared.redis_client import live_data_redis
 
 from .feed_24h import update_24h_for_country
 from .intraday_bars import update_intraday_bars_for_country
@@ -45,6 +47,10 @@ def normalize_country_code(raw: Optional[str]) -> Optional[str]:
     return COUNTRY_CODE_MAP.get(trimmed, COUNTRY_CODE_MAP.get(trimmed.upper(), trimmed.upper()))
 
 logger = logging.getLogger(__name__)
+
+
+SNAPSHOT_LOCK_PREFIX = "thor:account_snapshot_eod:"
+SNAPSHOT_LOCK_TTL_SECONDS = 60 * 60 * 48  # 48h safety window
 
 
 class IntradayMarketSupervisor:
@@ -125,6 +131,8 @@ class IntradayMarketSupervisor:
         except Exception:
             logger.exception("MarketRangeMetric failed for %s", country)
 
+        self._run_account_snapshot_once_per_day(country)
+
     # ------------------------------------------------------------------
     # Worker loop
     # ------------------------------------------------------------------
@@ -196,6 +204,50 @@ class IntradayMarketSupervisor:
         if raw:
             return raw.strip() or "?"
         return "?"
+
+    def _run_account_snapshot_once_per_day(self, country: str):
+        if country != "USA":
+            logger.debug("Account snapshot trigger skipped for %s close (USA only)", country)
+            return
+
+        trading_date = timezone.localdate()
+        lock_key = self._acquire_snapshot_lock(trading_date)
+        if not lock_key:
+            logger.debug("Account snapshot already triggered for %s", trading_date)
+            return
+
+        try:
+            succeeded = trigger_account_daily_snapshots(
+                trading_date=trading_date,
+                broker="SCHWAB",
+                source="AUTO",
+                overwrite=False,
+            )
+        except Exception:
+            self._release_snapshot_lock(lock_key)
+            logger.exception("Account snapshot trigger crashed for %s", trading_date)
+            return
+
+        if succeeded:
+            logger.info("Account daily snapshots captured for %s", trading_date)
+        else:
+            self._release_snapshot_lock(lock_key)
+            logger.error("Account daily snapshots failed for %s", trading_date)
+
+    def _acquire_snapshot_lock(self, trading_date) -> Optional[str]:
+        key = f"{SNAPSHOT_LOCK_PREFIX}{trading_date.isoformat()}"
+        try:
+            acquired = live_data_redis.client.set(key, "1", nx=True, ex=SNAPSHOT_LOCK_TTL_SECONDS)
+        except Exception:
+            logger.exception("Failed to acquire account snapshot lock for %s", trading_date)
+            return None
+        return key if acquired else None
+
+    def _release_snapshot_lock(self, key: str) -> None:
+        try:
+            live_data_redis.client.delete(key)
+        except Exception:
+            logger.exception("Failed to release account snapshot lock %s", key)
 
 
 # Global singleton
