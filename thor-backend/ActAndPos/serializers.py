@@ -6,6 +6,17 @@ from .models import Account, Order, Position
 class AccountSummarySerializer(serializers.ModelSerializer):
     ok_to_trade = serializers.BooleanField(read_only=True)
 
+    ZEROABLE_FIELDS = [
+        "net_liq",
+        "cash",
+        "starting_balance",
+        "current_cash",
+        "equity",
+        "stock_buying_power",
+        "option_buying_power",
+        "day_trading_buying_power",
+    ]
+
     class Meta:
         model = Account
         fields = [
@@ -24,6 +35,27 @@ class AccountSummarySerializer(serializers.ModelSerializer):
             "day_trading_buying_power",
             "ok_to_trade",
         ]
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+
+        if instance.broker == "SCHWAB" and not self._has_live_connection(instance):
+            for field in self.ZEROABLE_FIELDS:
+                data[field] = "0.00"
+            data["ok_to_trade"] = False
+
+        return data
+
+    def _has_live_connection(self, instance) -> bool:
+        user = getattr(instance, "user", None)
+        if not user:
+            return False
+
+        connection = getattr(user, "schwab_token", None)
+        if connection is None:
+            return False
+
+        return not connection.is_expired
 
 
 class PositionSerializer(serializers.ModelSerializer):

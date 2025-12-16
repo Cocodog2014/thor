@@ -13,6 +13,7 @@ from . import views
 app_name = 'schwab'
 
 urlpatterns = [
+    path('health/', views.schwab_health, name='health'),
     # OAuth flow
     path('oauth/start/', views.oauth_start, name='oauth_start'),
     path('oauth/callback/', views.oauth_callback, name='oauth_callback'),

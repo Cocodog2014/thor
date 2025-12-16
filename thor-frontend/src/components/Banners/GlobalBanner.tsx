@@ -3,17 +3,24 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import './GlobalBanner.css';
 import api from '../../services/api';
-import type { AccountSummary, ParentTab, ChildTab } from './bannerTypes';
+import type { AccountSummary, ParentTab, ChildTab, SchwabHealth } from './bannerTypes';
 import TopRow from './TopRow';
 import BalanceRow from './BalanceRow';
 import TabsRow from './TabsRow';
+import SchwabHealthCard from './SchwabHealthCard';
 import { useGlobalTimer } from '../../context/GlobalTimerContext';
+import { useAuth } from '../../context/AuthContext';
+
+type UserProfile = {
+  is_staff?: boolean;
+};
 
 // Permanent banner under the AppBar, shows connection/account info + balances + tabs.
 const GlobalBanner: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { now } = useGlobalTimer();
+  const { token } = useAuth();
 
   const [connectionStatus, setConnectionStatus] =
     useState<'connected' | 'disconnected'>('disconnected');
@@ -22,6 +29,8 @@ const GlobalBanner: React.FC = () => {
   // Accounts + selected account for the dropdown
   const [accounts, setAccounts] = useState<AccountSummary[]>([]);
   const [selectedAccountId, setSelectedAccountId] = useState<number | null>(null);
+  const [schwabHealth, setSchwabHealth] = useState<SchwabHealth | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   // Helper to format currency-like strings safely
   const formatCurrency = (value?: string | null) => {
@@ -75,6 +84,65 @@ const GlobalBanner: React.FC = () => {
       clearInterval(interval);
     };
   }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchHealth = async () => {
+      try {
+        const { data } = await api.get<SchwabHealth>('/schwab/health/');
+        if (!isMounted) return;
+        setSchwabHealth(data);
+      } catch (error) {
+        if (!isMounted) return;
+        console.error('GlobalBanner: failed to fetch Schwab health', error);
+        setSchwabHealth({
+          connected: false,
+          broker: 'SCHWAB',
+          token_expired: true,
+          last_error: 'Unable to reach Schwab health endpoint',
+          approval_state: 'not_connected',
+        });
+      }
+    };
+
+    fetchHealth();
+    const interval = setInterval(fetchHealth, 15000);
+
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+
+    if (!token) {
+      setIsAdmin(false);
+      return () => {
+        active = false;
+      };
+    }
+
+    const fetchProfile = async () => {
+      try {
+        const { data } = await api.get<UserProfile>('/users/profile/');
+        if (!active) return;
+        setIsAdmin(Boolean(data?.is_staff));
+      } catch (error) {
+        if (!active) return;
+        console.error('GlobalBanner: failed to load profile for admin check', error);
+        setIsAdmin(false);
+      }
+    };
+
+    fetchProfile();
+
+    return () => {
+      active = false;
+    };
+  }, [token]);
 
   // Load all accounts for the account selector in the banner
   useEffect(() => {
@@ -197,12 +265,15 @@ const GlobalBanner: React.FC = () => {
         selectedAccountId={selectedAccountId}
         onAccountChange={(id) => setSelectedAccountId(id)}
         onNavigate={(path) => navigate(path)}
+        schwabHealth={schwabHealth}
       />
 
       <BalanceRow
         selectedAccount={selectedAccount}
         formatCurrency={formatCurrency}
       />
+
+      {isAdmin && <SchwabHealthCard health={schwabHealth} />}
 
       <TabsRow
         parentTabs={parentTabs}

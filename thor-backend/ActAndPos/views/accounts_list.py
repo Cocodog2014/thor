@@ -22,6 +22,7 @@ def accounts_list_view(request):
 
     qs = (
         Account.objects.filter(user=user)
+        .select_related("user")
         .order_by("broker", "display_name", "broker_account_id")
     )
     data = AccountSummarySerializer(qs, many=True).data

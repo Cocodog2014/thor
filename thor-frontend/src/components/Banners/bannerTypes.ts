@@ -27,3 +27,14 @@ export interface ChildTab {
   label: string;
   path: string;
 }
+
+export interface SchwabHealth {
+  connected: boolean;
+  broker: string;
+  token_expired: boolean;
+  expires_at?: number;
+  seconds_until_expiry?: number;
+  trading_enabled?: boolean;
+  approval_state?: 'not_connected' | 'read_only' | 'trading_enabled';
+  last_error: string | null;
+}
