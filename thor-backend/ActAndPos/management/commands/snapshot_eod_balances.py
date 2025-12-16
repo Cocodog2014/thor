@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from datetime import date
 from decimal import Decimal
-from typing import Any, Optional
+from typing import Any, Dict, List, Optional
 
 from django.core.cache import cache
 from django.core.management.base import BaseCommand
@@ -17,6 +17,9 @@ try:
     from LiveData.schwab.services import SchwabTraderAPI
 except Exception:  # pragma: no cover - Schwab optional in some environments
     SchwabTraderAPI = None  # type: ignore
+
+
+_SCHWAB_ACCOUNTS_CACHE: Dict[int, List[dict]] = {}
 
 
 def _dec(value: Any) -> Decimal:
@@ -71,23 +74,50 @@ def _extract_from_schwab_payload(payload: dict) -> dict:
 
 
 def _get_schwab_live_balances(account: Account) -> Optional[dict]:
-    """Pull balances from Schwab in real time via SchwabTraderAPI."""
+    """Fetch Schwab balances using the account number expected by the API."""
 
     if SchwabTraderAPI is None:
         return None
 
     try:
         api = SchwabTraderAPI(account.user)
-        raw = api.fetch_balances(account.broker_account_id)
-        if not isinstance(raw, dict):
-            return None
-        extracted = _extract_from_schwab_payload(raw)
-        if not extracted:
-            return None
-        extracted["raw_payload"] = raw
-        return extracted
     except Exception:
         return None
+
+    accounts_payload = _get_schwab_accounts_payload(api, account.user_id)
+    account_number = _resolve_schwab_account_number(account, accounts_payload)
+    identifier_for_fetch = account_number or (account.broker_account_id or "").strip()
+
+    raw: Optional[dict] = None
+    if identifier_for_fetch:
+        try:
+            raw = api.fetch_balances(identifier_for_fetch)
+        except Exception:
+            raw = None
+
+    if isinstance(raw, dict) and raw:
+        extracted = _extract_from_schwab_payload(raw)
+        if extracted:
+            extracted["raw_payload"] = raw
+            extracted["_account_number_used"] = account_number or identifier_for_fetch
+            extracted["_source"] = "schwab_balances_api"
+            return extracted
+
+    account_payload = _match_account_payload(account, accounts_payload)
+    if account_payload:
+        extracted = _extract_from_schwab_payload(account_payload)
+        if extracted:
+            extracted["raw_payload"] = account_payload
+            extracted["_source"] = "schwab_accounts_payload"
+            if account_number:
+                extracted["_account_number_used"] = account_number
+            else:
+                number = _extract_account_number(account_payload)
+                if number:
+                    extracted["_account_number_used"] = number
+            return extracted
+
+    return None
 
 
 def _coerce_json(raw: Any) -> Optional[dict]:
@@ -127,6 +157,76 @@ def _get_schwab_cached_balances(account: Account) -> Optional[dict]:
             return extracted
 
     return None
+
+
+def _get_schwab_accounts_payload(api: "SchwabTraderAPI", user_id: int) -> List[dict]:
+    """Fetch /accounts payload once per user for the current command run."""
+
+    if user_id in _SCHWAB_ACCOUNTS_CACHE:
+        return _SCHWAB_ACCOUNTS_CACHE[user_id]
+
+    try:
+        payload = api.fetch_accounts() or []
+    except Exception:
+        payload = []
+
+    _SCHWAB_ACCOUNTS_CACHE[user_id] = payload
+    return payload
+
+
+def _extract_account_number(payload: dict) -> Optional[str]:
+    sec = (payload or {}).get("securitiesAccount", {}) or {}
+    number = sec.get("accountNumber") or payload.get("accountNumber")
+    if number is None:
+        return None
+    return str(number)
+
+
+def _payload_identifiers(payload: dict) -> List[str]:
+    sec = (payload or {}).get("securitiesAccount", {}) or {}
+    candidates = [
+        payload.get("hashValue"),
+        sec.get("hashValue"),
+        payload.get("accountId"),
+        sec.get("accountId"),
+        payload.get("accountNumber"),
+        sec.get("accountNumber"),
+    ]
+    identifiers: List[str] = []
+    for candidate in candidates:
+        if candidate is None:
+            continue
+        identifiers.append(str(candidate).strip())
+    return identifiers
+
+
+def _match_account_payload(account: Account, accounts_payload: List[dict]) -> Optional[dict]:
+    target = (account.broker_account_id or "").strip()
+    if not target:
+        return None
+
+    target_lower = target.lower()
+
+    for entry in accounts_payload:
+        for identifier in _payload_identifiers(entry):
+            if identifier.lower() == target_lower:
+                return entry
+    return None
+
+
+def _resolve_schwab_account_number(account: Account, accounts_payload: List[dict]) -> Optional[str]:
+    broker_id = (account.broker_account_id or "").strip()
+    if not broker_id:
+        return None
+
+    if broker_id.isdigit():
+        return broker_id
+
+    matched = _match_account_payload(account, accounts_payload)
+    if not matched:
+        return None
+
+    return _extract_account_number(matched)
 
 
 class Command(BaseCommand):
