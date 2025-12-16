@@ -129,15 +129,13 @@ Backend (`@api_view(['GET'])` with `@permission_classes([IsAuthenticated])`):
 4. **Stores tokens** using `BrokerConnection.objects.update_or_create()`:
    - Tied to `request.user` (the authenticated Thor user)
    - Stores `access_token`, `refresh_token`, `access_expires_at`
-5. **Returns** success response
+5. **Sends user back to the frontend** once tokens are saved. Instead of returning JSON, the backend issues a redirect:
 
-**Response (200 OK)**
-```json
-{
-  "success": true,
-  "message": "Schwab account connected successfully"
-}
 ```
+https://dev-thor.360edu.org/?broker=schwab&status=connected
+```
+
+React listens for those query params (or simply reloads the dashboard) and then calls the post-connect endpoints.
 
 **Error responses**
 - `400`: `{ "error": "No authorization code provided" }`
@@ -150,14 +148,17 @@ Backend (`@api_view(['GET'])` with `@permission_classes([IsAuthenticated])`):
 Once tokens exist, frontend can call:
 
 - **Accounts list**: `GET /api/schwab/accounts/`
-- **Account summary**: `GET /api/schwab/account/summary/`
+  - Returns the raw Schwab `/trader/v1/accounts` payload plus two helper fields per account: `thor_account_id` (local DB row) and `broker_account_id` (typically the Schwab `accountNumber`).
+  - Every Schwab response nests balances under `securitiesAccount.currentBalances`, so the backend now unwraps that structure automatically.
+- **Account summary**: `GET /api/schwab/account/summary/?account_number=60910485`
+  - Does **not** require `hashValue` anymore. We build the UI summary straight from the `/accounts` payload, format the key balances (net liq, buying powers, available funds, equity %), and accept an optional `account_number` query param (falls back to the first account when omitted).
 - **Positions**: `GET /api/schwab/accounts/<account_id>/positions/`
 - **Balances**: `GET /api/schwab/accounts/<account_id>/balances/`
 
-Frontend uses results to:
-- Populate account dropdown
-- Display "Live: Schwab <AccountName>"
-- Pull balances/positions for selected account
+Frontend uses these results to:
+- Populate account dropdowns with the Schwab account numbers
+- Flip the banner to **Live: Schwab <DisplayName>**
+- Display real balances/positions pulled from the Schwab API
 
 ---
 
@@ -218,6 +219,12 @@ Frontend uses results to:
    - Authorize request URL in address bar (verify client_id and redirect_uri)
    - Schwab response error message (may indicate exact issue)
 
+### D) `/api/schwab/account/summary/` returns "Unable to get account identifier"
+**Current behavior**: The endpoint no longer requires `hashValue`; it streams balances directly from `/accounts`. If you still see this error, it usually means `fetch_accounts()` returned no data (token expired or Schwab outage).
+
+**Fix**:
+- Hit `/api/schwab/accounts/` first. If that returns accounts, summary will work. If it fails, troubleshoot the token/Schwab status.
+
 ---
 
 ## 8) Minimal "Happy Path" Checklist
@@ -241,10 +248,10 @@ Frontend uses results to:
 - **GET** `/api/schwab/oauth/callback/?code=...` → Exchanges code for tokens, stores, returns `{ "success": true }`
 
 ### Account Data (requires stored tokens)
-- **GET** `/api/schwab/accounts/` → List all Schwab accounts for user
+- **GET** `/api/schwab/accounts/` → List all Schwab accounts for user. Response looks like Schwab’s official payload plus `thor_account_id` and `broker_account_id` so the frontend can key off local rows and account numbers.
 - **GET** `/api/schwab/accounts/<account_id>/positions/` → Positions for account
 - **GET** `/api/schwab/accounts/<account_id>/balances/` → Balances for account
-- **GET** `/api/schwab/account/summary/` → Summary (balance, buying power, etc.)
+- **GET** `/api/schwab/account/summary/?account_number=...` → Formats the current balances from `/accounts`; no `hashValue` dependency.
 
 ### Frontend routes
 - **GET** `/schwab/callback` → React page that handles Schwab redirect and exchanges code

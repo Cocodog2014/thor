@@ -397,3 +397,35 @@ or
 ✅ Add diagrams for layout & component flow
 
 
+11. Schwab OAuth + Live Account Checklist (Dec 2025)
+
+Thor now uses the latest backend Schwab fixes, so the frontend flow must follow these rules to stay in sync:
+
+- The “Setup Brokerage Account” button always calls `api.get('schwab/oauth/start/')`. Never prefix with `/` or you’ll bypass the axios base URL.
+- After Schwab login, Django now redirects directly to `/?broker=schwab&status=connected` instead of returning JSON. The callback page should watch `window.location.search` (or `useSearchParams`) for those keys and then load the live data screens automatically.
+- Once connected, immediately fire the data endpoints:
+  1. `GET /api/schwab/accounts/` → response already unwraps `securitiesAccount` and adds `thor_account_id` / `broker_account_id`.
+  2. `GET /api/schwab/account/summary/?account_number=<acctNum>` → summary is built from the `/accounts` payload (no `hashValue` dependency). Use the `accountNumber` returned in step 1.
+  3. `GET /api/schwab/accounts/<thor_account_id>/positions/` and `/balances/` for positions/balances broadcast to Redis.
+- UI expectations:
+  - Banner should flip to **Live: Schwab {displayName}** as soon as `/accounts/` returns data.
+  - Summary tiles, buying power pills, and Account Statement grids must read from the summary endpoint (formatted strings like `$507.07`).
+  - When no Schwab data exists, show the paper-mode defaults rather than stale numbers.
+- Diagnostic shortcuts for engineers:
+  - `/api/schwab/health/` tells you if the token is still valid (connected flag + expiry countdown).
+  - `/api/schwab/accounts/` returning data means Schwab API + tokens are good; if `/summary/` fails after that, it’s a frontend bug.
+  - You can curl Schwab directly with the stored token, but treat that as a last resort.
+
+Frontend testing script before shipping Schwab work:
+
+1. Log in, click **Setup Brokerage Account**, confirm browser lands on Schwab auth.
+2. Complete Schwab auth; ensure you land back on `/?broker=schwab&status=connected` and the UI automatically refreshes live data.
+3. Open DevTools → Network while the dashboard loads:
+   - `GET /api/schwab/accounts/` must return HTTP 200.
+   - `GET /api/schwab/account/summary/` must immediately follow (with `account_number` query param if set).
+   - Optional: trigger positions/balances endpoints from Activity & Positions.
+4. Disconnect (clear tokens) and verify banner + grids fall back to paper mode with zeros.
+
+Keep this section in lockstep with backend changes—if the API surface moves again, update the bullets here the same day.
+
+
