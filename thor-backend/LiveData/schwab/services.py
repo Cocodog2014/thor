@@ -32,7 +32,12 @@ class SchwabTraderAPI:
         }
 
     def _request(self, method: str, path: str, *, retry_on_unauthorized: bool = True, **kwargs):
-        url = f"{self.BASE_URL}{path}"
+        # Normalize path to avoid double prefixing when BASE_URL already has /trader/v1
+        path_clean = (path or "").lstrip("/")
+        base = self.BASE_URL.rstrip("/")
+        if base.endswith("/trader/v1") and path_clean.startswith("trader/v1/"):
+            path_clean = path_clean[len("trader/v1/"):]
+        url = f"{base}/{path_clean}"
         request_kwargs = dict(kwargs)
         request_kwargs.setdefault("timeout", 10)
 
@@ -52,6 +57,18 @@ class SchwabTraderAPI:
         return response
     
     def fetch_accounts(self):
+        logger.info("DEBUG: fetch_accounts() CALLED")
+        # Debug: log Schwab accountNumber → hashValue mapping (mailbox name → key)
+        try:
+            acct_map_resp = self._request("GET", "/accounts/accountNumbers")
+            logger.info(
+                "Schwab accountNumbers status=%s body=%s",
+                acct_map_resp.status_code,
+                acct_map_resp.text,
+            )
+        except Exception as e:
+            logger.warning("Schwab accountNumbers fetch failed: %s", e, exc_info=True)
+
         response = self._request("GET", "/accounts")
         return response.json()
     
