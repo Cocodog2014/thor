@@ -297,6 +297,13 @@ def account_summary(request):
         api = SchwabTraderAPI(request.user)
         accounts = api.fetch_accounts() or []
 
+        # Explicitly fetch and print the accountNumber → hashValue mapping to surface the hash
+        try:
+            acct_map_resp = api._request("GET", "/accounts/accountNumbers")
+            print("ACCOUNT NUMBERS:", acct_map_resp.status_code, acct_map_resp.text)
+        except Exception as e:
+            print("ACCOUNT NUMBERS FETCH FAILED:", e)
+
         if not accounts:
             return JsonResponse({
                 "error": "No Schwab accounts found"
