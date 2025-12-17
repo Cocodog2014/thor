@@ -265,18 +265,19 @@ def account_positions(request):
             return JsonResponse({"error": "No Schwab account connected"}, status=404)
 
         api = SchwabTraderAPI(request.user)
-        account_hash = request.query_params.get("account_hash")
         account_number = request.query_params.get("account_number")
+        account_hash_param = request.query_params.get("account_hash")
+        account_id = account_number or account_hash_param
 
-        if not account_hash:
-            if not account_number:
-                return JsonResponse({"error": "Provide account_hash or account_number"}, status=400)
-            account_hash = api.resolve_account_hash(account_number)
+        if not account_id:
+            return JsonResponse({"error": "Provide account_number or account_hash"}, status=400)
 
+        account_hash = api.resolve_account_hash(account_id)
         positions = api.fetch_positions(account_hash)
         return JsonResponse({
             "success": True,
             "account_hash": account_hash,
+            "account_number": account_number,
             "positions": positions,
         })
 
