@@ -97,7 +97,8 @@ class Account(models.Model):
         help_text="Percent of monthly profits charged when billing_plan=Performance.",
     )
 
-    updated_at = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    updated_at = models.DateTimeField(auto_now=True, db_index=True)
 
     PAPER_DEFAULT_BALANCE = Decimal("100000.00")
 

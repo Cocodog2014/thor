@@ -22,6 +22,7 @@ class AccountAdmin(admin.ModelAdmin):
 		"user",
 		"broker",
 		"broker_account_id",
+		"account_number",
 		"currency",
 		"net_liq",
 		"cash",
@@ -29,12 +30,13 @@ class AccountAdmin(admin.ModelAdmin):
 		"option_buying_power",
 		"day_trading_buying_power",
 		"ok_to_trade",
+		"created_at",
 		"updated_at",
 	)
-	list_filter = ("user", "broker", "currency")
-	search_fields = ("display_name", "broker_account_id")
+	list_filter = ("user", "broker", "currency", "created_at", "updated_at")
+	search_fields = ("display_name", "broker_account_id", "account_number")
 	ordering = ("-updated_at",)
-	readonly_fields = ("updated_at",)
+	readonly_fields = ("created_at", "updated_at")
 	inlines = [PositionInline, OrderInline]
 	fieldsets = (
 		(
@@ -44,6 +46,7 @@ class AccountAdmin(admin.ModelAdmin):
 					"display_name",
 					"broker",
 					"broker_account_id",
+					"account_number",
 					"currency",
 					"starting_balance",
 					"net_liq",
@@ -53,6 +56,7 @@ class AccountAdmin(admin.ModelAdmin):
 					"stock_buying_power",
 					"option_buying_power",
 					"day_trading_buying_power",
+					"created_at",
 					"updated_at",
 				),
 			},

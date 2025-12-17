@@ -158,14 +158,23 @@ class SchwabTraderAPI:
             'equity_percentage': _pct(bal.get('equity', 0))
         }
 
-    def _get_account_record(self, account_hash: str) -> Optional[Account]:
-        return (
-            Account.objects.filter(
-                user=self.user, broker="SCHWAB", broker_account_id=account_hash
-            )
-            .select_related("user")
-            .first()
-        )
+    def _get_or_fix_account_record(self, account_hash: str, account_number: Optional[str]):
+        qs = Account.objects.filter(user=self.user, broker="SCHWAB").select_related("user")
+
+        acct = qs.filter(broker_account_id=account_hash).first()
+        if acct:
+            return acct
+
+        if account_number:
+            number_str = str(account_number)
+            acct = qs.filter(broker_account_id=number_str).first() or qs.filter(account_number=number_str).first()
+            if acct:
+                acct.broker_account_id = account_hash
+                acct.account_number = number_str
+                acct.save(update_fields=["broker_account_id", "account_number", "updated_at"])
+                return acct
+
+        return None
 
     def _cache_positions_snapshot(self, account_hash: str, positions: List[Dict]) -> None:
         try:
@@ -212,11 +221,12 @@ class SchwabTraderAPI:
             data = self.fetch_account_details(account_hash, include_positions=True)
             acct = data.get("securitiesAccount", {}) or {}
             raw_positions = acct.get("positions", []) or []
+            account_number = acct.get("accountNumber")
         except Exception as e:
             logger.error("Failed live Schwab positions for %s: %s", account_hash, e)
             return self._get_positions_snapshot(account_hash)
 
-        account = self._get_account_record(account_hash)
+        account = self._get_or_fix_account_record(account_hash, account_number)
         if not account:
             logger.warning("Schwab account %s not registered in Thor", account_hash)
             return []
@@ -352,7 +362,7 @@ class SchwabTraderAPI:
             "equity_percentage": float(equity_pct_raw or 0),
         }
 
-        account = self._get_account_record(account_hash)
+        account = self._get_or_fix_account_record(account_hash, account_number)
         if not account:
             display_name = account_number or account_hash
             account = Account.objects.create(
