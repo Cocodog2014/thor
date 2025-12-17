@@ -11,6 +11,7 @@ import SchwabHealthCard from './SchwabHealthCard';
 import { useGlobalTimer } from '../../context/GlobalTimerContext';
 import { useAuth } from '../../context/AuthContext';
 import { useSelectedAccount } from '../../context/SelectedAccountContext';
+import { useAccountBalance } from '../../hooks/useAccountBalance';
 
 type UserProfile = {
   is_staff?: boolean;
@@ -23,6 +24,7 @@ const GlobalBanner: React.FC = () => {
   const { now } = useGlobalTimer();
   const { token } = useAuth();
   const { accountId, setAccountId } = useSelectedAccount();
+  const { data: balance, isFetching: balanceLoading } = useAccountBalance(accountId);
 
   const [connectionStatus, setConnectionStatus] =
     useState<'connected' | 'disconnected'>('disconnected');
@@ -33,17 +35,6 @@ const GlobalBanner: React.FC = () => {
   const [schwabHealth, setSchwabHealth] = useState<SchwabHealth | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const selectedAccountId = accountId ? Number(accountId) || null : null;
-
-  // Helper to format currency-like strings safely
-  const formatCurrency = (value?: string | null) => {
-    if (value === null || value === undefined) return '—';
-    const num = Number(value);
-    if (Number.isNaN(num)) return value ?? '—';
-    return num.toLocaleString(undefined, {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    });
-  };
 
   // Ping the same quotes endpoint used by the futures hooks
   useEffect(() => {
@@ -187,10 +178,7 @@ const GlobalBanner: React.FC = () => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [setAccountId]);
 
-  const selectedAccount = useMemo(
-    () => accounts.find((a) => String(a.id) === String(accountId)) ?? null,
-    [accounts, accountId],
-  );
+  // selectedAccount is no longer used for balances; accountId is preserved for selection only
 
   const isConnected = connectionStatus === 'connected';
   const connectionLabel = isConnected ? 'Connected' : 'Disconnected';
@@ -290,8 +278,8 @@ const GlobalBanner: React.FC = () => {
       />
 
       <BalanceRow
-        selectedAccount={selectedAccount}
-        formatCurrency={formatCurrency}
+        balance={balance}
+        loading={balanceLoading}
       />
 
       {isAdmin && <SchwabHealthCard health={schwabHealth} />}

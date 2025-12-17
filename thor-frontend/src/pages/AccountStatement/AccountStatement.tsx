@@ -2,6 +2,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import api from "../../services/api";
 import { useSelectedAccount } from "../../context/SelectedAccountContext";
+import { useAccountBalance } from "../../hooks/useAccountBalance";
 
 type ColumnDef = {
   key: string;
@@ -195,6 +196,7 @@ const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({
 
 const AccountStatements: React.FC = () => {
   const { accountId } = useSelectedAccount();
+  const { data: balance, isFetching: balanceLoading } = useAccountBalance(accountId, 5000);
 
   // Date filters
   const [rangeMode, setRangeMode] = useState<'daysBack' | 'custom'>('daysBack');
@@ -261,20 +263,20 @@ const AccountStatements: React.FC = () => {
   const dateRange = data?.date_range;
 
   const normalizedSummaryRows = useMemo(() => {
-    if (!summaryRows.length) {
-      return summaryRows;
+    if (balance) {
+      return [
+        { id: 'net_liq', metric: 'Net Liquidating Value', value: balance.net_liquidation?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) ?? '—' },
+        { id: 'cash', metric: 'Cash', value: balance.cash?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) ?? '—' },
+        { id: 'stock_bp', metric: 'Stock Buying Power', value: balance.buying_power?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) ?? '—' },
+        { id: 'option_bp', metric: 'Option Buying Power', value: balance.buying_power?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) ?? '—' },
+        { id: 'dt_bp', metric: 'Day Trading Buying Power', value: balance.day_trade_bp?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) ?? '—' },
+        { id: 'equity', metric: 'Equity', value: balance.equity?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) ?? '—' },
+        { id: 'meta', metric: 'Source', value: `${balance.source || 'unknown'}${balance.updated_at ? ` · as of ${new Date(balance.updated_at).toLocaleTimeString()}` : ''}` },
+      ];
     }
 
-    const netLiqRow = summaryRows.find((row) => row.id === 'net_liq');
-    const fallbackNetLiq = accountSummary?.net_liq ?? '';
-    const netLiqValue = netLiqRow?.value ?? fallbackNetLiq;
-
-    return summaryRows.map((row) =>
-      row.id === 'dt_bp'
-        ? { ...row, value: netLiqValue }
-        : row
-    );
-  }, [summaryRows, accountSummary?.net_liq]);
+    return summaryRows;
+  }, [balance, summaryRows]);
 
   const tradesRows = useMemo<RowData[]>(() => {
     if (!data?.trades) {
@@ -297,6 +299,7 @@ const AccountStatements: React.FC = () => {
     accountSummary?.display_name ||
     accountSummary?.broker_account_id ||
     'Active Account';
+  const balanceAsOf = balance?.updated_at ? new Date(balance.updated_at).toLocaleString() : null;
   const dateRangeLabel = dateRange ? formatDateRangeLabel(dateRange) : 'Today';
 
   // Build symbol list from whatever sections make sense
@@ -328,6 +331,12 @@ const AccountStatements: React.FC = () => {
         <div className="account-meta-item">
           <span className="account-meta-label">Date Range</span>
           <span className="account-meta-value">{dateRangeLabel}</span>
+        </div>
+        <div className="account-meta-item">
+          <span className="account-meta-label">Balance</span>
+          <span className="account-meta-value">
+            {balanceLoading ? 'Loading…' : balanceAsOf ? `As of ${balanceAsOf}` : 'Not available'}
+          </span>
         </div>
       </section>
 

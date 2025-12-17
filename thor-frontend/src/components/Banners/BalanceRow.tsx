@@ -1,41 +1,51 @@
 // BalanceRow.tsx
 import React from 'react';
-import type { AccountSummary } from './bannerTypes';
+import type { AccountBalance } from '../../hooks/useAccountBalance';
 
 interface BalanceRowProps {
-  selectedAccount: AccountSummary | null;
-  formatCurrency: (value?: string | null) => string;
+  balance: AccountBalance | undefined;
+  loading: boolean;
 }
 
-const BalanceRow: React.FC<BalanceRowProps> = ({
-  selectedAccount,
-  formatCurrency,
-}) => {
+const formatNumber = (value?: number) => {
+  if (value === null || value === undefined) return '—';
+  if (Number.isNaN(value)) return '—';
+  return value.toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+};
+
+const BalanceRow: React.FC<BalanceRowProps> = ({ balance, loading }) => {
+  const optionBp = balance?.buying_power;
+  const stockBp = balance?.buying_power;
+  const netLiq = balance?.net_liquidation;
+
+  const asOf = balance?.updated_at ? new Date(balance.updated_at).toLocaleTimeString() : null;
+  const source = balance?.source;
+
   return (
     <div className="global-banner-balances home-balances">
       <span>
         Option Buying Power:
         <span className="home-balance-value">
-          {selectedAccount
-            ? `$${formatCurrency(selectedAccount.option_buying_power)}`
-            : '—'}
+          {loading ? '…' : `$${formatNumber(optionBp)}`}
         </span>
       </span>
       <span>
         Stock Buying Power:
         <span className="home-balance-value">
-          {selectedAccount
-            ? `$${formatCurrency(selectedAccount.stock_buying_power)}`
-            : '—'}
+          {loading ? '…' : `$${formatNumber(stockBp)}`}
         </span>
       </span>
       <span>
         Net Liq:
         <span className="home-balance-value">
-          {selectedAccount
-            ? `$${formatCurrency(selectedAccount.net_liq)}`
-            : '—'}
+          {loading ? '…' : `$${formatNumber(netLiq)}`}
         </span>
+      </span>
+      <span className="home-balance-meta">
+        {loading ? 'Loading balance…' : source ? `${source}${asOf ? ` · as of ${asOf}` : ''}` : 'Balance source unknown'}
       </span>
     </div>
   );
