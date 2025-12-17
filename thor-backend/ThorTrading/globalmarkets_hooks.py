@@ -32,16 +32,33 @@ GLOBAL_TIMER_ENABLED = os.environ.get("THOR_USE_GLOBAL_MARKET_TIMER", "1").lower
     "false",
     "no",
 }
-CONTROLLED_COUNTRIES = {"USA", "Pre_USA"}
+CONTROLLED_COUNTRIES = {
+    "USA",
+    "Pre_USA",
+    "Japan",
+    "China",
+    "India",
+    "United Kingdom",
+    "JP",
+    "CN",
+    "IN",
+    "UK",
+}
 
 _ACTIVE_COUNTRIES: Set[str] = set()
 _ACTIVE_LOCK = threading.RLock()
 
 
 def _is_controlled_market(market: Market | None) -> bool:
-    if market is None:
+    if market is None or not market.is_active:
         return False
-    return market.country in CONTROLLED_COUNTRIES and market.is_active
+
+    country = market.country
+    if country in CONTROLLED_COUNTRIES:
+        return True
+
+    normalized = country.upper() if country else None
+    return normalized in CONTROLLED_COUNTRIES if normalized else False
 
 
 def _skip_reason(reason: str):
