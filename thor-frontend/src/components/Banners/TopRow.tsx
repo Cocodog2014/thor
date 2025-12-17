@@ -48,15 +48,10 @@ const TopRow: React.FC<TopRowProps> = ({
     return `${seconds}s left`;
   };
 
-  const selectedAccount = useMemo(() => {
-    if (!accounts.length) {
-      return null;
-    }
-    if (selectedAccountId === null) {
-      return accounts[0];
-    }
-    return accounts.find((acct) => acct.id === selectedAccountId) ?? accounts[0];
-  }, [accounts, selectedAccountId]);
+  const selectedAccount = useMemo(
+    () => accounts.find((acct) => acct.id === selectedAccountId) ?? null,
+    [accounts, selectedAccountId],
+  );
 
   const brokerLabel = (selectedAccount?.broker ?? '').toLowerCase();
   const isPaperAccount = brokerLabel === 'paper';

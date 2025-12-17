@@ -163,8 +163,8 @@ const GlobalBanner: React.FC = () => {
           return;
         }
 
-        const restored = selectedAccountId;
-        if (restored && accountList.some((acct) => acct.id === restored)) {
+        const restored = accountId;
+        if (restored && accountList.some((acct) => String(acct.id) === String(restored))) {
           setAccountId(restored);
         } else {
           setAccountId(accountList[0]?.id ?? null);
@@ -182,12 +182,12 @@ const GlobalBanner: React.FC = () => {
     return () => {
       isMounted = false;
     };
-  }, [selectedAccountId, setAccountId]);
+  }, [accountId, setAccountId]);
 
-  const selectedAccount =
-    (selectedAccountId !== null
-      ? accounts.find((a) => a.id === selectedAccountId)
-      : null) || null;
+  const selectedAccount = useMemo(
+    () => accounts.find((a) => String(a.id) === String(accountId)) ?? null,
+    [accounts, accountId],
+  );
 
   const isConnected = connectionStatus === 'connected';
   const connectionLabel = isConnected ? 'Connected' : 'Disconnected';
