@@ -285,39 +285,6 @@ def account_positions(request):
         return JsonResponse({"success": False, "error": str(e)}, status=500)
 
 
-    try:
-        if not request.user.schwab_token:
-            return JsonResponse({
-                "error": "No Schwab account connected"
-            }, status=404)
-        
-        api = SchwabTraderAPI(request.user)
-        payload = api.fetch_balances(account_id)  # accepts accountNumber or hashValue
-
-        if not payload:
-            return JsonResponse({
-                "error": "Unable to fetch balances from Schwab",
-                "success": False
-            }, status=502)
-
-        redis_channel = f"live_data:balances:{payload.get('account_hash') or account_id}"
-
-        return JsonResponse({
-            "success": True,
-            "message": f"Balances published to Redis for account {payload.get('account_hash') or account_id}",
-            "balances": payload,
-            "redis_channel": redis_channel
-        })
-        
-    except NotImplementedError:
-        return JsonResponse({
-            "error": "Schwab balances API not yet implemented"
-        }, status=501)
-    except Exception as e:
-        logger.error(f"Failed to fetch balances: {e}")
-        return JsonResponse({"error": str(e)}, status=500)
-
-
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def account_summary(request):
