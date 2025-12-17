@@ -20,8 +20,10 @@ async function fetchAccountBalance(accountId?: string | null) {
 }
 
 export function useAccountBalance(accountId?: string | null, refreshMs = 1000) {
+  const accountKey = accountId ? `acct:${accountId}` : "acct:none";
+
   return useQuery({
-    queryKey: ["accountBalance", accountId ?? "active"],
+    queryKey: ["accountBalance", accountKey],
     queryFn: () => fetchAccountBalance(accountId),
     refetchInterval: refreshMs,
     refetchOnWindowFocus: false,
