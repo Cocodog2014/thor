@@ -170,6 +170,12 @@ def list_accounts(request):
                 or acct.get('accountId')
             )
 
+            if not account_hash and account_number:
+                try:
+                    account_hash = api.resolve_account_hash(account_number)
+                except Exception:
+                    account_hash = None
+
             if not account_hash:
                 logger.warning("Unable to resolve Schwab hashValue for account %s", account_number)
                 continue
@@ -223,11 +229,14 @@ def get_positions(request, account_id):
             }, status=404)
         
         api = SchwabTraderAPI(request.user)
-        api.fetch_positions(account_id)
+        resolved_hash = api.resolve_account_hash(account_id)
+        positions = api.fetch_positions(resolved_hash)
         
         return JsonResponse({
             "success": True,
-            "message": f"Positions published to Redis for account {account_id}"
+            "message": f"Positions published to Redis for account {resolved_hash}",
+            "account_hash": resolved_hash,
+            "positions": positions
         })
         
     except NotImplementedError:
@@ -247,6 +256,35 @@ def get_balances(request, account_id):
     
     Publishes balances to Redis for consumption by other apps.
     """
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def account_positions(request):
+    """Fetch positions by account_hash or account_number via query params."""
+    try:
+        if not request.user.schwab_token:
+            return JsonResponse({"error": "No Schwab account connected"}, status=404)
+
+        api = SchwabTraderAPI(request.user)
+        account_hash = request.query_params.get("account_hash")
+        account_number = request.query_params.get("account_number")
+
+        if not account_hash:
+            if not account_number:
+                return JsonResponse({"error": "Provide account_hash or account_number"}, status=400)
+            account_hash = api.resolve_account_hash(account_number)
+
+        positions = api.fetch_positions(account_hash)
+        return JsonResponse({
+            "success": True,
+            "account_hash": account_hash,
+            "positions": positions,
+        })
+
+    except Exception as e:
+        logger.exception("positions failed")
+        return JsonResponse({"success": False, "error": str(e)}, status=500)
+
+
     try:
         if not request.user.schwab_token:
             return JsonResponse({
@@ -254,7 +292,7 @@ def get_balances(request, account_id):
             }, status=404)
         
         api = SchwabTraderAPI(request.user)
-        payload = api.fetch_balances(account_id)
+        payload = api.fetch_balances(account_id)  # accepts accountNumber or hashValue
 
         if not payload:
             return JsonResponse({
@@ -262,11 +300,11 @@ def get_balances(request, account_id):
                 "success": False
             }, status=502)
 
-        redis_channel = f"live_data:balances:{account_id}"
+        redis_channel = f"live_data:balances:{payload.get('account_hash') or account_id}"
 
         return JsonResponse({
             "success": True,
-            "message": f"Balances published to Redis for account {account_id}",
+            "message": f"Balances published to Redis for account {payload.get('account_hash') or account_id}",
             "balances": payload,
             "redis_channel": redis_channel
         })
@@ -322,13 +360,22 @@ def account_summary(request):
         account_hash = acct_hash_map.get(str(account_number)) if account_number else None
 
         if not account_hash:
+            # Let the service resolve hash via /accounts/accountNumbers as a fallback
+            if account_number:
+                try:
+                    account_hash = api.resolve_account_hash(account_number)
+                except Exception:
+                    account_hash = None
+        if not account_hash:
             return JsonResponse({"error": "Unable to resolve Schwab account hashValue"}, status=502)
 
         if not account_number:
             return JsonResponse({"error": "Unable to get account identifier"}, status=500)
 
         # ✅ THOR WAY: persist + publish via the existing service method
-        balances_payload = api.fetch_balances(account_hash, account_number=account_number)  # publishes to Redis + updates Account
+        balances_payload = api.fetch_balances(account_hash)  # publishes to Redis + updates Account
+        if not balances_payload:
+            return JsonResponse({"error": "Unable to fetch balances from Schwab", "success": False}, status=502)
 
         # Format UI summary from the normalized balances payload
         def _money(v):
@@ -355,8 +402,8 @@ def account_summary(request):
 
         return JsonResponse({
             "success": True,
-            "account_number": account_number,
-            "account_hash": account_hash,
+            "account_number": balances_payload.get("account_number") or account_number,
+            "account_hash": balances_payload.get("account_hash") or account_hash,
             "balances_published": True,
             "summary": summary
         })

@@ -3,6 +3,7 @@ Schwab Trading API client.
 """
 
 import logging
+import re
 import requests
 from typing import Dict, List, Optional
 from decimal import Decimal
@@ -56,20 +57,50 @@ class SchwabTraderAPI:
         response.raise_for_status()
         return response
 
-    def get_account_number_hash_map(self) -> Dict[str, str]:
-        """Return mapping of Schwab accountNumber -> hashValue."""
+    @staticmethod
+    def _looks_like_hash(value: str) -> bool:
+        if not value:
+            return False
+        value = str(value).strip()
+        return bool(re.fullmatch(r"[A-Fa-f0-9]{32,128}", value))
+
+    @staticmethod
+    def _looks_like_account_number(value: str) -> bool:
+        if not value:
+            return False
+        value = str(value).strip()
+        return value.isdigit() and 6 <= len(value) <= 12
+
+    def fetch_account_numbers_map(self) -> Dict[str, str]:
+        """Return mapping of accountNumber -> hashValue from /accounts/accountNumbers."""
         mapping: Dict[str, str] = {}
         try:
             resp = self._request("GET", "/accounts/accountNumbers")
             data = resp.json() or []
             for row in data:
-                number = row.get("accountNumber")
-                hash_val = row.get("hashValue")
+                number = str(row.get("accountNumber") or "").strip()
+                hash_val = str(row.get("hashValue") or "").strip()
                 if number and hash_val:
-                    mapping[str(number)] = str(hash_val)
+                    mapping[number] = hash_val
         except Exception as e:
             logger.warning("Schwab accountNumbers fetch failed: %s", e, exc_info=True)
         return mapping
+
+    def get_account_number_hash_map(self) -> Dict[str, str]:
+        """Backward-compatible alias used by views."""
+        return self.fetch_account_numbers_map()
+
+    def resolve_account_hash(self, account_id: str) -> str:
+        """Accept accountNumber or hashValue and return hashValue."""
+        account_id = str(account_id).strip()
+        if self._looks_like_hash(account_id):
+            return account_id
+        if self._looks_like_account_number(account_id):
+            mapping = self.fetch_account_numbers_map()
+            resolved = mapping.get(account_id)
+            if resolved:
+                return resolved
+        raise ValueError(f"Unable to resolve account hash for account_id={account_id}")
     
     def fetch_accounts(self):
         logger.info("DEBUG: fetch_accounts() CALLED")
@@ -118,7 +149,8 @@ class SchwabTraderAPI:
         )
 
     def fetch_positions(self, account_hash: str) -> List[Dict]:
-        """Fetch positions for an account, persist them, and publish to Redis."""
+        """Fetch positions for an account (hash or accountNumber), persist, publish."""
+        account_hash = self.resolve_account_hash(account_hash)
         data = self.fetch_account_details(account_hash, include_positions=True)
         acct = data.get("securitiesAccount", {}) or {}
         raw_positions = acct.get("positions", []) or []
@@ -181,8 +213,14 @@ class SchwabTraderAPI:
 
         return normalized
 
-    def fetch_balances(self, account_hash: str, *, account_number: Optional[str] = None) -> Dict:
-        """Fetch balances for an account hashValue, persist them, and publish to Redis."""
+    def fetch_balances(self, account_id: str) -> Dict:
+        """Fetch balances (accountNumber or hashValue), persist, and publish to Redis."""
+        try:
+            account_hash = self.resolve_account_hash(account_id)
+        except Exception as e:
+            logger.error("Failed to resolve Schwab account hash: %s", e)
+            return {}
+
         try:
             data = self.fetch_account_details(account_hash, include_positions=False)
         except Exception as e:
@@ -190,15 +228,14 @@ class SchwabTraderAPI:
             return {}
 
         sec = (data.get("securitiesAccount", {}) or {})
-        bal = (sec.get("currentBalances", {}) or {})
+        bal = (
+            sec.get("currentBalances")
+            or sec.get("initialBalances")
+            or sec.get("balances")
+            or {}
+        )
 
-        # Backfill account_number from detail payload if missing
-        account_number = account_number or sec.get("accountNumber")
-
-        account = self._get_account_record(account_hash)
-        if not account:
-            logger.warning("Schwab account %s not registered in Thor", account_hash)
-            return {}
+        account_number = sec.get("accountNumber")
 
         def _dec(value, default=Decimal("0")):
             try:
@@ -212,29 +249,70 @@ class SchwabTraderAPI:
                     return candidate
             return Decimal("0")
 
-        account.cash = _dec(bal.get("cashBalance"))
+        net_liq = bal.get("liquidationValue") or bal.get("netLiquidation") or 0
+        stock_bp = (
+            bal.get("stockBuyingPower")
+            or bal.get("buyingPower")
+            or bal.get("cashBuyingPower")
+            or 0
+        )
+        option_bp = bal.get("optionBuyingPower") or 0
+        daytrade_bp = bal.get("dayTradingBuyingPower") or 0
+        avail = (
+            bal.get("cashAvailableForTrading")
+            or bal.get("availableFunds")
+            or bal.get("availableFundsForTrading")
+            or bal.get("availableFundsForTradingEquity")
+            or 0
+        )
+
+        long_stock_value = (
+            bal.get("longMarketValue")
+            or bal.get("longStockValue")
+            or bal.get("longMarginValue")
+            or 0
+        )
+
+        equity_pct_raw = bal.get("equityPercentage")
+
+        payload: Dict = {
+            "account_hash": account_hash,
+            "account_number": account_number,
+            "net_liq": float(net_liq or 0),
+            "stock_buying_power": float(stock_bp or 0),
+            "option_buying_power": float(option_bp or 0),
+            "day_trading_buying_power": float(daytrade_bp or 0),
+            "available_funds_for_trading": float(avail or 0),
+            "long_stock_value": float(long_stock_value or 0),
+            "equity_percentage": float(equity_pct_raw or 0),
+        }
+
+        account = self._get_account_record(account_hash)
+        if not account:
+            display_name = account_number or account_hash
+            account = Account.objects.create(
+                user=self.user,
+                broker="SCHWAB",
+                broker_account_id=account_hash,
+                display_name=display_name,
+                currency="USD",
+            )
+
+        account.cash = _dec(bal.get("cashBalance") or bal.get("cashAvailableForTrading") or avail)
         account.current_cash = account.cash
-        account.net_liq = _dec(bal.get("liquidationValue"))
+        account.net_liq = _dec(net_liq)
         equity_val = bal.get("equity", account.net_liq)
         account.equity = _dec(equity_val, account.net_liq)
-        account.stock_buying_power = _dec(bal.get("stockBuyingPower", bal.get("buyingPower")))
-        account.option_buying_power = _dec(bal.get("optionBuyingPower"))
-        account.day_trading_buying_power = _dec(bal.get("dayTradingBuyingPower"))
-        available_funds = _dec(
-            _pick_first(
-                bal.get("availableFunds"),
-                bal.get("availableFundsForTrading"),
-                bal.get("availableFundsForTradingEquity"),
-            )
-        )
-        long_stock_value = _dec(bal.get("longMarketValue"))
-        raw_equity_pct = bal.get("equityPercentage")
-        equity_pct = _dec(raw_equity_pct) if raw_equity_pct is not None else Decimal("0")
-        if raw_equity_pct is None and account.net_liq:
+        account.stock_buying_power = _dec(stock_bp)
+        account.option_buying_power = _dec(option_bp)
+        account.day_trading_buying_power = _dec(daytrade_bp)
+        long_stock_value_dec = _dec(long_stock_value)
+        equity_pct_dec = _dec(equity_pct_raw) if equity_pct_raw is not None else Decimal("0")
+        if equity_pct_raw is None and account.net_liq:
             try:
-                equity_pct = (account.equity / account.net_liq) * Decimal("100")
+                equity_pct_dec = (account.equity / account.net_liq) * Decimal("100")
             except Exception:
-                equity_pct = Decimal("0")
+                equity_pct_dec = Decimal("0")
         account.save(update_fields=[
             "cash",
             "current_cash",
@@ -246,17 +324,8 @@ class SchwabTraderAPI:
             "updated_at",
         ])
 
-        payload: Dict = {
-            "cash": float(account.cash),
-            "net_liq": float(account.net_liq),
-            "equity": float(account.equity),
-            "stock_buying_power": float(account.stock_buying_power),
-            "option_buying_power": float(account.option_buying_power),
-            "day_trading_buying_power": float(account.day_trading_buying_power),
-            "available_funds_for_trading": float(available_funds),
-            "long_stock_value": float(long_stock_value),
-            "equity_percentage": float(equity_pct),
-        }
+        payload["equity_percentage"] = float(equity_pct_dec)
+        payload["long_stock_value"] = float(long_stock_value_dec)
 
         publish_key = account_hash or account_number
         try:
