@@ -1,6 +1,7 @@
 // MarketSessionCard.tsx
 import React from "react";
 import { getSessionDateKey, isToday } from "./marketSessionUtils.ts";
+import type { IntradayHealth } from "./marketSessionTypes.ts";
 import MarketTotalCard from "./MarketTotalCard";
 import MarketFutureCard from "./MarketFutureCard";
 
@@ -8,6 +9,7 @@ type MarketSessionCardProps = {
   market: any;             // one element from CONTROL_MARKETS
   rows: any[];             // rows for this country
   status?: any;            // liveStatus[m.country]
+  health?: IntradayHealth; // intraday freshness
   selectedSymbol?: string; // selected[m.key]
   onSelectedSymbolChange: (symbol: string) => void;
 };
@@ -16,9 +18,29 @@ const MarketSessionCard: React.FC<MarketSessionCardProps> = ({
   market: m,
   rows,
   status,
+  health,
   selectedSymbol,
   onSelectedSymbolChange,
 }) => {
+  const healthStatus = health?.status || "unknown";
+  const healthClass =
+    healthStatus === "green" ? "chip success" : healthStatus === "red" ? "chip error" : "chip default";
+  const lastBarLocal = health?.last_bar_utc ? new Date(health.last_bar_utc).toLocaleTimeString() : "—";
+  const lagLabel =
+    typeof health?.lag_minutes === "number"
+      ? `${health.lag_minutes.toFixed(1)}m lag`
+      : "No bars yet";
+
+  const renderHealth = () => (
+    <div className="mo-rt-health-row">
+      <span className={healthClass}>
+        Intraday {healthStatus === "green" ? "Live" : healthStatus === "red" ? "Stalled" : "Unknown"}
+      </span>
+      <span className="chip default">Last bar {lastBarLocal}</span>
+      <span className="chip default">{lagLabel}</span>
+    </div>
+  );
+
   // ----- prior-day / open hiding logic -----
   const latestRow =
     rows.length > 0
@@ -49,6 +71,7 @@ const MarketSessionCard: React.FC<MarketSessionCardProps> = ({
   if (hidePriorNow) {
     return (
       <div className="mo-rt-card">
+        {renderHealth()}
         <div className="mo-rt-left">
           <div className="mo-rt-header">
             <div className="mo-rt-header-chips">
@@ -78,6 +101,7 @@ const MarketSessionCard: React.FC<MarketSessionCardProps> = ({
   if (!snap) {
     return (
       <div className="mo-rt-card">
+        {renderHealth()}
         <div className="mo-rt-left">
           <div className="mo-rt-header">
             <div className="mo-rt-header-chips">
@@ -101,6 +125,7 @@ const MarketSessionCard: React.FC<MarketSessionCardProps> = ({
       <MarketTotalCard
         market={m}
         snap={snap}
+        health={health}
         selectedSymbol={effectiveSelectedSymbol}
         onSelectedSymbolChange={onSelectedSymbolChange}
       />
@@ -111,6 +136,7 @@ const MarketSessionCard: React.FC<MarketSessionCardProps> = ({
     <MarketFutureCard
       market={m}
       snap={snap}
+      health={health}
       selectedSymbol={effectiveSelectedSymbol}
       onSelectedSymbolChange={onSelectedSymbolChange}
     />

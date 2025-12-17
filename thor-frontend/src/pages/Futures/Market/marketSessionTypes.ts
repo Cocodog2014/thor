@@ -72,6 +72,13 @@ export type IntradaySnapshot = {
   spread?: number | null;
 };
 
+export type IntradayHealth = {
+  status: "green" | "red" | "unknown";
+  last_bar_utc: string | null;
+  lag_minutes: number | null;
+  threshold_minutes: number;
+};
+
 // Control markets must use exact country strings from backend sessions.
 // Backend currently stores: Japan, China, India, United Kingdom, Pre_USA, USA
 export const CONTROL_MARKETS = [

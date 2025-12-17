@@ -1,6 +1,6 @@
 // MarketFutureCard.tsx
 import React from "react";
-import { FUTURE_OPTIONS } from "./marketSessionTypes.ts";
+import { FUTURE_OPTIONS, type IntradayHealth } from "./marketSessionTypes.ts";
 import {
   chipClass,
   formatNum,
@@ -17,6 +17,7 @@ import {
 type MarketFutureCardProps = {
   market: any;
   snap: any;
+  health?: IntradayHealth;
   selectedSymbol: string;
   onSelectedSymbolChange: (symbol: string) => void;
 };
@@ -24,11 +25,21 @@ type MarketFutureCardProps = {
 const MarketFutureCard: React.FC<MarketFutureCardProps> = ({
   market: m,
   snap,
+  health,
   selectedSymbol,
   onSelectedSymbolChange,
 }) => {
   const signal = snap?.bhs;
   const outcomeStatus = snap?.wndw;
+
+  const healthStatus = health?.status || "unknown";
+  const healthClass =
+    healthStatus === "green" ? "chip success" : healthStatus === "red" ? "chip error" : "chip default";
+  const lastBarLocal = health?.last_bar_utc ? new Date(health.last_bar_utc).toLocaleTimeString() : "—";
+  const lagLabel =
+    typeof health?.lag_minutes === "number"
+      ? `${health.lag_minutes.toFixed(1)}m lag`
+      : "No bars yet";
 
   const captureTime = snap?.captured_at
     ? new Date(snap.captured_at).toLocaleTimeString()
@@ -146,6 +157,11 @@ const MarketFutureCard: React.FC<MarketFutureCardProps> = ({
               {outcomeStatus || "—"}
             </span>
             <span className="chip weight">Wgt: {snap?.weight ?? "—"}</span>
+            <span className={healthClass}>
+              Intraday {healthStatus === "green" ? "Live" : healthStatus === "red" ? "Stalled" : "Unknown"}
+            </span>
+            <span className="chip default">Last bar {lastBarLocal}</span>
+            <span className="chip default">{lagLabel}</span>
             <span className="chip default">Capture {captureTime}</span>
           </div>
           <div className="mo-rt-header-select">

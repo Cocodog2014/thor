@@ -120,6 +120,13 @@
   box-shadow: 0 0 0 1px var(--input-focus-border);
 }
 
+.mo-rt-health-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
 /* Top strip: Last + Close Δ */
 
 .mo-rt-top {

@@ -4,12 +4,14 @@ import {
   type MarketOpenSession,
   type MarketLiveStatus,
   type IntradaySnapshot,
+  type IntradayHealth,
   CONTROL_MARKETS,
 } from "./marketSessionTypes.ts";
 import {
   getApiUrl,
   getLiveStatusApiUrl,
   getSessionApiUrl,
+  getIntradayHealthApiUrl,
   normalizeCountry,
   marketKeyToCode,
   buildDateKey,
@@ -19,6 +21,7 @@ export interface UseMarketSessionsResult {
   sessions: MarketOpenSession[] | null;
   liveStatus: Record<string, MarketLiveStatus>;
   intradayLatest: Record<string, IntradaySnapshot | null>;
+  intradayHealth: Record<string, IntradayHealth>;
   selected: Record<string, string>;
   setSelected: React.Dispatch<React.SetStateAction<Record<string, string>>>;
   byCountry: Map<string, MarketOpenSession[]>;
@@ -28,11 +31,13 @@ export interface UseMarketSessionsResult {
 export const useMarketSessions = (apiUrl?: string): UseMarketSessionsResult => {
   const resolvedApiUrl = apiUrl || getApiUrl();
   const resolvedLiveStatusUrl = getLiveStatusApiUrl();
+  const resolvedIntradayHealthUrl = useMemo(() => getIntradayHealthApiUrl(), []);
   const sessionApiUrl = useMemo(() => getSessionApiUrl(), []);
 
   const [sessions, setSessions] = useState<MarketOpenSession[] | null>(null);
   const [liveStatus, setLiveStatus] = useState<Record<string, MarketLiveStatus>>({});
   const [intradayLatest, setIntradayLatest] = useState<Record<string, IntradaySnapshot | null>>({});
+  const [intradayHealth, setIntradayHealth] = useState<Record<string, IntradayHealth>>({});
 
   // Default future per market = TOTAL (per-country composite)
   const [selected, setSelected] = useState<Record<string, string>>(() => {
@@ -119,6 +124,47 @@ export const useMarketSessions = (apiUrl?: string): UseMarketSessionsResult => {
     };
   }, [resolvedApiUrl, resolvedLiveStatusUrl]);
 
+  // Intraday health polling (lag vs now)
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadHealth() {
+      try {
+        const res = await fetch(resolvedIntradayHealthUrl);
+        if (!res.ok) {
+          if (!cancelled) setIntradayHealth({});
+          return;
+        }
+        const data = await res.json();
+        const map: Record<string, IntradayHealth> = {};
+        if (data && Array.isArray(data.markets)) {
+          for (const m of data.markets) {
+            const key = m?.market;
+            if (!key) continue;
+            map[String(key)] = {
+              status: m?.status || "unknown",
+              last_bar_utc: m?.last_bar_utc ?? null,
+              lag_minutes: typeof m?.lag_minutes === "number" ? m.lag_minutes : null,
+              threshold_minutes:
+                typeof m?.threshold_minutes === "number" ? m.threshold_minutes : data.threshold_minutes || 3,
+            };
+          }
+        }
+        if (!cancelled) setIntradayHealth(map);
+      } catch (err) {
+        console.error("MarketSessions: intraday health fetch failed", err);
+        if (!cancelled) setIntradayHealth({});
+      }
+    }
+
+    loadHealth();
+    const id = setInterval(loadHealth, 5000);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+  }, [resolvedIntradayHealthUrl]);
+
   // Intraday polling per card / future (excluding TOTAL)
   useEffect(() => {
     let cancelled = false;
@@ -172,6 +218,7 @@ export const useMarketSessions = (apiUrl?: string): UseMarketSessionsResult => {
     sessions,
     liveStatus,
     intradayLatest,
+    intradayHealth,
     selected,
     setSelected,
     byCountry,

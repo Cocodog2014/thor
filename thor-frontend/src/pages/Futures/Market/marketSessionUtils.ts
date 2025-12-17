@@ -163,6 +163,19 @@ export const getSessionApiUrl = () => {
   return "http://127.0.0.1:8000/api/session";
 };
 
+export const getIntradayHealthApiUrl = () => {
+  const explicit = import.meta.env.VITE_INTRADAY_HEALTH_API_URL;
+  if (explicit) return trimTrailingSlash(explicit);
+  const backendBase = import.meta.env.VITE_BACKEND_BASE_URL;
+  if (backendBase) return `${trimTrailingSlash(backendBase)}/api/intraday/health`;
+  const apiBase = getBaseApiUrl();
+  if (apiBase) return `${apiBase}/intraday/health`;
+  if (typeof window !== "undefined" && window.location?.origin) {
+    return `${trimTrailingSlash(window.location.origin)}/api/intraday/health`;
+  }
+  return "http://127.0.0.1:8000/api/intraday/health";
+};
+
 // Map dashboard key to backend session market_code
 export const marketKeyToCode = (key: string) => {
   switch (key) {

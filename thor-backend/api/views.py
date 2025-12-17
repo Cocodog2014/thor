@@ -3,6 +3,7 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from django.http import StreamingHttpResponse, HttpRequest
 from django.utils.timezone import now
+from django.db.models import Max
 import json
 import math
 import time
@@ -80,6 +81,85 @@ def _resolve_market_codes(raw: str | None) -> list[str]:
         if value and value not in codes:
             codes.append(value)
     return codes
+
+
+HEALTH_DEFAULT_MARKETS = [
+    "Japan",
+    "China",
+    "India",
+    "United Kingdom",
+    "Pre_USA",
+    "USA",
+]
+
+
+@api_view(['GET'])
+def intraday_health(request: HttpRequest):
+    """
+    GET /api/intraday/health?markets=USA,Pre_USA&threshold_minutes=3
+
+    Returns per-market intraday freshness compared to current time.
+    """
+    markets_param = request.GET.get('markets') or ''
+    threshold_raw = request.GET.get('threshold_minutes') or ''
+    try:
+        threshold_minutes = max(1, int(threshold_raw)) if threshold_raw else 3
+    except Exception:
+        threshold_minutes = 3
+
+    markets: list[str] = []
+    if markets_param:
+        for part in markets_param.split(','):
+            resolved = _resolve_market_codes(part)
+            markets.extend(resolved)
+    if not markets:
+        markets = HEALTH_DEFAULT_MARKETS
+
+    # Deduplicate while preserving order
+    seen = set()
+    unique_markets = []
+    for m in markets:
+        if m and m not in seen:
+            seen.add(m)
+            unique_markets.append(m)
+
+    now_ts = now()
+    latest_by_market = (
+        MarketIntraday.objects
+        .filter(market_code__in=unique_markets)
+        .values('market_code')
+        .annotate(last_bar=Max('timestamp_minute'))
+    )
+
+    latest_map = {row['market_code']: row['last_bar'] for row in latest_by_market}
+
+    results = []
+    for market in unique_markets:
+        last_bar = latest_map.get(market)
+        lag_minutes = None
+        status_str = "unknown"
+        if last_bar:
+            lag_delta = now_ts - last_bar
+            lag_minutes = lag_delta.total_seconds() / 60.0
+            status_str = "green" if lag_minutes <= threshold_minutes else "red"
+        else:
+            status_str = "red"
+
+        results.append({
+            'market': market,
+            'last_bar_utc': last_bar.isoformat() if last_bar else None,
+            'lag_minutes': lag_minutes,
+            'threshold_minutes': threshold_minutes,
+            'status': status_str,
+        })
+
+    payload = {
+        'as_of': now_ts.isoformat(),
+        'threshold_minutes': threshold_minutes,
+        'markets': results,
+    }
+
+    return Response(payload, status=status.HTTP_200_OK)
 
 
 @api_view(['GET'])

@@ -78,6 +78,14 @@
   font-family: var(--thor-font-body);
 }
 
+.total-card-health {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  font-size: 0.75rem;
+}
+
 /* Grid of 4 mini boxes */
 
 .total-card-grid {

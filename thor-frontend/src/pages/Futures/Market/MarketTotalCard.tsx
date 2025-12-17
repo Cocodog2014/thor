@@ -1,5 +1,5 @@
 import React from "react";
-import { FUTURE_OPTIONS } from "./marketSessionTypes.ts";
+import { FUTURE_OPTIONS, type IntradayHealth } from "./marketSessionTypes.ts";
 import {
   formatNum,
   isZero,
@@ -12,6 +12,7 @@ import "./MarketTotalCard.css";
 type MarketTotalCardProps = {
   market: any;
   snap: any;
+  health?: IntradayHealth;
   selectedSymbol: string;
   onSelectedSymbolChange: (symbol: string) => void;
 };
@@ -19,6 +20,7 @@ type MarketTotalCardProps = {
 const MarketTotalCard: React.FC<MarketTotalCardProps> = ({
   market: m,
   snap,
+  health,
   selectedSymbol,
   onSelectedSymbolChange,
 }) => {
@@ -51,6 +53,15 @@ const MarketTotalCard: React.FC<MarketTotalCardProps> = ({
   const instrumentsCount = snap?.instrument_count ?? 0;
   const sessionDateLabel = getSessionDateKey(snap) ?? "—";
 
+  const healthStatus = health?.status || "unknown";
+  const healthClass =
+    healthStatus === "green" ? "chip success" : healthStatus === "red" ? "chip error" : "chip default";
+  const lastBarLocal = health?.last_bar_utc ? new Date(health.last_bar_utc).toLocaleTimeString() : "—";
+  const lagLabel =
+    typeof health?.lag_minutes === "number"
+      ? `${health.lag_minutes.toFixed(1)}m lag`
+      : "No bars yet";
+
   return (
     <div className="total-card">
       {/* Header */}
@@ -81,6 +92,14 @@ const MarketTotalCard: React.FC<MarketTotalCardProps> = ({
           </div>
         </div>
       </div>
+
+        <div className="total-card-health">
+          <span className={healthClass}>
+            Intraday {healthStatus === "green" ? "Live" : healthStatus === "red" ? "Stalled" : "Unknown"}
+          </span>
+          <span className="chip default">Last bar {lastBarLocal}</span>
+          <span className="chip default">{lagLabel}</span>
+        </div>
 
       {/* 2x2 grid – ONLY the four metrics */}
       <div className="total-card-grid">

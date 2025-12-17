@@ -6,7 +6,7 @@ import MarketSessionCard from "./MarketSessionCard.tsx";
 import "./MarketSessions.css";
 
 const MarketSessions: React.FC<{ apiUrl?: string }> = ({ apiUrl }) => {
-  const { liveStatus,  selected, setSelected, byCountry } =
+  const { liveStatus, intradayHealth, selected, setSelected, byCountry } =
     useMarketSessions(apiUrl);
 
   return (
@@ -36,6 +36,7 @@ const MarketSessions: React.FC<{ apiUrl?: string }> = ({ apiUrl }) => {
               market={m}
               rows={rows}
               status={liveStatus[m.country]}
+              health={intradayHealth[m.country]}
               selectedSymbol={selectedSymbol}
               onSelectedSymbolChange={handleSelectedChange}
             />
