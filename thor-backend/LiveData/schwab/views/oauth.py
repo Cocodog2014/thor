@@ -1,0 +1,90 @@
+import logging
+from urllib.parse import urlencode
+
+from django.conf import settings
+from django.http import JsonResponse
+from django.shortcuts import redirect
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+
+from ..models import BrokerConnection
+from ..tokens import exchange_code_for_tokens, get_token_expiry
+
+logger = logging.getLogger(__name__)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def oauth_start(request):
+    """
+    Start Schwab OAuth flow.
+
+    Redirects user to Schwab authorization page.
+    """
+    raw_client_id = getattr(settings, 'SCHWAB_CLIENT_ID', None)
+    redirect_uri = getattr(settings, 'SCHWAB_REDIRECT_URI', None)
+
+    if not raw_client_id or not redirect_uri:
+        return JsonResponse({
+            "error": "Schwab OAuth not configured",
+            "message": "Set SCHWAB_CLIENT_ID and SCHWAB_REDIRECT_URI in settings"
+        }, status=500)
+
+    client_id_for_auth = raw_client_id
+    auth_url = "https://api.schwabapi.com/v1/oauth/authorize"
+
+    params = {
+        'client_id': client_id_for_auth,
+        'redirect_uri': redirect_uri,
+        'response_type': 'code',
+        'scope': 'api',
+    }
+
+    oauth_url = f"{auth_url}?{urlencode(params)}"
+
+    logger.info("Starting Schwab OAuth for user %s", request.user.username)
+    logger.info("Raw client_id: %s", raw_client_id)
+    logger.info("Client_id for auth: %s", client_id_for_auth)
+    logger.info("Redirect URI: %s", redirect_uri)
+    logger.info("Auth URL: %s", oauth_url)
+
+    return JsonResponse({"auth_url": oauth_url})
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def oauth_callback(request):
+    """
+    Handle OAuth callback from Schwab.
+    Exchanges authorization code for tokens and saves to database.
+    """
+    auth_code = request.GET.get('code')
+
+    if not auth_code:
+        return JsonResponse({"error": "No authorization code provided"}, status=400)
+
+    try:
+        token_data = exchange_code_for_tokens(auth_code)
+
+        BrokerConnection.objects.update_or_create(
+            user=request.user,
+            broker=BrokerConnection.BROKER_SCHWAB,
+            defaults={
+                'access_token': token_data['access_token'],
+                'refresh_token': token_data['refresh_token'],
+                'access_expires_at': get_token_expiry(token_data['expires_in'])
+            }
+        )
+
+        logger.info("Successfully connected Schwab account for %s", request.user.username)
+
+        frontend_base = getattr(settings, "FRONTEND_BASE_URL", "https://dev-thor.360edu.org").rstrip("/")
+        params = urlencode({
+            "broker": "schwab",
+            "status": "connected"
+        })
+        return redirect(f"{frontend_base}/?{params}")
+
+    except Exception as e:
+        logger.error("OAuth callback failed: %s", e)
+        return JsonResponse({"error": str(e)}, status=500)

@@ -8,22 +8,26 @@ Handles OAuth flow endpoints:
 """
 
 from django.urls import path
-from . import views
+from .views import (
+    schwab_health,
+    oauth_start,
+    oauth_callback,
+    list_accounts,
+    account_summary,
+    account_positions,
+    get_positions,
+    get_balances,
+)
 
 app_name = 'schwab'
 
 urlpatterns = [
-    path('health/', views.schwab_health, name='health'),
-    # OAuth flow
-    path('oauth/start/', views.oauth_start, name='oauth_start'),
-    path('oauth/callback/', views.oauth_callback, name='oauth_callback'),
-    
-    # Account management
-    path('accounts/', views.list_accounts, name='list_accounts'),
-    path('accounts/<str:account_id>/positions/', views.get_positions, name='get_positions'),
-    path('accounts/<str:account_id>/balances/', views.get_balances, name='get_balances'),
-    path('account/positions/', views.account_positions, name='account_positions'),
-    
-    # Account summary for frontend
-    path('account/summary/', views.account_summary, name='account_summary'),
+    path('health/', schwab_health, name='health'),
+    path('oauth/start/', oauth_start, name='oauth_start'),
+    path('oauth/callback/', oauth_callback, name='oauth_callback'),
+    path('accounts/', list_accounts, name='list_accounts'),
+    path('accounts/<str:account_id>/positions/', get_positions, name='get_positions'),
+    path('accounts/<str:account_id>/balances/', get_balances, name='get_balances'),
+    path('account/positions/', account_positions, name='account_positions'),
+    path('account/summary/', account_summary, name='account_summary'),
 ]
