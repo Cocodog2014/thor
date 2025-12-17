@@ -1,6 +1,7 @@
 import logging
 import threading
 import os
+from datetime import timedelta
 from typing import Optional
 
 from django.utils import timezone
@@ -16,6 +17,7 @@ from ThorTrading.services.market_metrics import (
 )
 from ThorTrading.services.account_snapshots import trigger_account_daily_snapshots
 from ThorTrading.services.country_codes import normalize_country_code
+from ThorTrading.models.MarketIntraDay import MarketIntraday
 from LiveData.shared.redis_client import live_data_redis
 
 from .feed_24h import update_24h_for_country
@@ -48,6 +50,7 @@ class IntradayMarketSupervisor:
             logger.warning("IntradayMarketSupervisor disabled via INTRADAY_SUPERVISOR_DISABLED")
         self._workers = {}
         self._lock = threading.RLock()
+        self._lag_alert_last = {}
 
     # ------------------------------------------------------------------
     # Public API
@@ -130,6 +133,9 @@ class IntradayMarketSupervisor:
                     break
 
                 enriched, composite = get_enriched_quotes_with_composite()
+                quote_count = len(enriched) if enriched else 0
+                if quote_count == 0:
+                    logger.warning("Intraday %s: no quotes returned; skipping metrics", country)
 
                 # 1) High/Low metrics
                 MarketHighMetric.update_from_quotes(country, enriched)
@@ -137,9 +143,22 @@ class IntradayMarketSupervisor:
 
                 # 2) 24h stats
                 twentyfour_counts, twentyfour_map = update_24h_for_country(country, enriched)
+                if not twentyfour_map:
+                    logger.warning(
+                        "Intraday %s: no 24h map/session group; intraday bars may be skipped (quotes=%s)",
+                        country,
+                        quote_count,
+                    )
 
                 # 3) 1m bars (needs twentyfour_map)
                 intraday_counts = update_intraday_bars_for_country(country, enriched, twentyfour_map)
+                if twentyfour_map and intraday_counts.get('intraday_bars', 0) == 0 and intraday_counts.get('intraday_updates', 0) == 0:
+                    logger.warning(
+                        "Intraday %s: intraday writes zero (quotes=%s, 24h=%s)",
+                        country,
+                        quote_count,
+                        len(twentyfour_map),
+                    )
 
                 # 4) session volume
                 session_counts = update_session_volume_for_country(country, enriched)
@@ -154,6 +173,9 @@ class IntradayMarketSupervisor:
                     intraday_counts,
                     session_counts,
                 )
+
+                # Health: alert if intraday bars fall behind
+                self._maybe_alert_lag(country)
             except Exception:
                 logger.exception("Intraday metrics update failed for %s", country)
 
@@ -225,6 +247,48 @@ class IntradayMarketSupervisor:
             live_data_redis.client.delete(key)
         except Exception:
             logger.exception("Failed to release account snapshot lock %s", key)
+
+    def _maybe_alert_lag(self, country: str, *, threshold_minutes: int = 3, cooldown_minutes: int = 5) -> None:
+        """Log a warning if a country's intraday bars are stale beyond threshold.
+
+        Uses a cooldown to avoid log spam.
+        """
+        now = timezone.now()
+        try:
+            last_ts = (
+                MarketIntraday.objects
+                .filter(country=country)
+                .order_by('-timestamp_minute')
+                .values_list('timestamp_minute', flat=True)
+                .first()
+            )
+        except Exception:
+            logger.exception("Lag check failed for %s", country)
+            return
+
+        if last_ts is None:
+            # Only emit once per cooldown
+            last_alert = self._lag_alert_last.get(country)
+            if not last_alert or (now - last_alert) >= timedelta(minutes=cooldown_minutes):
+                logger.warning("Intraday %s: no bars exist yet (lag check)", country)
+                self._lag_alert_last[country] = now
+            return
+
+        lag = now - last_ts
+        if lag <= timedelta(minutes=threshold_minutes):
+            return
+
+        last_alert = self._lag_alert_last.get(country)
+        if last_alert and (now - last_alert) < timedelta(minutes=cooldown_minutes):
+            return
+
+        logger.warning(
+            "Intraday %s lagging: last bar %s (%.1f min ago)",
+            country,
+            last_ts,
+            lag.total_seconds() / 60.0,
+        )
+        self._lag_alert_last[country] = now
 
 
 # Global singleton

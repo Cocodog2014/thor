@@ -1,8 +1,13 @@
+import logging
+
 from django.utils import timezone
 from django.db import transaction
 from ThorTrading.models.Martket24h import FutureTrading24Hour
 from ThorTrading.models.MarketSession import MarketSession
 from .utils import safe_decimal
+
+
+logger = logging.getLogger(__name__)
 
 @transaction.atomic
 def update_24h_for_country(country: str, enriched_rows):
@@ -24,6 +29,11 @@ def update_24h_for_country(country: str, enriched_rows):
         .first()
     )
     if latest_group is None:
+        logger.warning(
+            "24h update skipped for %s: no MarketSession capture_group found (quotes=%s)",
+            country,
+            len(enriched_rows),
+        )
         return {'twentyfour_updates': 0}, {}
 
     now_dt = timezone.now()
