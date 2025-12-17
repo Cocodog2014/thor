@@ -47,6 +47,10 @@ export interface MarketOpenSession {
   target_high?: string | null;
   target_low?: string | null;
   weighted_average?: string | null;
+  weighted_sum?: string | null;
+  weighted_average_sum?: string | null;
+  signal_weight?: string | number | null;
+  worked_label?: string | null;
   bhs?: string | null;
   instrument_count?: number | null;
   outcome?: string | null;

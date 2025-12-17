@@ -1,4 +1,5 @@
 // src/pages/ActivityPositions/ActivityPositions.tsx
+// cSpell:ignore actandpos
 import React from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import api from "../../services/api";
@@ -9,6 +10,28 @@ import type {
   Order,
   Position,
 } from "../../types/actandpos";
+
+// Strictly validate the shape returned by the backend so we fail fast instead of papering over
+// missing or renamed fields.
+const validateActivityTodayResponse = (
+  payload: ActivityTodayResponse,
+): ActivityTodayResponse => {
+  const arrayFields: Array<
+    keyof Pick<ActivityTodayResponse, "working_orders" | "filled_orders" | "canceled_orders" | "positions">
+  > = ["working_orders", "filled_orders", "canceled_orders", "positions"];
+
+  arrayFields.forEach((key) => {
+    if (!Array.isArray(payload[key])) {
+      throw new Error(`Malformed activity response: ${key} missing or not an array`);
+    }
+  });
+
+  if (!payload.account || !payload.account_status) {
+    throw new Error("Malformed activity response: account data missing");
+  }
+
+  return payload;
+};
 
 // ---------- Small presentational helpers ----------
 
@@ -109,13 +132,13 @@ const ActivityPositions: React.FC = () => {
   const { accountId, accountKey } = useSelectedAccount();
   const qc = useQueryClient();
 
-  const { data, isLoading, isFetching, error, refetch } = useQuery({
+  const { data, isLoading, isFetching, error, refetch } = useQuery<ActivityTodayResponse, Error>({
     queryKey: qk.activityToday(accountKey),
     queryFn: async () => {
       const res = await api.get<ActivityTodayResponse>("/actandpos/activity/today", {
         params: accountId ? { account_id: accountId } : {},
       });
-      const payload = res.data;
+      const payload = validateActivityTodayResponse(res.data);
       // Keep positions cache in sync with activity payload for RT compatibility
       qc.setQueryData(qk.positions(accountKey), payload.positions);
       return payload;
@@ -124,7 +147,6 @@ const ActivityPositions: React.FC = () => {
     refetchInterval: 15000,
     staleTime: 0,
     refetchOnMount: "always",
-    keepPreviousData: false,
   });
 
   if (isLoading && !data) {
@@ -145,7 +167,7 @@ const ActivityPositions: React.FC = () => {
 
   if (!data) return null;
 
-  const { account, account_status } = data;
+  const { account, account_status, working_orders, filled_orders, canceled_orders, positions } = data;
 
   return (
     <div className="ap-screen">
@@ -180,18 +202,18 @@ const ActivityPositions: React.FC = () => {
         {/* Orders sections */}
         <OrdersSection
           title="Working Orders"
-          orders={data.working_orders}
+          orders={working_orders}
         />
-        <OrdersSection title="Filled Orders" orders={data.filled_orders} />
+        <OrdersSection title="Filled Orders" orders={filled_orders} />
         <OrdersSection
           title="Canceled Orders"
-          orders={data.canceled_orders}
+          orders={canceled_orders}
         />
 
         {/* (Rolling Strategies / Covered Call Position headers could go here later) */}
 
         {/* Position Statement */}
-        <PositionsStatement positions={data.positions} />
+        <PositionsStatement positions={positions} />
 
         {/* Account Status footer */}
         <div className="ap-status-row">

@@ -1,7 +1,7 @@
 // MarketSessionCard.tsx
 import React from "react";
-import { getSessionDateKey, isToday } from "./marketSessionUtils.ts";
-import { CONTROL_MARKETS, type IntradayHealth, type MarketLiveStatus, type MarketOpenSession } from "./marketSessionTypes.ts";
+import { getSessionDateKey, isToday } from "./marketSessionUtils";
+import { CONTROL_MARKETS, type IntradayHealth, type MarketLiveStatus, type MarketOpenSession } from "./marketSessionTypes";
 import MarketTotalCard from "./MarketTotalCard";
 import MarketFutureCard from "./MarketFutureCard";
 

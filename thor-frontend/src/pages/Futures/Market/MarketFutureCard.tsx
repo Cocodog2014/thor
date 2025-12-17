@@ -1,6 +1,6 @@
 // MarketFutureCard.tsx
 import React from "react";
-import { CONTROL_MARKETS, FUTURE_OPTIONS, type IntradayHealth, type MarketOpenSession } from "./marketSessionTypes.ts";
+import { CONTROL_MARKETS, FUTURE_OPTIONS, type IntradayHealth, type MarketOpenSession } from "./marketSessionTypes";
 import {
   chipClass,
   formatNum,
@@ -12,7 +12,7 @@ import {
   isZero,
   formatNumOrDash,
   getSessionDateKey,
-} from "./marketSessionUtils.ts";
+} from "./marketSessionUtils";
 
 type MarketFutureCardProps = {
   market: (typeof CONTROL_MARKETS)[number];

@@ -1,11 +1,11 @@
 import React from "react";
-import { CONTROL_MARKETS, FUTURE_OPTIONS, type IntradayHealth, type MarketOpenSession } from "./marketSessionTypes.ts";
+import { CONTROL_MARKETS, FUTURE_OPTIONS, type IntradayHealth, type MarketOpenSession } from "./marketSessionTypes";
 import {
   formatNum,
   isZero,
   formatNumOrDash,
   getSessionDateKey,
-} from "./marketSessionUtils.ts";
+} from "./marketSessionUtils";
 
 import "./MarketTotalCard.css";
 

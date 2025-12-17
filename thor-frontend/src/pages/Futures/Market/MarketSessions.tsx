@@ -1,6 +1,6 @@
 import React from "react";
-import { CONTROL_MARKETS } from "./marketSessionTypes.ts";
-import { normalizeCountry } from "./marketSessionUtils.ts";
+import { CONTROL_MARKETS } from "./marketSessionTypes";
+import { normalizeCountry } from "./marketSessionUtils";
 import { useMarketSessions } from "./useMarketSessions.ts";
 import MarketSessionCard from "./MarketSessionCard.tsx";
 import "./MarketSessions.css";
