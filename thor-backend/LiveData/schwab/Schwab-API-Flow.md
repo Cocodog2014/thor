@@ -148,17 +148,24 @@ React listens for those query params (or simply reloads the dashboard) and then 
 Once tokens exist, frontend can call:
 
 - **Accounts list**: `GET /api/schwab/accounts/`
-  - Returns the raw Schwab `/trader/v1/accounts` payload plus two helper fields per account: `thor_account_id` (local DB row) and `broker_account_id` (typically the Schwab `accountNumber`).
-  - Every Schwab response nests balances under `securitiesAccount.currentBalances`, so the backend now unwraps that structure automatically.
-- **Account summary**: `GET /api/schwab/account/summary/?account_number=60910485`
-  - Does **not** require `hashValue` anymore. We build the UI summary straight from the `/accounts` payload, format the key balances (net liq, buying powers, available funds, equity %), and accept an optional `account_number` query param (falls back to the first account when omitted).
-- **Positions**: `GET /api/schwab/accounts/<account_id>/positions/`
-- **Balances**: `GET /api/schwab/accounts/<account_id>/balances/`
+  - Returns the raw Schwab `/trader/v1/accounts` payload plus helper fields: `thor_account_id` (local DB row) and `broker_account_id` (the Schwab `hashValue`).
+  - Account numbers → hashes are cached in Redis for 60s to reduce `/accounts/accountNumbers` calls.
+- **Account summary** (preferred): `GET /api/schwab/account/summary/?account_number=60910485`
+  - No `hashValue` required. Resolves hash via cached map, formats balances (net liq, buying powers, available funds, equity %), and defaults to the first account if no query param is provided.
+- **Positions** (preferred): `GET /api/schwab/account/positions/?account_number=60910485`
+  - Accepts `account_number` or `account_hash`. Publishes to Redis and caches a snapshot (TTL ~5 min) for fallback.
+- **Balances** (legacy path): `GET /api/schwab/accounts/<account_id>/balances/`
+  - Accepts `account_id` as number or hash. Publishes to Redis and caches a snapshot (TTL ~5 min) for fallback.
+- **Positions** (legacy path): `GET /api/schwab/accounts/<account_id>/positions/`
+  - Kept for compatibility; prefers the query-param endpoint above.
+
+Resilience:
+- If Schwab fails during a fetch, balances/positions endpoints return the last cached snapshot when available (Redis-backed, ~5 minute TTL) instead of empty data.
 
 Frontend uses these results to:
-- Populate account dropdowns with the Schwab account numbers
+- Populate account dropdowns with Schwab account numbers
 - Flip the banner to **Live: Schwab <DisplayName>**
-- Display real balances/positions pulled from the Schwab API
+- Display balances/positions pulled from Schwab API or cached last-good snapshots
 
 ---
 
@@ -248,10 +255,11 @@ Frontend uses these results to:
 - **GET** `/api/schwab/oauth/callback/?code=...` → Exchanges code for tokens, stores, returns `{ "success": true }`
 
 ### Account Data (requires stored tokens)
-- **GET** `/api/schwab/accounts/` → List all Schwab accounts for user. Response looks like Schwab’s official payload plus `thor_account_id` and `broker_account_id` so the frontend can key off local rows and account numbers.
-- **GET** `/api/schwab/accounts/<account_id>/positions/` → Positions for account
-- **GET** `/api/schwab/accounts/<account_id>/balances/` → Balances for account
-- **GET** `/api/schwab/account/summary/?account_number=...` → Formats the current balances from `/accounts`; no `hashValue` dependency.
+- **GET** `/api/schwab/accounts/` → List all Schwab accounts for user. Response mirrors Schwab payload plus `thor_account_id` and `broker_account_id` (hashValue). Account numbers → hashes cached in Redis for 60s.
+- **GET** `/api/schwab/account/positions/?account_number=...` → Preferred positions endpoint (account number or hash). Publishes and caches last-good snapshot.
+- **GET** `/api/schwab/account/summary/?account_number=...` → Preferred balances summary (account number or hash). Publishes and caches last-good snapshot.
+- **GET** `/api/schwab/accounts/<account_id>/positions/` → Legacy positions path (number or hash).
+- **GET** `/api/schwab/accounts/<account_id>/balances/` → Legacy balances path (number or hash).
 
 ### Frontend routes
 - **GET** `/schwab/callback` → React page that handles Schwab redirect and exchanges code

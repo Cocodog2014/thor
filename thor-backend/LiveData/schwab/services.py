@@ -7,6 +7,7 @@ import re
 import requests
 from typing import Dict, List, Optional
 from decimal import Decimal
+from json import dumps, loads
 
 from LiveData.shared.redis_client import live_data_redis
 from ActAndPos.models import Account, Position
@@ -16,6 +17,8 @@ logger = logging.getLogger(__name__)
 
 ACCOUNT_NUMBERS_CACHE_KEY = "live_data:schwab:account_numbers"
 ACCOUNT_NUMBERS_CACHE_TTL = 60  # seconds
+BALANCES_SNAPSHOT_KEY = "live_data:schwab:balances:{account_hash}"
+POSITIONS_SNAPSHOT_KEY = "live_data:schwab:positions:{account_hash}"
 
 
 class SchwabTraderAPI:
@@ -80,7 +83,6 @@ class SchwabTraderAPI:
         try:
             cached = live_data_redis.client.get(ACCOUNT_NUMBERS_CACHE_KEY)
             if cached:
-                from json import loads
                 return loads(cached)
         except Exception as e:
             logger.debug("Schwab accountNumbers cache read failed: %s", e)
@@ -96,7 +98,6 @@ class SchwabTraderAPI:
                     mapping[number] = hash_val
 
             try:
-                from json import dumps
                 live_data_redis.client.set(ACCOUNT_NUMBERS_CACHE_KEY, dumps(mapping), ex=ACCOUNT_NUMBERS_CACHE_TTL)
             except Exception as e:
                 logger.debug("Schwab accountNumbers cache write failed: %s", e)
@@ -166,12 +167,54 @@ class SchwabTraderAPI:
             .first()
         )
 
+    def _cache_positions_snapshot(self, account_hash: str, positions: List[Dict]) -> None:
+        try:
+            key = POSITIONS_SNAPSHOT_KEY.format(account_hash=account_hash)
+            live_data_redis.set_json(key, {"account_hash": account_hash, "positions": positions}, ex=300)
+        except Exception as e:
+            logger.debug("Schwab positions cache write failed for %s: %s", account_hash, e)
+
+    def _get_positions_snapshot(self, account_hash: str) -> List[Dict]:
+        try:
+            key = POSITIONS_SNAPSHOT_KEY.format(account_hash=account_hash)
+            raw = live_data_redis.client.get(key)
+            if not raw:
+                return []
+            data = loads(raw)
+            return data.get("positions", []) if isinstance(data, dict) else []
+        except Exception as e:
+            logger.debug("Schwab positions cache read failed for %s: %s", account_hash, e)
+            return []
+
+    def _cache_balances_snapshot(self, account_hash: str, payload: Dict) -> None:
+        try:
+            key = BALANCES_SNAPSHOT_KEY.format(account_hash=account_hash)
+            live_data_redis.set_json(key, payload, ex=300)
+        except Exception as e:
+            logger.debug("Schwab balances cache write failed for %s: %s", account_hash, e)
+
+    def _get_balances_snapshot(self, account_hash: str) -> Dict:
+        try:
+            key = BALANCES_SNAPSHOT_KEY.format(account_hash=account_hash)
+            raw = live_data_redis.client.get(key)
+            if not raw:
+                return {}
+            data = loads(raw)
+            return data if isinstance(data, dict) else {}
+        except Exception as e:
+            logger.debug("Schwab balances cache read failed for %s: %s", account_hash, e)
+            return {}
+
     def fetch_positions(self, account_hash: str) -> List[Dict]:
         """Fetch positions for an account (hash or accountNumber), persist, publish."""
         account_hash = self.resolve_account_hash(account_hash)
-        data = self.fetch_account_details(account_hash, include_positions=True)
-        acct = data.get("securitiesAccount", {}) or {}
-        raw_positions = acct.get("positions", []) or []
+        try:
+            data = self.fetch_account_details(account_hash, include_positions=True)
+            acct = data.get("securitiesAccount", {}) or {}
+            raw_positions = acct.get("positions", []) or []
+        except Exception as e:
+            logger.error("Failed live Schwab positions for %s: %s", account_hash, e)
+            return self._get_positions_snapshot(account_hash)
 
         account = self._get_account_record(account_hash)
         if not account:
@@ -229,6 +272,7 @@ class SchwabTraderAPI:
             except Exception as e:
                 logger.error("Failed to publish Schwab position for %s: %s", symbol, e)
 
+        self._cache_positions_snapshot(account_hash, normalized)
         return normalized
 
     def fetch_balances(self, account_id: str) -> Dict:
@@ -243,6 +287,9 @@ class SchwabTraderAPI:
             data = self.fetch_account_details(account_hash, include_positions=False)
         except Exception as e:
             logger.error("Failed to fetch Schwab balances for %s: %s", account_hash, e)
+            cached = self._get_balances_snapshot(account_hash)
+            if cached:
+                return cached
             return {}
 
         sec = (data.get("securitiesAccount", {}) or {})
@@ -351,4 +398,5 @@ class SchwabTraderAPI:
         except Exception as e:
             logger.error("Failed to publish Schwab balances for %s: %s", publish_key, e)
 
+        self._cache_balances_snapshot(account_hash, payload)
         return payload
