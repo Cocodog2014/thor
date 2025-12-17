@@ -3,6 +3,7 @@ from datetime import datetime, timezone as dt_timezone
 from django.utils import timezone, dateparse
 
 from ThorTrading.models.MarketIntraDay import MarketIntraday
+from ThorTrading.services.country_codes import normalize_country_code
 from .utils import safe_decimal
 
 
@@ -47,6 +48,8 @@ def update_intraday_bars_for_country(country: str, enriched_rows, twentyfour_map
     now_dt = timezone.now()
     counts = {'intraday_bars': 0, 'intraday_updates': 0}
 
+    market_code = normalize_country_code(country) or country
+
     for row in enriched_rows:
         sym = row.get('instrument', {}).get('symbol')
         if not sym:
@@ -69,7 +72,7 @@ def update_intraday_bars_for_country(country: str, enriched_rows, twentyfour_map
             country=country,
             future=future,
             defaults={
-                'market_code': country,
+                'market_code': market_code,
                 'twentyfour': twentyfour,
                 'open_1m': last_price,
                 'high_1m': last_price,
