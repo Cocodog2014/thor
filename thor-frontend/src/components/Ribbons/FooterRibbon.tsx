@@ -17,6 +17,28 @@ interface RibbonData {
   last_updated: string;
 }
 
+const trimSlash = (value: string) => value.replace(/\/+$/, '');
+
+const buildRibbonUrls = () => {
+  const urls: string[] = [];
+  const explicit = import.meta.env.VITE_RIBBON_API_URL;
+  const base = import.meta.env.VITE_API_BASE_URL;
+  const fallbackBase = import.meta.env.VITE_FALLBACK_API_BASE_URL || import.meta.env.VITE_BACKEND_BASE_URL;
+
+  if (explicit) urls.push(trimSlash(explicit));
+  if (base) urls.push(`${trimSlash(base)}/quotes/ribbon`);
+  if (fallbackBase) urls.push(`${trimSlash(fallbackBase)}/api/quotes/ribbon`);
+  urls.push('/api/quotes/ribbon'); // final relative fallback (Vite proxy/nginx)
+
+  // Deduplicate while preserving order
+  const seen = new Set<string>();
+  return urls.filter((u) => {
+    if (seen.has(u)) return false;
+    seen.add(u);
+    return true;
+  });
+};
+
 // Footer ribbon component that displays live market data from any source
 // Note: Currently uses Futures endpoint, but TradingInstrument model
 // supports all asset classes (futures, stocks, crypto, forex, etc)
@@ -24,21 +46,29 @@ const FooterRibbon: React.FC = () => {
   const [ribbonData, setRibbonData] = useState<RibbonSymbol[]>([]);
   const [error, setError] = useState<string | null>(null);
   const MIN_SYMBOLS_FOR_LOOP = 20;
+  const ribbonUrls = useMemo(buildRibbonUrls, []);
 
   useEffect(() => {
     const fetchRibbonData = async () => {
-      try {
-        const response = await fetch('/api/quotes/ribbon');
-        if (!response.ok) {
-          throw new Error(`Failed to fetch ribbon data: ${response.status}`);
+      let lastErr: any = null;
+      for (const url of ribbonUrls) {
+        try {
+          const response = await fetch(url);
+          if (!response.ok) {
+            lastErr = new Error(`Failed to fetch ribbon data: ${response.status} (${url})`);
+            continue;
+          }
+          const data: RibbonData = await response.json();
+          setRibbonData(data.symbols);
+          setError(null);
+          return;
+        } catch (err) {
+          lastErr = err;
+          continue;
         }
-        const data: RibbonData = await response.json();
-        setRibbonData(data.symbols);
-        setError(null);
-      } catch (err) {
-        console.error('Error fetching ribbon data:', err);
-        setError(err instanceof Error ? err.message : 'Unknown error');
       }
+      console.error('Error fetching ribbon data:', lastErr);
+      setError(lastErr instanceof Error ? lastErr.message : 'Unknown error');
     };
 
     // Fetch immediately
