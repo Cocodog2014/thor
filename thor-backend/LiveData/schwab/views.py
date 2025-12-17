@@ -137,10 +137,6 @@ def oauth_callback(request):
         })
         return redirect(f"{frontend_base}/?{params}")
         
-    except NotImplementedError:
-        return JsonResponse({
-            "error": "Schwab OAuth not yet implemented"
-        }, status=501)
     except Exception as e:
         logger.error(f"OAuth callback failed: {e}")
         return JsonResponse({"error": str(e)}, status=500)
@@ -159,27 +155,30 @@ def list_accounts(request):
             }, status=404)
         
         api = SchwabTraderAPI(request.user)
-        accounts = api.fetch_accounts()
+        accounts = api.fetch_accounts() or []
+        acct_hash_map = api.get_account_number_hash_map()
 
         enriched_accounts = []
 
         for acct in accounts:
             sec = acct.get('securitiesAccount', {}) or {}
+            account_number = sec.get('accountNumber') or acct.get('accountNumber')
             account_hash = (
-                acct.get('hashValue')
-                or sec.get('hashValue')
-                or acct.get('accountNumber')
-                or sec.get('accountNumber')
+                sec.get('hashValue')
+                or acct.get('hashValue')
+                or (account_number and acct_hash_map.get(str(account_number)))
                 or acct.get('accountId')
             )
+
             if not account_hash:
+                logger.warning("Unable to resolve Schwab hashValue for account %s", account_number)
                 continue
 
             display_name = (
                 acct.get('displayName')
                 or sec.get('displayName')
                 or acct.get('nickname')
-                or sec.get('accountNumber')
+                or account_number
                 or account_hash
             )
 
@@ -193,6 +192,7 @@ def list_accounts(request):
             acct_copy = acct.copy()
             acct_copy['thor_account_id'] = account_obj.id
             acct_copy['broker_account_id'] = account_hash
+            acct_copy['account_number'] = account_number
             enriched_accounts.append(acct_copy)
 
         return JsonResponse({
@@ -296,13 +296,8 @@ def account_summary(request):
 
         api = SchwabTraderAPI(request.user)
         accounts = api.fetch_accounts() or []
-
-        # Explicitly fetch and print the accountNumber → hashValue mapping to surface the hash
-        try:
-            acct_map_resp = api._request("GET", "/accounts/accountNumbers")
-            print("ACCOUNT NUMBERS:", acct_map_resp.status_code, acct_map_resp.text)
-        except Exception as e:
-            print("ACCOUNT NUMBERS FETCH FAILED:", e)
+        acct_hash_map = api.get_account_number_hash_map()
+        logger.info("Schwab account number mapping resolved %s entries", len(acct_hash_map))
 
         if not accounts:
             return JsonResponse({
@@ -323,13 +318,17 @@ def account_summary(request):
             chosen = accounts[0]
 
         sec = (chosen or {}).get('securitiesAccount', {}) or {}
-        account_id = sec.get('accountNumber')  # what your /accounts payload actually contains
+        account_number = sec.get('accountNumber')
+        account_hash = acct_hash_map.get(str(account_number)) if account_number else None
 
-        if not account_id:
+        if not account_hash:
+            return JsonResponse({"error": "Unable to resolve Schwab account hashValue"}, status=502)
+
+        if not account_number:
             return JsonResponse({"error": "Unable to get account identifier"}, status=500)
 
         # ✅ THOR WAY: persist + publish via the existing service method
-        balances_payload = api.fetch_balances(account_id)  # publishes to Redis + updates Account
+        balances_payload = api.fetch_balances(account_hash, account_number=account_number)  # publishes to Redis + updates Account
 
         # Format UI summary from the normalized balances payload
         def _money(v):
@@ -356,7 +355,8 @@ def account_summary(request):
 
         return JsonResponse({
             "success": True,
-            "account_number": account_id,
+            "account_number": account_number,
+            "account_hash": account_hash,
             "balances_published": True,
             "summary": summary
         })

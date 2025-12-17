@@ -55,20 +55,24 @@ class SchwabTraderAPI:
 
         response.raise_for_status()
         return response
+
+    def get_account_number_hash_map(self) -> Dict[str, str]:
+        """Return mapping of Schwab accountNumber -> hashValue."""
+        mapping: Dict[str, str] = {}
+        try:
+            resp = self._request("GET", "/accounts/accountNumbers")
+            data = resp.json() or []
+            for row in data:
+                number = row.get("accountNumber")
+                hash_val = row.get("hashValue")
+                if number and hash_val:
+                    mapping[str(number)] = str(hash_val)
+        except Exception as e:
+            logger.warning("Schwab accountNumbers fetch failed: %s", e, exc_info=True)
+        return mapping
     
     def fetch_accounts(self):
         logger.info("DEBUG: fetch_accounts() CALLED")
-        # Debug: log Schwab accountNumber → hashValue mapping (mailbox name → key)
-        try:
-            acct_map_resp = self._request("GET", "/accounts/accountNumbers")
-            logger.info(
-                "Schwab accountNumbers status=%s body=%s",
-                acct_map_resp.status_code,
-                acct_map_resp.text,
-            )
-        except Exception as e:
-            logger.warning("Schwab accountNumbers fetch failed: %s", e, exc_info=True)
-
         response = self._request("GET", "/accounts")
         return response.json()
     
@@ -177,30 +181,23 @@ class SchwabTraderAPI:
 
         return normalized
 
-    def _find_account_snapshot(self, account_number: str) -> Optional[Dict]:
-        accounts = self.fetch_accounts() or []
-        for acct in accounts:
-            sec = (acct or {}).get("securitiesAccount", {}) or {}
-            number = sec.get("accountNumber")
-            if number is None:
-                continue
-            if str(number) == str(account_number):
-                return acct
-        return None
-
-    def fetch_balances(self, account_number: str) -> Dict:
-        """Fetch balances for an account_number, persist them, and publish to Redis."""
-        snapshot = self._find_account_snapshot(account_number)
-        if not snapshot:
-            logger.warning("Schwab account %s not found in /accounts payload", account_number)
+    def fetch_balances(self, account_hash: str, *, account_number: Optional[str] = None) -> Dict:
+        """Fetch balances for an account hashValue, persist them, and publish to Redis."""
+        try:
+            data = self.fetch_account_details(account_hash, include_positions=False)
+        except Exception as e:
+            logger.error("Failed to fetch Schwab balances for %s: %s", account_hash, e)
             return {}
 
-        sec = (snapshot or {}).get("securitiesAccount", {}) or {}
+        sec = (data.get("securitiesAccount", {}) or {})
         bal = (sec.get("currentBalances", {}) or {})
 
-        account = self._get_account_record(account_number)
+        # Backfill account_number from detail payload if missing
+        account_number = account_number or sec.get("accountNumber")
+
+        account = self._get_account_record(account_hash)
         if not account:
-            logger.warning("Schwab account %s not registered in Thor", account_number)
+            logger.warning("Schwab account %s not registered in Thor", account_hash)
             return {}
 
         def _dec(value, default=Decimal("0")):
@@ -261,9 +258,10 @@ class SchwabTraderAPI:
             "equity_percentage": float(equity_pct),
         }
 
+        publish_key = account_hash or account_number
         try:
-            live_data_redis.publish_balance(account_number, payload)
+            live_data_redis.publish_balance(publish_key, payload)
         except Exception as e:
-            logger.error("Failed to publish Schwab balances for %s: %s", account_number, e)
+            logger.error("Failed to publish Schwab balances for %s: %s", publish_key, e)
 
         return payload
