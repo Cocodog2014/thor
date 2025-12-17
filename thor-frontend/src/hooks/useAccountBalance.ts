@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import api from "../services/api";
+import { qk } from "../realtime/queryKeys";
 
 export type AccountBalance = {
   account_id: string;
@@ -23,7 +24,7 @@ export function useAccountBalance(accountId?: string | null, refreshMs = 1000) {
   const accountKey = accountId ? `acct:${accountId}` : "acct:none";
 
   return useQuery({
-    queryKey: ["accountBalance", accountKey],
+    queryKey: qk.balances(accountKey),
     queryFn: () => fetchAccountBalance(accountId),
     refetchInterval: refreshMs,
     refetchOnWindowFocus: false,

@@ -1,8 +1,9 @@
 // src/pages/ActivityPositions/ActivityPositions.tsx
 import React from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import api from "../../services/api";
 import { useSelectedAccount } from "../../context/SelectedAccountContext";
+import { qk } from "../../realtime/queryKeys";
 import type {
   ActivityTodayResponse,
   Order,
@@ -106,14 +107,18 @@ const PositionsStatement: React.FC<{ positions: Position[] }> = ({
 
 const ActivityPositions: React.FC = () => {
   const { accountId, accountKey } = useSelectedAccount();
+  const qc = useQueryClient();
 
   const { data, isLoading, isFetching, error, refetch } = useQuery({
-    queryKey: ["activityToday", accountKey],
+    queryKey: qk.activityToday(accountKey),
     queryFn: async () => {
       const res = await api.get<ActivityTodayResponse>("/actandpos/activity/today", {
         params: accountId ? { account_id: accountId } : {},
       });
-      return res.data;
+      const payload = res.data;
+      // Keep positions cache in sync with activity payload for RT compatibility
+      qc.setQueryData(qk.positions(accountKey), payload.positions);
+      return payload;
     },
     enabled: !!accountId,
     refetchInterval: 15000,
