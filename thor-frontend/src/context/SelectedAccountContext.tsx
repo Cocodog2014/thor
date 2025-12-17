@@ -45,10 +45,6 @@ export const SelectedAccountProvider: React.FC<{ children: React.ReactNode }> = 
       /* ignore storage errors */
     }
 
-    // emit event for any legacy listeners (we will phase this out later)
-    window.dispatchEvent(
-      new CustomEvent("thor:selectedAccountChanged", { detail: { accountId: id } })
-    );
   }, []);
 
   const accountKey = accountId ? `acct:${accountId}` : "acct:none";
@@ -73,15 +69,7 @@ export const SelectedAccountProvider: React.FC<{ children: React.ReactNode }> = 
     }
   }, [accountKey, qc]);
 
-  // Backwards compatibility: still listen for old banner event and route it through setAccountId
-  useEffect(() => {
-    const handler = (event: Event) => {
-      const detail = (event as CustomEvent<{ accountId?: number | string | null }>).detail;
-      setAccountId(detail?.accountId ?? null);
-    };
-    window.addEventListener("thor:selectedAccountChanged", handler);
-    return () => window.removeEventListener("thor:selectedAccountChanged", handler);
-  }, [setAccountId]);
+  // Legacy event dispatch/listen removed to prevent double-dispatch and keep context authoritative
 
   const value = useMemo(() => ({ accountId, accountKey, setAccountId }), [accountId, accountKey, setAccountId]);
 
