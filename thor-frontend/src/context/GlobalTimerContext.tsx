@@ -78,6 +78,7 @@ export const GlobalTimerProvider: React.FC<{ children: React.ReactNode }> = ({ c
   return <GlobalTimerContext.Provider value={value}>{children}</GlobalTimerContext.Provider>;
 };
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useGlobalTimer(): GlobalTimerState {
   const ctx = useContext(GlobalTimerContext);
   if (!ctx) {

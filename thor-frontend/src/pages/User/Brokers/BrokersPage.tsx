@@ -44,7 +44,7 @@ export default function BrokersPage() {
       } else {
         setSummary(null);
       }
-    } catch (e) {
+    } catch {
       setError("Failed to load broker status.");
     } finally {
       setLoading(false);

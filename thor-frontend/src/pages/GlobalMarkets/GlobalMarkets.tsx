@@ -91,7 +91,7 @@ const GlobalMarkets: React.FC = () => {
   const isWeekend = (m: Market) => m.current_time.day === 'Sat' || m.current_time.day === 'Sun';
 
   const openCellText = (m: Market): string => {
-    const ms: any = m.market_status;
+    const ms = m.market_status;
     const state: string | undefined = ms.current_state;
     const secs: number = (ms.seconds_to_next_event as number | undefined) ?? 0;
     const hours = Math.floor(secs / 3600);
@@ -110,7 +110,7 @@ const GlobalMarkets: React.FC = () => {
   };
 
   const closeCellText = (m: Market): string => {
-    const ms: any = m.market_status;
+    const ms = m.market_status;
     const state: string | undefined = ms.current_state;
     const secs: number = (ms.seconds_to_next_event as number | undefined) ?? 0;
 

@@ -1,5 +1,5 @@
 // GlobalBanner.tsx
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import './GlobalBanner.css';
 import api from '../../services/api';
@@ -208,35 +208,43 @@ const GlobalBanner: React.FC = () => {
     : 'Waiting for live feed';
 
   // Parent (top) tabs
-  const parentTabs: ParentTab[] = [
-    { label: 'Home', path: '/app/home', key: 'home' },
-    { label: 'Trade', path: '/app/trade', key: 'trade' },
-    { label: 'Futures', path: '/app/futures', key: 'futures' },
-    { label: 'Global', path: '/app/global', key: 'global' },
-  ];
+  const parentTabs: ParentTab[] = useMemo(
+    () => [
+      { label: 'Home', path: '/app/home', key: 'home' },
+      { label: 'Trade', path: '/app/trade', key: 'trade' },
+      { label: 'Futures', path: '/app/futures', key: 'futures' },
+      { label: 'Global', path: '/app/global', key: 'global' },
+    ],
+    [],
+  );
 
   // Child tabs for each parent (generic placeholders for now)
-  const childTabsByParent: Record<string, ChildTab[]> = {
-    home: [
-      { label: 'Activity & Positions', path: '/app/activity' },
-      { label: 'Account Statement', path: '/app/account-statement' },
-    ],
-    futures: [
-      { label: 'Option A', path: '/app/futures' },
-      { label: 'Option B', path: '/app/futures' },
-      { label: 'Option C', path: '/app/futures' },
-    ],
-    global: [
-      { label: 'Tab 1', path: '/app/global' },
-      { label: 'Tab 2', path: '/app/global' },
-    ],
-    trade: [],
-  };
+  const childTabsByParent: Record<string, ChildTab[]> = useMemo(
+    () => ({
+      home: [
+        { label: 'Activity & Positions', path: '/app/activity' },
+        { label: 'Account Statement', path: '/app/account-statement' },
+      ],
+      futures: [
+        { label: 'Option A', path: '/app/futures' },
+        { label: 'Option B', path: '/app/futures' },
+        { label: 'Option C', path: '/app/futures' },
+      ],
+      global: [
+        { label: 'Tab 1', path: '/app/global' },
+        { label: 'Tab 2', path: '/app/global' },
+      ],
+      trade: [],
+    }),
+    [],
+  );
 
   // Helper to derive parent key from current location
-  const deriveParentKey = (pathname: string) =>
-    parentTabs.find((tab) => pathname.startsWith(tab.path))?.key ??
-    parentTabs[0].key;
+  const deriveParentKey = useCallback(
+    (pathname: string) =>
+      parentTabs.find((tab) => pathname.startsWith(tab.path))?.key ?? parentTabs[0].key,
+    [parentTabs],
+  );
 
   const [activeParentKey, setActiveParentKey] = useState<string>(() =>
     deriveParentKey(location.pathname),
@@ -253,7 +261,7 @@ const GlobalBanner: React.FC = () => {
     if (derivedKey !== activeParentKey) {
       setActiveParentKey(derivedKey);
     }
-  }, [location.pathname, activeParentKey]);
+  }, [location.pathname, activeParentKey, deriveParentKey]);
 
   const handleParentClick = (tabKey: string, tabPath: string) => {
     ignorePathSyncRef.current = true;

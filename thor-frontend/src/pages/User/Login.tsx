@@ -43,11 +43,12 @@ const Login: React.FC = () => {
 
       toast.success("Welcome back, commander.");
       navigate(redirectTarget, { replace: true });
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const responseData = (error as { response?: { data?: { detail?: string; message?: string } } }).response?.data;
       const message =
-        error?.response?.data?.detail ||
-        error?.response?.data?.message ||
-        error?.message ||
+        responseData?.detail ||
+        responseData?.message ||
+        (error instanceof Error ? error.message : undefined) ||
         "Unable to log in. Please verify your credentials.";
       toast.error(message);
     } finally {

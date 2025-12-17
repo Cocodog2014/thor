@@ -70,9 +70,9 @@ const PaperOrderTicket: React.FC<{ account: AccountSummary; onOrderPlaced: () =>
       setQuantity("1");
       setLimitPrice("");
       onOrderPlaced();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("[TradeTicket] Failed to place order", err);
-      const errorPayload = err?.response?.data;
+      const errorPayload = (err as { response?: { data?: { detail?: string; field?: string } } }).response?.data;
       const detail = errorPayload?.detail || "Failed to place paper order.";
       const fieldLabel = errorPayload?.field
         ? FIELD_LABELS[errorPayload.field] || errorPayload.field

@@ -9,6 +9,7 @@ import theme from './theme'
 import './styles/global.css'
 import { AuthProvider } from './context/AuthContext'
 import { GlobalTimerProvider } from './context/GlobalTimerContext'
+import { SelectedAccountProvider } from './context/SelectedAccountContext'
 
 // Create a client
 const queryClient = new QueryClient({
@@ -16,6 +17,9 @@ const queryClient = new QueryClient({
     queries: {
       retry: 1,
       refetchOnWindowFocus: false,
+      staleTime: 0,
+      refetchOnMount: 'always',
+      keepPreviousData: false,
     },
   },
 })
@@ -29,9 +33,11 @@ createRoot(document.getElementById('root')!).render(
         <CssBaseline />
         <BrowserRouter>
           <AuthProvider>
-            <GlobalTimerProvider>
-              <App />
-            </GlobalTimerProvider>
+            <SelectedAccountProvider>
+              <GlobalTimerProvider>
+                <App />
+              </GlobalTimerProvider>
+            </SelectedAccountProvider>
           </AuthProvider>
         </BrowserRouter>
       </ThemeProvider>

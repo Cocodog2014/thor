@@ -1,6 +1,8 @@
 // src/pages/ActivityPositions/ActivityPositions.tsx
-import React, { useEffect, useState } from "react";
+import React from "react";
+import { useQuery } from "@tanstack/react-query";
 import api from "../../services/api";
+import { useSelectedAccount } from "../../context/SelectedAccountContext";
 import type {
   ActivityTodayResponse,
   Order,
@@ -103,44 +105,24 @@ const PositionsStatement: React.FC<{ positions: Position[] }> = ({
 // ---------- Main component ----------
 
 const ActivityPositions: React.FC = () => {
-  const [data, setData] = useState<ActivityTodayResponse | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [refreshCounter, setRefreshCounter] = useState(0);
+  const { accountId, accountKey } = useSelectedAccount();
 
-  useEffect(() => {
-    let cancelled = false;
+  const { data, isLoading, isFetching, error, refetch } = useQuery({
+    queryKey: ["activityToday", accountKey],
+    queryFn: async () => {
+      const res = await api.get<ActivityTodayResponse>("/actandpos/activity/today", {
+        params: accountId ? { account_id: accountId } : {},
+      });
+      return res.data;
+    },
+    enabled: !!accountId,
+    refetchInterval: 15000,
+    staleTime: 0,
+    refetchOnMount: "always",
+    keepPreviousData: false,
+  });
 
-    async function load() {
-      try {
-        setLoading(true);
-        const response = await api.get<ActivityTodayResponse>("/actandpos/activity/today");
-        if (!cancelled) {
-          setData(response.data);
-          setError(null);
-        }
-      } catch (err) {
-        console.error("[ActivityPositions] Failed to load activity.", err);
-        if (!cancelled) setError("Failed to load activity and positions.");
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-
-    load();
-    const interval = setInterval(load, 15000);
-
-    return () => {
-      cancelled = true;
-      clearInterval(interval);
-    };
-  }, [refreshCounter]);
-
-  const handleRefreshClick = () => {
-    setRefreshCounter((prev) => prev + 1);
-  };
-
-  if (loading && !data) {
+  if (isLoading && !data) {
     return (
       <div className="ap-screen">
         <div className="ap-body">Loading activity and positions…</div>
@@ -151,7 +133,7 @@ const ActivityPositions: React.FC = () => {
   if (error) {
     return (
       <div className="ap-screen">
-        <div className="ap-body ap-error">{error}</div>
+        <div className="ap-body ap-error">Failed to load activity and positions.</div>
       </div>
     );
   }
@@ -182,8 +164,8 @@ const ActivityPositions: React.FC = () => {
             <button
               type="button"
               className="ap-refresh-button"
-              onClick={handleRefreshClick}
-              disabled={loading}
+              onClick={() => refetch()}
+              disabled={isFetching}
             >
               Refresh
             </button>

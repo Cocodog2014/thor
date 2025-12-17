@@ -85,7 +85,7 @@ export const buildPercentCell = (value?: string | number | null, fallback = "—
   };
 };
 
-export const isZero = (v: any) => v === 0 || v === "0";
+export const isZero = (v: unknown) => v === 0 || v === "0";
 
 export const formatNumOrDash = (value?: string | number | null, maxFrac = 2) => {
   const formatted = formatNum(value, maxFrac);

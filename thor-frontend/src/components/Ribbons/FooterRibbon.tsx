@@ -50,7 +50,7 @@ const FooterRibbon: React.FC = () => {
 
   useEffect(() => {
     const fetchRibbonData = async () => {
-      let lastErr: any = null;
+      let lastErr: unknown = null;
       for (const url of ribbonUrls) {
         try {
           const response = await fetch(url);
@@ -78,7 +78,7 @@ const FooterRibbon: React.FC = () => {
     const interval = setInterval(fetchRibbonData, 2000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [ribbonUrls]);
 
   const extendedRibbonData = useMemo(() => {
     if (!ribbonData.length) {

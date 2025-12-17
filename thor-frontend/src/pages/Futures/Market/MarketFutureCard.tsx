@@ -1,6 +1,6 @@
 // MarketFutureCard.tsx
 import React from "react";
-import { FUTURE_OPTIONS, type IntradayHealth } from "./marketSessionTypes.ts";
+import { CONTROL_MARKETS, FUTURE_OPTIONS, type IntradayHealth, type MarketOpenSession } from "./marketSessionTypes.ts";
 import {
   chipClass,
   formatNum,
@@ -15,8 +15,8 @@ import {
 } from "./marketSessionUtils.ts";
 
 type MarketFutureCardProps = {
-  market: any;
-  snap: any;
+  market: (typeof CONTROL_MARKETS)[number];
+  snap: MarketOpenSession;
   health?: IntradayHealth;
   selectedSymbol: string;
   onSelectedSymbolChange: (symbol: string) => void;

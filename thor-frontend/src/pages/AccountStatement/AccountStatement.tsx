@@ -258,7 +258,7 @@ const AccountStatements: React.FC = () => {
       );
 
       setData(res.data);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Failed to load account statements', err);
       setError('Unable to load account statements.');
     } finally {
@@ -276,11 +276,11 @@ const AccountStatements: React.FC = () => {
     loadData();
   };
 
-  const cashSweepRows = data?.cashSweep ?? [];
-  const futuresCashRows = data?.futuresCash ?? [];
-  const equitiesRows = data?.equities ?? [];
-  const pnlRows = data?.pnlBySymbol ?? [];
-  const summaryRows = data?.summary ?? [];
+  const cashSweepRows = useMemo(() => data?.cashSweep ?? [], [data?.cashSweep]);
+  const futuresCashRows = useMemo(() => data?.futuresCash ?? [], [data?.futuresCash]);
+  const equitiesRows = useMemo(() => data?.equities ?? [], [data?.equities]);
+  const pnlRows = useMemo(() => data?.pnlBySymbol ?? [], [data?.pnlBySymbol]);
+  const summaryRows = useMemo(() => data?.summary ?? [], [data?.summary]);
   const accountSummary = data?.account;
   const dateRange = data?.date_range;
 

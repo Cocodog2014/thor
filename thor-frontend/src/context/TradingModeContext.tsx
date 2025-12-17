@@ -34,6 +34,7 @@ export const TradingModeProvider: React.FC<{ children: React.ReactNode }> = ({ c
   return <TradingModeContext.Provider value={value}>{children}</TradingModeContext.Provider>;
 };
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useTradingMode(): TradingModeContextValue {
   const ctx = useContext(TradingModeContext);
   if (!ctx) throw new Error('useTradingMode must be used within a TradingModeProvider');

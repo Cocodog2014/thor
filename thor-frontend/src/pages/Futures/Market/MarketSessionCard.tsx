@@ -1,14 +1,14 @@
 // MarketSessionCard.tsx
 import React from "react";
 import { getSessionDateKey, isToday } from "./marketSessionUtils.ts";
-import type { IntradayHealth } from "./marketSessionTypes.ts";
+import { CONTROL_MARKETS, type IntradayHealth, type MarketLiveStatus, type MarketOpenSession } from "./marketSessionTypes.ts";
 import MarketTotalCard from "./MarketTotalCard";
 import MarketFutureCard from "./MarketFutureCard";
 
 type MarketSessionCardProps = {
-  market: any;             // one element from CONTROL_MARKETS
-  rows: any[];             // rows for this country
-  status?: any;            // liveStatus[m.country]
+  market: (typeof CONTROL_MARKETS)[number];             // one element from CONTROL_MARKETS
+  rows: MarketOpenSession[];             // rows for this country
+  status?: MarketLiveStatus;            // liveStatus[m.country]
   health?: IntradayHealth; // intraday freshness
   selectedSymbol?: string; // selected[m.key]
   onSelectedSymbolChange: (symbol: string) => void;

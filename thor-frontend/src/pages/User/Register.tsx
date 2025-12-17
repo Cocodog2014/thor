@@ -32,15 +32,15 @@ const Register: React.FC = () => {
       
       toast.success('Account created! You can now sign in.');
       navigate('/auth/login');
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Registration error:', err);
       // Extract error messages from Django response
-      const errors = err.response?.data;
+      const errors = (err as { response?: { data?: Record<string, unknown> } }).response?.data;
       if (errors) {
         // Show first error message
         const firstError = Object.values(errors)[0];
         const message = Array.isArray(firstError) ? firstError[0] : firstError;
-        toast.error(message || 'Registration failed');
+        toast.error((message as string) || 'Registration failed');
       } else {
         toast.error('Registration failed');
       }
