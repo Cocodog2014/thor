@@ -29,7 +29,14 @@ const GlobalBanner: React.FC = () => {
 
   // Accounts + selected account for the dropdown
   const [accounts, setAccounts] = useState<AccountSummary[]>([]);
-  const [selectedAccountId, setSelectedAccountId] = useState<number | null>(null);
+  const [selectedAccountId, setSelectedAccountId] = useState<number | null>(() => {
+    try {
+      const raw = sessionStorage.getItem(BANNER_SELECTED_ACCOUNT_ID_KEY);
+      return raw ? Number(raw) : null;
+    } catch {
+      return null;
+    }
+  });
   const [schwabHealth, setSchwabHealth] = useState<SchwabHealth | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
 
@@ -162,14 +169,7 @@ const GlobalBanner: React.FC = () => {
           return;
         }
 
-        let restored: number | null = null;
-        try {
-          const raw = sessionStorage.getItem(BANNER_SELECTED_ACCOUNT_ID_KEY);
-          restored = raw ? Number(raw) : null;
-        } catch {
-          restored = null;
-        }
-
+        const restored = selectedAccountId;
         if (restored && accountList.some((acct) => acct.id === restored)) {
           setSelectedAccountId(restored);
         } else {
@@ -193,7 +193,7 @@ const GlobalBanner: React.FC = () => {
   const selectedAccount =
     (selectedAccountId !== null
       ? accounts.find((a) => a.id === selectedAccountId)
-      : accounts[0]) || null;
+      : null) || null;
 
   const isConnected = connectionStatus === 'connected';
   const connectionLabel = isConnected ? 'Connected' : 'Disconnected';
