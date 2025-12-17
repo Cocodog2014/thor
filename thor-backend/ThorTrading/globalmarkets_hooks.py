@@ -24,6 +24,7 @@ from ThorTrading.services.Week52Supervisor import (
     stop_52w_monitor_supervisor,
 )
 from ThorTrading.views.MarketGrader import start_grading_service, stop_grading_service
+from ThorTrading.services.country_codes import normalize_country_code
 
 logger = logging.getLogger(__name__)
 
@@ -32,18 +33,7 @@ GLOBAL_TIMER_ENABLED = os.environ.get("THOR_USE_GLOBAL_MARKET_TIMER", "1").lower
     "false",
     "no",
 }
-CONTROLLED_COUNTRIES = {
-    "USA",
-    "Pre_USA",
-    "Japan",
-    "China",
-    "India",
-    "United Kingdom",
-    "JP",
-    "CN",
-    "IN",
-    "UK",
-}
+CONTROLLED_COUNTRIES = {"USA", "Pre_USA", "JP", "CN", "IN", "UK"}
 
 _ACTIVE_COUNTRIES: Set[str] = set()
 _ACTIVE_LOCK = threading.RLock()
@@ -53,12 +43,12 @@ def _is_controlled_market(market: Market | None) -> bool:
     if market is None or not market.is_active:
         return False
 
-    country = market.country
-    if country in CONTROLLED_COUNTRIES:
+    normalized = normalize_country_code(getattr(market, "country", None))
+    if normalized and normalized in CONTROLLED_COUNTRIES:
         return True
 
-    normalized = country.upper() if country else None
-    return normalized in CONTROLLED_COUNTRIES if normalized else False
+    country = getattr(market, "country", None)
+    return country in CONTROLLED_COUNTRIES if country else False
 
 
 def _skip_reason(reason: str):

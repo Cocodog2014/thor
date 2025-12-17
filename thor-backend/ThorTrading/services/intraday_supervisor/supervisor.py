@@ -15,36 +15,13 @@ from ThorTrading.services.market_metrics import (
     MarketRangeMetric,
 )
 from ThorTrading.services.account_snapshots import trigger_account_daily_snapshots
+from ThorTrading.services.country_codes import normalize_country_code
 from LiveData.shared.redis_client import live_data_redis
 
 from .feed_24h import update_24h_for_country
 from .intraday_bars import update_intraday_bars_for_country
 from .session_volume import update_session_volume_for_country
 from .vwap_precompute import precompute_rolling_vwap
-
-COUNTRY_CODE_MAP = {
-    "United States": "USA",
-    "USA": "USA",
-    "US": "USA",
-    "America": "USA",
-    "Japan": "JP",
-    "JP": "JP",
-    "China": "CN",
-    "CN": "CN",
-    "United Kingdom": "UK",
-    "Great Britain": "UK",
-    "UK": "UK",
-    "England": "UK",
-}
-
-
-def normalize_country_code(raw: Optional[str]) -> Optional[str]:
-    if raw is None:
-        return None
-    trimmed = raw.strip()
-    if not trimmed:
-        return trimmed
-    return COUNTRY_CODE_MAP.get(trimmed, COUNTRY_CODE_MAP.get(trimmed.upper(), trimmed.upper()))
 
 logger = logging.getLogger(__name__)
 

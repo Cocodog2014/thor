@@ -14,6 +14,7 @@ from datetime import date as date_cls
 from django.conf import settings
 from django.utils import timezone
 
+from ThorTrading.services.country_codes import normalize_country_code
 from ThorTrading.views.MarketOpenCapture import capture_market_open as _view_capture_market_open
 
 logger = logging.getLogger(__name__)
@@ -49,8 +50,10 @@ def _market_local_date(market) -> date_cls:
 def _has_capture_for_date(market, capture_date: date_cls) -> bool:
     from ThorTrading.models.MarketSession import MarketSession
 
+    country_code = normalize_country_code(getattr(market, "country", None)) or getattr(market, "country", None)
+
     return MarketSession.objects.filter(
-        country=market.country,
+        country=country_code,
         year=capture_date.year,
         month=capture_date.month,
         date=capture_date.day,

@@ -13,7 +13,8 @@ from rest_framework.decorators import api_view, permission_classes
 from decimal import Decimal, InvalidOperation
 from ThorTrading.services.vwap import vwap_service
 from LiveData.shared.redis_client import live_data_redis
-from django.db import connection
+from ThorTrading.models.MarketIntraDay import MarketIntraday
+from ThorTrading.services.country_codes import normalize_country_code
 
 def _safe_float(value):
     """Convert DB numerics to float, skipping NaN/Inf payloads."""
@@ -42,6 +43,45 @@ def _safe_int(value):
         return None
 
 
+SESSION_MARKET_ALIASES = {
+    "TOKYO": "JP",
+    "JAPAN": "JP",
+    "OSAKA": "JP",
+    "BOMBAY": "IN",
+    "MUMBAI": "IN",
+    "INDIA": "IN",
+    "LONDON": "UK",
+    "UNITED KINGDOM": "UK",
+    "ENGLAND": "UK",
+    "SHANGHAI": "CN",
+    "HONG KONG": "CN",
+    "CHINA": "CN",
+    "USA": "USA",
+    "NEW YORK": "USA",
+    "PRE_USA": "Pre_USA",
+}
+
+
+def _resolve_market_codes(raw: str | None) -> list[str]:
+    """Resolve user-supplied market identifiers into canonical codes."""
+    if not raw:
+        return []
+
+    trimmed = raw.strip()
+    if not trimmed:
+        return []
+
+    upper = trimmed.upper()
+    alias = SESSION_MARKET_ALIASES.get(upper)
+    normalized = normalize_country_code(trimmed)
+
+    codes: list[str] = []
+    for value in (alias, normalized, trimmed):
+        if value and value not in codes:
+            codes.append(value)
+    return codes
+
+
 @api_view(['GET'])
 def session(request: HttpRequest):
     """
@@ -64,49 +104,46 @@ def session(request: HttpRequest):
       }
     }
     """
-    market_code = (request.GET.get('market') or '').strip()
+    market_param = (request.GET.get('market') or '').strip()
     future = (request.GET.get('future') or '').strip().upper()
 
-    if not market_code or not future:
+    if not market_param or not future:
         return Response({
             'detail': 'Both market and future parameters are required.',
-            'market': market_code,
+            'market': market_param,
             'future': future,
             'intraday_latest': None,
         }, status=status.HTTP_400_BAD_REQUEST)
 
-    # Query latest 1-minute bar
-    sql = (
-        """
-        SELECT open_1m, high_1m, low_1m, close_1m, volume_1m, spread_last
-        FROM intraday_1m
-        WHERE market_code = %s AND future = %s
-        ORDER BY timestamp_minute DESC
-        LIMIT 1
-        """
-    )
+    resolved_codes = _resolve_market_codes(market_param)
+    lookup_codes = resolved_codes or [market_param]
 
     latest = None
     try:
-        with connection.cursor() as cursor:
-            cursor.execute(sql, [market_code, future])
-            row = cursor.fetchone()
-            if row:
-                open_v, high_v, low_v, close_v, volume_v, spread_v = row
-                latest = {
-                    'open': _safe_float(open_v),
-                    'high': _safe_float(high_v),
-                    'low': _safe_float(low_v),
-                    'close': _safe_float(close_v),
-                    'volume': _safe_int(volume_v),
-                    'spread': _safe_float(spread_v),
-                }
-    except Exception as e:
-        return Response({'detail': f'Database error: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        row = (
+            MarketIntraday.objects
+            .filter(market_code__in=lookup_codes, future=future)
+            .order_by('-timestamp_minute')
+            .values('open_1m', 'high_1m', 'low_1m', 'close_1m', 'volume_1m', 'spread_last', 'market_code')
+            .first()
+        )
+    except Exception as exc:
+        return Response({'detail': f'Database error: {exc}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    if row:
+        latest = {
+            'open': _safe_float(row['open_1m']),
+            'high': _safe_float(row['high_1m']),
+            'low': _safe_float(row['low_1m']),
+            'close': _safe_float(row['close_1m']),
+            'volume': _safe_int(row['volume_1m']),
+            'spread': _safe_float(row['spread_last']),
+        }
+        market_param = row.get('market_code') or market_param
 
     # Minimal payload; hooks exist to merge session tiles when available
     payload = {
-        'market': market_code,
+        'market': market_param,
         'future': future,
         'intraday_latest': latest,
     }

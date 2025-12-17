@@ -21,6 +21,7 @@ from ThorTrading.services.TargetHighLow import compute_targets_for_symbol
 from ThorTrading.services.backtest_stats import (
     compute_backtest_stats_for_country_future,
 )
+from ThorTrading.services.country_codes import normalize_country_code
 
 
 
@@ -234,18 +235,21 @@ class MarketOpenCaptureService:
         Early-return if market-level capture flags disable futures or open capture.
         """
         # Belt-and-suspenders guard (monitor should already filter, but we re-check)
+        display_country = getattr(market, 'country', None)
+        country_code = normalize_country_code(display_country) or display_country
+
         if not getattr(market, 'enable_futures_capture', True):
-            logger.info("Futures capture disabled for %s; skipping.", market.country)
+            logger.info("Futures capture disabled for %s; skipping.", country_code or display_country or '?')
             return None
         if not getattr(market, 'enable_open_capture', True):
-            logger.info("Open capture disabled for %s; skipping.", market.country)
+            logger.info("Open capture disabled for %s; skipping.", country_code or display_country or '?')
             return None
         try:
-            logger.info(f"Capturing {market.country} market open...")
+            logger.info(f"Capturing {country_code or display_country or '?'} market open...")
             
             enriched, composite = get_enriched_quotes_with_composite()
             if not enriched:
-                logger.error(f"No enriched rows for {market.country}")
+                logger.error(f"No enriched rows for {country_code or display_country or '?'}")
                 return None
             composite_signal = (composite.get('composite_signal') or 'HOLD').upper()
             
@@ -254,7 +258,7 @@ class MarketOpenCaptureService:
                 sym_list = [r.get('instrument', {}).get('symbol') for r in enriched]
                 logger.info(
                     "MarketOpenCapture %s %04d-%02d-%02d - enriched count=%s, symbols=%s",
-                    market.country,
+                    country_code or display_country or '?',
                     time_info['year'],
                     time_info['month'],
                     time_info['date'],
@@ -264,7 +268,7 @@ class MarketOpenCaptureService:
             except Exception:
                 logger.info(
                     "MarketOpenCapture %s %04d-%02d-%02d - enriched count=%s",
-                    market.country,
+                    country_code or display_country or '?',
                     time_info['year'],
                     time_info['month'],
                     time_info['date'],
@@ -282,7 +286,7 @@ class MarketOpenCaptureService:
             for row in enriched:
                 symbol = row['instrument']['symbol']
                 session = self.create_session_for_future(
-                    symbol, row, session_number, capture_group, time_info, market.country, composite_signal
+                    symbol, row, session_number, capture_group, time_info, country_code or display_country, composite_signal
                 )
                 if session:
                     sessions_created.append(session)
@@ -297,7 +301,7 @@ class MarketOpenCaptureService:
             
             # Create TOTAL session
             total_session = self.create_session_for_total(
-                composite, session_number, capture_group, time_info, market.country, ym_entry_price=ym_entry_price
+                composite, session_number, capture_group, time_info, country_code or display_country, ym_entry_price=ym_entry_price
             )
             if total_session:
                 sessions_created.append(total_session)
@@ -321,7 +325,7 @@ class MarketOpenCaptureService:
                 # Only update WNDW totals for THIS session & THIS market
                 _country_future_wndw_service.update_for_session_country(
                     session_number=session_number,
-                    country=market.country,
+                    country=country_code or display_country,
                 )
             except Exception as stats_error:
                 logger.warning(
@@ -332,7 +336,8 @@ class MarketOpenCaptureService:
                 )
             
             logger.info(
-                "Capture complete: Session #%s, created=%s%s",
+                "Capture complete: %s Session #%s, created=%s%s",
+                country_code or display_country or '?',
                 session_number,
                 len(sessions_created),
                 (f", failures={failures}" if failures else ""),
@@ -340,7 +345,7 @@ class MarketOpenCaptureService:
             return sessions_created[0] if sessions_created else None
             
         except Exception as e:
-            logger.error(f"Capture failed for {market.country}: {e}", exc_info=True)
+            logger.error(f"Capture failed for {country_code or display_country or '?'}: {e}", exc_info=True)
             return None
 
 
