@@ -37,6 +37,14 @@ export const SelectedAccountProvider: React.FC<{ children: React.ReactNode }> = 
           return key0 !== "globalMarketsStatus"; // keep global if desired
         },
       });
+
+      if (import.meta.env.DEV) {
+        console.log("[SelectedAccount] switch", {
+          accountId: next,
+          clearedQueries: true,
+          ts: new Date().toISOString(),
+        });
+      }
     };
 
     window.addEventListener("thor:selectedAccountChanged", handler);
