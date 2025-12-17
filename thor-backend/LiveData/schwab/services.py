@@ -14,6 +14,9 @@ from .tokens import ensure_valid_access_token
 
 logger = logging.getLogger(__name__)
 
+ACCOUNT_NUMBERS_CACHE_KEY = "live_data:schwab:account_numbers"
+ACCOUNT_NUMBERS_CACHE_TTL = 60  # seconds
+
 
 class SchwabTraderAPI:
     BASE_URL = "https://api.schwabapi.com/trader/v1"
@@ -73,6 +76,15 @@ class SchwabTraderAPI:
 
     def fetch_account_numbers_map(self) -> Dict[str, str]:
         """Return mapping of accountNumber -> hashValue from /accounts/accountNumbers."""
+        # Try cache first
+        try:
+            cached = live_data_redis.client.get(ACCOUNT_NUMBERS_CACHE_KEY)
+            if cached:
+                from json import loads
+                return loads(cached)
+        except Exception as e:
+            logger.debug("Schwab accountNumbers cache read failed: %s", e)
+
         mapping: Dict[str, str] = {}
         try:
             resp = self._request("GET", "/accounts/accountNumbers")
@@ -82,6 +94,12 @@ class SchwabTraderAPI:
                 hash_val = str(row.get("hashValue") or "").strip()
                 if number and hash_val:
                     mapping[number] = hash_val
+
+            try:
+                from json import dumps
+                live_data_redis.client.set(ACCOUNT_NUMBERS_CACHE_KEY, dumps(mapping), ex=ACCOUNT_NUMBERS_CACHE_TTL)
+            except Exception as e:
+                logger.debug("Schwab accountNumbers cache write failed: %s", e)
         except Exception as e:
             logger.warning("Schwab accountNumbers fetch failed: %s", e, exc_info=True)
         return mapping
