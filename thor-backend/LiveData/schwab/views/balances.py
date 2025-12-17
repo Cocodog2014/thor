@@ -1,10 +1,13 @@
 import logging
+from datetime import datetime
 
 from django.http import JsonResponse
+from django.utils import timezone
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 
 from ..services import SchwabTraderAPI
+from LiveData.shared.redis_client import live_data_redis
 
 logger = logging.getLogger(__name__)
 
@@ -28,10 +31,24 @@ def get_balances(request, account_id):
         if balances is None:
             return JsonResponse({"error": "Unable to fetch balances from Schwab"}, status=502)
 
+        # Snapshot to Redis for downstream consumers (UI + EOD snapshot) and publish event
+        try:
+            snapshot_payload = {
+                "account_id": account_hash,
+                "account_number": account_id,
+                "updated_at": timezone.now().isoformat(),
+                **(balances if isinstance(balances, dict) else {"balances": balances}),
+            }
+            live_data_redis.set_json(f"live_data:balances:{account_hash}", snapshot_payload)
+            live_data_redis.publish_balance(account_hash, snapshot_payload)
+        except Exception as pub_err:  # pragma: no cover
+            logger.warning("Schwab balances fetched but failed to publish/set Redis: %s", pub_err)
+
         return JsonResponse({
             "success": True,
             "account_hash": account_hash,
             "balances": balances,
+            "balances_published": True,
         })
 
     except Exception as e:
