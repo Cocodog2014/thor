@@ -182,7 +182,10 @@ const GlobalBanner: React.FC = () => {
     return () => {
       isMounted = false;
     };
-  }, [accountId, setAccountId]);
+  // Intentionally run once on mount to hydrate accounts and set initial selection.
+  // Do not include accountId; selection is owned by context and further changes come from user events.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [setAccountId]);
 
   const selectedAccount = useMemo(
     () => accounts.find((a) => String(a.id) === String(accountId)) ?? null,

@@ -88,6 +88,7 @@ export const SelectedAccountProvider: React.FC<{ children: React.ReactNode }> = 
   return <SelectedAccountContext.Provider value={value}>{children}</SelectedAccountContext.Provider>;
 };
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useSelectedAccount() {
   const ctx = useContext(SelectedAccountContext);
   if (!ctx) throw new Error("useSelectedAccount must be used within SelectedAccountProvider");
