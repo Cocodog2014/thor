@@ -32,6 +32,12 @@ class Account(models.Model):
     )
     broker = models.CharField(max_length=20, choices=BROKER_CHOICES, default="PAPER")
     broker_account_id = models.CharField(max_length=64, unique=True)
+    account_number = models.CharField(
+        max_length=32,
+        blank=True,
+        null=True,
+        help_text="Broker-provided account number (non-unique).",
+    )
     display_name = models.CharField(max_length=128, blank=True)
 
     currency = models.CharField(max_length=8, default="USD")

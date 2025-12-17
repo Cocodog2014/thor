@@ -359,6 +359,7 @@ class SchwabTraderAPI:
                 user=self.user,
                 broker="SCHWAB",
                 broker_account_id=account_hash,
+                account_number=account_number,
                 display_name=display_name,
                 currency="USD",
             )
@@ -371,6 +372,8 @@ class SchwabTraderAPI:
         account.stock_buying_power = _dec(stock_bp)
         account.option_buying_power = _dec(option_bp)
         account.day_trading_buying_power = _dec(daytrade_bp)
+        if account_number:
+            account.account_number = account_number
         long_stock_value_dec = _dec(long_stock_value)
         equity_pct_dec = _dec(equity_pct_raw) if equity_pct_raw is not None else Decimal("0")
         if equity_pct_raw is None and account.net_liq:
@@ -386,6 +389,7 @@ class SchwabTraderAPI:
             "stock_buying_power",
             "option_buying_power",
             "day_trading_buying_power",
+            "account_number",
             "updated_at",
         ])
 

@@ -60,8 +60,12 @@ def list_accounts(request):
                 user=request.user,
                 broker='SCHWAB',
                 broker_account_id=account_hash,
-                defaults={'display_name': display_name, 'currency': 'USD'},
+                defaults={'display_name': display_name, 'currency': 'USD', 'account_number': account_number},
             )
+
+            if account_number and account_obj.account_number != account_number:
+                account_obj.account_number = account_number
+                account_obj.save(update_fields=["account_number", "updated_at"])
 
             acct_copy = acct.copy()
             acct_copy['thor_account_id'] = account_obj.id
