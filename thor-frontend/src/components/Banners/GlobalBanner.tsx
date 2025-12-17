@@ -276,17 +276,22 @@ const GlobalBanner: React.FC = () => {
   };
 
   const handleAccountChange = (id: number) => {
+    // React state for banner/UI consumers
     setSelectedAccountId(id);
+
+    // Persist for reloads/legacy readers
     try {
       sessionStorage.setItem(BANNER_SELECTED_ACCOUNT_ID_KEY, String(id));
-      window.dispatchEvent(
-        new CustomEvent('thor:selectedAccountChanged', {
-          detail: { accountId: id },
-        }),
-      );
     } catch {
       // Ignore storage errors (private browsing, quota, etc.).
     }
+
+    // Global notify all listeners
+    window.dispatchEvent(
+      new CustomEvent('thor:selectedAccountChanged', {
+        detail: { accountId: id },
+      }),
+    );
   };
 
   return (
