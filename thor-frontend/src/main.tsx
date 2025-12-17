@@ -10,6 +10,7 @@ import './styles/global.css'
 import { AuthProvider } from './context/AuthContext'
 import { GlobalTimerProvider } from './context/GlobalTimerContext'
 import { SelectedAccountProvider } from './context/SelectedAccountContext'
+import { RealTimeProvider } from './realtime/RealTimeProvider'
 
 // Create a client
 const queryClient = new QueryClient({
@@ -34,9 +35,11 @@ createRoot(document.getElementById('root')!).render(
         <BrowserRouter>
           <AuthProvider>
             <SelectedAccountProvider>
-              <GlobalTimerProvider>
-                <App />
-              </GlobalTimerProvider>
+              <RealTimeProvider>
+                <GlobalTimerProvider>
+                  <App />
+                </GlobalTimerProvider>
+              </RealTimeProvider>
             </SelectedAccountProvider>
           </AuthProvider>
         </BrowserRouter>

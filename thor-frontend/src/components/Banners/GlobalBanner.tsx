@@ -10,7 +10,7 @@ import TabsRow from './TabsRow';
 import SchwabHealthCard from './SchwabHealthCard';
 import { useGlobalTimer } from '../../context/GlobalTimerContext';
 import { useAuth } from '../../context/AuthContext';
-import { BANNER_SELECTED_ACCOUNT_ID_KEY } from '../../constants/bannerKeys';
+import { useSelectedAccount } from '../../context/SelectedAccountContext';
 
 type UserProfile = {
   is_staff?: boolean;
@@ -22,6 +22,7 @@ const GlobalBanner: React.FC = () => {
   const location = useLocation();
   const { now } = useGlobalTimer();
   const { token } = useAuth();
+  const { accountId, setAccountId } = useSelectedAccount();
 
   const [connectionStatus, setConnectionStatus] =
     useState<'connected' | 'disconnected'>('disconnected');
@@ -29,16 +30,9 @@ const GlobalBanner: React.FC = () => {
 
   // Accounts + selected account for the dropdown
   const [accounts, setAccounts] = useState<AccountSummary[]>([]);
-  const [selectedAccountId, setSelectedAccountId] = useState<number | null>(() => {
-    try {
-      const raw = sessionStorage.getItem(BANNER_SELECTED_ACCOUNT_ID_KEY);
-      return raw ? Number(raw) : null;
-    } catch {
-      return null;
-    }
-  });
   const [schwabHealth, setSchwabHealth] = useState<SchwabHealth | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const selectedAccountId = accountId ? Number(accountId) || null : null;
 
   // Helper to format currency-like strings safely
   const formatCurrency = (value?: string | null) => {
@@ -165,21 +159,21 @@ const GlobalBanner: React.FC = () => {
         setAccounts(accountList);
 
         if (accountList.length === 0) {
-          setSelectedAccountId(null);
+          setAccountId(null);
           return;
         }
 
         const restored = selectedAccountId;
         if (restored && accountList.some((acct) => acct.id === restored)) {
-          setSelectedAccountId(restored);
+          setAccountId(restored);
         } else {
-          setSelectedAccountId(accountList[0]?.id ?? null);
+          setAccountId(accountList[0]?.id ?? null);
         }
       } catch (error) {
         if (!isMounted) return;
         console.error('Failed to load accounts list', error);
         setAccounts([]);
-        setSelectedAccountId(null);
+        setAccountId(null);
       }
     };
 
@@ -188,7 +182,7 @@ const GlobalBanner: React.FC = () => {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [selectedAccountId, setAccountId]);
 
   const selectedAccount =
     (selectedAccountId !== null
@@ -275,25 +269,6 @@ const GlobalBanner: React.FC = () => {
     navigate(path);
   };
 
-  const handleAccountChange = (id: number) => {
-    // React state for banner/UI consumers
-    setSelectedAccountId(id);
-
-    // Persist for reloads/legacy readers
-    try {
-      sessionStorage.setItem(BANNER_SELECTED_ACCOUNT_ID_KEY, String(id));
-    } catch {
-      // Ignore storage errors (private browsing, quota, etc.).
-    }
-
-    // Global notify all listeners
-    window.dispatchEvent(
-      new CustomEvent('thor:selectedAccountChanged', {
-        detail: { accountId: id },
-      }),
-    );
-  };
-
   return (
     <div
       className="global-banner"
@@ -306,7 +281,7 @@ const GlobalBanner: React.FC = () => {
         connectionDetails={connectionDetails}
         accounts={accounts}
         selectedAccountId={selectedAccountId}
-        onAccountChange={handleAccountChange}
+        onAccountChange={(id) => setAccountId(id)}
         onNavigate={(path) => navigate(path)}
         schwabHealth={schwabHealth}
       />
