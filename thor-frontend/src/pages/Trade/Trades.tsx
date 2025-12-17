@@ -7,6 +7,7 @@ import type {
   ActivityTodayResponse,
   PaperOrderResponse,
 } from "../../types/actandpos";
+import { useSelectedAccount } from "../../context/SelectedAccountContext";
 
 const FIELD_LABELS: Record<string, string> = {
   symbol: "Symbol",
@@ -130,6 +131,7 @@ const PaperOrderTicket: React.FC<{ account: AccountSummary; onOrderPlaced: () =>
 };
 
 const Trades: React.FC = () => {
+  const { accountId } = useSelectedAccount();
   const [account, setAccount] = useState<AccountSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -141,7 +143,9 @@ const Trades: React.FC = () => {
     async function loadAccount() {
       try {
         setLoading(true);
-        const response = await api.get<ActivityTodayResponse>("/actandpos/activity/today");
+        const response = await api.get<ActivityTodayResponse>("/actandpos/activity/today", {
+          params: accountId ? { account_id: accountId } : {},
+        });
         if (!cancelled) {
           setAccount(response.data.account);
           setError(null);
@@ -159,7 +163,7 @@ const Trades: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [refreshCounter]);
+  }, [accountId, refreshCounter]);
 
   if (loading && !account) {
     return (
