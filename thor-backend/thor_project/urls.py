@@ -22,6 +22,7 @@ from django.http import JsonResponse
 from django.views.generic import RedirectView
 from GlobalMarkets.views import api_test_page, debug_market_times, sync_markets
 from LiveData.schwab import views as schwab_views
+from ActAndPos.views.balances import account_balance_view
 
 
 admin.site.site_header = "Thor's Command Center"
@@ -53,6 +54,7 @@ urlpatterns = [
     # path('admin/cloudflared/', cloudflared_control, name='admin_cloudflared_control'),
     path('admin/', admin.site.urls),
     path('api/', include('api.urls')),           # Thor APIs
+    path('api/accounts/balance/', account_balance_view, name='account-balance'),
     # ThorTrading APIs
     path('api/', include(('ThorTrading.urls', 'ThorTrading'), namespace='ThorTrading')),
     path('api/users/', include('users.urls')),   # User authentication
