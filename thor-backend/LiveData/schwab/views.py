@@ -323,7 +323,7 @@ def account_summary(request):
             chosen = accounts[0]
 
         sec = (chosen or {}).get('securitiesAccount', {}) or {}
-        account_number = sec.get('accountNumber')
+        account_number = sec.get('accountNumber') or chosen.get('accountNumber')
         account_hash = acct_hash_map.get(str(account_number)) if account_number else None
 
         if not account_hash:
