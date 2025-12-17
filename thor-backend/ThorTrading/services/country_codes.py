@@ -7,6 +7,7 @@ from typing import Optional
 # Canonical outputs map to the values expected by downstream services.
 # Alias keys should be uppercase for easier comparison.
 COUNTRY_CODE_MAP = {
+    # Canonical display-first values (match model choices/admin filters)
     "USA": "USA",
     "UNITED STATES": "USA",
     "US": "USA",
@@ -14,16 +15,16 @@ COUNTRY_CODE_MAP = {
     "PRE_USA": "Pre_USA",
     "PRE-USA": "Pre_USA",
     "PRE USA": "Pre_USA",
-    "JAPAN": "JP",
-    "JP": "JP",
-    "CHINA": "CN",
-    "CN": "CN",
-    "INDIA": "IN",
-    "IN": "IN",
-    "UNITED KINGDOM": "UK",
-    "GREAT BRITAIN": "UK",
-    "ENGLAND": "UK",
-    "UK": "UK",
+    "JAPAN": "Japan",
+    "JP": "Japan",
+    "CHINA": "China",
+    "CN": "China",
+    "INDIA": "India",
+    "IN": "India",
+    "UNITED KINGDOM": "United Kingdom",
+    "GREAT BRITAIN": "United Kingdom",
+    "ENGLAND": "United Kingdom",
+    "UK": "United Kingdom",
 }
 
 

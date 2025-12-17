@@ -33,7 +33,7 @@ GLOBAL_TIMER_ENABLED = os.environ.get("THOR_USE_GLOBAL_MARKET_TIMER", "1").lower
     "false",
     "no",
 }
-CONTROLLED_COUNTRIES = {"USA", "Pre_USA", "JP", "CN", "IN", "UK"}
+CONTROLLED_COUNTRIES = {"USA", "Pre_USA", "Japan", "China", "India", "United Kingdom"}
 
 _ACTIVE_COUNTRIES: Set[str] = set()
 _ACTIVE_LOCK = threading.RLock()
@@ -93,23 +93,25 @@ def bootstrap_open_markets():
     try:
         open_markets = Market.objects.filter(
             is_active=True,
-            country__in=CONTROLLED_COUNTRIES,
+            is_control_market=True,
             status="OPEN",
         )
     except Exception:
         logger.exception("Failed to bootstrap open markets")
         return
 
-    if not open_markets:
+    controlled = [m for m in open_markets if _is_controlled_market(m)]
+    if not controlled:
         return
 
-    logger.info("Bootstrapping global timer workers for %s open market(s)", open_markets.count())
-    for market in open_markets:
-        _register_open(market.country)
+    logger.info("Bootstrapping global timer workers for %s open market(s)", len(controlled))
+    for market in controlled:
+        country = normalize_country_code(getattr(market, "country", None)) or getattr(market, "country", None)
+        _register_open(country)
         try:
             intraday_market_supervisor.on_market_open(market)
         except Exception:
-            logger.exception("Intraday bootstrap failed for %s", market.country)
+            logger.exception("Intraday bootstrap failed for %s", country)
 
     _start_global_background_services()
     start_grading_service()
@@ -123,7 +125,7 @@ def handle_market_opened(sender, instance: Market, **kwargs):
         _skip_reason(f"market {getattr(instance, 'country', '?')} not controlled")
         return
 
-    country = instance.country
+    country = normalize_country_code(getattr(instance, "country", None)) or instance.country
     logger.info("Global timer detected %s market open.", country)
 
     first_open = _register_open(country)
@@ -155,7 +157,7 @@ def handle_market_closed(sender, instance: Market, **kwargs):
         _skip_reason(f"market {getattr(instance, 'country', '?')} not controlled")
         return
 
-    country = instance.country
+    country = normalize_country_code(getattr(instance, "country", None)) or instance.country
     logger.info("Global timer detected %s market close.", country)
 
     try:
