@@ -1,7 +1,7 @@
 // src/pages/AccountStatements/AccountStatements.tsx
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import api from "../../services/api";
-import { BANNER_SELECTED_ACCOUNT_ID_KEY } from "../../constants/bannerKeys";
+import { useSelectedAccount } from "../../context/SelectedAccountContext";
 
 type ColumnDef = {
   key: string;
@@ -194,6 +194,8 @@ const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({
 // ---- Shape of the API response ---------------------------------------
 
 const AccountStatements: React.FC = () => {
+  const { accountId } = useSelectedAccount();
+
   // Date filters
   const [rangeMode, setRangeMode] = useState<'daysBack' | 'custom'>('daysBack');
   const [daysBack, setDaysBack] = useState<number>(1);
@@ -209,32 +211,7 @@ const AccountStatements: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [accountId, setAccountId] = useState<string | null>(null);
-
-  useEffect(() => {
-    try {
-      const raw = sessionStorage.getItem(BANNER_SELECTED_ACCOUNT_ID_KEY);
-      setAccountId(raw || null);
-    } catch {
-      setAccountId(null);
-    }
-  }, []);
-
-  useEffect(() => {
-    const handleSelectedAccountChanged = (event: Event) => {
-      const detail = (event as CustomEvent<{ accountId?: number | string }>).detail;
-      if (detail && detail.accountId != null) {
-        setAccountId(String(detail.accountId));
-      }
-    };
-
-    window.addEventListener('thor:selectedAccountChanged', handleSelectedAccountChanged);
-    return () => {
-      window.removeEventListener('thor:selectedAccountChanged', handleSelectedAccountChanged);
-    };
-  }, []);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -264,13 +241,12 @@ const AccountStatements: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [accountId, rangeMode, daysBack, fromDate, toDate]);
 
   useEffect(() => {
     // Initial load
     loadData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [accountId]);
+  }, [loadData]);
 
   const handleApplyFilters = () => {
     loadData();
