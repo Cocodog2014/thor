@@ -176,12 +176,13 @@ export const getIntradayHealthApiUrl = () => {
   return "http://127.0.0.1:8000/api/intraday/health";
 };
 
-// Map dashboard key to backend session market_code
+// Map dashboard key to backend country (canonical)
 export const marketKeyToCode = (key: string) => {
   switch (key) {
-    case "Tokyo": return "Tokyo";
+    case "Tokyo": return "Japan";
+    case "Shanghai": return "China";
     case "Bombay": return "India";
-    case "London": return "London";
+    case "London": return "United Kingdom";
     case "Pre_USA": return "Pre_USA";
     case "USA": return "USA";
     default: return key;

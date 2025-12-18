@@ -40,7 +40,6 @@ def run():
         timestamp_minute=datetime.utcnow().replace(second=0, microsecond=0),
         country='USA',
         future='ES',
-        market_code='USA',
         twentyfour=sess,
         open_1m=5110.00,
         high_1m=5112.00,

@@ -126,12 +126,12 @@ def intraday_health(request: HttpRequest):
     now_ts = now()
     latest_by_market = (
         MarketIntraday.objects
-        .filter(market_code__in=unique_markets)
-        .values('market_code')
+        .filter(country__in=unique_markets)
+        .values('country')
         .annotate(last_bar=Max('timestamp_minute'))
     )
 
-    latest_map = {row['market_code']: row['last_bar'] for row in latest_by_market}
+    latest_map = {row['country']: row['last_bar'] for row in latest_by_market}
 
     results = []
     for market in unique_markets:
@@ -168,7 +168,7 @@ def session(request: HttpRequest):
     GET /api/session?market=Tokyo&future=YM
 
     Returns session payload including latest 1-minute intraday bar for the
-    given market (market_code) and future symbol from table `intraday_1m`.
+    given market (country) and future symbol from table `intraday_1m`.
 
     Response shape (partial):
     {
@@ -202,9 +202,9 @@ def session(request: HttpRequest):
     try:
         row = (
             MarketIntraday.objects
-            .filter(market_code__in=lookup_codes, future=future)
+            .filter(country__in=lookup_codes, future=future)
             .order_by('-timestamp_minute')
-            .values('open_1m', 'high_1m', 'low_1m', 'close_1m', 'volume_1m', 'spread_last', 'market_code')
+            .values('open_1m', 'high_1m', 'low_1m', 'close_1m', 'volume_1m', 'spread_last', 'country')
             .first()
         )
     except Exception as exc:
@@ -219,7 +219,7 @@ def session(request: HttpRequest):
             'volume': _safe_int(row['volume_1m']),
             'spread': _safe_float(row['spread_last']),
         }
-        market_param = row.get('market_code') or market_param
+        market_param = row.get('country') or market_param
 
     # Minimal payload; hooks exist to merge session tiles when available
     payload = {

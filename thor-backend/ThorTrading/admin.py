@@ -515,11 +515,11 @@ class FutureTrading24HourAdmin(admin.ModelAdmin):
 @admin.register(MarketIntraday)
 class MarketIntradayAdmin(admin.ModelAdmin):
     list_display = (
-        "timestamp_minute", "country", "future", "market_code",
+        "timestamp_minute", "country", "future",
         "open_1m", "high_1m", "low_1m", "close_1m", "volume_1m",
     )
     list_filter = (
-        "country", "future", "market_code",
+        "country", "future",
     )
     search_fields = (
         "future", "country",
