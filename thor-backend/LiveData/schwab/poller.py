@@ -18,11 +18,12 @@ ENABLE_POLLER = os.environ.get("THOR_ENABLE_SCHWAB_POLLER", "1") not in {"0", "f
 
 
 def _iter_active_accounts():
-    # Limit to Schwab accounts that have a linked Schwab token on the user
+    # Conservative filter: Schwab accounts with a non-empty broker_account_id
     qs = (
         Account.objects.select_related("user")
         .filter(broker="SCHWAB")
-        .exclude(user__schwab_token__isnull=True)
+        .exclude(broker_account_id__isnull=True)
+        .exclude(broker_account_id__exact="")
     )
     for acct in qs:
         yield acct
@@ -56,37 +57,49 @@ def _publish_positions(api: SchwabTraderAPI, account_hash: str):
 def _poll_once():
     seen_users: Dict[int, SchwabTraderAPI] = {}
     for acct in _iter_active_accounts():
-        user = acct.user
-        token = getattr(user, "schwab_token", None)
-        if not token:
-            continue
-        api = seen_users.get(user.id)
-        if api is None:
-            try:
-                api = SchwabTraderAPI(user)
-            except Exception as e:
-                logger.warning("Skip user %s: Schwab API init failed: %s", user.id, e)
+        try:
+            user = acct.user
+            token = (
+                user.get_active_schwab_token()
+                if hasattr(user, "get_active_schwab_token")
+                else getattr(user, "schwab_token", None)
+            )
+            if not token:
+                logger.debug("Skip account %s: no active Schwab token", acct.account_number or acct.id)
                 continue
-            seen_users[user.id] = api
 
-        account_id = acct.broker_account_id or acct.account_number
-        if not account_id:
+            api = seen_users.get(user.id)
+            if api is None:
+                try:
+                    api = SchwabTraderAPI(user)
+                except Exception as e:
+                    logger.warning("Skip user %s: Schwab API init failed: %s", user.id, e)
+                    continue
+                seen_users[user.id] = api
+
+            account_id = acct.broker_account_id or acct.account_number
+            if not account_id:
+                logger.debug("Skip account %s: missing broker_account_id/account_number", acct.id)
+                continue
+            try:
+                account_hash = api.resolve_account_hash(str(account_id))
+            except Exception as e:
+                logger.warning("Skip account %s (user %s): resolve hash failed: %s", account_id, user.id, e)
+                continue
+
+            try:
+                _publish_balances(api, account_hash, acct.account_number)
+            except Exception as e:
+                logger.warning("Balances poll failed for %s: %s", account_hash, e)
+
+            try:
+                _publish_positions(api, account_hash)
+            except Exception as e:
+                logger.warning("Positions poll failed for %s: %s", account_hash, e)
+
+        except Exception:
+            logger.exception("❌ Schwab poll failed for %s", acct.account_number or acct.id)
             continue
-        try:
-            account_hash = api.resolve_account_hash(str(account_id))
-        except Exception as e:
-            logger.warning("Skip account %s (user %s): resolve hash failed: %s", account_id, user.id, e)
-            continue
-
-        try:
-            _publish_balances(api, account_hash, acct.account_number)
-        except Exception as e:
-            logger.warning("Balances poll failed for %s: %s", account_hash, e)
-
-        try:
-            _publish_positions(api, account_hash)
-        except Exception as e:
-            logger.warning("Positions poll failed for %s: %s", account_hash, e)
 
 
 def start_schwab_poller():

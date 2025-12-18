@@ -201,6 +201,15 @@ class CustomUser(AbstractUser):
         """Backward-compatible accessor for Schwab broker connection."""
         return self.get_broker_connection("SCHWAB")
 
+    def get_active_schwab_token(self):
+        """Return Schwab broker connection when present and not expired."""
+        token = self.get_broker_connection("SCHWAB")
+        if not token:
+            return None
+        if getattr(token, "is_expired", False):
+            return None
+        return token
+
     def save(self, *args, **kwargs):
         """Override save to set display_name if not provided."""
         if not self.display_name and (self.first_name or self.last_name):
