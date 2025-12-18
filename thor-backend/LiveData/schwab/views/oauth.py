@@ -42,7 +42,15 @@ def oauth_start(request):
 
     oauth_url = f"{auth_url}?{urlencode(params)}"
 
-    logger.info("Starting Schwab OAuth for user %s", request.user.username)
+    user = request.user
+    if str(getattr(user, "email", "")).lower().strip() != "admin@360edu.org":
+        logger.warning("Schwab OAuth start blocked for non-admin user: %s", user)
+        return JsonResponse({
+            "error": "Unauthorized user for Schwab OAuth",
+            "detail": "Please log in as admin@360edu.org to connect Schwab."
+        }, status=403)
+
+    logger.info("Starting Schwab OAuth for user %s", user.username)
     logger.info("Raw client_id: %s", raw_client_id)
     logger.info("Client_id for auth: %s", client_id_for_auth)
     logger.info("Redirect URI: %s", redirect_uri)
@@ -58,6 +66,14 @@ def oauth_callback(request):
     Handle OAuth callback from Schwab.
     Exchanges authorization code for tokens and saves to database.
     """
+    user = request.user
+    if str(getattr(user, "email", "")).lower().strip() != "admin@360edu.org":
+        logger.warning("Schwab OAuth callback blocked for non-admin user: %s", user)
+        return JsonResponse({
+            "error": "Unauthorized user for Schwab OAuth",
+            "detail": "Please log in as admin@360edu.org to connect Schwab."
+        }, status=403)
+
     auth_code = request.GET.get('code')
 
     if not auth_code:
