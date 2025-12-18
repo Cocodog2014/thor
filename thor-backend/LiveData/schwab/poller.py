@@ -1,0 +1,106 @@
+import logging
+import os
+import time
+from datetime import datetime
+from typing import Dict
+
+from django.utils import timezone
+
+from ActAndPos.models import Account
+from LiveData.shared.redis_client import live_data_redis
+from .services import SchwabTraderAPI
+
+logger = logging.getLogger(__name__)
+
+# Environment controls
+POLL_INTERVAL_SECONDS = int(os.environ.get("THOR_SCHWAB_POLL_INTERVAL", "15"))
+ENABLE_POLLER = os.environ.get("THOR_ENABLE_SCHWAB_POLLER", "1") not in {"0", "false", "False", "no", ""}
+
+
+def _iter_active_accounts():
+    # Limit to Schwab accounts that have a linked Schwab token on the user
+    qs = (
+        Account.objects.select_related("user")
+        .filter(broker="SCHWAB")
+        .exclude(user__schwab_token__isnull=True)
+    )
+    for acct in qs:
+        yield acct
+
+
+def _publish_balances(api: SchwabTraderAPI, account_hash: str, account_number: str | None):
+    balances = api.fetch_balances(account_hash)
+    if balances is None:
+        return
+    payload: Dict = {
+        "account_id": account_hash,
+        "account_number": account_number,
+        "updated_at": timezone.now().isoformat(),
+        **(balances if isinstance(balances, dict) else {"balances": balances}),
+    }
+    live_data_redis.set_json(f"live_data:balances:{account_hash}", payload)
+    live_data_redis.publish_balance(account_hash, payload)
+
+
+def _publish_positions(api: SchwabTraderAPI, account_hash: str):
+    # fetch_positions already normalizes, persists Positions, caches snapshot
+    positions = api.fetch_positions(account_hash)
+    live_data_redis.set_json(f"live_data:positions:{account_hash}", {
+        "account_hash": account_hash,
+        "positions": positions,
+        "updated_at": datetime.utcnow().isoformat() + "Z",
+    })
+    live_data_redis.publish_positions(account_hash, positions)
+
+
+def _poll_once():
+    seen_users: Dict[int, SchwabTraderAPI] = {}
+    for acct in _iter_active_accounts():
+        user = acct.user
+        token = getattr(user, "schwab_token", None)
+        if not token:
+            continue
+        api = seen_users.get(user.id)
+        if api is None:
+            try:
+                api = SchwabTraderAPI(user)
+            except Exception as e:
+                logger.warning("Skip user %s: Schwab API init failed: %s", user.id, e)
+                continue
+            seen_users[user.id] = api
+
+        account_id = acct.broker_account_id or acct.account_number
+        if not account_id:
+            continue
+        try:
+            account_hash = api.resolve_account_hash(str(account_id))
+        except Exception as e:
+            logger.warning("Skip account %s (user %s): resolve hash failed: %s", account_id, user.id, e)
+            continue
+
+        try:
+            _publish_balances(api, account_hash, acct.account_number)
+        except Exception as e:
+            logger.warning("Balances poll failed for %s: %s", account_hash, e)
+
+        try:
+            _publish_positions(api, account_hash)
+        except Exception as e:
+            logger.warning("Positions poll failed for %s: %s", account_hash, e)
+
+
+def start_schwab_poller():
+    if not ENABLE_POLLER:
+        logger.info("💤 Schwab poller disabled via THOR_ENABLE_SCHWAB_POLLER")
+        return
+
+    logger.info("💰 Schwab balances/positions poller starting; interval=%ss", POLL_INTERVAL_SECONDS)
+    while True:
+        started = time.time()
+        try:
+            _poll_once()
+        except Exception:
+            logger.exception("Schwab poller iteration failed")
+        elapsed = time.time() - started
+        sleep_for = max(1, POLL_INTERVAL_SECONDS - int(elapsed))
+        time.sleep(sleep_for)

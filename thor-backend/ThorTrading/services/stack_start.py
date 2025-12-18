@@ -7,6 +7,7 @@ import threading
 import time
 
 from django.core.management import call_command
+from LiveData.schwab.poller import start_schwab_poller
 
 logger = logging.getLogger(__name__)
 
@@ -278,6 +279,20 @@ def start_thor_background_stack(force: bool = False):
         logger.info("⏰ Pre-open Backtest Supervisor thread started.")
     except Exception:
         logger.exception("❌ Failed to start Pre-open Backtest Supervisor thread")
+
+    # ----------------------------------------
+    # 6. SCHWAB BALANCES/POSITIONS POLLER (always-on)
+    # ----------------------------------------
+    try:
+        t6 = threading.Thread(
+            target=start_schwab_poller,
+            name="SchwabBalancesPoller",
+            daemon=True,
+        )
+        t6.start()
+        logger.info("💰 Schwab balances/positions poller started.")
+    except Exception:
+        logger.exception("❌ Failed to start Schwab balances/positions poller")
 
     logger.info("🚀 Thor Background Stack initialized.")
 
