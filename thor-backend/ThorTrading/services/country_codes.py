@@ -19,6 +19,8 @@ COUNTRY_CODE_MAP = {
     "JP": "Japan",
     "CHINA": "China",
     "CN": "China",
+    "SHANGHAI": "China",
+    "SSE": "China",
     "INDIA": "India",
     "IN": "India",
     "UNITED KINGDOM": "United Kingdom",
