@@ -5,6 +5,8 @@ from django.conf import settings
 from django.db import models
 import pytz
 
+from ThorTrading.services.country_codes import normalize_country_code
+
 logger = logging.getLogger(__name__)
 
 
@@ -131,6 +133,29 @@ class Market(models.Model):
         }
         return display_names.get(self.country, self.country)
     
+    def _canonicalize_country(self, raw: str) -> str:
+        if raw in self._COUNTRY_CLEANUP:
+            raw = self._COUNTRY_CLEANUP[raw]
+
+        normalized = normalize_country_code(raw)
+        if normalized in self._COUNTRY_CLEANUP:
+            normalized = self._COUNTRY_CLEANUP[normalized]
+
+        if normalized not in self.ALLOWED_CONTROL_COUNTRIES:
+            raise ValueError(
+                f"Unsupported market country '{raw}' (normalized='{normalized}'); allowed={sorted(self.ALLOWED_CONTROL_COUNTRIES)}"
+            )
+
+        return normalized
+
+    def save(self, *args, **kwargs):
+        try:
+            self.country = self._canonicalize_country(self.country)
+        except Exception:
+            logger.exception("Market country invalid: %s", self.country)
+            raise
+        return super().save(*args, **kwargs)
+
     def get_sort_order(self):
         """Get sort order based on user's requested market sequence"""
         order_map = {
@@ -351,43 +376,61 @@ class Market(models.Model):
         }
 
 
-        @classmethod
-        def calculate_global_composite(cls):
-            """
-            Calculate weighted global market composite index based on control markets
-            Returns 0-100 score based on which control markets are currently OPEN
-            """
-            composite_score = 0.0
-            active_count = 0
-            contributions = {}
-        
-            for market in cls.objects.filter(is_control_market=True, is_active=True):
-                weight = float(market.weight)
-                market_name = market.get_display_name()
-            
-                if market.is_market_open_now():
-                    # Market is OPEN - add weighted contribution
-                    contribution = weight * 100
-                    composite_score += contribution
-                    active_count += 1
-                    contributions[market_name] = {
-                        'weight': weight * 100,
-                        'active': True,
-                        'contribution': contribution
-                    }
-                else:
-                    # Market CLOSED - no contribution
-                    contributions[market_name] = {
-                        'weight': weight * 100,
-                        'active': False,
-                        'contribution': 0
-                    }
-        
-            return {
-                'composite_score': round(composite_score, 2),
-                'active_markets': active_count,
-                'total_control_markets': 9,
-                'max_possible': 100.0,
+    # Canonical countries we allow for control markets
+    ALLOWED_CONTROL_COUNTRIES = {
+        "USA",
+        "Pre_USA",
+        "Japan",
+        "China",
+        "India",
+        "United Kingdom",
+    }
+
+    # One-time cleanup map for historical bad country labels; outputs must be canonical
+    _COUNTRY_CLEANUP = {
+        "Shanghai": "China",
+        "SSE": "China",
+        "Great Britain": "United Kingdom",
+        "England": "United Kingdom",
+    }
+
+    @classmethod
+    def calculate_global_composite(cls):
+        """
+        Calculate weighted global market composite index based on control markets
+        Returns 0-100 score based on which control markets are currently OPEN
+        """
+        composite_score = 0.0
+        active_count = 0
+        contributions = {}
+
+        for market in cls.objects.filter(is_control_market=True, is_active=True):
+            weight = float(market.weight)
+            market_name = market.get_display_name()
+
+            if market.is_market_open_now():
+                # Market is OPEN - add weighted contribution
+                contribution = weight * 100
+                composite_score += contribution
+                active_count += 1
+                contributions[market_name] = {
+                    'weight': weight * 100,
+                    'active': True,
+                    'contribution': contribution
+                }
+            else:
+                # Market CLOSED - no contribution
+                contributions[market_name] = {
+                    'weight': weight * 100,
+                    'active': False,
+                    'contribution': 0
+                }
+
+        return {
+            'composite_score': round(composite_score, 2),
+            'active_markets': active_count,
+            'total_control_markets': 9,
+            'max_possible': 100.0,
                 'session_phase': cls._determine_session_phase(),
                 'contributions': contributions,
                 'timestamp': datetime.now(pytz.UTC).isoformat()
