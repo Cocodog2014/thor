@@ -9,8 +9,8 @@ interface TopRowProps {
   connectionLabel: string;
   connectionDetails: string;
   accounts: AccountSummary[];
-  selectedAccountId: number | null;
-  onAccountChange: (id: number) => void;
+  selectedAccountId: string | null;
+  onAccountChange: (id: string | null) => void;
   onNavigate: (path: string) => void;
   schwabHealth?: SchwabHealth | null;
 }
@@ -49,7 +49,7 @@ const TopRow: React.FC<TopRowProps> = ({
   };
 
   const selectedAccount = useMemo(
-    () => accounts.find((acct) => acct.id === selectedAccountId) ?? null,
+    () => accounts.find((acct) => acct.broker_account_id === selectedAccountId) ?? null,
     [accounts, selectedAccountId],
   );
 
@@ -152,11 +152,11 @@ const TopRow: React.FC<TopRowProps> = ({
               className="home-account-select"
               aria-label="Select trading account"
               value={selectedAccountId ?? ''}
-              onChange={(e) => onAccountChange(Number(e.target.value))}
+              onChange={(e) => onAccountChange(e.target.value || null)}
             >
               {accounts.map((acct) => (
-                <option key={acct.id} value={acct.id}>
-                  {acct.broker_account_id}
+                <option key={acct.broker_account_id} value={acct.broker_account_id}>
+                  {acct.account_number || acct.broker_account_id}
                   {acct.display_name ? ` (${acct.display_name})` : ''}
                 </option>
               ))}

@@ -33,7 +33,14 @@ def get_active_account(request):
     qs = Account.objects.filter(user=user).order_by("id")
 
     if account_id:
-        return get_object_or_404(qs, pk=account_id)
+        # Accept either DB pk or broker_account_id (e.g., Schwab hash)
+        account = qs.filter(pk=account_id).first()
+        if account is None:
+            account = qs.filter(broker_account_id=account_id).first()
+        if account is None:
+            # fall back to 404 using broker_account_id for clarity
+            return get_object_or_404(qs, broker_account_id=account_id)
+        return account
 
     account = qs.first()
     if account is None:

@@ -2,6 +2,7 @@ export interface AccountSummary {
   id: number;
   broker: string;
   broker_account_id: string;
+  account_number?: string | null;
   display_name: string | null;
   currency: string;
   net_liq: string;

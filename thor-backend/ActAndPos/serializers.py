@@ -23,6 +23,7 @@ class AccountSummarySerializer(serializers.ModelSerializer):
             "id",
             "broker",
             "broker_account_id",
+            "account_number",
             "display_name",
             "currency",
             "net_liq",

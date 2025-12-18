@@ -34,7 +34,7 @@ const GlobalBanner: React.FC = () => {
   const [accounts, setAccounts] = useState<AccountSummary[]>([]);
   const [schwabHealth, setSchwabHealth] = useState<SchwabHealth | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
-  const selectedAccountId = accountId ? Number(accountId) || null : null;
+  const selectedAccountId = accountId || null;
 
   // Ping the same quotes endpoint used by the futures hooks
   useEffect(() => {
@@ -155,10 +155,10 @@ const GlobalBanner: React.FC = () => {
         }
 
         const restored = accountId;
-        if (restored && accountList.some((acct) => String(acct.id) === String(restored))) {
+        if (restored && accountList.some((acct) => String(acct.broker_account_id) === String(restored))) {
           setAccountId(restored);
         } else {
-          setAccountId(accountList[0]?.id ?? null);
+          setAccountId(accountList[0]?.broker_account_id ?? null);
         }
       } catch (error) {
         if (!isMounted) return;
