@@ -33,7 +33,7 @@ def _publish_balances(api: SchwabTraderAPI, account_hash: str, account_number: s
     if balances is None:
         return
     payload: Dict = {
-        "account_id": account_hash,
+        "account_hash": account_hash,
         "account_number": account_number,
         "updated_at": timezone.now().isoformat(),
         **(balances if isinstance(balances, dict) else {"balances": balances}),
@@ -101,6 +101,9 @@ def start_schwab_poller():
             _poll_once()
         except Exception:
             logger.exception("Schwab poller iteration failed")
+        else:
+            # Heartbeat for visibility; logged each iteration
+            logger.info("💓 Schwab poller alive (interval=%ss)", POLL_INTERVAL_SECONDS)
         elapsed = time.time() - started
         sleep_for = max(1, POLL_INTERVAL_SECONDS - int(elapsed))
         time.sleep(sleep_for)

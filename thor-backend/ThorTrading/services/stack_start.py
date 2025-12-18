@@ -283,16 +283,26 @@ def start_thor_background_stack(force: bool = False):
     # ----------------------------------------
     # 6. SCHWAB BALANCES/POSITIONS POLLER (always-on)
     # ----------------------------------------
+
+    def _schwab_poller_supervisor():
+        logger.info("💰 Schwab poller supervisor starting...")
+        while True:
+            try:
+                start_schwab_poller()
+            except Exception:
+                logger.exception("❌ Schwab poller crashed — restarting in 5s...")
+                time.sleep(5)
+
     try:
         t6 = threading.Thread(
-            target=start_schwab_poller,
+            target=_schwab_poller_supervisor,
             name="SchwabBalancesPoller",
             daemon=True,
         )
         t6.start()
-        logger.info("💰 Schwab balances/positions poller started.")
+        logger.info("💰 Schwab balances/positions poller supervisor started.")
     except Exception:
-        logger.exception("❌ Failed to start Schwab balances/positions poller")
+        logger.exception("❌ Failed to start Schwab balances/positions poller supervisor")
 
     logger.info("🚀 Thor Background Stack initialized.")
 

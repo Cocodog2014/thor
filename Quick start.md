@@ -276,5 +276,10 @@ Schwab API Positions:
 http://127.0.0.1:8000/api/schwab/account/positions/?account_number=60910485
 https://dev-thor.360edu.org/api/schwab/account/positions/?account_number=60910485
 
+Local
+
+http://127.0.0.1:8000/api/schwab/account/summary/?account_number=60910485
+
+
 
 
