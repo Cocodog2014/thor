@@ -5,10 +5,12 @@ Provides a unified interface for publishing market data to Redis channels.
 All broker integrations (Schwab, TOS, IBKR) use this client.
 """
 
-import redis
 import json
 import logging
-from typing import Dict, Any
+import time
+from typing import Dict, Any, Optional, Tuple
+
+import redis
 from django.conf import settings
 
 logger = logging.getLogger(__name__)
@@ -51,6 +53,86 @@ class LiveDataRedis:
         except Exception as e:
             logger.error(f"Failed to publish to {channel}: {e}")
             return 0
+
+    # --- Tick + bar capture primitives ---
+    def set_tick(self, country: str, symbol: str, payload: Dict[str, Any], ttl: int = 10) -> None:
+        """
+        Cache latest tick for a symbol (per country) with a short TTL.
+        Key: tick:{country}:{symbol}
+        """
+        key = f"tick:{country}:{symbol}".lower()
+        try:
+            self.client.set(key, json.dumps(payload, default=str), ex=ttl)
+        except Exception as e:
+            logger.error(f"Failed to set tick {key}: {e}")
+
+    def upsert_current_bar_1m(self, country: str, symbol: str, tick: Dict[str, Any]) -> Tuple[Optional[Dict[str, Any]], Dict[str, Any]]:
+        """
+        Update the in-progress 1m bar for this symbol. Returns (closed_bar, current_bar).
+
+        closed_bar is None unless the minute bucket rolled over.
+        Expected tick keys: price/last and volume (best-effort fallback to 0 volume).
+        """
+        key = f"bar:1m:current:{country}:{symbol}".lower()
+        now = int(time.time())
+        bucket = now // 60
+
+        price = tick.get("price") or tick.get("last") or tick.get("close")
+        if price is None:
+            raise ValueError("tick missing price/last/close field")
+        try:
+            price = float(price)
+        except Exception as e:
+            raise ValueError(f"invalid price value: {price}") from e
+
+        volume = tick.get("volume") or tick.get("vol") or 0
+        try:
+            volume = float(volume)
+        except Exception:
+            volume = 0.0
+
+        # Load existing bar
+        existing_raw = self.client.get(key)
+        existing = json.loads(existing_raw) if existing_raw else None
+
+        closed_bar = None
+
+        if existing and existing.get("bucket") != bucket:
+            closed_bar = existing
+            existing = None
+
+        if not existing:
+            current_bar = {
+                "bucket": bucket,
+                "t": bucket * 60,
+                "o": price,
+                "h": price,
+                "l": price,
+                "c": price,
+                "v": volume,
+                "country": country,
+                "symbol": symbol,
+            }
+        else:
+            current_bar = existing
+            current_bar["h"] = max(current_bar["h"], price)
+            current_bar["l"] = min(current_bar["l"], price)
+            current_bar["c"] = price
+            current_bar["v"] = (current_bar.get("v") or 0) + volume
+
+        self.client.set(key, json.dumps(current_bar, default=str))
+        return closed_bar, current_bar
+
+    def enqueue_closed_bar(self, country: str, bar: Dict[str, Any]) -> None:
+        """
+        Push a finalized 1m bar onto the per-country queue for later DB flush.
+        Key: q:bars:1m:{country}
+        """
+        key = f"q:bars:1m:{country}".lower()
+        try:
+            self.client.rpush(key, json.dumps(bar, default=str))
+        except Exception as e:
+            logger.error(f"Failed to enqueue closed bar for {country}: {e}")
 
     # --- Snapshot (latest) helpers ---
     LATEST_QUOTES_HASH = "live_data:latest:quotes"
