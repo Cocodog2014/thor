@@ -9,6 +9,7 @@ from django.utils import timezone
 from ThorTrading.services.quotes import get_enriched_quotes_with_composite
 from ThorTrading.services.account_snapshots import trigger_account_daily_snapshots
 from ThorTrading.services.country_codes import normalize_country_code
+from ThorTrading.services.intraday_supervisor.flush_worker import flush_closed_bars
 from LiveData.shared.redis_client import live_data_redis
 
 logger = logging.getLogger(__name__)
@@ -47,6 +48,7 @@ class IntradayMarketSupervisor:
         self.session_interval = _env_int("THOR_SESSIONVOL_INTERVAL_SEC", session_interval)
         self.day_interval = _env_int("THOR_24H_UPDATE_SEC", day_interval)
         self.flush_interval = _env_int("THOR_BAR_FLUSH_SEC", flush_interval)
+        self.bar_flush_interval = self.flush_interval
         self.disabled = os.getenv("INTRADAY_SUPERVISOR_DISABLED", "").lower() in {"1", "true", "yes"}
         if self.disabled:
             logger.warning("IntradayMarketSupervisor disabled via INTRADAY_SUPERVISOR_DISABLED")
@@ -157,6 +159,7 @@ class IntradayMarketSupervisor:
         _schedule_timer("metrics", self.metrics_interval, lambda: None)
         _schedule_timer("session", self.session_interval, lambda: None)
         _schedule_timer("day", self.day_interval, lambda: None)
+        _schedule_timer("flush_1m", self.bar_flush_interval, lambda: self._flush_closed_bars_1m(country))
 
         while not stop_event.is_set():
             try:
@@ -204,6 +207,12 @@ class IntradayMarketSupervisor:
             stop_event.wait(self.interval_seconds)
 
         logger.info("Intraday worker loop EXITING for %s", country)
+
+    def _flush_closed_bars_1m(self, country: str):
+        try:
+            flush_closed_bars(country)
+        except Exception:
+            logger.exception("Intraday %s: flush_1m failed", country)
 
     def _tracking_enabled(self, market) -> bool:
         return getattr(market, "is_active", True) and getattr(market, "enable_futures_capture", True)
