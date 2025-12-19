@@ -46,28 +46,33 @@ def _to_intraday_models(country: str, bars: List[dict]):
     return rows
 
 
-def flush_closed_bars(country: str, batch_size: int = 500) -> int:
-    bars, queue_left = _pop_closed_bars(country, batch_size=batch_size)
-    if not bars:
-        return 0
+def flush_closed_bars(country: str, batch_size: int = 500, max_batches: int = 20) -> int:
+    total_inserted = 0
 
-    rows = _to_intraday_models(country, bars)
-    if not rows:
-        return 0
+    for _ in range(max_batches):
+        bars, queue_left = _pop_closed_bars(country, batch_size=batch_size)
+        if not bars:
+            break
 
-    try:
-        with transaction.atomic():
-            MarketIntraday.objects.bulk_create(rows, ignore_conflicts=True)
-    except Exception:
-        logger.exception("Failed bulk insert of %s bars for %s", len(rows), country)
-        return 0
+        rows = _to_intraday_models(country, bars)
+        if rows:
+            try:
+                with transaction.atomic():
+                    MarketIntraday.objects.bulk_create(rows, ignore_conflicts=True)
+                total_inserted += len(rows)
+            except Exception:
+                logger.exception("Failed bulk insert of %s bars for %s", len(rows), country)
+                break
 
-    inserted = len(rows)
-    logger.info(
-        "minute close flush: flushed=%s bars country=%s inserted=%s queue_left=%s",
-        len(bars),
-        country,
-        inserted,
-        queue_left,
-    )
-    return inserted
+        logger.info(
+            "minute close flush: flushed=%s bars country=%s inserted=%s queue_left=%s",
+            len(bars),
+            country,
+            len(rows),
+            queue_left,
+        )
+
+        if queue_left == 0:
+            break
+
+    return total_inserted
