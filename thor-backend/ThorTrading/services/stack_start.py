@@ -79,6 +79,7 @@ def start_thor_background_stack(force: bool = False):
                 try:
                     registry = JobRegistry()
                     register_all_jobs(registry)
+                    logger.info("✅ Jobs registered: %s", [j.name for j in registry.jobs])
 
                     def tick_seconds_fn(context):
                         # FAST when any control markets are open, SLOW otherwise
