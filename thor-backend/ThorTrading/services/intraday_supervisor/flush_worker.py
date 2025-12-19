@@ -8,7 +8,6 @@ from django.utils import timezone
 
 from LiveData.shared.redis_client import live_data_redis
 from ThorTrading.models.MarketIntraDay import MarketIntraday
-from ThorTrading.services.country_codes import normalize_country_code
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +28,7 @@ def _to_intraday_models(country: str, bars: List[dict]):
             rows.append(
                 MarketIntraday(
                     timestamp_minute=ts,
-                    country=normalize_country_code(country) or country,
+                    country=country,
                     future=future.upper(),
                     twentyfour=None,  # defer linking unless provided elsewhere
                     open_1m=b.get("o"),
