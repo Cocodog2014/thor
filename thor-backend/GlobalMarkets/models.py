@@ -2,10 +2,9 @@ import logging
 from datetime import datetime, time, timedelta
 
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.db import models
 import pytz
-
-from ThorTrading.services.country_codes import normalize_country_code
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +22,21 @@ CONTROL_MARKET_WEIGHTS = {
     'Canada': 0.03,          # Toronto (TSX) - Commodity confirmation
     'Mexico': 0.02,          # BMV IPC - Regional follow-through
 }
+
+# Canonical control countries (exact strings stored in DB)
+ALLOWED_CONTROL_COUNTRIES = {
+    "Japan",
+    "China",
+    "India",
+    "Germany",
+    "United Kingdom",
+    "Pre_USA",
+    "USA",
+    "Canada",
+    "Mexico",
+}
+
+CONTROL_COUNTRY_CHOICES = [(c, c) for c in sorted(ALLOWED_CONTROL_COUNTRIES)]
 
 _TIMEZONE_ALIASES = {
     "Tokyo": "Asia/Tokyo",
@@ -55,7 +69,7 @@ class Market(models.Model):
     Represents stock markets around the world for monitoring while trading US markets
     """
     # Basic market information
-    country = models.CharField(max_length=50)
+    country = models.CharField(max_length=50, choices=CONTROL_COUNTRY_CHOICES)
     
     # Timezone information (Django will handle DST automatically)
     timezone_name = models.CharField(max_length=50)  # e.g., "Asia/Tokyo", "Europe/London"
@@ -134,26 +148,29 @@ class Market(models.Model):
         return display_names.get(self.country, self.country)
     
     def _canonicalize_country(self, raw: str) -> str:
-        if raw in self._COUNTRY_CLEANUP:
-            raw = self._COUNTRY_CLEANUP[raw]
+        """
+        STRICT canonicalizer:
+        - trims whitespace only
+        - requires exact match to ALLOWED_CONTROL_COUNTRIES
+        - no aliases, no remapping, no normalization library
+        """
+        if raw is None:
+            raise ValidationError({"country": "Country is required."})
 
-        normalized = normalize_country_code(raw)
-        if normalized in self._COUNTRY_CLEANUP:
-            normalized = self._COUNTRY_CLEANUP[normalized]
+        value = raw.strip()
 
-        if normalized not in self.ALLOWED_CONTROL_COUNTRIES:
-            raise ValueError(
-                f"Unsupported market country '{raw}' (normalized='{normalized}'); allowed={sorted(self.ALLOWED_CONTROL_COUNTRIES)}"
-            )
+        if value not in ALLOWED_CONTROL_COUNTRIES:
+            raise ValidationError({
+                "country": (
+                    f"Unsupported market country '{value}'. "
+                    f"Allowed: {sorted(ALLOWED_CONTROL_COUNTRIES)}"
+                )
+            })
 
-        return normalized
+        return value
 
     def save(self, *args, **kwargs):
-        try:
-            self.country = self._canonicalize_country(self.country)
-        except Exception:
-            logger.exception("Market country invalid: %s", self.country)
-            raise
+        self.country = self._canonicalize_country(self.country)
         return super().save(*args, **kwargs)
 
     def get_sort_order(self):
@@ -375,25 +392,6 @@ class Market(models.Model):
             'is_holiday_today': holiday_today,
         }
 
-
-    # Canonical countries we allow for control markets
-    ALLOWED_CONTROL_COUNTRIES = {
-        "USA",
-        "Pre_USA",
-        "Japan",
-        "China",
-        "India",
-        "United Kingdom",
-    }
-
-    # One-time cleanup map for historical bad country labels; outputs must be canonical
-    _COUNTRY_CLEANUP = {
-        "Shanghai": "China",
-        "SSE": "China",
-        "Great Britain": "United Kingdom",
-        "England": "United Kingdom",
-    }
-
     @classmethod
     def calculate_global_composite(cls):
         """
@@ -431,30 +429,30 @@ class Market(models.Model):
             'active_markets': active_count,
             'total_control_markets': 9,
             'max_possible': 100.0,
-                'session_phase': cls._determine_session_phase(),
-                'contributions': contributions,
-                'timestamp': datetime.now(pytz.UTC).isoformat()
-            }
-    
-        @classmethod
-        def _determine_session_phase(cls):
-            """Determine which trading session is dominant"""
-            now_utc = datetime.now(pytz.UTC)
-            hour = now_utc.hour
-        
-            # Trading session phases based on UTC time
-            # Asian: 0:00-8:00 UTC (Tokyo 9am = 0:00 UTC)
-            # European: 8:00-14:00 UTC (Frankfurt 9am = 8:00 UTC)
-            # American: 14:00-21:00 UTC (NY 9:30am = 14:30 UTC)
-            # Overlap/After-hours: 21:00-24:00 UTC
-            if 0 <= hour < 8:
-                return 'ASIAN'
-            elif 8 <= hour < 14:
-                return 'EUROPEAN'
-            elif 14 <= hour < 21:
-                return 'AMERICAN'
-            else:
-                return 'OVERLAP'
+            'session_phase': cls._determine_session_phase(),
+            'contributions': contributions,
+            'timestamp': datetime.now(pytz.UTC).isoformat()
+        }
+
+    @classmethod
+    def _determine_session_phase(cls):
+        """Determine which trading session is dominant"""
+        now_utc = datetime.now(pytz.UTC)
+        hour = now_utc.hour
+
+        # Trading session phases based on UTC time
+        # Asian: 0:00-8:00 UTC (Tokyo 9am = 0:00 UTC)
+        # European: 8:00-14:00 UTC (Frankfurt 9am = 8:00 UTC)
+        # American: 14:00-21:00 UTC (NY 9:30am = 14:30 UTC)
+        # Overlap/After-hours: 21:00-24:00 UTC
+        if 0 <= hour < 8:
+            return 'ASIAN'
+        elif 8 <= hour < 14:
+            return 'EUROPEAN'
+        elif 14 <= hour < 21:
+            return 'AMERICAN'
+        else:
+            return 'OVERLAP'
 
 
 class USMarketStatus(models.Model):
