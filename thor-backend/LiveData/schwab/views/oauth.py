@@ -4,8 +4,8 @@ from urllib.parse import urlencode
 from django.conf import settings
 from django.http import JsonResponse
 from django.shortcuts import redirect
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.decorators import api_view, permission_classes, authentication_classes
+from rest_framework.permissions import AllowAny, IsAuthenticated
 
 from ..models import BrokerConnection
 from ..tokens import exchange_code_for_tokens, get_token_expiry
@@ -60,19 +60,27 @@ def oauth_start(request):
 
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@permission_classes([AllowAny])
+@authentication_classes([])
 def oauth_callback(request):
     """
     Handle OAuth callback from Schwab.
     Exchanges authorization code for tokens and saves to database.
     """
-    user = request.user
-    if str(getattr(user, "email", "")).lower().strip() != "admin@360edu.org":
-        logger.warning("Schwab OAuth callback blocked for non-admin user: %s", user)
-        return JsonResponse({
-            "error": "Unauthorized user for Schwab OAuth",
-            "detail": "Please log in as admin@360edu.org to connect Schwab."
-        }, status=403)
+    # OAuth callbacks are public; associate tokens with the admin service user when no session
+    user = request.user if request.user.is_authenticated else None
+    if user is None:
+        from django.contrib.auth import get_user_model
+
+        User = get_user_model()
+        try:
+            user = User.objects.get(email__iexact="admin@360edu.org")
+        except User.DoesNotExist:
+            logger.error("Schwab OAuth callback: admin@360edu.org user missing")
+            return JsonResponse({
+                "error": "Admin user not found",
+                "detail": "Create admin@360edu.org to store Schwab tokens."
+            }, status=500)
 
     auth_code = request.GET.get('code')
 
@@ -83,7 +91,7 @@ def oauth_callback(request):
         token_data = exchange_code_for_tokens(auth_code)
 
         BrokerConnection.objects.update_or_create(
-            user=request.user,
+            user=user,
             broker=BrokerConnection.BROKER_SCHWAB,
             defaults={
                 'access_token': token_data['access_token'],
@@ -92,7 +100,7 @@ def oauth_callback(request):
             }
         )
 
-        logger.info("Successfully connected Schwab account for %s", request.user.username)
+        logger.info("Successfully connected Schwab account for %s", getattr(user, "username", "(anonymous)"))
 
         frontend_base = getattr(settings, "FRONTEND_BASE_URL", "https://dev-thor.360edu.org").rstrip("/")
         params = urlencode({
