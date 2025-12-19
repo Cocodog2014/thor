@@ -30,7 +30,9 @@ export function AccountBalanceExample() {
   const dataSource = getDataSource('account_balance');
 
   // Set up WebSocket listener (only if enabled)
-  useWebSocketFeatureData('account_balance', 'account_balance', (data: AccountBalance) => {
+  // Handler receives the full BackendMessage, extract the data as needed
+  useWebSocketFeatureData('account_balance', 'account_balance', (msg) => {
+    const data = msg as unknown as AccountBalance;
     console.log('📡 Account Balance from WebSocket:', data);
     setBalance(data);
   });
@@ -91,10 +93,15 @@ export function PositionsExample() {
   const dataSource = getDataSource('positions');
 
   // Listen to WebSocket if enabled
-  useWebSocketFeatureData('positions', 'positions', (data) => {
-    console.log('📡 Positions from WebSocket:', data);
-    setPositions(data.positions || []);
-  });
+  useWebSocketFeatureData(
+    'positions',
+    'positions',
+    (msg) => {
+      const data = msg as unknown as { positions: Array<{ symbol: string; quantity: number; price: number; }> };
+      console.log('📡 Positions from WebSocket:', data);
+      setPositions(data.positions || []);
+    }
+  );
 
   // Shadow mode: fetch from REST
   useEffect(() => {

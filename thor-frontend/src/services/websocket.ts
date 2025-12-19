@@ -9,7 +9,7 @@
  * - Event subscription/unsubscription
  */
 
-import { ThorEvent } from '../realtime/events';
+import type { ThorEvent } from '../realtime/events';
 
 // ============================================================================
 // Backend Message Types

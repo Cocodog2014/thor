@@ -5,7 +5,8 @@
  */
 
 import { useEffect, useRef, useCallback, useState } from 'react';
-import { getWebSocketManager, BackendMessage, MessageHandler } from '../services/websocket';
+import { getWebSocketManager } from '../services/websocket';
+import type { BackendMessage, MessageHandler } from '../services/websocket';
 
 /**
  * Hook to listen to a specific message type

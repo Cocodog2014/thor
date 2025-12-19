@@ -26,13 +26,18 @@ export function WebSocketShadowMonitor() {
   // Initialize feature statuses from cutover manager
   useEffect(() => {
     const flags = wssCutover.getStatus();
-    const statuses: Record<string, FeatureStatus> = {};
+    const statuses: Record<keyof typeof featureStatuses, FeatureStatus> = {
+      account_balance: 'rest',
+      positions: 'rest',
+      intraday: 'rest',
+      global_market: 'rest',
+    };
     
     for (const [feature, isWs] of Object.entries(flags)) {
-      statuses[feature] = isWs ? 'ws' : 'rest';
+      statuses[feature as keyof typeof featureStatuses] = isWs ? 'ws' : 'rest';
     }
     
-    setFeatureStatuses(statuses as Record<string, string>);
+    setFeatureStatuses(statuses);
     console.log(wssCutover.getSummary());
   }, []);
 

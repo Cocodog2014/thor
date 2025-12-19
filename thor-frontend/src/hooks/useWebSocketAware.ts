@@ -31,11 +31,13 @@ export function getDataSource(feature: WebSocketFeature): string {
 /**
  * Hook to listen to WebSocket message for a feature (if enabled)
  * Falls back to undefined if WebSocket not enabled for this feature
+ * 
+ * Handler receives the full BackendMessage type from the WebSocket
  */
-export function useWebSocketFeatureData<T>(
+export function useWebSocketFeatureData(
   feature: WebSocketFeature,
   messageType: string,
-  handler: (data: T) => void,
+  handler: (msg: unknown) => void,
   enabled: boolean = true
 ) {
   const wsEnabled = useWebSocketEnabled(feature);
