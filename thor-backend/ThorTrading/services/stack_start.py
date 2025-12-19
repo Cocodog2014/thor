@@ -64,25 +64,38 @@ def start_thor_background_stack(force: bool = False):
         from GlobalMarkets.services.heartbeat import run_heartbeat
         from ThorTrading.services.supervisors.register_jobs import register_all_jobs
         from GlobalMarkets.services.active_markets import has_active_markets
+        from GlobalMarkets.services.leader_lock import LeaderLock
 
-        while True:
-            try:
-                registry = JobRegistry()
-                register_all_jobs(registry)
+        # Acquire leader lock to ensure only one worker runs heartbeat (production/Gunicorn)
+        lock = LeaderLock(key="thor:leader:heartbeat", ttl_seconds=30)
+        if not lock.acquire(blocking=False, timeout=0):
+            logger.info("🔒 Heartbeat skipped (leader lock held by another worker)")
+            return
 
-                def tick_seconds_fn(context):
-                    # FAST when any control markets are open, SLOW otherwise
-                    return 1.0 if has_active_markets() else 120.0
+        logger.info("🔓 Heartbeat leader lock acquired")
 
-                logger.info("💓 Heartbeat starting (single scheduler)...")
-                run_heartbeat(registry=registry, tick_seconds_fn=tick_seconds_fn)
+        try:
+            while True:
+                try:
+                    registry = JobRegistry()
+                    register_all_jobs(registry)
 
-                # If run_heartbeat returns, treat as abnormal exit and restart
-                logger.warning("⚠️ Heartbeat exited unexpectedly — restarting in 5s...")
-            except Exception:
-                logger.exception("❌ Heartbeat crashed — restarting in 5s...")
+                    def tick_seconds_fn(context):
+                        # FAST when any control markets are open, SLOW otherwise
+                        return 1.0 if has_active_markets() else 120.0
 
-            time.sleep(5)
+                    logger.info("💓 Heartbeat starting (single scheduler)...")
+                    run_heartbeat(registry=registry, tick_seconds_fn=tick_seconds_fn)
+
+                    # If run_heartbeat returns, treat as abnormal exit and restart
+                    logger.warning("⚠️ Heartbeat exited unexpectedly — restarting in 5s...")
+                except Exception:
+                    logger.exception("❌ Heartbeat crashed — restarting in 5s...")
+
+                time.sleep(5)
+        finally:
+            lock.release()
+            logger.info("🔓 Heartbeat leader lock released")
 
     try:
         t = threading.Thread(
