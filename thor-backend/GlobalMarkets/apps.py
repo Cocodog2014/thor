@@ -17,6 +17,11 @@ class GlobalMarketsConfig(AppConfig):
         DISABLE_GLOBAL_MARKETS_MONITOR=1 prevents startup entirely.
         """
         import GlobalMarkets.signals  # noqa: F401 side-effect import
+        # Track active markets in Redis for heartbeat cadence decisions
+        try:
+            import GlobalMarkets.services.active_markets  # noqa: F401 side-effect import
+        except Exception:
+            logging.getLogger(__name__).warning("Active markets tracker failed to import", exc_info=True)
 
         skip_commands = {
             'makemigrations', 'migrate', 'showmigrations', 'sqlmigrate',
