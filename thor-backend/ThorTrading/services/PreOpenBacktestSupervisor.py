@@ -46,6 +46,10 @@ class _PreOpenBacktestSupervisor:
         self._tick = 0
 
     def start(self):
+        import os
+        if os.getenv("HEARTBEAT_ENABLED", "").lower() in {"1", "true", "yes"}:
+            logger.info("Heartbeat scheduler active; skipping legacy pre-open backtest supervisor")
+            return
         with self._lock:
             if self._running:
                 logger.debug("Pre-open backtest supervisor already running; skip start")

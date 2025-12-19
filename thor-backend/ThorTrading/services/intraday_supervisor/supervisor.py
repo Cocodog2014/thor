@@ -65,6 +65,10 @@ class IntradayMarketSupervisor:
         if self.disabled:
             logger.info("Intraday metrics disabled; skipping worker start for %s", country)
             return
+        # Skip if heartbeat scheduler is running (new unified approach)
+        if os.getenv("HEARTBEAT_ENABLED", "").lower() in {"1", "true", "yes"}:
+            logger.info("Heartbeat scheduler active; skipping legacy intraday worker for %s", country)
+            return
         if not self._tracking_enabled(market):
             logger.info(
                 "Intraday metrics disabled for %s (is_active=%s, enable_futures_capture=%s)",

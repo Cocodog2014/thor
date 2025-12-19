@@ -41,6 +41,10 @@ class _ExtremesMonitor:
         self._last_update_time: str | None = None
 
     def start(self):
+        import os
+        if os.getenv("HEARTBEAT_ENABLED", "").lower() in {"1", "true", "yes"}:
+            logger.info("Heartbeat scheduler active; skipping legacy 52w extremes monitor")
+            return
         with self._lock:
             if self._running:
                 logger.debug("52w monitor already running; skipping start")
