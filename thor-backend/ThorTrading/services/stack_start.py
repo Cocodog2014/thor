@@ -46,37 +46,6 @@ def start_excel_poller_supervisor():
 
 
 # =====================================================================
-#  MARKET OPEN GRADER SUPERVISOR
-# =====================================================================
-def start_market_open_grader_supervisor():
-    """
-    Supervisor wrapper for the existing Market Open Grader command.
-
-    Normally run via:
-        python manage.py start_market_grader --interval 0.5
-    """
-    logger.info("📊 Market Open Grader Supervisor: starting...")
-
-    try:
-        from ThorTrading.management.commands.start_market_grader import Command
-
-        grader = Command()
-
-        while True:
-            try:
-                logger.info("🚀 Market Open Grader: running...")
-                # Provide interval explicitly; the command expects options['interval']
-                grader.handle(interval=0.5)
-                logger.debug("💓 [Market Open Grader] alive")
-            except Exception:
-                logger.exception("❌ Market Open Grader crashed — restarting in 3 seconds...")
-                time.sleep(3)
-
-    except Exception:
-        logger.exception("❌ Failed to initialize Market Open Grader Supervisor")
-
-
-# =====================================================================
 #  MARKET OPEN CAPTURE SUPERVISOR
 # =====================================================================
 def start_market_open_capture_supervisor_wrapper():
@@ -110,27 +79,6 @@ def start_market_open_capture_supervisor_wrapper():
 
     except Exception:
         logger.exception("❌ Failed to initialize Market Open Capture Supervisor")
-
-
-# =====================================================================
-#  52-WEEK EXTREMES SUPERVISOR (folded into stack)
-# =====================================================================
-def start_52w_supervisor_wrapper():
-    """
-    Wrapper for the 52-week extremes supervisor.
-
-    The underlying module already manages its own internal supervisor thread
-    and has guards against duplicate starts, so we just call it once.
-    """
-    logger.info("📈 52-week supervisor (stack) starting...")
-
-    try:
-        from ThorTrading.services.Week52Supervisor import start_52w_monitor_supervisor
-
-        start_52w_monitor_supervisor()
-        logger.info("📈 52-week supervisor started from stack.")
-    except Exception:
-        logger.exception("❌ Failed to start 52-week supervisor from stack")
 
 
 # =====================================================================
@@ -219,24 +167,7 @@ def start_thor_background_stack(force: bool = False):
         logger.info("📄 Skipping Excel Poller Supervisor (THOR_ENABLE_EXCEL_POLLER!=1).")
 
     # ----------------------------------------
-    # 2. MARKET OPEN GRADER
-    # ----------------------------------------
-    if GLOBAL_TIMER_ENABLED:
-        logger.info("📊 Global timer mode enabled — skipping legacy Market Open Grader supervisor.")
-    else:
-        try:
-            t2 = threading.Thread(
-                target=start_market_open_grader_supervisor,
-                name="MarketOpenGraderSupervisor",
-                daemon=True,
-            )
-            t2.start()
-            logger.info("📊 Market Open Grader Supervisor started.")
-        except Exception:
-            logger.exception("❌ Failed to start Market Open Grader Supervisor")
-
-    # ----------------------------------------
-    # 3. MARKET OPEN CAPTURE SUPERVISOR
+    # 2. MARKET OPEN CAPTURE SUPERVISOR
     # ----------------------------------------
     try:
         t3 = threading.Thread(
@@ -250,12 +181,7 @@ def start_thor_background_stack(force: bool = False):
         logger.exception("❌ Failed to start Market Open Capture Supervisor")
 
     # ----------------------------------------
-    # 4. 52-WEEK EXTREMES SUPERVISOR
-    # ----------------------------------------
-    logger.info("📈 Global timer mode enabled — legacy 52-week supervisor is removed; global timer hooks own it.")
-
-    # ----------------------------------------
-    # 5. PRE-OPEN BACKTEST SUPERVISOR
+    # 3. PRE-OPEN BACKTEST SUPERVISOR
     # ----------------------------------------
     try:
         t5 = threading.Thread(
