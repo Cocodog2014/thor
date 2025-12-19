@@ -6,9 +6,6 @@ import sys
 import threading
 import time
 
-from django.core.management import call_command
-from LiveData.schwab.poller import start_schwab_poller
-
 logger = logging.getLogger(__name__)
 
 
@@ -17,114 +14,17 @@ def _truthy_env(name: str, default: str = "0") -> bool:
     return str(value).lower() not in {"0", "false", "no", ""}
 
 
-GLOBAL_TIMER_ENABLED = _truthy_env("THOR_USE_GLOBAL_MARKET_TIMER", default="1")
-
-
-# =====================================================================
-#  EXCEL → REDIS POLLER SUPERVISOR
-# =====================================================================
-def start_excel_poller_supervisor():
-    """
-    Supervisor wrapper for the existing TOS Excel poller.
-
-    Equivalent of:
-        python manage.py poll_tos_excel
-
-    Uses Django's call_command so we don't care which app defines it.
-    """
-    logger.info("📄 Excel Poller Supervisor: starting...")
-
-    while True:
-        try:
-            logger.info("🚀 Excel Poller: running via call_command('poll_tos_excel')...")
-            # This blocks while the command's poll loop runs
-            call_command("poll_tos_excel")
-            logger.debug("💓 [Excel Poller] exited normally, will restart...")
-        except Exception:
-            logger.exception("❌ Excel Poller crashed — restarting in 3 seconds...")
-            time.sleep(3)
-
-
-# =====================================================================
-#  MARKET OPEN CAPTURE SUPERVISOR
-# =====================================================================
-def start_market_open_capture_supervisor_wrapper():
-    """
-    Supervisor wrapper for the Market Open Capture logic.
-
-    Expects:
-        ThorTrading.services.MarketOpenCapture.check_for_market_opens_and_capture()
-
-    That function should:
-      - Run one capture/evaluation cycle
-      - Return a sleep interval in seconds before next check
-    """
-    logger.info("🌎 Market Open Capture Supervisor: starting...")
-
-    try:
-        from ThorTrading.services.MarketOpenCapture import (
-            check_for_market_opens_and_capture,
-        )
-
-        while True:
-            try:
-                interval = check_for_market_opens_and_capture()
-                logger.debug("💓 [Market Open Capture] waiting for next open...")
-            except Exception:
-                logger.exception(
-                    "❌ Market Open Capture crashed — restarting in 5 seconds..."
-                )
-                interval = 5
-            time.sleep(interval)
-
-    except Exception:
-        logger.exception("❌ Failed to initialize Market Open Capture Supervisor")
-
-
-# =====================================================================
-#  PRE-OPEN BACKTEST SUPERVISOR (folded into stack)
-# =====================================================================
-def start_preopen_backtest_supervisor_wrapper():
-    """
-    Wrapper for the Pre-open Backtest supervisor.
-
-    As with 52w, the underlying module manages its own loop and state,
-    so we just invoke its start function once.
-    
-    Skipped if heartbeat scheduler mode is active (legacy mode only).
-    """
-    scheduler_mode = os.environ.get("THOR_SCHEDULER_MODE", "heartbeat").lower()
-    if scheduler_mode == "heartbeat":
-        logger.debug("Skipping legacy Pre-open Backtest supervisor (heartbeat scheduler mode active)")
-        return
-
-    logger.info("⏰ Pre-open backtest supervisor (stack) starting...")
-
-    try:
-        from ThorTrading.services.PreOpenBacktestSupervisor import (
-            start_preopen_backtest_supervisor,
-        )
-
-        start_preopen_backtest_supervisor()
-        logger.info("⏰ Pre-open backtest supervisor started from stack.")
-    except Exception:
-        logger.exception("❌ Failed to start Pre-open backtest supervisor from stack")
-
-
-# =====================================================================
-#  MASTER STACK — starts ALL supervisors
-# =====================================================================
 def start_thor_background_stack(force: bool = False):
     """
-    Safely starts all background supervisors for Thor.
+    Starts Thor background services in-process for runserver dev.
 
-    Protects against:
-      • Multiple launches (autoreload duplicates)
-      • Running during management commands like migrate/test
-      • Running in the wrong (non-main) runserver process
-    Args:
-        force: When True, bypasses the manage.py/RUN_MAIN guards so the
-               stack can be launched from a dedicated worker process.
+    Single scheduler for market supervisors:
+      - Heartbeat loop dispatches Jobs (intraday, 24h, session vol, metrics, vwap, 52w, preopen backtest, etc.)
+
+    Guards:
+      - Avoid autoreload duplicates
+      - Avoid running for management commands
+      - (Later) add Redis leader lock for multi-worker production
     """
 
     # Prevent duplicate startup in the same process
@@ -148,89 +48,55 @@ def start_thor_background_stack(force: bool = False):
 
     # Avoid launching from Django's autoreload parent
     if not force and os.environ.get("RUN_MAIN") != "true":
-        logger.info("⏭️ Not main thread — skipping background tasks.")
+        logger.info("⏭️ Not main runserver process — skipping background tasks.")
         return
 
-    # Mark as started for this process
     start_thor_background_stack._started = True
+
+    # Ensure legacy supervisors don’t accidentally start
+    os.environ.setdefault("THOR_SCHEDULER_MODE", "heartbeat")
+    os.environ.setdefault("HEARTBEAT_ENABLED", "1")
 
     logger.info("🚀 Starting Thor Background Stack now%s...", " (forced)" if force else "")
 
-    # ----------------------------------------
-    # 1. EXCEL POLLER
-    # ----------------------------------------
-    if os.environ.get("THOR_ENABLE_EXCEL_POLLER", "0") == "1":
-        try:
-            t1 = threading.Thread(
-                target=start_excel_poller_supervisor,
-                name="ExcelPollerSupervisor",
-                daemon=True,
-            )
-            t1.start()
-            logger.info("📄 Excel Poller Supervisor started.")
-        except Exception:
-            logger.exception("❌ Failed to start Excel Poller Supervisor")
-    else:
-        logger.info("📄 Skipping Excel Poller Supervisor (THOR_ENABLE_EXCEL_POLLER!=1).")
+    def _start_heartbeat():
+        from core.infra.jobs import JobRegistry
+        from GlobalMarkets.services.heartbeat import run_heartbeat
+        from ThorTrading.services.supervisors.register_jobs import register_all_jobs
+        from GlobalMarkets.services.active_markets import has_active_markets
 
-    # ----------------------------------------
-    # 2. MARKET OPEN CAPTURE SUPERVISOR
-    # ----------------------------------------
-    try:
-        t3 = threading.Thread(
-            target=start_market_open_capture_supervisor_wrapper,
-            name="MarketOpenCaptureSupervisor",
-            daemon=True,
-        )
-        t3.start()
-        logger.info("🌎 Market Open Capture Supervisor started.")
-    except Exception:
-        logger.exception("❌ Failed to start Market Open Capture Supervisor")
-
-    # ----------------------------------------
-    # 3. PRE-OPEN BACKTEST SUPERVISOR
-    # ----------------------------------------
-    try:
-        t5 = threading.Thread(
-            target=start_preopen_backtest_supervisor_wrapper,
-            name="PreOpenBacktestSupervisor",
-            daemon=True,
-        )
-        t5.start()
-        logger.info("⏰ Pre-open Backtest Supervisor thread started.")
-    except Exception:
-        logger.exception("❌ Failed to start Pre-open Backtest Supervisor thread")
-
-    # ----------------------------------------
-    # 6. SCHWAB BALANCES/POSITIONS POLLER (always-on)
-    # ----------------------------------------
-
-    def _schwab_poller_supervisor():
-        logger.info("💰 Schwab poller supervisor starting...")
         while True:
             try:
-                start_schwab_poller()
+                registry = JobRegistry()
+                register_all_jobs(registry)
+
+                def tick_seconds_fn(context):
+                    # FAST when any control markets are open, SLOW otherwise
+                    return 1.0 if has_active_markets() else 120.0
+
+                logger.info("💓 Heartbeat starting (single scheduler)...")
+                run_heartbeat(registry=registry, tick_seconds_fn=tick_seconds_fn)
+
+                # If run_heartbeat returns, treat as abnormal exit and restart
+                logger.warning("⚠️ Heartbeat exited unexpectedly — restarting in 5s...")
             except Exception:
-                logger.exception("❌ Schwab poller crashed — restarting in 5s...")
-                time.sleep(5)
+                logger.exception("❌ Heartbeat crashed — restarting in 5s...")
+
+            time.sleep(5)
 
     try:
-        t6 = threading.Thread(
-            target=_schwab_poller_supervisor,
-            name="SchwabBalancesPoller",
+        t = threading.Thread(
+            target=_start_heartbeat,
+            name="ThorHeartbeat",
             daemon=True,
         )
-        t6.start()
-        logger.info("💰 Schwab balances/positions poller supervisor started.")
+        t.start()
+        logger.info("💓 Heartbeat thread started.")
     except Exception:
-        logger.exception("❌ Failed to start Schwab balances/positions poller supervisor")
+        logger.exception("❌ Failed to start Heartbeat thread")
 
     logger.info("🚀 Thor Background Stack initialized.")
 
 
-# =====================================================================
-#  STOP (future expansion)
-# =====================================================================
 def stop_thor_background_stack():
     logger.info("🛑 Thor Background Stack stop requested (not implemented).")
-
