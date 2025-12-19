@@ -14,23 +14,9 @@ logger = logging.getLogger(__name__)
 
 
 def _pop_closed_bars(country: str, batch_size: int = 500) -> Tuple[List[dict], int]:
-    key = f"q:bars:1m:{country}".lower()
-    pipe = live_data_redis.client.pipeline()
-    pipe.lrange(key, 0, batch_size - 1)
-    pipe.ltrim(key, batch_size, -1)
-    pipe.llen(key)
-    try:
-        bars_raw, _, queue_left = pipe.execute()
-    except Exception:
-        logger.exception("Failed to pop closed bars for %s", country)
-        return [], 0
-    bars = []
-    for raw in bars_raw or []:
-        try:
-            bars.append(json.loads(raw))
-        except Exception:
-            logger.exception("Failed to decode bar payload: %s", raw)
-    return bars, int(queue_left or 0)
+    bars = live_data_redis.dequeue_closed_bars(country, count=batch_size)
+    queue_left = 0
+    return bars, queue_left
 
 
 def _to_intraday_models(country: str, bars: List[dict]):
