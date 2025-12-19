@@ -49,7 +49,11 @@ def run_heartbeat(
 
     logger.info("heartbeat starting (tick=%.2fs)", tick_seconds)
     current_tick = tick_seconds
+    tick_count = 0
+    
     while True:
+        tick_count += 1
+        
         # Renew leader lock if provided (must be same thread that acquired it)
         if leader_lock and hasattr(leader_lock, "renew_if_due"):
             if not leader_lock.renew_if_due():
@@ -71,6 +75,10 @@ def run_heartbeat(
         if current_tick <= 0:
             logger.warning("invalid tick %.3f; falling back to default %.2f", current_tick, tick_seconds)
             current_tick = tick_seconds
+
+        # Periodic heartbeat alive message (low noise)
+        if tick_count % 30 == 0:
+            logger.info("💓 Heartbeat alive (tick=%s, tick_seconds=%s)", tick_count, current_tick)
 
         # Use monotonic sleep to avoid drift.
         time.sleep(current_tick)

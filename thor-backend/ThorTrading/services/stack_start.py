@@ -66,13 +66,19 @@ def start_thor_background_stack(force: bool = False):
         from GlobalMarkets.services.active_markets import has_active_markets
         from GlobalMarkets.services.leader_lock import LeaderLock
 
-        # Acquire leader lock to ensure only one worker runs heartbeat (production/Gunicorn)
-        lock = LeaderLock(key="thor:leader:heartbeat", ttl_seconds=30)
-        if not lock.acquire(blocking=False, timeout=0):
-            logger.info("🔒 Heartbeat skipped (leader lock held by another worker)")
-            return
-
-        logger.info("🔓 Heartbeat leader lock acquired")
+        # Leader lock for production (Gunicorn/multi-worker)
+        # In dev, can be disabled via THOR_DISABLE_LEADER_LOCK=1 for smoother experience
+        disable_lock = os.environ.get("THOR_DISABLE_LEADER_LOCK", "0") == "1"
+        
+        lock = None
+        if not disable_lock:
+            lock = LeaderLock(key="thor:leader:heartbeat", ttl_seconds=30)
+            if not lock.acquire(blocking=False, timeout=0):
+                logger.info("🔒 Heartbeat skipped (leader lock held by another worker)")
+                return
+            logger.info("🔓 Heartbeat leader lock acquired")
+        else:
+            logger.info("🔓 Leader lock disabled (dev mode)")
 
         # Build registry once and register all jobs
         registry = JobRegistry()
@@ -94,7 +100,7 @@ def start_thor_background_stack(force: bool = False):
 
         try:
             logger.info("💓 Heartbeat starting (single scheduler)...")
-            # run_heartbeat loops forever and renews lock each tick
+            # run_heartbeat loops forever and renews lock each tick (if lock is enabled)
             # Only exits on stop_event, lock renewal failure, or unrecoverable error
             run_heartbeat(registry=registry, tick_seconds_fn=tick_seconds_fn, leader_lock=lock)
             
@@ -103,8 +109,9 @@ def start_thor_background_stack(force: bool = False):
         except Exception:
             logger.exception("❌ Heartbeat crashed with unhandled exception")
         finally:
-            lock.release()
-            logger.info("🔓 Heartbeat leader lock released")
+            if lock:
+                lock.release()
+                logger.info("🔓 Heartbeat leader lock released")
 
     try:
         t = threading.Thread(
