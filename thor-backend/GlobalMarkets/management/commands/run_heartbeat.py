@@ -88,6 +88,7 @@ class Command(BaseCommand):
         from ThorTrading.services.closed_bars_flush_job import ClosedBarsFlushJob
         from ThorTrading.services.week52_extremes_job import Week52ExtremesJob
         from ThorTrading.services.preopen_backtest_job import PreOpenBacktestJob
+        from ThorTrading.services.vwap_minute_capture_job import VwapMinuteCaptureJob
 
         registry.register(IntradayJob(interval_seconds=1.0))
         registry.register(SessionVolumeJob(interval_seconds=10.0))
@@ -96,6 +97,7 @@ class Command(BaseCommand):
         registry.register(ClosedBarsFlushJob(interval_seconds=60.0))
         registry.register(Week52ExtremesJob(interval_seconds=2.0))
         registry.register(PreOpenBacktestJob(interval_seconds=30.0))
+        registry.register(VwapMinuteCaptureJob(interval_seconds=60.0))
 
         logger.info("Registered %d jobs", len(registry.jobs))
 

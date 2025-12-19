@@ -78,6 +78,10 @@ class VWAPMinuteCaptureService:
         self._stats = _CaptureStats()
 
     def start(self) -> bool:
+        # Skip if heartbeat scheduler is running (new unified approach)
+        if os.getenv("HEARTBEAT_ENABLED", "").lower() in {"1", "true", "yes"}:
+            logger.info("Heartbeat scheduler active; skipping legacy VWAP capture thread")
+            return False
         with self._lock:
             if self._thread and self._thread.is_alive():
                 logger.info("VWAP capture already running; skip start")
