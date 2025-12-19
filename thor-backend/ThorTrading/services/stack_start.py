@@ -94,9 +94,9 @@ def start_thor_background_stack(force: bool = False):
 
         try:
             logger.info("💓 Heartbeat starting (single scheduler)...")
-            # run_heartbeat loops forever and catches all job exceptions internally
-            # Only exits on stop_event or unrecoverable error
-            run_heartbeat(registry=registry, tick_seconds_fn=tick_seconds_fn)
+            # run_heartbeat loops forever and renews lock each tick
+            # Only exits on stop_event, lock renewal failure, or unrecoverable error
+            run_heartbeat(registry=registry, tick_seconds_fn=tick_seconds_fn, leader_lock=lock)
             
             # If we reach here, it's an abnormal exit (shouldn't happen)
             logger.error("⚠️ Heartbeat exited unexpectedly")

@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import logging
-import threading
 import time
 from typing import Optional
 
@@ -12,13 +11,22 @@ logger = logging.getLogger(__name__)
 
 
 class LeaderLock:
-    def __init__(self, key: str, ttl_seconds: int = 30) -> None:
+    """
+    Redis leader lock.
+
+    IMPORTANT:
+    - redis-py Lock stores the token in thread-local storage.
+    - Therefore renew/extend MUST occur in the same thread that acquired the lock.
+    """
+
+    def __init__(self, key: str, ttl_seconds: int = 30, renew_every: Optional[float] = None) -> None:
         self.key = key
-        self.ttl = ttl_seconds
-        self._lock = live_data_redis.client.lock(name=key, timeout=ttl_seconds)
-        self._renew_thread: Optional[threading.Thread] = None
-        self._stop_event = threading.Event()
+        self.ttl = int(ttl_seconds)
+        self.renew_every = renew_every if renew_every is not None else max(1.0, self.ttl * 0.5)
+
+        self._lock = live_data_redis.client.lock(name=key, timeout=self.ttl)
         self._acquired = False
+        self._last_renew = 0.0
 
     @property
     def acquired(self) -> bool:
@@ -26,7 +34,8 @@ class LeaderLock:
 
     def acquire(self, blocking: bool = False, timeout: float = 0) -> bool:
         try:
-            got = self._lock.acquire(blocking=blocking, timeout=timeout)
+            blocking_timeout = timeout if timeout > 0 else None
+            got = self._lock.acquire(blocking=blocking, blocking_timeout=blocking_timeout)
         except Exception:
             logger.exception("Leader lock acquire failed for %s", self.key)
             return False
@@ -35,33 +44,40 @@ class LeaderLock:
             return False
 
         self._acquired = True
-        self._start_renewal()
+        self._last_renew = time.monotonic()
         return True
 
+    def renew_if_due(self) -> bool:
+        """
+        Extend lock TTL if renew interval has passed.
+        Must be called from the same thread that acquired the lock.
+        Returns False if renew failed (caller should stop work).
+        """
+        if not self._acquired:
+            return False
+
+        now = time.monotonic()
+        if (now - self._last_renew) < self.renew_every:
+            return True
+
+        try:
+            # extend by ttl seconds
+            self._lock.extend(self.ttl)
+            self._last_renew = now
+            return True
+        except Exception:
+            logger.exception("Leader lock renew failed for %s", self.key)
+            return False
+
     def release(self) -> None:
-        self._stop_event.set()
-        if self._renew_thread and self._renew_thread.is_alive():
-            self._renew_thread.join(timeout=2)
         if not self._acquired:
             return
         try:
             self._lock.release()
-            self._acquired = False
         except Exception:
             logger.exception("Leader lock release failed for %s", self.key)
-
-    def _start_renewal(self) -> None:
-        def _renew_loop():
-            interval = max(1.0, self.ttl * 0.5)
-            while not self._stop_event.wait(interval):
-                try:
-                    self._lock.extend(self.ttl)
-                except Exception:
-                    logger.exception("Leader lock renew failed for %s", self.key)
-                    break
-
-        self._renew_thread = threading.Thread(target=_renew_loop, name=f"LeaderLock-{self.key}", daemon=True)
-        self._renew_thread.start()
+        finally:
+            self._acquired = False
 
     def __enter__(self):
         self.acquire(blocking=True, timeout=5)

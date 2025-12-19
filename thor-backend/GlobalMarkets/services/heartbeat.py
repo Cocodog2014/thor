@@ -29,6 +29,7 @@ def run_heartbeat(
     tick_seconds: float = 1.0,
     tick_seconds_fn: Callable[[HeartbeatContext], float] | None = None,
     ctx: HeartbeatContext | None = None,
+    leader_lock: Any | None = None,
 ) -> None:
     """Run a simple blocking heartbeat loop.
 
@@ -37,6 +38,7 @@ def run_heartbeat(
         tick_seconds: Default tick interval in seconds.
         tick_seconds_fn: Optional callable to dynamically select tick per iteration.
         ctx: Optional HeartbeatContext; will be created if not provided.
+        leader_lock: Optional LeaderLock to renew each tick (for multi-worker safety).
 
     The caller is responsible for ensuring single-instance execution
     (e.g., Django autoreloader guard or external leader lock).
@@ -48,6 +50,12 @@ def run_heartbeat(
     logger.info("heartbeat starting (tick=%.2fs)", tick_seconds)
     current_tick = tick_seconds
     while True:
+        # Renew leader lock if provided (must be same thread that acquired it)
+        if leader_lock and hasattr(leader_lock, "renew_if_due"):
+            if not leader_lock.renew_if_due():
+                logger.error("heartbeat lost leader lock; stopping")
+                break
+
         now = time.monotonic()
         registry.run_pending(context, now)
 

@@ -43,7 +43,14 @@ def mark_closed(market) -> None:
 def get_active_market_ids() -> set[int]:
     try:
         members = live_data_redis.client.smembers(ACTIVE_MARKETS_KEY) or set()
-        return {int(m) for m in members if str(m).isdigit()}
+        ids = set()
+        for m in members:
+            if isinstance(m, (bytes, bytearray)):
+                m = m.decode("utf-8", "ignore")
+            s = str(m).strip()
+            if s.isdigit():
+                ids.add(int(s))
+        return ids
     except Exception:
         logger.exception("Failed to fetch active market ids")
         return set()
