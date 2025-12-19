@@ -1,14 +1,13 @@
 from datetime import datetime, time, timedelta
 import pytz
 
-from GlobalMarkets.models.constants import _TIMEZONE_ALIASES, _DEFAULT_MARKET_TZ
+from GlobalMarkets.models.constants import _DEFAULT_MARKET_TZ
 
 
 def _resolve_timezone(market):
     tz_name = (market.timezone_name or "").strip()
     if not tz_name:
         return None
-    tz_name = _TIMEZONE_ALIASES.get(tz_name, tz_name)
     try:
         return pytz.timezone(tz_name)
     except Exception:

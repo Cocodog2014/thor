@@ -2,7 +2,7 @@ import logging
 from django.core.exceptions import ValidationError
 from django.db import models
 
-from .constants import CONTROL_COUNTRY_CHOICES, ALLOWED_CONTROL_COUNTRIES
+from .constants import CONTROL_COUNTRY_CHOICES, ALLOWED_CONTROL_COUNTRIES, TIMEZONE_CHOICES
 from GlobalMarkets.services.market_clock import (
     get_market_time,
     is_market_open_now as svc_is_open,
@@ -22,7 +22,7 @@ class Market(models.Model):
     country = models.CharField(max_length=50, choices=CONTROL_COUNTRY_CHOICES)
 
     # Timezone information
-    timezone_name = models.CharField(max_length=50)
+    timezone_name = models.CharField(max_length=50, choices=TIMEZONE_CHOICES)
 
     # Trading hours (in local market time)
     market_open_time = models.TimeField()

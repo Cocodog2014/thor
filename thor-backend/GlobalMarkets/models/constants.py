@@ -29,25 +29,8 @@ ALLOWED_CONTROL_COUNTRIES = {
 
 CONTROL_COUNTRY_CHOICES = [(c, c) for c in sorted(ALLOWED_CONTROL_COUNTRIES)]
 
-_TIMEZONE_ALIASES = {
-    "Tokyo": "Asia/Tokyo",
-    "Japan": "Asia/Tokyo",
-    "Shanghai": "Asia/Shanghai",
-    "China": "Asia/Shanghai",
-    "Bombay": "Asia/Kolkata",
-    "India": "Asia/Kolkata",
-    "Frankfurt": "Europe/Berlin",
-    "Germany": "Europe/Berlin",
-    "London": "Europe/London",
-    "United Kingdom": "Europe/London",
-    "Pre-USA": "America/New_York",
-    "Pre_USA": "America/New_York",
-    "USA": "America/New_York",
-    "Toronto": "America/Toronto",
-    "Canada": "America/Toronto",
-    "Mexican": "America/Mexico_City",
-    "Mexico": "America/Mexico_City",
-}
+# Strict IANA timezone list for admin dropdown (no aliases)
+TIMEZONE_CHOICES = [(tz, tz) for tz in pytz.common_timezones]
 
 try:
     _DEFAULT_MARKET_TZ = pytz.timezone(getattr(settings, "TIME_ZONE", "UTC"))
