@@ -27,14 +27,18 @@ class IntradayMarketSupervisor:
         3. Enqueue closed bars to Redis for later bulk flush.
     """
 
-    def __init__(self, interval_seconds: int = 1):
+    def __init__(self, interval_seconds: int = 1, metrics_interval: int = 10, session_interval: int = 10, day_interval: int = 60):
         self.interval_seconds = interval_seconds
+        self.metrics_interval = metrics_interval
+        self.session_interval = session_interval
+        self.day_interval = day_interval
         self.disabled = os.getenv("INTRADAY_SUPERVISOR_DISABLED", "").lower() in {"1", "true", "yes"}
         if self.disabled:
             logger.warning("IntradayMarketSupervisor disabled via INTRADAY_SUPERVISOR_DISABLED")
         self._workers = {}
         self._lock = threading.RLock()
         self._lag_alert_last = {}
+        self._timers = {}
 
     # ------------------------------------------------------------------
     # Public API
@@ -79,6 +83,10 @@ class IntradayMarketSupervisor:
                 stop_event.set()
                 thread.join(timeout=5)
                 logger.info("Intraday metrics worker STOPPED for %s", country)
+            timers = self._timers.pop(market.id, None)
+            if timers:
+                for timer in timers.values():
+                    timer.cancel()
 
         # Finalize metrics
         try:
@@ -106,6 +114,34 @@ class IntradayMarketSupervisor:
             logger.info("Intraday worker requested for %s but supervisor is disabled", country)
             return
         logger.info("Intraday worker loop started for %s", country)
+
+        # Schedule slower tasks (metrics/session/24h) on their own timers
+        def _schedule_timer(name, interval, func):
+            timers_for_market = self._timers.setdefault(market.id, {})
+
+            def _run():
+                if stop_event.is_set():
+                    return
+                try:
+                    func()
+                except Exception:
+                    logger.exception("Intraday %s %s task failed", country, name)
+                finally:
+                    if not stop_event.is_set():
+                        t = threading.Timer(interval, _run)
+                        t.daemon = True
+                        timers_for_market[name] = t
+                        t.start()
+
+            t = threading.Timer(interval, _run)
+            t.daemon = True
+            timers_for_market[name] = t
+            t.start()
+
+        # Placeholder slow tasks (no-ops for now; hook real logic later)
+        _schedule_timer("metrics", self.metrics_interval, lambda: None)
+        _schedule_timer("session", self.session_interval, lambda: None)
+        _schedule_timer("day", self.day_interval, lambda: None)
 
         while not stop_event.is_set():
             try:
