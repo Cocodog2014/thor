@@ -22,7 +22,13 @@ class MarketIntraday(models.Model):
         help_text="Market region (canonical values only)"
     )
     future = models.CharField(max_length=32, help_text="Future symbol (e.g., ES, YM, NQ)")
-    twentyfour = models.ForeignKey('FutureTrading24Hour', on_delete=models.CASCADE, related_name='intraday_bars')
+    twentyfour = models.ForeignKey(
+        'FutureTrading24Hour',
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='intraday_bars',
+    )
     open_1m = models.DecimalField(max_digits=32, decimal_places=4)
     high_1m = models.DecimalField(max_digits=32, decimal_places=4)
     low_1m = models.DecimalField(max_digits=32, decimal_places=4)
