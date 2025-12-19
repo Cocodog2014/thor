@@ -200,19 +200,31 @@ class IntradayMarketSupervisor:
                             live_data_redis.enqueue_closed_bar(country, closed_bar)
                             closed_count += 1
                     except Exception:
-                        logger.exception("Intraday %s: tick capture failed for %s", country, sym)
+                        if logger.isEnabledFor(logging.DEBUG):
+                            logger.exception("Intraday %s: tick capture failed for %s", country, sym)
+                        else:
+                            logger.warning("Intraday %s: tick capture failed for %s", country, sym)
             except Exception:
-                logger.exception("Intraday metrics update failed for %s", country)
+                logger.exception("Intraday worker loop iteration failed for %s", country)
 
             stop_event.wait(self.interval_seconds)
 
         logger.info("Intraday worker loop EXITING for %s", country)
 
     def _flush_closed_bars_1m(self, country: str):
+        total = 0
+        batch_size = 500
         try:
-            flush_closed_bars(country)
+            while True:
+                inserted = flush_closed_bars(country, batch_size=batch_size)
+                if not inserted:
+                    break
+                total += inserted
         except Exception:
             logger.exception("Intraday %s: flush_1m failed", country)
+            return
+        if total:
+            logger.info("Intraday flush 1m bars: country=%s inserted=%s", country, total)
 
     def _tracking_enabled(self, market) -> bool:
         return getattr(market, "is_active", True) and getattr(market, "enable_futures_capture", True)
