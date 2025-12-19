@@ -4,7 +4,8 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
-from ..models import Market, CONTROL_MARKET_WEIGHTS
+from ..models import Market
+from ..models.constants import CONTROL_MARKET_WEIGHTS
 
 # Default control markets config (no DB required)
 CONTROL_MARKETS_DEFAULTS = {
