@@ -16,12 +16,12 @@ class GlobalMarketsConfig(AppConfig):
         fields may not yet exist in the database. Optional env var
         DISABLE_GLOBAL_MARKETS_MONITOR=1 prevents startup entirely.
         """
-        import GlobalMarkets.signals  # noqa: F401 side-effect import
-        # Track active markets in Redis for heartbeat cadence decisions
-        try:
-            import GlobalMarkets.services.active_markets  # noqa: F401 side-effect import
-        except Exception:
-            logging.getLogger(__name__).warning("Active markets tracker failed to import", exc_info=True)
+                import GlobalMarkets.signals  # noqa: F401 side-effect import
+                # Track active markets in Redis for heartbeat cadence decisions
+                try:
+                    import GlobalMarkets.services.active_markets  # noqa: F401 side-effect import
+                except Exception:
+                    logging.getLogger(__name__).warning("Active markets tracker failed to import", exc_info=True)
 
         skip_commands = {
             'makemigrations', 'migrate', 'showmigrations', 'sqlmigrate',
@@ -39,8 +39,16 @@ class GlobalMarketsConfig(AppConfig):
             time.sleep(1.0)
             try:
                 from .monitor import start_monitor
+                from GlobalMarkets.services.leader_lock import LeaderLock, set_monitor_leader_lock
+
+                lock = LeaderLock(key="globalmarkets:leader:monitor", ttl_seconds=60)
+                if not lock.acquire(blocking=False, timeout=0):
+                    logging.getLogger(__name__).info("GlobalMarkets monitor skipped (leader lock held)")
+                    return
+
+                set_monitor_leader_lock(lock)
                 start_monitor()
-                logging.getLogger(__name__).info("GlobalMarkets monitor started (delayed).")
+                logging.getLogger(__name__).info("GlobalMarkets monitor started (delayed, leader)")
             except Exception as e:
                 logging.getLogger(__name__).warning(
                     "GlobalMarkets monitor did not start (suppressed): %s", e
