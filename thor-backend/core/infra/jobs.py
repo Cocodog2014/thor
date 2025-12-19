@@ -1,6 +1,11 @@
-"""Neutral job registry: register jobs and run those that are due.
+"""Single source of truth for job registration and execution.
 
+Neutral job registry: register jobs and run those that are due.
 No domain imports here. Shared state tracks last_run per job name.
+
+Used by the heartbeat scheduler (GlobalMarkets/services/heartbeat.py) to
+dispatch all periodic jobs on a unified tick. This is the only JobRegistry
+implementation in the codebase.
 """
 from __future__ import annotations
 
@@ -11,6 +16,7 @@ from typing import Any, Iterable, Protocol
 
 
 class Job(Protocol):
+    """Job interface: each job must have a name and run method."""
     name: str
 
     def run(self, ctx: Any) -> None:
@@ -28,6 +34,15 @@ class JobEntry:
 
 @dataclass
 class JobRegistry:
+    """Single registry for all periodic jobs in the system.
+    
+    Provides:
+    - register(job, interval) to add jobs
+    - run_pending(ctx, now) to execute jobs due on this tick
+    - Shared state dict for inter-job communication
+    
+    All jobs run under one heartbeat loop; intervals determine cadence.
+    """
     jobs: list[JobEntry] = field(default_factory=list)
     state: dict[str, Any] = field(default_factory=lambda: {"last_run": {}})
     logger: logging.Logger = field(default_factory=lambda: logging.getLogger("job_registry"))
@@ -43,9 +58,21 @@ class JobRegistry:
         self.logger = logger or logging.getLogger("job_registry")
 
     def register(self, job: Job, interval_seconds: float | None = None) -> None:
+        """Register a job with optional default interval (in seconds).
+        
+        Args:
+            job: Job instance with name and run/should_run methods.
+            interval_seconds: Optional default interval. Job's should_run() can override.
+        """
         self.jobs.append(JobEntry(job=job, interval_seconds=interval_seconds))
 
     def run_pending(self, ctx: Any, now: float | None = None) -> None:
+        """Execute all jobs that are due on this tick.
+        
+        Args:
+            ctx: Context passed to each job's run() method.
+            now: Current monotonic time. Computed if not provided.
+        """
         now = now or time.monotonic()
         last_run_map = self.state.setdefault("last_run", {})
 

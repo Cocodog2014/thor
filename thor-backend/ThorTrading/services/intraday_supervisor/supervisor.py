@@ -61,13 +61,14 @@ class IntradayMarketSupervisor:
     # Public API
     # ------------------------------------------------------------------
     def on_market_open(self, market):
+        import os
+        scheduler_mode = os.getenv("THOR_SCHEDULER_MODE", "heartbeat").lower()
+        if scheduler_mode == "heartbeat":
+            logger.info("Heartbeat scheduler active; skipping legacy intraday worker for %s", self._get_normalized_country(market))
+            return
         country = self._get_normalized_country(market)
         if self.disabled:
             logger.info("Intraday metrics disabled; skipping worker start for %s", country)
-            return
-        # Skip if heartbeat scheduler is running (new unified approach)
-        if os.getenv("HEARTBEAT_ENABLED", "").lower() in {"1", "true", "yes"}:
-            logger.info("Heartbeat scheduler active; skipping legacy intraday worker for %s", country)
             return
         if not self._tracking_enabled(market):
             logger.info(
@@ -93,6 +94,11 @@ class IntradayMarketSupervisor:
             logger.info("Intraday metrics worker STARTED for %s", country)
 
     def on_market_close(self, market):
+        import os
+        scheduler_mode = os.getenv("THOR_SCHEDULER_MODE", "heartbeat").lower()
+        if scheduler_mode == "heartbeat":
+            logger.info("Heartbeat scheduler active; skipping legacy intraday close handler for %s", self._get_normalized_country(market))
+            return
         country = self._get_normalized_country(market)
         if self.disabled:
             logger.info("Intraday metrics disabled; skipping close handling for %s", country)

@@ -45,9 +45,13 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
+        import os
         fast_tick = options.get("fast_tick", 1.0)
         slow_tick = options.get("slow_tick", 60.0)
         use_lock = not options.get("no_lock", False)
+
+        # Set heartbeat mode so legacy supervisors don't run
+        os.environ["THOR_SCHEDULER_MODE"] = "heartbeat"
 
         self.stdout.write(self.style.SUCCESS("🚀 Heartbeat scheduler starting"))
         self.stdout.write(f"   Fast tick: {fast_tick}s (markets open)")
@@ -77,10 +81,10 @@ class Command(BaseCommand):
         from GlobalMarkets.services.heartbeat import run_heartbeat, HeartbeatContext
         from GlobalMarkets.services.active_markets import has_active_markets
 
-        # Register all jobs with their default intervals
+        # Create single registry (source of truth for all jobs)
         registry = JobRegistry()
 
-        # Market-facing jobs (run during market hours)
+        # Register all jobs with their default intervals
         from ThorTrading.services.intraday_job import IntradayJob
         from ThorTrading.services.session_volume_job import SessionVolumeJob
         from ThorTrading.services.twentyfour_hour_job import TwentyFourHourJob
@@ -122,7 +126,7 @@ class Command(BaseCommand):
         def _select_tick(context: HeartbeatContext) -> float:
             return fast_tick if has_active_markets() else slow_tick
 
-        # Run the heartbeat loop
+        # Run the heartbeat loop with the single registry
         try:
             run_heartbeat(
                 registry=registry,

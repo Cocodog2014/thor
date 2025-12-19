@@ -42,7 +42,8 @@ class _ExtremesMonitor:
 
     def start(self):
         import os
-        if os.getenv("HEARTBEAT_ENABLED", "").lower() in {"1", "true", "yes"}:
+        scheduler_mode = os.getenv("THOR_SCHEDULER_MODE", "heartbeat").lower()
+        if scheduler_mode == "heartbeat":
             logger.info("Heartbeat scheduler active; skipping legacy 52w extremes monitor")
             return
         with self._lock:

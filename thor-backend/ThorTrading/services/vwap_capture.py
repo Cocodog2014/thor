@@ -79,7 +79,9 @@ class VWAPMinuteCaptureService:
 
     def start(self) -> bool:
         # Skip if heartbeat scheduler is running (new unified approach)
-        if os.getenv("HEARTBEAT_ENABLED", "").lower() in {"1", "true", "yes"}:
+        import os
+        scheduler_mode = os.getenv("THOR_SCHEDULER_MODE", "heartbeat").lower()
+        if scheduler_mode == "heartbeat":
             logger.info("Heartbeat scheduler active; skipping legacy VWAP capture thread")
             return False
         with self._lock:
