@@ -70,7 +70,7 @@ class _PreOpenBacktestSupervisor:
 
     def _run(self):
         # Lazy import to avoid app loading issues
-        from GlobalMarkets.models import Market
+        from GlobalMarkets.models.market import Market
 
         while True:
             with self._lock:

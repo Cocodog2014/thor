@@ -2,7 +2,7 @@ from django.core.management.base import BaseCommand
 from django.db import transaction
 from datetime import time
 
-from GlobalMarkets.models import Market
+from GlobalMarkets.models.market import Market
 
 
 # THE 9 CONTROL MARKETS - Global Market Drivers

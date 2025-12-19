@@ -38,7 +38,7 @@ class MarketMonitor:
             self.running = True
 
         # Lazy imports to avoid app registry issues
-        from GlobalMarkets.models import Market
+        from GlobalMarkets.models.market import Market
 
         markets = Market.objects.filter(is_active=True, is_control_market=True)
         count = 0
@@ -65,7 +65,7 @@ class MarketMonitor:
             try:
                 # Updated import path after modular refactor
                 from ThorTrading.services.intraday_supervisor import intraday_market_supervisor
-                from GlobalMarkets.models import Market
+                from GlobalMarkets.models.market import Market
                 open_markets = Market.objects.filter(is_active=True, is_control_market=True, status='OPEN')
                 started = 0
                 for m in open_markets:
@@ -100,7 +100,7 @@ class MarketMonitor:
         if not self.running:
             return
 
-        from GlobalMarkets.models import Market
+        from GlobalMarkets.models.market import Market
         market = Market.objects.get(pk=market_id)
 
         status_info = market.get_market_status()
@@ -150,7 +150,7 @@ class MarketMonitor:
         This method ONLY updates Market.status and logs the change.
         The post_save signal will fire and notify any listeners (e.g. FutureTrading).
         """
-        from GlobalMarkets.models import Market
+        from GlobalMarkets.models.market import Market
         # Lazy import intraday supervisor so it is only touched at event time
         try:
             # Updated import path after modular refactor
@@ -209,7 +209,7 @@ class MarketMonitor:
         
         The post_save signal will handle any capture logic via listeners.
         """
-        from GlobalMarkets.models import Market
+        from GlobalMarkets.models.market import Market
 
         markets = Market.objects.filter(is_active=True, is_control_market=True)
         fixed = 0

@@ -181,7 +181,7 @@ def _get_supervisor_interval() -> float:
 
 def _any_control_markets_open() -> bool:
     try:
-        from GlobalMarkets.models import Market
+        from GlobalMarkets.models.market import Market
         if Market.objects.filter(is_control_market=True, is_active=True, status='OPEN').exists():
             return True
         for m in Market.objects.filter(is_control_market=True, is_active=True):

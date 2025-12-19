@@ -62,7 +62,7 @@ def _has_capture_for_date(market, capture_date: date_cls) -> bool:
 
 
 def _scan_and_capture_once():
-    from GlobalMarkets.models import Market
+    from GlobalMarkets.models.market import Market
 
     markets = Market.objects.filter(is_active=True, is_control_market=True)
 

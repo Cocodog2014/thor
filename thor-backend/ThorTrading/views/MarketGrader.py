@@ -72,7 +72,7 @@ def _any_control_markets_open() -> bool:
         return _CONTROL_MARKET_CACHE["is_open"]
 
     try:
-        from GlobalMarkets.models import Market
+        from GlobalMarkets.models.market import Market
 
         is_open = Market.objects.filter(
             is_control_market=True,

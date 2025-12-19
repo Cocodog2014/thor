@@ -4,7 +4,7 @@ from django.db import transaction
 from ThorTrading.services.country_codes import normalize_country_code
 from ThorTrading.models.MarketIntraDay import MarketIntraday
 from ThorTrading.models.Martket24h import FutureTrading24Hour
-from GlobalMarkets.models import Market
+from GlobalMarkets.models.market import Market
 
 CANONICAL = {
     "USA",

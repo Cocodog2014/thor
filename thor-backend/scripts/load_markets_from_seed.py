@@ -15,7 +15,7 @@ import django
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "thor_project.settings")
 django.setup()
 
-from GlobalMarkets.models import Market  # noqa: E402
+from GlobalMarkets.models.market import Market  # noqa: E402
 
 DATA_FILE = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "seed_markets.json")
 

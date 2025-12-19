@@ -9,7 +9,7 @@ from typing import Set
 
 from django.dispatch import receiver
 
-from GlobalMarkets.models import Market
+from GlobalMarkets.models.market import Market
 from GlobalMarkets.signals import market_opened, market_closed
 
 from ThorTrading.services.MarketCloseCapture import capture_market_close

@@ -14,7 +14,8 @@ Or as a one-time check:
 
 from django.core.management.base import BaseCommand
 from django.utils import timezone
-from GlobalMarkets.models import Market, USMarketStatus
+from GlobalMarkets.models.market import Market
+from GlobalMarkets.models.us_status import USMarketStatus
 import time
 import logging
 

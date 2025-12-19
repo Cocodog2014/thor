@@ -5,7 +5,7 @@ import django
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'thor_project.settings')
 django.setup()
 
-from GlobalMarkets.models import Market
+from GlobalMarkets.models.market import Market
 
 markets = Market.objects.filter(country__in=['Germany', 'United Kingdom']).order_by('country')
 

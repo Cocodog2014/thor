@@ -38,7 +38,7 @@ from django.core.management.base import BaseCommand
 import json
 import os
 
-from GlobalMarkets.models import Market
+from GlobalMarkets.models.market import Market
 try:
     from ThorTrading.models import instruments  # placeholder if a dedicated instruments model exists
 except Exception:
