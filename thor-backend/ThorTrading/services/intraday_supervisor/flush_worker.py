@@ -1,10 +1,9 @@
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timezone as dt_timezone
 from typing import List, Tuple
 
 from django.db import transaction
-from django.utils import timezone
 
 from LiveData.shared.redis_client import live_data_redis
 from ThorTrading.models.MarketIntraDay import MarketIntraday
@@ -21,7 +20,7 @@ def _to_intraday_models(country: str, bars: List[dict]):
     rows = []
     for b in bars:
         try:
-            ts = datetime.fromtimestamp(int(b["t"]), tz=timezone.utc)
+            ts = datetime.fromtimestamp(int(b["t"]), tz=dt_timezone.utc)
             future = b.get("symbol") or b.get("future")
             if not future:
                 continue
