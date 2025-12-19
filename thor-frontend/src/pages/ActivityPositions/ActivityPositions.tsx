@@ -12,20 +12,20 @@ import type {
 } from "../../types/actandpos";
 
 // Local AccountSummary shape (activity payload) includes optional account_number for labeling
-interface AccountSummary {
-  id: number;
-  broker: string;
-  broker_account_id: string;
-  account_number?: string | null;
-  display_name: string;
-  currency: string;
-  net_liq: string;
-  cash: string;
-  stock_buying_power: string;
-  option_buying_power: string;
-  day_trading_buying_power: string;
-  ok_to_trade: boolean;
-}
+// interface AccountSummary {
+//   id: number;
+//   broker: string;
+//   broker_account_id: string;
+//   account_number?: string | null;
+//   display_name: string;
+//   currency: string;
+//   net_liq: string;
+//   cash: string;
+//   stock_buying_power: string;
+//   option_buying_power: string;
+//   day_trading_buying_power: string;
+//   ok_to_trade: boolean;
+// }
 
 // Strictly validate the shape returned by the backend so we fail fast instead of papering over
 // missing or renamed fields.

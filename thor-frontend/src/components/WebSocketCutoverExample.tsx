@@ -86,7 +86,7 @@ export function AccountBalanceExample() {
  * Example: Positions component (similar pattern)
  */
 export function PositionsExample() {
-  const [positions, setPositions] = useState<any[]>([]);
+  const [positions, setPositions] = useState<Array<{ symbol: string; quantity: number; price: number; }>>([]);
   const wsEnabled = useWebSocketEnabled('positions');
   const dataSource = getDataSource('positions');
 
@@ -122,9 +122,9 @@ export function PositionsExample() {
         {wsEnabled && ' ✅'}
       </div>
       <div>Total Positions: {positions.length}</div>
-      {positions.map((pos: any) => (
+      {positions.map((pos) => (
         <div key={pos.symbol} style={{ paddingLeft: '10px', fontSize: '12px' }}>
-          {pos.symbol}: {pos.quantity} @ ${pos.avg_cost?.toFixed(2) || 'N/A'}
+          {pos.symbol}: {pos.quantity} @ ${pos.price?.toFixed(2) || 'N/A'}
         </div>
       ))}
     </div>

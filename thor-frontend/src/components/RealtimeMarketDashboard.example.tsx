@@ -147,12 +147,6 @@ export function RealtimeMarketDashboard({
     return price.toFixed(2);
   };
 
-  // Helper function to format percentage
-  const formatPercent = (pct: number | undefined) => {
-    if (pct === undefined) return '-';
-    return pct.toFixed(2) + '%';
-  };
-
   return (
     <div className="p-4 space-y-4">
       {/* Header */}

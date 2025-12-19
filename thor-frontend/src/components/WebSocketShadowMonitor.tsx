@@ -32,7 +32,7 @@ export function WebSocketShadowMonitor() {
       statuses[feature] = isWs ? 'ws' : 'rest';
     }
     
-    setFeatureStatuses(statuses as any);
+    setFeatureStatuses(statuses as Record<string, string>);
     console.log(wssCutover.getSummary());
   }, []);
 

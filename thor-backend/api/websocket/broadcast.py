@@ -28,17 +28,19 @@ def broadcast_to_websocket_sync(channel_layer, message: Dict[str, Any]):
         return
     
     try:
+        logger.info(f"📡 Broadcasting to WebSocket: {message.get('type')}")
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         try:
             loop.run_until_complete(
                 channel_layer.group_send("market_data", message)
             )
+            logger.debug(f"✅ WebSocket broadcast sent: {message.get('type')}")
         finally:
             loop.close()
     except Exception as e:
         # Never let WebSocket errors block the calling code
-        logger.error(f"WebSocket broadcast error: {e}", exc_info=True)
+        logger.error(f"❌ WebSocket broadcast error: {e}", exc_info=True)
 
 
 async def broadcast_to_websocket(channel_layer, message: Dict[str, Any]):
@@ -52,6 +54,8 @@ async def broadcast_to_websocket(channel_layer, message: Dict[str, Any]):
         return
     
     try:
+        logger.info(f"📡 Broadcasting to WebSocket (async): {message.get('type')}")
         await channel_layer.group_send("market_data", message)
+        logger.debug(f"✅ WebSocket broadcast sent (async): {message.get('type')}")
     except Exception as e:
-        logger.error(f"WebSocket broadcast error: {e}", exc_info=True)
+        logger.error(f"❌ WebSocket broadcast error: {e}", exc_info=True)

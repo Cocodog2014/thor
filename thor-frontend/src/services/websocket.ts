@@ -9,7 +9,7 @@
  * - Event subscription/unsubscription
  */
 
-import { ThorEvent, ThorTopic } from '../realtime/events';
+import { ThorEvent } from '../realtime/events';
 
 // ============================================================================
 // Backend Message Types
@@ -327,9 +327,9 @@ class WebSocketManager {
       const message = JSON.parse(event.data) as BackendMessage;
 
       // Route to type-specific handlers
-      const type = (message as any).type;
+      const type = (message as unknown as Record<string, unknown>).type;
       if (type) {
-        const handlers = this.messageHandlers.get(type);
+        const handlers = this.messageHandlers.get(type as string);
         if (handlers) {
           handlers.forEach((handler) => handler(message));
         }
