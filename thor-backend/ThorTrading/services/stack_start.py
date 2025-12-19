@@ -77,7 +77,16 @@ def start_thor_background_stack(force: bool = False):
         # Build registry once and register all jobs
         registry = JobRegistry()
         register_all_jobs(registry)
-        logger.info("✅ Jobs registered: %s", [j.name for j in registry.jobs])
+        
+        # Safer job list logging (handles JobEntry wrapper or direct jobs)
+        try:
+            job_names = [entry.job.name for entry in registry.jobs]
+        except (AttributeError, TypeError):
+            try:
+                job_names = [j.name for j in registry.jobs]
+            except Exception:
+                job_names = ["<unable to list jobs>"]
+        logger.info("✅ Jobs registered: %s", job_names)
 
         def tick_seconds_fn(context):
             # FAST when any control markets are open, SLOW otherwise
