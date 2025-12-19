@@ -1,29 +1,15 @@
 import logging
-import threading
 import os
+import threading
 from datetime import timedelta
 from typing import Optional
 
 from django.utils import timezone
-from django.db import transaction
 
-from ThorTrading.constants import FUTURES_SYMBOLS
 from ThorTrading.services.quotes import get_enriched_quotes_with_composite
-from ThorTrading.services.market_metrics import (
-    MarketHighMetric,
-    MarketLowMetric,
-    MarketCloseMetric,
-    MarketRangeMetric,
-)
 from ThorTrading.services.account_snapshots import trigger_account_daily_snapshots
 from ThorTrading.services.country_codes import normalize_country_code
-from ThorTrading.models.MarketIntraDay import MarketIntraday
 from LiveData.shared.redis_client import live_data_redis
-
-from .feed_24h import update_24h_for_country
-from .intraday_bars import update_intraday_bars_for_country
-from .session_volume import update_session_volume_for_country
-from .vwap_precompute import precompute_rolling_vwap
 
 logger = logging.getLogger(__name__)
 
@@ -36,11 +22,9 @@ class IntradayMarketSupervisor:
     """Orchestrates per-country intraday updates using helper modules.
 
     Responsibilities per loop iteration:
-        1. Update intraday session highs/lows via metrics.
-        2. Upsert & update rolling 24h stats (extremes, range, volume).
-        3. Create/get current minute OHLCV bars.
-        4. Accumulate session volume on MarketSession.
-        5. Precompute rolling VWAP snapshot.
+        1. Capture ticks every second into Redis.
+        2. Maintain current 1m bar in Redis.
+        3. Enqueue closed bars to Redis for later bulk flush.
     """
 
     def __init__(self, interval_seconds: int = 1):
@@ -132,50 +116,44 @@ class IntradayMarketSupervisor:
                     )
                     break
 
-                enriched, composite = get_enriched_quotes_with_composite()
+                enriched, _ = get_enriched_quotes_with_composite()
                 quote_count = len(enriched) if enriched else 0
                 if quote_count == 0:
-                    logger.warning("Intraday %s: no quotes returned; skipping metrics", country)
+                    logger.debug("Intraday %s: no quotes returned; skipping tick capture", country)
 
-                # 1) High/Low metrics
-                MarketHighMetric.update_from_quotes(country, enriched)
-                MarketLowMetric.update_from_quotes(country, enriched)
+                closed_count = 0
+                updated_count = 0
 
-                # 2) 24h stats
-                twentyfour_counts, twentyfour_map = update_24h_for_country(country, enriched)
-                if not twentyfour_map:
-                    logger.warning(
-                        "Intraday %s: no 24h map/session group; intraday bars may be skipped (quotes=%s)",
-                        country,
-                        quote_count,
-                    )
-
-                # 3) 1m bars (needs twentyfour_map)
-                intraday_counts = update_intraday_bars_for_country(country, enriched, twentyfour_map)
-                if twentyfour_map and intraday_counts.get('intraday_bars', 0) == 0 and intraday_counts.get('intraday_updates', 0) == 0:
-                    logger.warning(
-                        "Intraday %s: intraday writes zero (quotes=%s, 24h=%s)",
-                        country,
-                        quote_count,
-                        len(twentyfour_map),
-                    )
-
-                # 4) session volume
-                session_counts = update_session_volume_for_country(country, enriched)
-
-                # 5) VWAP precompute
-                precompute_rolling_vwap(FUTURES_SYMBOLS)
+                for row in enriched or []:
+                    sym = row.get('instrument', {}).get('symbol')
+                    if not sym:
+                        continue
+                    sym = sym.lstrip('/').upper()
+                    tick = {
+                        "symbol": sym,
+                        "country": country,
+                        "price": row.get('last'),
+                        "volume": row.get('volume'),
+                        "bid": row.get('bid'),
+                        "ask": row.get('ask'),
+                        "timestamp": row.get('timestamp'),
+                    }
+                    try:
+                        live_data_redis.set_tick(country, sym, tick, ttl=10)
+                        closed_bar, current_bar = live_data_redis.upsert_current_bar_1m(country, sym, tick)
+                        updated_count += 1
+                        if closed_bar:
+                            live_data_redis.enqueue_closed_bar(country, closed_bar)
+                            closed_count += 1
+                    except Exception:
+                        logger.exception("Intraday %s: tick capture failed for %s", country, sym)
 
                 logger.info(
-                    "Intraday %s → 24h=%s, intraday=%s, session_vol=%s",
+                    "Intraday %s → ticks=%s, closed_1m=%s",
                     country,
-                    twentyfour_counts,
-                    intraday_counts,
-                    session_counts,
+                    updated_count,
+                    closed_count,
                 )
-
-                # Health: alert if intraday bars fall behind
-                self._maybe_alert_lag(country)
             except Exception:
                 logger.exception("Intraday metrics update failed for %s", country)
 
