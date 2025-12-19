@@ -252,19 +252,7 @@ def start_thor_background_stack(force: bool = False):
     # ----------------------------------------
     # 4. 52-WEEK EXTREMES SUPERVISOR
     # ----------------------------------------
-    if GLOBAL_TIMER_ENABLED:
-        logger.info("📈 Global timer mode enabled — skipping legacy 52-week supervisor thread.")
-    else:
-        try:
-            t4 = threading.Thread(
-                target=start_52w_supervisor_wrapper,
-                name="Week52Supervisor",
-                daemon=True,
-            )
-            t4.start()
-            logger.info("📈 52-week Supervisor thread started.")
-        except Exception:
-            logger.exception("❌ Failed to start 52-week Supervisor thread")
+    logger.info("📈 Global timer mode enabled — legacy 52-week supervisor is removed; global timer hooks own it.")
 
     # ----------------------------------------
     # 5. PRE-OPEN BACKTEST SUPERVISOR
