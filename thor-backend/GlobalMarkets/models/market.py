@@ -72,7 +72,8 @@ class Market(models.Model):
             'Pre_USA': 'Pre_USA',
             'USA': 'USA',
             'Canada': 'Toronto',
-            'Mexico': 'Mexican'
+            'Mexico': 'Mexican',
+            'Futures': 'CME Futures (GLOBEX)',
         }
         return display_names.get(self.country, self.country)
 
@@ -103,6 +104,7 @@ class Market(models.Model):
             'USA': 7,
             'Canada': 8,
             'Mexico': 9,
+            'Futures': 10,
         }
         return order_map.get(self.country, 999)
 

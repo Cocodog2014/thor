@@ -191,8 +191,8 @@ class IntradayMarketSupervisor:
             logger.exception("Intraday step_once failed to load markets")
             return
 
-        # Skip if no markets are currently open
         if not open_markets.exists():
+            logger.debug("Intraday skipped: no open markets")
             return
 
         for market in open_markets:

@@ -40,8 +40,16 @@ def is_market_open_now(market):
     market_time_data = get_market_time(market)
     if not market_time_data:
         return False
-    if market_time_data.get('day_number', 0) >= 5:
-        return False
+    
+    # Futures market trades Sun 5 PM CT → Fri 5 PM CT (special handling for overnight session)
+    if market.country == "Futures":
+        # Futures is open Sun-Fri, but uses overnight window (open > close)
+        # So don't skip on weekends; let the time window logic handle it
+        pass
+    else:
+        # Regular markets: skip weekends
+        if market_time_data.get('day_number', 0) >= 5:
+            return False
 
     current_time = market_time_data['datetime'].time()
 
