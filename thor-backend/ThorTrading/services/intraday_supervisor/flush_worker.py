@@ -12,9 +12,9 @@ from ThorTrading.services.country_codes import normalize_country_code
 logger = logging.getLogger(__name__)
 
 
-def _pop_closed_bars(country: str, batch_size: int = 500) -> Tuple[List[dict], int]:
-    bars, queue_left = live_data_redis.dequeue_closed_bars(country, count=batch_size)
-    return bars, queue_left
+def _pop_closed_bars(country: str, batch_size: int = 500) -> Tuple[List[dict], List[str], int]:
+    decoded, raw_items, queue_left = live_data_redis.checkout_closed_bars(country, count=batch_size)
+    return decoded, raw_items, queue_left
 
 
 def _resolve_session_group(country: str) -> str | None:
@@ -97,9 +97,13 @@ def flush_closed_bars(country: str, batch_size: int = 500, max_batches: int = 20
     norm_country = normalize_country_code(country) or country
     session_group = _resolve_session_group(norm_country)
 
+    recovered = live_data_redis.requeue_processing_closed_bars(norm_country)
+    if recovered:
+        logger.warning("Recovered %s bars from processing queue for %s", recovered, norm_country)
+
     for _ in range(max_batches):
-        bars, queue_left = _pop_closed_bars(norm_country, batch_size=batch_size)
-        if not bars:
+        bars, raw_items, queue_left = _pop_closed_bars(norm_country, batch_size=batch_size)
+        if not raw_items:
             break
 
         rows = _to_intraday_models(norm_country, bars, session_group=session_group)
@@ -108,9 +112,14 @@ def flush_closed_bars(country: str, batch_size: int = 500, max_batches: int = 20
                 with transaction.atomic():
                     MarketIntraday.objects.bulk_create(rows, ignore_conflicts=True)
                 total_inserted += len(rows)
+                live_data_redis.acknowledge_closed_bars(norm_country, raw_items)
             except Exception:
                 logger.exception("Failed bulk insert of %s bars for %s", len(rows), country)
+                live_data_redis.return_closed_bars(norm_country, raw_items)
                 break
+        else:
+            # Nothing to insert (e.g., decode issues); drop or requeue? acknowledge to avoid stuck queue.
+            live_data_redis.acknowledge_closed_bars(norm_country, raw_items)
 
         logger.info(
             "minute close flush: flushed=%s bars country=%s inserted=%s queue_left=%s",

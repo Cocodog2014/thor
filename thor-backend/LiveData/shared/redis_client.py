@@ -8,7 +8,7 @@ All broker integrations (Schwab, TOS, IBKR) use this client.
 import json
 import logging
 import time
-from typing import Dict, Any, Optional, Tuple
+from typing import Dict, Any, Optional, Tuple, List
 
 import redis
 from django.conf import settings
@@ -134,28 +134,75 @@ class LiveDataRedis:
         except Exception as e:
             logger.error(f"Failed to enqueue closed bar for {country}: {e}")
 
-    def dequeue_closed_bars(self, country: str, count: int = 500) -> tuple[list[dict], int]:
-        """Pop up to `count` closed bars for a country (FIFO), decode JSON, return (bars, queue_left)."""
-        key = f"q:bars:1m:{country}".lower()
+    def requeue_processing_closed_bars(self, country: str, limit: int = 10000) -> int:
+        """Move any bars stuck in the processing queue back to the main queue (crash recovery)."""
+        source = f"q:bars:1m:{country}:processing".lower()
+        target = f"q:bars:1m:{country}".lower()
+        moved = 0
+        try:
+            for _ in range(limit):
+                item = self.client.rpoplpush(source, target)
+                if not item:
+                    break
+                moved += 1
+        except Exception as e:
+            logger.error(f"Failed to requeue processing bars for {country}: {e}")
+        return moved
+
+    def checkout_closed_bars(self, country: str, count: int = 500) -> Tuple[List[dict], List[str], int]:
+        """
+        Atomically move up to `count` bars from the main queue to a processing queue.
+
+        Returns: (decoded_bars, raw_items, queue_left)
+        """
+        source = f"q:bars:1m:{country}".lower()
+        processing = f"q:bars:1m:{country}:processing".lower()
+        items: List[str] = []
         try:
             pipe = self.client.pipeline()
-            pipe.lpop(key, count)
-            pipe.llen(key)
-            items, queue_left = pipe.execute()
+            for _ in range(count):
+                pipe.lmove(source, processing, "LEFT", "RIGHT")
+            pipe.llen(source)
+            results = pipe.execute()
+            *moved_items, queue_left = results
+            items = [i for i in moved_items if i]
         except Exception as e:
-            logger.error(f"Failed to dequeue closed bars for {country}: {e}")
-            return [], 0
+            logger.error(f"Failed to checkout closed bars for {country}: {e}")
+            return [], [], 0
 
         if not items:
-            return [], int(queue_left or 0)
+            return [], [], int(queue_left or 0)
 
-        decoded = []
+        decoded: List[dict] = []
         for item in items:
             try:
                 decoded.append(json.loads(item))
             except Exception:
                 logger.warning("Failed to decode closed bar payload for %s: %s", country, item)
-        return decoded, int(queue_left or 0)
+        return decoded, items, int(queue_left or 0)
+
+    def acknowledge_closed_bars(self, country: str, items: List[str]) -> None:
+        """Remove successfully processed items from the processing queue."""
+        if not items:
+            return
+        key = f"q:bars:1m:{country}:processing".lower()
+        try:
+            pipe = self.client.pipeline()
+            for item in items:
+                pipe.lrem(key, 1, item)
+            pipe.execute()
+        except Exception as e:
+            logger.error(f"Failed to acknowledge closed bars for {country}: {e}")
+
+    def return_closed_bars(self, country: str, items: List[str]) -> None:
+        """Return items to the main queue if processing failed."""
+        if not items:
+            return
+        key = f"q:bars:1m:{country}".lower()
+        try:
+            self.client.rpush(key, *items)
+        except Exception as e:
+            logger.error(f"Failed to return closed bars for {country}: {e}")
 
     # --- Snapshot (latest) helpers ---
     LATEST_QUOTES_HASH = "live_data:latest:quotes"
