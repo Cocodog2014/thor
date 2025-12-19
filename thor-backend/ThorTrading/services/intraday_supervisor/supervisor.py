@@ -163,53 +163,78 @@ class IntradayMarketSupervisor:
 
         while not stop_event.is_set():
             try:
-                if not self._refresh_and_check_tracking(market):
-                    logger.info(
-                        "Intraday worker stopping for %s (market disabled)",
-                        country,
-                    )
-                    break
-
-                enriched, _ = get_enriched_quotes_with_composite()
-                quote_count = len(enriched) if enriched else 0
-                if quote_count == 0:
-                    logger.debug("Intraday %s: no quotes returned; skipping tick capture", country)
-
-                closed_count = 0
-                updated_count = 0
-
-                for row in enriched or []:
-                    sym = row.get('instrument', {}).get('symbol')
-                    if not sym:
-                        continue
-                    sym = sym.lstrip('/').upper()
-                    tick = {
-                        "symbol": sym,
-                        "country": country,
-                        "price": row.get('last'),
-                        "volume": row.get('volume'),
-                        "bid": row.get('bid'),
-                        "ask": row.get('ask'),
-                        "timestamp": row.get('timestamp'),
-                    }
-                    try:
-                        live_data_redis.set_tick(country, sym, tick, ttl=10)
-                        closed_bar, current_bar = live_data_redis.upsert_current_bar_1m(country, sym, tick)
-                        updated_count += 1
-                        if closed_bar:
-                            live_data_redis.enqueue_closed_bar(country, closed_bar)
-                            closed_count += 1
-                    except Exception:
-                        if logger.isEnabledFor(logging.DEBUG):
-                            logger.exception("Intraday %s: tick capture failed for %s", country, sym)
-                        else:
-                            logger.warning("Intraday %s: tick capture failed for %s", country, sym)
+                self._process_market_tick(market)
             except Exception:
                 logger.exception("Intraday worker loop iteration failed for %s", country)
 
             stop_event.wait(self.interval_seconds)
 
         logger.info("Intraday worker loop EXITING for %s", country)
+
+    def step_once(self):
+        """Run a single intraday tick across all open markets (no internal loops)."""
+        try:
+            from GlobalMarkets.models.market import Market
+
+            open_markets = Market.objects.filter(is_active=True, is_control_market=True, status='OPEN')
+        except Exception:
+            logger.exception("Intraday step_once failed to load markets")
+            return
+
+        for market in open_markets:
+            try:
+                self._process_market_tick(market)
+            except Exception:
+                logger.exception("Intraday step_once failed for %s", self._get_normalized_country(market))
+
+    # ------------------------------------------------------------------
+    # Single tick processing (used by heartbeat job)
+    # ------------------------------------------------------------------
+    def _process_market_tick(self, market) -> None:
+        country = self._get_normalized_country(market)
+
+        if self.disabled:
+            logger.info("Intraday metrics disabled; skipping tick for %s", country)
+            return
+
+        if not self._refresh_and_check_tracking(market):
+            logger.info("Intraday tick skipping for %s (market disabled)", country)
+            return
+
+        enriched, _ = get_enriched_quotes_with_composite()
+        quote_count = len(enriched) if enriched else 0
+        if quote_count == 0:
+            logger.debug("Intraday %s: no quotes returned; skipping tick capture", country)
+
+        closed_count = 0
+        updated_count = 0
+
+        for row in enriched or []:
+            sym = row.get('instrument', {}).get('symbol')
+            if not sym:
+                continue
+            sym = sym.lstrip('/').upper()
+            tick = {
+                "symbol": sym,
+                "country": country,
+                "price": row.get('last'),
+                "volume": row.get('volume'),
+                "bid": row.get('bid'),
+                "ask": row.get('ask'),
+                "timestamp": row.get('timestamp'),
+            }
+            try:
+                live_data_redis.set_tick(country, sym, tick, ttl=10)
+                closed_bar, current_bar = live_data_redis.upsert_current_bar_1m(country, sym, tick)
+                updated_count += 1
+                if closed_bar:
+                    live_data_redis.enqueue_closed_bar(country, closed_bar)
+                    closed_count += 1
+            except Exception:
+                if logger.isEnabledFor(logging.DEBUG):
+                    logger.exception("Intraday %s: tick capture failed for %s", country, sym)
+                else:
+                    logger.warning("Intraday %s: tick capture failed for %s", country, sym)
 
     def _flush_closed_bars_1m(self, country: str):
         total = 0
