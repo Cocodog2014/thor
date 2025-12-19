@@ -74,26 +74,25 @@ def start_thor_background_stack(force: bool = False):
 
         logger.info("🔓 Heartbeat leader lock acquired")
 
+        # Build registry once and register all jobs
+        registry = JobRegistry()
+        register_all_jobs(registry)
+        logger.info("✅ Jobs registered: %s", [j.name for j in registry.jobs])
+
+        def tick_seconds_fn(context):
+            # FAST when any control markets are open, SLOW otherwise
+            return 1.0 if has_active_markets() else 120.0
+
         try:
-            while True:
-                try:
-                    registry = JobRegistry()
-                    register_all_jobs(registry)
-                    logger.info("✅ Jobs registered: %s", [j.name for j in registry.jobs])
-
-                    def tick_seconds_fn(context):
-                        # FAST when any control markets are open, SLOW otherwise
-                        return 1.0 if has_active_markets() else 120.0
-
-                    logger.info("💓 Heartbeat starting (single scheduler)...")
-                    run_heartbeat(registry=registry, tick_seconds_fn=tick_seconds_fn)
-
-                    # If run_heartbeat returns, treat as abnormal exit and restart
-                    logger.warning("⚠️ Heartbeat exited unexpectedly — restarting in 5s...")
-                except Exception:
-                    logger.exception("❌ Heartbeat crashed — restarting in 5s...")
-
-                time.sleep(5)
+            logger.info("💓 Heartbeat starting (single scheduler)...")
+            # run_heartbeat loops forever and catches all job exceptions internally
+            # Only exits on stop_event or unrecoverable error
+            run_heartbeat(registry=registry, tick_seconds_fn=tick_seconds_fn)
+            
+            # If we reach here, it's an abnormal exit (shouldn't happen)
+            logger.error("⚠️ Heartbeat exited unexpectedly")
+        except Exception:
+            logger.exception("❌ Heartbeat crashed with unhandled exception")
         finally:
             lock.release()
             logger.info("🔓 Heartbeat leader lock released")
