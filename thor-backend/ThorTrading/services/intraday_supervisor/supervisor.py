@@ -12,10 +12,24 @@ from ThorTrading.services.country_codes import normalize_country_code
 from LiveData.shared.redis_client import live_data_redis
 
 logger = logging.getLogger(__name__)
+_log_level_name = os.getenv("THOR_INTRADAY_LOG_LEVEL", "INFO").upper()
+_log_level_value = getattr(logging, _log_level_name, logging.INFO)
+logger.setLevel(_log_level_value)
 
 
 SNAPSHOT_LOCK_PREFIX = "thor:account_snapshot_eod:"
 SNAPSHOT_LOCK_TTL_SECONDS = 60 * 60 * 48  # 48h safety window
+
+
+def _env_int(name: str, default: int) -> int:
+    val = os.getenv(name)
+    if val is None:
+        return default
+    try:
+        return int(val)
+    except ValueError:
+        logger.warning("Invalid int for %s=%s; using default %s", name, val, default)
+        return default
 
 
 class IntradayMarketSupervisor:
@@ -27,11 +41,12 @@ class IntradayMarketSupervisor:
         3. Enqueue closed bars to Redis for later bulk flush.
     """
 
-    def __init__(self, interval_seconds: int = 1, metrics_interval: int = 10, session_interval: int = 10, day_interval: int = 60):
-        self.interval_seconds = interval_seconds
-        self.metrics_interval = metrics_interval
-        self.session_interval = session_interval
-        self.day_interval = day_interval
+    def __init__(self, interval_seconds: int = 1, metrics_interval: int = 10, session_interval: int = 10, day_interval: int = 60, flush_interval: int = 60):
+        self.interval_seconds = _env_int("THOR_TICK_INTERVAL_SEC", interval_seconds)
+        self.metrics_interval = _env_int("THOR_METRIC_INTERVAL_SEC", metrics_interval)
+        self.session_interval = _env_int("THOR_SESSIONVOL_INTERVAL_SEC", session_interval)
+        self.day_interval = _env_int("THOR_24H_UPDATE_SEC", day_interval)
+        self.flush_interval = _env_int("THOR_BAR_FLUSH_SEC", flush_interval)
         self.disabled = os.getenv("INTRADAY_SUPERVISOR_DISABLED", "").lower() in {"1", "true", "yes"}
         if self.disabled:
             logger.warning("IntradayMarketSupervisor disabled via INTRADAY_SUPERVISOR_DISABLED")
@@ -183,13 +198,6 @@ class IntradayMarketSupervisor:
                             closed_count += 1
                     except Exception:
                         logger.exception("Intraday %s: tick capture failed for %s", country, sym)
-
-                logger.info(
-                    "Intraday %s → ticks=%s, closed_1m=%s",
-                    country,
-                    updated_count,
-                    closed_count,
-                )
             except Exception:
                 logger.exception("Intraday metrics update failed for %s", country)
 
