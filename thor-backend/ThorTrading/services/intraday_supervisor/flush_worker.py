@@ -3,11 +3,11 @@ from datetime import datetime, timezone as dt_timezone
 from typing import List, Tuple
 
 from django.db import transaction
-from django.utils import timezone
 from LiveData.shared.redis_client import live_data_redis
 from ThorTrading.models.Martket24h import FutureTrading24Hour
 from ThorTrading.models.MarketIntraDay import MarketIntraday
 from ThorTrading.models.MarketSession import MarketSession
+from ThorTrading.services.country_codes import normalize_country_code
 
 logger = logging.getLogger(__name__)
 
@@ -41,8 +41,6 @@ def _to_intraday_models(country: str, bars: List[dict], session_group: str | Non
                 continue
 
             ts = datetime.fromtimestamp(int(raw_ts), tz=dt_timezone.utc)
-            if timezone.is_naive(ts):
-                ts = timezone.make_aware(ts, timezone=dt_timezone.utc)
             future = b.get("symbol") or b.get("future")
             if not future:
                 continue
@@ -96,14 +94,15 @@ def _to_intraday_models(country: str, bars: List[dict], session_group: str | Non
 
 def flush_closed_bars(country: str, batch_size: int = 500, max_batches: int = 20) -> int:
     total_inserted = 0
-    session_group = _resolve_session_group(country)
+    norm_country = normalize_country_code(country) or country
+    session_group = _resolve_session_group(norm_country)
 
     for _ in range(max_batches):
-        bars, queue_left = _pop_closed_bars(country, batch_size=batch_size)
+        bars, queue_left = _pop_closed_bars(norm_country, batch_size=batch_size)
         if not bars:
             break
 
-        rows = _to_intraday_models(country, bars, session_group=session_group)
+        rows = _to_intraday_models(norm_country, bars, session_group=session_group)
         if rows:
             try:
                 with transaction.atomic():
