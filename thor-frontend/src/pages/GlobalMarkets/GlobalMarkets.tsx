@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import type { Market } from '../../types';
 import marketsService from '../../services/markets';
 import { useGlobalTimer } from '../../context/GlobalTimerContext';
+import { useWebSocketMessage } from '../../hooks/useWebSocket';
 import './GlobalMarkets.css';
 
 const GlobalMarkets: React.FC = () => {
@@ -49,7 +50,41 @@ const GlobalMarkets: React.FC = () => {
     fetchMarkets('initial');
   }, [fetchMarkets]);
 
-  // This data is relatively static; it is loaded once on mount. Live updates should come via WebSocket.
+  // Live updates via WebSocket (market_status messages)
+  useWebSocketMessage('market_status', (msg) => {
+    const payload = (msg as { data?: Partial<Market> & { market_id?: number; id?: number } }).data;
+    if (!payload) return;
+
+    const marketId = payload.market_id ?? payload.id;
+    if (!marketId) return;
+
+    setMarkets((prev) => {
+      const idx = prev.findIndex((m) => m.id === marketId);
+      if (idx === -1) return prev;
+
+      const next = [...prev];
+      const current = next[idx];
+
+      next[idx] = {
+        ...current,
+        status: payload.status ?? current.status,
+        market_status: {
+          ...current.market_status,
+          ...(payload.market_status ?? {}),
+        },
+        current_time: payload.current_time
+          ? { ...current.current_time, ...payload.current_time }
+          : current.current_time,
+      } as Market;
+
+      return next;
+    });
+
+    setLastUpdate(new Date());
+    setIsStale(false);
+  });
+
+  // This data is relatively static; it is loaded once on mount. WebSocket pushes keep it fresh.
 
   if (loading) {
     return (
