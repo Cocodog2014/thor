@@ -90,7 +90,14 @@ def start_preopen_backtest_supervisor_wrapper():
 
     As with 52w, the underlying module manages its own loop and state,
     so we just invoke its start function once.
+    
+    Skipped if heartbeat scheduler mode is active (legacy mode only).
     """
+    scheduler_mode = os.environ.get("THOR_SCHEDULER_MODE", "heartbeat").lower()
+    if scheduler_mode == "heartbeat":
+        logger.debug("Skipping legacy Pre-open Backtest supervisor (heartbeat scheduler mode active)")
+        return
+
     logger.info("⏰ Pre-open backtest supervisor (stack) starting...")
 
     try:

@@ -71,6 +71,12 @@ def _register_close(country: str) -> bool:
 
 
 def _start_global_background_services():
+    """Start VWAP and 52-week services, but only if NOT in heartbeat scheduler mode."""
+    scheduler_mode = os.environ.get("THOR_SCHEDULER_MODE", "heartbeat").lower()
+    if scheduler_mode == "heartbeat":
+        logger.debug("Skipping legacy VWAP/52w starters (heartbeat scheduler mode active)")
+        return
+    
     start_vwap_capture_service()
     try:
         start_52w_monitor_supervisor()
@@ -79,6 +85,12 @@ def _start_global_background_services():
 
 
 def _stop_global_background_services():
+    """Stop VWAP and 52-week services, but only if NOT in heartbeat scheduler mode."""
+    scheduler_mode = os.environ.get("THOR_SCHEDULER_MODE", "heartbeat").lower()
+    if scheduler_mode == "heartbeat":
+        logger.debug("Skipping legacy VWAP/52w stoppers (heartbeat scheduler mode active)")
+        return
+    
     stop_vwap_capture_service()
     try:
         stop_52w_monitor_supervisor()

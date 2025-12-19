@@ -80,30 +80,15 @@ class Command(BaseCommand):
         from core.infra.jobs import JobRegistry
         from GlobalMarkets.services.heartbeat import run_heartbeat, HeartbeatContext
         from GlobalMarkets.services.active_markets import has_active_markets
+        from ThorTrading.services.supervisors.register_jobs import register_all_jobs
 
         # Create single registry (source of truth for all jobs)
         registry = JobRegistry()
 
-        # Register all jobs with their default intervals
-        from ThorTrading.services.intraday_job import IntradayJob
-        from ThorTrading.services.session_volume_job import SessionVolumeJob
-        from ThorTrading.services.twentyfour_hour_job import TwentyFourHourJob
-        from ThorTrading.services.market_metrics_job import MarketMetricsJob
-        from ThorTrading.services.closed_bars_flush_job import ClosedBarsFlushJob
-        from ThorTrading.services.week52_extremes_job import Week52ExtremesJob
-        from ThorTrading.services.preopen_backtest_job import PreOpenBacktestJob
-        from ThorTrading.services.vwap_minute_capture_job import VwapMinuteCaptureJob
+        # Register all jobs from central location
+        register_all_jobs(registry)
 
-        registry.register(IntradayJob(interval_seconds=1.0))
-        registry.register(SessionVolumeJob(interval_seconds=10.0))
-        registry.register(TwentyFourHourJob(interval_seconds=30.0))
-        registry.register(MarketMetricsJob(interval_seconds=10.0))
-        registry.register(ClosedBarsFlushJob(interval_seconds=60.0))
-        registry.register(Week52ExtremesJob(interval_seconds=2.0))
-        registry.register(PreOpenBacktestJob(interval_seconds=30.0))
-        registry.register(VwapMinuteCaptureJob(interval_seconds=60.0))
-
-        logger.info("Registered %d jobs", len(registry.jobs))
+        logger.info("Heartbeat ready with %d jobs", len(registry.jobs))
 
         # Set up graceful shutdown on SIGTERM/SIGINT
         stop_event = threading.Event()
