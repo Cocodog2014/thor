@@ -111,6 +111,14 @@ class Command(BaseCommand):
         def _select_tick(context: HeartbeatContext) -> float:
             return fast_tick if has_active_markets() else slow_tick
 
+        # Get channel layer for WebSocket broadcasting (shadow mode)
+        try:
+            from channels.layers import get_channel_layer
+            channel_layer = get_channel_layer()
+        except Exception:
+            logger.warning("Could not get channel layer for WebSocket broadcasting")
+            channel_layer = None
+
         # Run the heartbeat loop with the single registry
         try:
             run_heartbeat(
@@ -118,6 +126,7 @@ class Command(BaseCommand):
                 tick_seconds=fast_tick,  # Default to fast; selector can change it per tick
                 tick_seconds_fn=_select_tick,
                 ctx=ctx,
+                channel_layer=channel_layer,  # Shadow mode: broadcast to WebSocket clients
             )
         except KeyboardInterrupt:
             logger.info("Heartbeat interrupted")

@@ -4,6 +4,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from django_filters.rest_framework import DjangoFilterBackend
 from django.http import HttpResponse
+from django.utils import timezone
 from datetime import date, timedelta, datetime
 import os
 
@@ -184,7 +185,7 @@ class MarketDataSnapshotViewSet(viewsets.ReadOnlyModelViewSet):
         if not market_id:
             return Response({'error': 'market_id parameter required'}, status=400)
         
-        since = datetime.now() - timedelta(hours=hours)
+        since = timezone.now() - timedelta(hours=hours)
         
         snapshots = MarketDataSnapshot.objects.filter(
             market_id=market_id,
@@ -243,7 +244,7 @@ def worldclock_stats(request):
         'total_users_with_watchlists': UserMarketWatchlist.objects.values('user').distinct().count(),
     }
     
-    last_24h = datetime.now() - timedelta(hours=24)
+    last_24h = timezone.now() - timedelta(hours=24)
     stats['recent_snapshots'] = MarketDataSnapshot.objects.filter(
         collected_at__gte=last_24h
     ).count()
@@ -312,7 +313,7 @@ def debug_market_times(request):
         'total_markets_in_db': all_markets.count(),
         'active_markets_count': active_markets.count(),
         'ordered_markets_count': markets.count(),
-        'current_time': datetime.now().isoformat(),
+        'current_time': timezone.now().isoformat(),
         'all_countries': [m.country for m in all_markets],
         'active_countries': [m.country for m in active_markets],
         'markets': []
