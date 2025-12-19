@@ -1,40 +1,53 @@
 /**
  * Shadow Mode Monitor - WebSocket Testing
  * 
- * Logs all WebSocket messages to console without affecting production data.
- * Keep REST endpoints active, just listen to WebSocket in parallel.
+ * Shows phased cutover status:
+ * - Green features = using WebSocket
+ * - Gray features = still using REST (shadow mode logs)
  */
 
 import { useEffect, useState } from 'react';
 import { useWebSocketConnection, useWebSocketMessage } from '../hooks/useWebSocket';
+import { wssCutover } from '../services/websocket-cutover';
+
+type FeatureStatus = 'ws' | 'rest' | 'both';
 
 export function WebSocketShadowMonitor() {
   const connected = useWebSocketConnection();
   const [messageCount, setMessageCount] = useState(0);
   const [lastMessageTime, setLastMessageTime] = useState<string>('Never');
+  const [featureStatuses, setFeatureStatuses] = useState({
+    account_balance: 'rest' as FeatureStatus,
+    positions: 'rest' as FeatureStatus,
+    intraday: 'rest' as FeatureStatus,
+    global_market: 'rest' as FeatureStatus,
+  });
 
-  // Monitor heartbeat messages
+  // Initialize feature statuses from cutover manager
+  useEffect(() => {
+    const flags = wssCutover.getStatus();
+    const statuses: Record<string, FeatureStatus> = {};
+    
+    for (const [feature, isWs] of Object.entries(flags)) {
+      statuses[feature] = isWs ? 'ws' : 'rest';
+    }
+    
+    setFeatureStatuses(statuses as any);
+    console.log(wssCutover.getSummary());
+  }, []);
+
+  // Monitor all message types and update count
   useWebSocketMessage('heartbeat', () => {
     setMessageCount((c) => c + 1);
     setLastMessageTime(new Date().toLocaleTimeString());
   });
 
-  // Monitor market status (log only, no state update)
-  useWebSocketMessage('market_status', () => {});
-
-  // Monitor intraday bars (log only, no state update)
+  useWebSocketMessage('account_balance', () => {});
+  useWebSocketMessage('positions', () => {});
   useWebSocketMessage('intraday_bar', () => {});
-
-  // Monitor quotes (log only, no state update)
-  useWebSocketMessage('quote_tick', () => {});
-
-  // Monitor VWAP (log only, no state update)
+  useWebSocketMessage('market_status', () => {});
   useWebSocketMessage('vwap_update', () => {});
-
-  // Monitor 24h updates (log only, no state update)
   useWebSocketMessage('twenty_four_hour', () => {});
-
-  // Monitor errors
   useWebSocketMessage('error_message', () => {});
 
   useEffect(() => {
@@ -46,29 +59,82 @@ export function WebSocketShadowMonitor() {
     }
   }, [connected]);
 
+  const getFeatureColor = (status: FeatureStatus): string => {
+    switch (status) {
+      case 'ws':
+        return '#10b981'; // Green - using WebSocket
+      case 'rest':
+        return '#9ca3af'; // Gray - using REST (shadow mode)
+      case 'both':
+        return '#f59e0b'; // Orange - transitioning
+      default:
+        return '#6b7280';
+    }
+  };
+
+  const getFeatureLabel = (status: FeatureStatus): string => {
+    switch (status) {
+      case 'ws':
+        return '✅';
+      case 'rest':
+        return '⚪';
+      case 'both':
+        return '⚡';
+      default:
+        return '?';
+    }
+  };
+
   return (
     <div
       style={{
         position: 'fixed',
         bottom: 10,
         right: 10,
-        padding: '10px 15px',
-        backgroundColor: connected ? '#10b981' : '#ef4444',
-        color: 'white',
-        borderRadius: '4px',
+        padding: '12px 16px',
+        backgroundColor: '#1f2937',
+        color: '#f3f4f6',
+        borderRadius: '6px',
         fontSize: '12px',
         fontFamily: 'monospace',
         zIndex: 9999,
-        maxWidth: '250px',
+        maxWidth: '280px',
+        border: `2px solid ${connected ? '#10b981' : '#ef4444'}`,
       }}
-      title="WebSocket Shadow Mode Monitor - Check console for message logs"
+      title="WebSocket Cutover Monitor - Check console for message logs"
     >
-      <div style={{ fontWeight: 'bold' }}>🔌 WS Shadow Mode</div>
-      <div>Status: {connected ? '✅ Connected' : '❌ Disconnected'}</div>
-      <div>Messages: {messageCount}</div>
-      <div>Last: {lastMessageTime}</div>
-      <div style={{ fontSize: '10px', marginTop: '5px', opacity: 0.8 }}>
-        Open DevTools (F12) → Console to see message logs
+      <div style={{ fontWeight: 'bold', marginBottom: '8px' }}>
+        🔌 WS Cutover Status
+      </div>
+      
+      <div style={{ marginBottom: '8px' }}>
+        Connection: {connected ? '✅ Connected' : '❌ Disconnected'}
+      </div>
+
+      <div style={{ marginBottom: '8px', fontSize: '11px' }}>
+        <div style={{ marginBottom: '4px', fontWeight: 'bold', color: '#d1d5db' }}>
+          Features:
+        </div>
+        {Object.entries(featureStatuses).map(([feature, status]) => (
+          <div
+            key={feature}
+            style={{
+              marginBottom: '2px',
+              paddingLeft: '8px',
+              borderLeft: `3px solid ${getFeatureColor(status)}`,
+            }}
+          >
+            {getFeatureLabel(status)} {feature}
+          </div>
+        ))}
+      </div>
+
+      <div style={{ fontSize: '10px', color: '#9ca3af', marginTop: '8px' }}>
+        Messages: {messageCount} | Last: {lastMessageTime}
+      </div>
+
+      <div style={{ fontSize: '9px', color: '#6b7280', marginTop: '6px' }}>
+        ✅ = WS | ⚪ = REST | ⚡ = Transitioning
       </div>
     </div>
   );

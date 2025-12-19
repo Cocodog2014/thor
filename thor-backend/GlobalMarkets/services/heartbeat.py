@@ -7,7 +7,6 @@ Uses JobRegistry from core/infra/jobs.py (single source of truth).
 """
 from __future__ import annotations
 
-import asyncio
 import logging
 import threading
 import time
@@ -32,6 +31,7 @@ def run_heartbeat(
     tick_seconds_fn: Callable[[HeartbeatContext], float] | None = None,
     ctx: HeartbeatContext | None = None,
     channel_layer: Any | None = None,
+    leader_lock: Any | None = None,
 ) -> None:
     """Run a simple blocking heartbeat loop.
 
@@ -40,16 +40,15 @@ def run_heartbeat(
         tick_seconds: Default tick interval in seconds.
         tick_seconds_fn: Optional callable to dynamically select tick per iteration.
         ctx: Optional HeartbeatContext; will be created if not provided.
-        leader_lock: Optional LeaderLock to renew each tick (for multi-worker safety).
         channel_layer: Optional Channels layer for WebSocket broadcasting (shadow mode).
+        leader_lock: Optional leader lock with renew_if_due() for multi-worker safety.
 
     The caller is responsible for ensuring single-instance execution
     (e.g., Django autoreloader guard or external leader lock).
     """
-
     logger = (ctx.logger if ctx else None) or logging.getLogger("heartbeat")
     context = ctx or HeartbeatContext(logger=logger, shared_state={})
-    
+
     # Add channel layer to context if provided
     if channel_layer and not context.channel_layer:
         context.channel_layer = channel_layer
@@ -57,10 +56,10 @@ def run_heartbeat(
     logger.info("heartbeat starting (tick=%.2fs)", tick_seconds)
     current_tick = tick_seconds
     tick_count = 0
-    
+
     while True:
         tick_count += 1
-        
+
         # Renew leader lock if provided (must be same thread that acquired it)
         if leader_lock and hasattr(leader_lock, "renew_if_due"):
             if not leader_lock.renew_if_due():
@@ -78,49 +77,36 @@ def run_heartbeat(
             try:
                 current_tick = float(tick_seconds_fn(context))
             except Exception:
-                logger.exception("tick_seconds_fn failed; keeping previous tick=%.2f", current_tick)
+                logger.exception(
+                    "tick_seconds_fn failed; keeping previous tick=%.2f", current_tick
+                )
         if current_tick <= 0:
-            logger.warning("invalid tick %.3f; falling back to default %.2f", current_tick, tick_seconds)
+            logger.warning(
+                "invalid tick %.3f; falling back to default %.2f",
+                current_tick,
+                tick_seconds,
+            )
             current_tick = tick_seconds
 
         # Periodic heartbeat alive message (low noise)
         if tick_count % 30 == 0:
             logger.info("💓 Heartbeat alive (tick=%s, tick_seconds=%s)", tick_count, current_tick)
-            
+
             # Broadcast heartbeat to WebSocket clients (shadow mode)
             if context.channel_layer:
                 try:
-                    _send_websocket_message(context.channel_layer, {
-                        "type": "heartbeat",
-                        "data": {
+                    from api.websocket.broadcast import broadcast_to_websocket_sync
+
+                    broadcast_to_websocket_sync(
+                        context.channel_layer,
+                        message_type="heartbeat",
+                        data={
                             "timestamp": time.time(),
-                            "heartbeat_count": tick_count
-                        }
-                    })
+                            "heartbeat_count": tick_count,
+                        },
+                    )
                 except Exception as e:
-                    logger.debug("WebSocket heartbeat broadcast failed: %s", e
-            logger.info("💓 Heartbeat alive (tick=%s, tick_seconds=%s)", tick_count, current_tick)
+                    logger.debug("WebSocket heartbeat broadcast failed: %s", e)
 
         # Use monotonic sleep to avoid drift.
         time.sleep(current_tick)
-
-
-def _send_websocket_message(channel_layer: Any, message: dict[str, Any]) -> None:
-    """Send a message to WebSocket clients via channel layer (shadow mode).
-    
-    Runs async group_send in a new event loop on the current thread.
-    Errors are caught and logged (non-blocking).
-    """
-    try:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        loop.run_until_complete(
-            channel_layer.group_send("market_data", message)
-        )
-    except Exception:
-        pass  # Silently fail - don't block heartbeat for WS issues
-    finally:
-        try:
-            loop.close()
-        except Exception:
-            pass

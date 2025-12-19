@@ -5,6 +5,13 @@ It exposes the ASGI callable as a module-level variable named ``application``.
 
 For more information on this file, see
 https://docs.djangoproject.com/en/5.2/howto/deployment/asgi/
+
+WebSocket Server:
+- Runs on ws://localhost:8000/ws/
+- Message types: heartbeat, account_balance, positions, intraday_bar, market_status, vwap_update, etc.
+- Uses Redis channel layer for group broadcasting
+- Non-blocking broadcasts ensure heartbeat never stalls
+- Check console for shadow mode logs (all messages logged regardless of feature flag)
 """
 
 import os
