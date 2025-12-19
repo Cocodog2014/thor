@@ -4,24 +4,19 @@ import marketsService from '../../services/markets';
 import { useGlobalTimer } from '../../context/GlobalTimerContext';
 import './GlobalMarkets.css';
 
-const DEFAULT_REFRESH_TICKS = 1; // every second
-const MAX_BACKOFF_TICKS = 60; // cap retry window to 60 seconds
-
 const GlobalMarkets: React.FC = () => {
-  const { tick, now, marketStatus, statusError } = useGlobalTimer();
+  const { now, marketStatus, statusError } = useGlobalTimer();
 
   const [markets, setMarkets] = useState<Market[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdate, setLastUpdate] = useState(new Date());
   const [isStale, setIsStale] = useState(false);
-  const [nextFetchTick, setNextFetchTick] = useState(0);
 
-  const backoffRef = useRef(DEFAULT_REFRESH_TICKS);
   const bootstrapRef = useRef(false);
   const inFlightRef = useRef(false);
 
-  const fetchMarkets = useCallback(async (reason: 'initial' | 'timer', currentTick: number) => {
+  const fetchMarkets = useCallback(async (reason: 'initial') => {
     if (inFlightRef.current) {
       return;
     }
@@ -39,37 +34,28 @@ const GlobalMarkets: React.FC = () => {
       setLastUpdate(new Date());
       setError(null);
       setIsStale(false);
-      backoffRef.current = DEFAULT_REFRESH_TICKS;
     } catch (err) {
-      console.error('[GlobalMarkets] fetch failed, backing off', err);
-      backoffRef.current = Math.min(backoffRef.current * 2, MAX_BACKOFF_TICKS);
-      setError(`Lost connection to global markets (retrying in ${backoffRef.current}s)`);
+      console.error('[GlobalMarkets] fetch failed', err);
+      setError('Lost connection to global markets');
       setIsStale(true);
     } finally {
       bootstrapRef.current = true;
       setLoading(false);
       inFlightRef.current = false;
-      setNextFetchTick(currentTick + backoffRef.current);
     }
   }, []);
 
   useEffect(() => {
-    fetchMarkets('initial', 0);
+    fetchMarkets('initial');
   }, [fetchMarkets]);
 
-  useEffect(() => {
-    if (!bootstrapRef.current) return;
-    if (tick === 0) return;
-    if (tick < nextFetchTick) return;
-    fetchMarkets('timer', tick);
-  }, [tick, nextFetchTick, fetchMarkets]);
+  // This data is relatively static; it is loaded once on mount. Live updates should come via WebSocket.
 
   if (loading) {
     return (
       <div className="timezone-container">
         <div className="markets-table-container">
           <div className="markets-table-header">
-            
             <div className="last-update">Loading…</div>
           </div>
           <div className="market-loading">Loading market data...</div>
