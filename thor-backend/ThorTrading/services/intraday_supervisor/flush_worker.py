@@ -3,6 +3,7 @@ from datetime import datetime, timezone as dt_timezone
 from typing import List, Tuple
 
 from django.db import transaction
+from django.utils import timezone
 from LiveData.shared.redis_client import live_data_redis
 from ThorTrading.models.Martket24h import FutureTrading24Hour
 from ThorTrading.models.MarketIntraDay import MarketIntraday
@@ -34,7 +35,14 @@ def _to_intraday_models(country: str, bars: List[dict], session_group: str | Non
 
     for b in bars:
         try:
-            ts = datetime.fromtimestamp(int(b["t"]), tz=dt_timezone.utc)
+            raw_ts = b.get("t")
+            if raw_ts is None:
+                logger.warning("Skipping bar with no timestamp for %s: %s", country, b)
+                continue
+
+            ts = datetime.fromtimestamp(int(raw_ts), tz=dt_timezone.utc)
+            if timezone.is_naive(ts):
+                ts = timezone.make_aware(ts, timezone=dt_timezone.utc)
             future = b.get("symbol") or b.get("future")
             if not future:
                 continue
