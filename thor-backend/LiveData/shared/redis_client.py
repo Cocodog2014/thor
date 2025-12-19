@@ -134,17 +134,20 @@ class LiveDataRedis:
         except Exception as e:
             logger.error(f"Failed to enqueue closed bar for {country}: {e}")
 
-    def dequeue_closed_bars(self, country: str, count: int = 500) -> list[dict]:
-        """Pop up to `count` closed bars for a country (FIFO) and decode JSON."""
+    def dequeue_closed_bars(self, country: str, count: int = 500) -> tuple[list[dict], int]:
+        """Pop up to `count` closed bars for a country (FIFO), decode JSON, return (bars, queue_left)."""
         key = f"q:bars:1m:{country}".lower()
         try:
-            items = self.client.lpop(key, count)  # Redis 6.2+ supports count
+            pipe = self.client.pipeline()
+            pipe.lpop(key, count)
+            pipe.llen(key)
+            items, queue_left = pipe.execute()
         except Exception as e:
             logger.error(f"Failed to dequeue closed bars for {country}: {e}")
-            return []
+            return [], 0
 
         if not items:
-            return []
+            return [], int(queue_left or 0)
 
         decoded = []
         for item in items:
@@ -152,7 +155,7 @@ class LiveDataRedis:
                 decoded.append(json.loads(item))
             except Exception:
                 logger.warning("Failed to decode closed bar payload for %s: %s", country, item)
-        return decoded
+        return decoded, int(queue_left or 0)
 
     # --- Snapshot (latest) helpers ---
     LATEST_QUOTES_HASH = "live_data:latest:quotes"

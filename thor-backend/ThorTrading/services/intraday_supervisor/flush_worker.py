@@ -14,8 +14,7 @@ logger = logging.getLogger(__name__)
 
 
 def _pop_closed_bars(country: str, batch_size: int = 500) -> Tuple[List[dict], int]:
-    bars = live_data_redis.dequeue_closed_bars(country, count=batch_size)
-    queue_left = 0
+    bars, queue_left = live_data_redis.dequeue_closed_bars(country, count=batch_size)
     return bars, queue_left
 
 
