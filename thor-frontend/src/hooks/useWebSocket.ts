@@ -13,6 +13,7 @@ import { getWebSocketManager, BackendMessage, MessageHandler } from '../services
  * @param messageType - The type of message to listen for (e.g., 'market_status', 'intraday_bar')
  * @param handler - Callback function to handle the message
  * @param enabled - Whether to enable the listener (default: true)
+ * @param logToConsole - Log message to console (shadow mode, default: true)
  *
  * @example
  * useWebSocketMessage('market_status', (msg) => {
@@ -22,7 +23,8 @@ import { getWebSocketManager, BackendMessage, MessageHandler } from '../services
 export function useWebSocketMessage(
   messageType: string,
   handler: MessageHandler,
-  enabled = true
+  enabled = true,
+  logToConsole = true
 ): void {
   const wsManager = useRef(getWebSocketManager());
   const handlerRef = useRef(handler);
@@ -36,7 +38,13 @@ export function useWebSocketMessage(
     if (!enabled) return;
 
     const ws = wsManager.current;
-    const wrappedHandler = (msg: BackendMessage) => handlerRef.current(msg);
+    const wrappedHandler = (msg: BackendMessage) => {
+      // Shadow mode: log to console
+      if (logToConsole) {
+        console.log(`[WS] ${messageType}:`, msg);
+      }
+      handlerRef.current(msg);
+    };
 
     // Subscribe
     const unsubscribe = ws.on(messageType, wrappedHandler);
@@ -45,7 +53,7 @@ export function useWebSocketMessage(
     return () => {
       unsubscribe();
     };
-  }, [messageType, enabled]);
+  }, [messageType, enabled, logToConsole]);
 }
 
 /**

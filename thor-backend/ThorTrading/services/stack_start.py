@@ -99,10 +99,19 @@ def start_thor_background_stack(force: bool = False):
             return 1.0 if has_active_markets() else 120.0
 
         try:
+            # Get channel layer for WebSocket broadcasting (shadow mode)
+            from channels.layers import get_channel_layer
+            channel_layer = get_channel_layer()
+            
             logger.info("💓 Heartbeat starting (single scheduler)...")
             # run_heartbeat loops forever and renews lock each tick (if lock is enabled)
             # Only exits on stop_event, lock renewal failure, or unrecoverable error
-            run_heartbeat(registry=registry, tick_seconds_fn=tick_seconds_fn, leader_lock=lock)
+            run_heartbeat(
+                registry=registry,
+                tick_seconds_fn=tick_seconds_fn,
+                leader_lock=lock,
+                channel_layer=channel_layer  # Shadow mode: broadcast to WebSocket clients
+            )
             
             # If we reach here, it's an abnormal exit (shouldn't happen)
             logger.error("⚠️ Heartbeat exited unexpectedly")
