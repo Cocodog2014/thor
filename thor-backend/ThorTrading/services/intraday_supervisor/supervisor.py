@@ -191,6 +191,10 @@ class IntradayMarketSupervisor:
             logger.exception("Intraday step_once failed to load markets")
             return
 
+        # Skip if no markets are currently open
+        if not open_markets.exists():
+            return
+
         for market in open_markets:
             try:
                 self._process_market_tick(market)
