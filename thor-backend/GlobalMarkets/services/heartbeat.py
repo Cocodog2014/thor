@@ -9,7 +9,7 @@ import logging
 import threading
 import time
 from dataclasses import dataclass
-from typing import Any, Iterable, Protocol
+from typing import Any, Callable, Iterable, Protocol
 
 
 class Job(Protocol):
@@ -73,6 +73,7 @@ class JobRegistry:
 def run_heartbeat(
     registry: JobRegistry,
     tick_seconds: float = 1.0,
+    tick_seconds_fn: Callable[[HeartbeatContext], float] | None = None,
     ctx: HeartbeatContext | None = None,
 ) -> None:
     """Run a simple blocking heartbeat loop.
@@ -85,6 +86,7 @@ def run_heartbeat(
     context = ctx or HeartbeatContext(logger=logger, shared_state={})
 
     logger.info("heartbeat starting (tick=%.2fs)", tick_seconds)
+    current_tick = tick_seconds
     while True:
         now = time.monotonic()
         registry.run_pending(context, now)
@@ -93,5 +95,14 @@ def run_heartbeat(
             logger.info("heartbeat stopping on stop_event")
             break
 
+        if tick_seconds_fn:
+            try:
+                current_tick = float(tick_seconds_fn(context))
+            except Exception:
+                logger.exception("tick_seconds_fn failed; keeping previous tick=%.2f", current_tick)
+        if current_tick <= 0:
+            logger.warning("invalid tick %.3f; falling back to default %.2f", current_tick, tick_seconds)
+            current_tick = tick_seconds
+
         # Use monotonic sleep to avoid drift.
-        time.sleep(tick_seconds)
+        time.sleep(current_tick)
