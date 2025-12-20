@@ -84,6 +84,41 @@ const GlobalMarkets: React.FC = () => {
     setIsStale(false);
   });
 
+  // Fast per-market clock ticks so CURRENT TIME advances without waiting for status updates
+  useWebSocketMessage('global_markets_tick', (msg) => {
+    const data = (msg as { data?: { markets?: Array<{ market_id?: number; country?: string; current_time?: any }> } }).data;
+    const marketsPayload = data?.markets ?? [];
+    if (!marketsPayload.length) return;
+
+    setMarkets((prev) => {
+      let changed = false;
+      const byId = new Map<number, { current_time?: any }>();
+      for (const m of marketsPayload) {
+        if (m.market_id != null) byId.set(m.market_id, m);
+      }
+      if (!byId.size) return prev;
+
+      const next = prev.map((m) => {
+        const incoming = byId.get(m.id);
+        if (!incoming || !incoming.current_time) return m;
+        changed = true;
+        return {
+          ...m,
+          current_time: { ...m.current_time, ...incoming.current_time },
+          market_status: {
+            ...m.market_status,
+            current_time: incoming.current_time.timestamp ?? m.market_status.current_time,
+          },
+        } as Market;
+      });
+
+      return changed ? next : prev;
+    });
+
+    setLastUpdate(new Date());
+    setIsStale(false);
+  });
+
   // This data is relatively static; it is loaded once on mount. WebSocket pushes keep it fresh.
 
   if (loading) {

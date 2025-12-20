@@ -9,6 +9,11 @@ export interface MarketCurrentTime {
   datetime: string;
   utc_offset: string; // e.g., '+09:00'
   dst_active: boolean;
+  timestamp?: number; // seconds since epoch (optional)
+  formatted_12h?: string;
+  time?: string;
+  day_number?: number;
+  iso?: string;
 }
 
 export interface MarketStatus {
@@ -20,6 +25,7 @@ export interface MarketStatus {
   next_event?: 'open' | 'close';
   seconds_to_next_event?: number;
   is_holiday_today?: boolean;
+  current_time?: number | string | MarketCurrentTime;
 }
 
 export interface Market {

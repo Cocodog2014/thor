@@ -18,9 +18,17 @@ logger = logging.getLogger(__name__)
 
 def _build_payload(instance: Any, status_data: Dict[str, Any]) -> Dict[str, Any]:
     """Shape the payload to match frontend expectations."""
-    # Guarantee current_time so frontend clocks advance when WS updates arrive
+    # Guarantee current_time and ensure it is serializable
     if status_data is not None:
-        status_data.setdefault("current_time", None)
+        ct = status_data.get("current_time")
+        # Convert datetime payloads to float timestamp to satisfy channel serializer
+        if hasattr(ct, "timestamp"):
+            status_data["current_time"] = float(ct.timestamp())
+        elif isinstance(ct, dict) and hasattr(ct.get("datetime"), "timestamp"):
+            dt = ct.get("datetime")
+            status_data["current_time"] = float(dt.timestamp()) if dt else ct.get("timestamp")
+        else:
+            status_data.setdefault("current_time", None)
     return {
         "market_id": getattr(instance, "id", None),
         "id": getattr(instance, "id", None),
