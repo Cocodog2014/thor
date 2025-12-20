@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WebSocket Test</title>
+</head>
+<body>
+    <h1>WebSocket Test</h1>
+    <div id="status">Connecting...</div>
+    <div id="messages" style="margin-top: 20px; font-family: monospace; white-space: pre;"></div>
+    
+    <script>
+        const statusDiv = document.getElementById('status');
+        const messagesDiv = document.getElementById('messages');
+        
+        function log(msg) {
+            const timestamp = new Date().toLocaleTimeString();
+            messagesDiv.textContent = `[${timestamp}] ${msg}\n` + messagesDiv.textContent;
+        }
+        
+        const ws = new WebSocket("ws://127.0.0.1:8000/ws/");
+        
+        ws.onopen = () => {
+            statusDiv.textContent = "✅ Connected";
+            statusDiv.style.color = "green";
+            log("WebSocket connection opened");
+        };
+        
+        ws.onmessage = (event) => {
+            log(`📨 Received: ${event.data}`);
+        };
+        
+        ws.onerror = (error) => {
+            statusDiv.textContent = "❌ Error";
+            statusDiv.style.color = "red";
+            log(`❌ Error: ${error}`);
+        };
+        
+        ws.onclose = (event) => {
+            statusDiv.textContent = `🔴 Closed (code: ${event.code})`;
+            statusDiv.style.color = "orange";
+            log(`🔴 Connection closed (code: ${event.code}, reason: ${event.reason})`);
+        };
+    </script>
+</body>
+</html>

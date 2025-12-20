@@ -54,6 +54,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'channels',  # Django Channels for WebSocket support
     'rest_framework',
     'corsheaders',
     'django_filters',
@@ -261,6 +262,23 @@ REDIS_URL = config('REDIS_URL', default='redis://redis:6379/0')
 REDIS_HOST = config('REDIS_HOST', default='redis')
 REDIS_PORT = config('REDIS_PORT', default=6379, cast=int)
 REDIS_DB = config('REDIS_DB', default=0, cast=int)
+
+# ============================================================================
+# Django Channels Configuration (WebSocket support)
+# ============================================================================
+
+# Point Django to the ASGI application
+ASGI_APPLICATION = 'thor_project.asgi.application'
+
+# Configure Channels to use Redis as the channel layer backend
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [REDIS_URL],
+        },
+    },
+}
 
 
 # Frontend base URL exposed in admin shortcuts and cross-links

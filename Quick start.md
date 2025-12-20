@@ -237,13 +237,24 @@ Open three terminals (or PowerShell windows).
 1. cd A:\Thor\thor-backend
    python manage.py runserver 0.0.0.0:8000
 
+   # NOTE: With Channels configured, runserver now supports WebSockets!
+   # WebSocket endpoint: ws://127.0.0.1:8000/ws/
+
+1.a. Alternative: Use Daphne explicitly (optional, runserver now works)
+     python -m daphne -b 127.0.0.1 -p 8000 thor_project.asgi:application
+
 2. cd A:\Thor\thor-backend
+   python manage.py run_heartbeat
+   
+   # This runs the heartbeat timer that broadcasts WebSocket messages every 5 seconds
+
+3. cd A:\Thor\thor-backend
    python manage.py poll_tos_excel --interval 1
 
-3. cd A:\Thor\thor-frontend
+4. cd A:\Thor\thor-frontend
    npm run dev:local
 
-4. cd A:\Thor
+5. cd A:\Thor
     cloudflared tunnel run dev-thor
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 Production
