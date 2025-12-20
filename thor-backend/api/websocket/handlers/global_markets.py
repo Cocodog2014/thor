@@ -18,6 +18,9 @@ logger = logging.getLogger(__name__)
 
 def _build_payload(instance: Any, status_data: Dict[str, Any]) -> Dict[str, Any]:
     """Shape the payload to match frontend expectations."""
+    # Guarantee current_time so frontend clocks advance when WS updates arrive
+    if status_data is not None:
+        status_data.setdefault("current_time", None)
     return {
         "market_id": getattr(instance, "id", None),
         "id": getattr(instance, "id", None),

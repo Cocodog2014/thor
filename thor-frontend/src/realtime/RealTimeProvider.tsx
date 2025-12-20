@@ -30,6 +30,9 @@ export const RealTimeProvider: React.FC<RealTimeProviderProps> = ({ children }) 
         { topic: "balances", accountId: accountId ?? undefined, accountKey },
         { topic: "positions", accountId: accountId ?? undefined, accountKey },
         { topic: "activityToday", accountId: accountId ?? undefined, accountKey },
+        { topic: "globalMarkets" },
+        { topic: "marketStatus" },
+        { topic: "heartbeat" },
       ];
       ws.send(JSON.stringify({ action: "subscribe", subs }));
     };
@@ -56,18 +59,33 @@ export const RealTimeProvider: React.FC<RealTimeProviderProps> = ({ children }) 
             return qk.orders(accountKey);
           case "quotes":
             return qk.quotes(accountKey);
+          case "globalMarkets":
+            return qk.globalMarkets();
+          case "marketStatus":
+            return qk.marketStatus();
+          case "heartbeat":
+            return qk.heartbeat();
         }
+        return undefined;
       };
 
       if (msg.type === "snapshot") {
-        qc.setQueryData(keyFor(msg.topic), msg.payload);
+        const key = keyFor(msg.topic);
+        if (key) {
+          qc.setQueryData(key, msg.payload as unknown);
+        }
       } else if (msg.type === "patch") {
-        qc.setQueryData(keyFor(msg.topic), (prev: unknown) => {
-          if (msg.merge === "shallow" && prev && typeof prev === "object") {
-            return { ...(prev as Record<string, unknown>), ...msg.payload };
-          }
-          return msg.payload;
-        });
+        const key = keyFor(msg.topic);
+        if (key) {
+          qc.setQueryData(key, (prev: unknown) => {
+            if (msg.merge === "shallow" && prev && typeof prev === "object") {
+              return { ...(prev as Record<string, unknown>), ...(msg.payload as Record<string, unknown>) };
+            }
+            return msg.payload as unknown;
+          });
+        }
+      } else if (msg.type === "heartbeat") {
+        qc.setQueryData(qk.heartbeat(), msg.payload ?? { ts: msg.ts });
       }
     };
 

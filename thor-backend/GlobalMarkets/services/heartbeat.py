@@ -10,6 +10,7 @@ from __future__ import annotations
 import logging
 import threading
 import time
+from datetime import datetime, timezone
 from dataclasses import dataclass
 from typing import Any, Callable
 
@@ -88,8 +89,30 @@ def run_heartbeat(
             )
             current_tick = tick_seconds
 
-        # Broadcast to WebSocket clients every 5 ticks (~5 seconds)
-        if tick_count % 5 == 0:
+        # Broadcast heartbeat every tick (~1s default) with UTC time
+        if context.channel_layer:
+            try:
+                from api.websocket.broadcast import broadcast_to_websocket_sync
+                from api.websocket.messages import (
+                    build_account_balance_message,
+                    build_market_status_message,
+                )
+
+                now_ts = time.time()
+                heartbeat_msg = {
+                    "type": "heartbeat",
+                    "data": {
+                        "timestamp": now_ts,
+                        "utc_iso": datetime.now(timezone.utc).isoformat(),
+                        "stale_after_seconds": 5,
+                    },
+                }
+                broadcast_to_websocket_sync(context.channel_layer, heartbeat_msg)
+            except Exception as e:
+                logger.debug("WebSocket heartbeat broadcast failed: %s", e)
+
+        # Broadcast richer data every 5 ticks (~5 seconds)
+        if tick_count % 5 == 0 and context.channel_layer:
             if context.channel_layer:
                 try:
                     from api.websocket.broadcast import broadcast_to_websocket_sync
@@ -98,18 +121,7 @@ def run_heartbeat(
                         build_market_status_message,
                     )
                     
-                    # 1. Broadcast heartbeat
-                    heartbeat_msg = {
-                        "type": "heartbeat",
-                        "data": {
-                            "timestamp": time.time(),
-                            "heartbeat_count": tick_count,
-                            "server_time": time.strftime("%Y-%m-%d %H:%M:%S"),
-                        }
-                    }
-                    broadcast_to_websocket_sync(context.channel_layer, heartbeat_msg)
-                    
-                    # 2. Broadcast account balance (for TEST-001)
+                    # 1. Broadcast account balance (for TEST-001)
                     try:
                         from ActAndPos.models import Account
                         account = Account.objects.filter(account_id="TEST-001").first()
@@ -127,14 +139,17 @@ def run_heartbeat(
                     except Exception as e:
                         logger.debug("Account balance broadcast failed: %s", e)
                     
-                    # 3. Broadcast market status for active markets
+                    # 2. Broadcast market status and per-market clock tick for active markets
                     try:
                         from GlobalMarkets.models import Market
                         markets = Market.objects.filter(is_active=True)
+                        market_ticks = []
                         for market in markets:
                             try:
                                 status_data = market.get_market_status()
                                 if status_data:
+                                    # Ensure current_time is always present for frontend clocks
+                                    status_data.setdefault("current_time", time.time())
                                     market_data = {
                                         "market_id": market.id,
                                         "country": market.country,
@@ -144,8 +159,25 @@ def run_heartbeat(
                                     }
                                     market_msg = build_market_status_message(market_data)
                                     broadcast_to_websocket_sync(context.channel_layer, market_msg)
+
+                                    market_ticks.append({
+                                        "market_id": market.id,
+                                        "country": market.country,
+                                        "current_time": status_data.get("current_time"),
+                                    })
                             except Exception as e:
                                 logger.debug("Market status broadcast failed for %s: %s", market.country, e)
+
+                        # Broadcast consolidated per-market clock tick
+                        if market_ticks:
+                            tick_msg = {
+                                "type": "global_markets_tick",
+                                "data": {
+                                    "timestamp": time.time(),
+                                    "markets": market_ticks,
+                                },
+                            }
+                            broadcast_to_websocket_sync(context.channel_layer, tick_msg)
                     except Exception as e:
                         logger.debug("Market status broadcast failed: %s", e)
                         

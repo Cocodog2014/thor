@@ -127,6 +127,13 @@ class MarketDataConsumer(AsyncWebsocketConsumer):
             "type": "heartbeat",
             "data": event.get("data")
         }))
+
+    async def global_markets_tick(self, event):
+        """Broadcast consolidated per-market clock tick to client."""
+        await self.send(text_data=json.dumps({
+            "type": "global_markets_tick",
+            "data": event.get("data")
+        }))
     
     async def error_message(self, event):
         """Broadcast error message to client."""
