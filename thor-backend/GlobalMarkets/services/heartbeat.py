@@ -88,25 +88,73 @@ def run_heartbeat(
             )
             current_tick = tick_seconds
 
-        # Periodic heartbeat alive message (low noise)
-        if tick_count % 30 == 0:
-            logger.info("💓 Heartbeat alive (tick=%s, tick_seconds=%s)", tick_count, current_tick)
-
-            # Broadcast heartbeat to WebSocket clients (shadow mode)
+        # Broadcast to WebSocket clients every 5 ticks (~5 seconds)
+        if tick_count % 5 == 0:
             if context.channel_layer:
                 try:
                     from api.websocket.broadcast import broadcast_to_websocket_sync
-
-                    broadcast_to_websocket_sync(
-                        context.channel_layer,
-                        message_type="heartbeat",
-                        data={
+                    from api.websocket.messages import (
+                        build_account_balance_message,
+                        build_market_status_message,
+                    )
+                    
+                    # 1. Broadcast heartbeat
+                    heartbeat_msg = {
+                        "type": "heartbeat",
+                        "data": {
                             "timestamp": time.time(),
                             "heartbeat_count": tick_count,
-                        },
-                    )
+                            "server_time": time.strftime("%Y-%m-%d %H:%M:%S"),
+                        }
+                    }
+                    broadcast_to_websocket_sync(context.channel_layer, heartbeat_msg)
+                    
+                    # 2. Broadcast account balance (for TEST-001)
+                    try:
+                        from ActAndPos.models import Account
+                        account = Account.objects.filter(account_id="TEST-001").first()
+                        if account:
+                            balance_data = {
+                                "account_id": account.account_id,
+                                "cash": float(account.cash or 0),
+                                "portfolio_value": float(account.net_liq or 0),
+                                "buying_power": float(account.buying_power or 0),
+                                "equity": float(account.equity or 0),
+                                "timestamp": time.time(),
+                            }
+                            balance_msg = build_account_balance_message(balance_data)
+                            broadcast_to_websocket_sync(context.channel_layer, balance_msg)
+                    except Exception as e:
+                        logger.debug("Account balance broadcast failed: %s", e)
+                    
+                    # 3. Broadcast market status for active markets
+                    try:
+                        from GlobalMarkets.models import Market
+                        markets = Market.objects.filter(is_active=True)
+                        for market in markets:
+                            try:
+                                status_data = market.get_market_status()
+                                if status_data:
+                                    market_data = {
+                                        "market_id": market.id,
+                                        "country": market.country,
+                                        "status": market.status,
+                                        "market_status": status_data,
+                                        "current_time": status_data.get("current_time"),
+                                    }
+                                    market_msg = build_market_status_message(market_data)
+                                    broadcast_to_websocket_sync(context.channel_layer, market_msg)
+                            except Exception as e:
+                                logger.debug("Market status broadcast failed for %s: %s", market.country, e)
+                    except Exception as e:
+                        logger.debug("Market status broadcast failed: %s", e)
+                        
                 except Exception as e:
-                    logger.debug("WebSocket heartbeat broadcast failed: %s", e)
+                    logger.debug("WebSocket broadcast failed: %s", e)
+        
+        # Periodic heartbeat alive log (low noise - every 30 ticks)
+        if tick_count % 30 == 0:
+            logger.info("💓 Heartbeat alive (tick=%s, tick_seconds=%s)", tick_count, current_tick)
 
         # Use monotonic sleep to avoid drift.
         time.sleep(current_tick)

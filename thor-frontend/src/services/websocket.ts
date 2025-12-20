@@ -146,7 +146,7 @@ class WebSocketManager {
   private maxRetryDelay = 30000; // Cap at 30s
   private retryTimeoutId: ReturnType<typeof setTimeout> | null = null;
   private heartbeatTimeoutId: ReturnType<typeof setTimeout> | null = null;
-  private heartbeatTimeout = 5000; // 5s without heartbeat = dead
+  private heartbeatTimeout = 15000; // 15s without heartbeat = dead (broadcast every 5s)
   private messageQueue: string[] = [];
 
   constructor(config: WebSocketConfig = {}) {
