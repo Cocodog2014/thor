@@ -17,35 +17,15 @@ from thor_project.realtime.registry import register_jobs
 
 logger = logging.getLogger(__name__)
 
-# Global stop event shared across heartbeat thread and shutdown hooks
+# Global state for realtime thread and lock
 _stop_event = threading.Event()
-_heartbeat_thread: threading.Thread | None = None
-_hooks_registered = False
+_thread: threading.Thread | None = None
+_lock: LeaderLock | None = None
 
 
 def _truthy_env(name: str, default: str = "0") -> bool:
     value = os.environ.get(name, default)
     return str(value).lower() not in {"0", "false", "no", ""}
-
-
-def _register_shutdown_hooks():
-    global _hooks_registered
-    if _hooks_registered:
-        return
-
-    def _handle_signal(signum, frame):  # type: ignore[override]
-        logger.info("🛑 Realtime shutdown signal received (%s)", signum)
-        _stop_event.set()
-
-    for sig in (signal.SIGINT, signal.SIGTERM):
-        try:
-            signal.signal(sig, _handle_signal)
-        except (ValueError, OSError, RuntimeError):
-            # Some signals unavailable on Windows or in threaded contexts
-            continue
-
-    atexit.register(lambda: _stop_event.set())
-    _hooks_registered = True
 
 
 def start_realtime(force: bool = False) -> None:
@@ -78,10 +58,44 @@ def start_realtime(force: bool = False) -> None:
     os.environ.setdefault("HEARTBEAT_ENABLED", "1")
 
     logger.info("🚀 Starting realtime heartbeat stack now%s...", " (forced)" if force else "")
-    _register_shutdown_hooks()
+
+    def _request_shutdown(reason: str):
+        logger.info("🛑 Realtime shutdown requested (%s)", reason)
+        _stop_event.set()
+        _stop_thread()
+
+    def _stop_thread():
+        global _thread
+        if _thread and _thread.is_alive():
+            _thread.join(timeout=5)
+            if _thread.is_alive():
+                logger.warning("⚠️ Heartbeat thread did not exit within timeout")
+        _thread = None
+
+    def _install_shutdown_hooks_once():
+        if getattr(start_realtime, "_hooks_installed", False):
+            return
+        start_realtime._hooks_installed = True
+
+        atexit.register(lambda: _request_shutdown("atexit"))
+
+        def _handler(signum, frame):  # type: ignore[override]
+            _request_shutdown(f"signal {signum}")
+
+        try:
+            signal.signal(signal.SIGINT, _handler)
+            signal.signal(signal.SIGTERM, _handler)
+        except Exception:
+            # Some signals may not be available in all environments
+            pass
+
+    _install_shutdown_hooks_once()
 
     def _start_heartbeat():
         from channels.layers import get_channel_layer
+        from thor_project.realtime.engine import HeartbeatContext
+
+        global _lock
 
         disable_lock = os.environ.get("THOR_DISABLE_LEADER_LOCK", "0") == "1"
 
@@ -91,6 +105,7 @@ def start_realtime(force: bool = False) -> None:
             if not lock.acquire(blocking=False, timeout=0):
                 logger.info("🔒 Heartbeat skipped (leader lock held by another worker)")
                 return
+            _lock = lock
             logger.info("🔓 Heartbeat leader lock acquired")
         else:
             logger.info("🔓 Leader lock disabled (dev mode)")
@@ -106,7 +121,7 @@ def start_realtime(force: bool = False) -> None:
             channel_layer = get_channel_layer()
 
             ctx = HeartbeatContext(
-                logger=logger,
+                logger=logging.getLogger("heartbeat"),
                 shared_state={},
                 stop_event=_stop_event,
                 channel_layer=channel_layer,
@@ -120,24 +135,24 @@ def start_realtime(force: bool = False) -> None:
                 channel_layer=channel_layer,
                 ctx=ctx,
             )
-
-            logger.error("⚠️ Heartbeat exited unexpectedly")
+            logger.info("🛑 Heartbeat exited cleanly")
         except Exception:
             logger.exception("❌ Heartbeat crashed with unhandled exception")
         finally:
             if lock:
                 lock.release()
                 logger.info("🔓 Heartbeat leader lock released")
+            _lock = None
 
     try:
-        global _heartbeat_thread
+        global _thread
         t = threading.Thread(
             target=_start_heartbeat,
             name="ThorRealtimeHeartbeat",
-            daemon=True,
+            daemon=False,
         )
         t.start()
-        _heartbeat_thread = t
+        _thread = t
         logger.info("💓 Realtime heartbeat thread started.")
     except Exception:
         logger.exception("❌ Failed to start realtime heartbeat thread")
