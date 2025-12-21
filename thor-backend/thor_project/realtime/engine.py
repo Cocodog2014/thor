@@ -78,6 +78,19 @@ def run_heartbeat(
             broadcaster.broadcast_heartbeat_tick(context.channel_layer, logger)
             broadcaster.broadcast_market_clocks(context.channel_layer, logger)
 
+            # TEMP: log per-market clock to verify real-time updates
+            try:
+                from GlobalMarkets.models import Market
+                from GlobalMarkets.services.market_clock import get_market_time
+
+                markets = Market.objects.filter(is_active=True)
+                for market in markets:
+                    mt = get_market_time(market)
+                    if mt:
+                        logger.info("⏰ %s | %s", market.country, mt.get("formatted_24h"))
+            except Exception as exc:
+                logger.debug("Clock logging failed: %s", exc)
+
             # GlobalMarkets-only mode: skip account/status broadcasts for now
             # if tick_count % 5 == 0:
             #     broadcaster.broadcast_account_and_status(context.channel_layer, logger)

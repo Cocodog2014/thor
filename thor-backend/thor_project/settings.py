@@ -333,6 +333,16 @@ LOGGING = {
             'handlers': ['console'],
             'level': 'INFO',
         },
+        'thor_project': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'heartbeat': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
     },
 }
 
