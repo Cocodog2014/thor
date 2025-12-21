@@ -3,9 +3,14 @@ import { subscribe } from './router';
 import { connectSocket, disconnectSocket, sendMessage, onConnectionChange, isConnected } from './socket';
 import type { MessageHandler } from './types';
 
-export { connectSocket, disconnectSocket, sendMessage } from './socket';
+// Public API
 export { subscribe } from './router';
 export type { MessageHandler } from './types';
+
+// Optional convenience aliases
+export const connectWs = connectSocket;
+export const disconnectWs = disconnectSocket;
+export const sendWsMessage = sendMessage;
 
 export function useWsMessage(messageType: string, handler: MessageHandler, enabled = true): void {
   const handlerRef = useRef(handler);
@@ -32,4 +37,8 @@ export function useWsConnection(): boolean {
   }, []);
 
   return state;
+}
+
+export function getWsStatus() {
+  return { connected: isConnected() };
 }

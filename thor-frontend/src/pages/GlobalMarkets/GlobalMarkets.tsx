@@ -1,122 +1,10 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React from 'react';
 import type { Market } from '../../types';
-import marketsService from '../../services/markets';
-import { useWsMessage } from '../../realtime';
+import { useGlobalMarkets } from '../../features/globalMarkets/useGlobalMarkets';
 import './GlobalMarkets.css';
 
 const GlobalMarkets: React.FC = () => {
-  const [markets, setMarkets] = useState<Market[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [lastUpdate, setLastUpdate] = useState(new Date());
-  const [isStale, setIsStale] = useState(false);
-
-  const bootstrapRef = useRef(false);
-  const inFlightRef = useRef(false);
-
-  const fetchMarkets = useCallback(async (reason: 'initial') => {
-    if (inFlightRef.current) {
-      return;
-    }
-    inFlightRef.current = true;
-
-    if (!bootstrapRef.current) {
-      setLoading(true);
-    }
-
-    try {
-      console.debug(`[GlobalMarkets] fetching (${reason})`);
-      const data = await marketsService.getAll();
-      const sortedMarkets = data.results.sort((a, b) => a.sort_order - b.sort_order);
-      setMarkets(sortedMarkets);
-      setLastUpdate(new Date());
-      setError(null);
-      setIsStale(false);
-    } catch (err) {
-      console.error('[GlobalMarkets] fetch failed', err);
-      setError('Lost connection to global markets');
-      setIsStale(true);
-    } finally {
-      bootstrapRef.current = true;
-      setLoading(false);
-      inFlightRef.current = false;
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchMarkets('initial');
-  }, [fetchMarkets]);
-
-  // Live updates via WebSocket (market_status messages)
-  useWsMessage('market_status', (msg) => {
-    const payload = (msg as { data?: Partial<Market> & { market_id?: number; id?: number } }).data;
-    if (!payload) return;
-
-    const marketId = payload.market_id ?? payload.id;
-    if (!marketId) return;
-
-    setMarkets((prev) => {
-      const idx = prev.findIndex((m) => m.id === marketId);
-      if (idx === -1) return prev;
-
-      const next = [...prev];
-      const current = next[idx];
-
-      next[idx] = {
-        ...current,
-        status: payload.status ?? current.status,
-        market_status: {
-          ...current.market_status,
-          ...(payload.market_status ?? {}),
-        },
-        current_time: payload.current_time
-          ? { ...current.current_time, ...payload.current_time }
-          : current.current_time,
-      } as Market;
-
-      return next;
-    });
-
-    setLastUpdate(new Date());
-    setIsStale(false);
-  });
-
-  // Fast per-market clock ticks so CURRENT TIME advances without waiting for status updates
-  useWsMessage('global_markets_tick', (msg) => {
-    const data = (msg as { data?: { markets?: Array<{ market_id?: number; country?: string; current_time?: any }> } }).data;
-    const marketsPayload = data?.markets ?? [];
-    if (!marketsPayload.length) return;
-
-    setMarkets((prev) => {
-      let changed = false;
-      const byId = new Map<number, { current_time?: any }>();
-      for (const m of marketsPayload) {
-        if (m.market_id != null) byId.set(m.market_id, m);
-      }
-      if (!byId.size) return prev;
-
-      const next = prev.map((m) => {
-        const incoming = byId.get(m.id);
-        if (!incoming || !incoming.current_time) return m;
-        changed = true;
-        return {
-          ...m,
-          current_time: { ...m.current_time, ...incoming.current_time },
-          market_status: {
-            ...m.market_status,
-            current_time: incoming.current_time.timestamp ?? m.market_status.current_time,
-          },
-        } as Market;
-      });
-
-      return changed ? next : prev;
-    });
-
-    setLastUpdate(new Date());
-    setIsStale(false);
-  });
-
-  // This data is relatively static; it is loaded once on mount. WebSocket pushes keep it fresh.
+  const { markets, loading, error, lastUpdate, isStale } = useGlobalMarkets();
 
   if (loading) {
     return (
@@ -178,6 +66,9 @@ const GlobalMarkets: React.FC = () => {
 
   const now = lastUpdate ?? new Date();
 
+  const activeCount = markets.filter((m) => m.market_status?.current_state === 'OPEN').length;
+  const totalCount = markets.length;
+
   return (
     <div className="timezone-container">
       {error && <div className="error-message">⚠️ {error}</div>}
@@ -204,20 +95,9 @@ const GlobalMarkets: React.FC = () => {
             })}
           </div>
           <div className="markets-table-status">
-            {marketStatus ? (
-              <>
-                <span>
-                  Active: {marketStatus.activeMarkets}/{marketStatus.totalMarkets}
-                </span>
-                {marketStatus.currentlyTrading.length > 0 && (
-                  <span className="currently-trading">
-                    Trading now: {marketStatus.currentlyTrading.slice(0, 3).join(', ')}
-                  </span>
-                )}
-              </>
-            ) : (
-              <span>Syncing market status…</span>
-            )}
+            <span>
+              Active: {activeCount}/{totalCount}
+            </span>
           </div>
         </div>
         <table className="markets-table">

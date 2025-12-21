@@ -27,3 +27,8 @@ export function dispatch(message: WsMessage): void {
     allHandlers.forEach((fn) => fn(message));
   }
 }
+
+// Alias for clarity with requested API shape
+export function emit(type: string, message: WsMessage): void {
+  dispatch({ ...message, type });
+}
