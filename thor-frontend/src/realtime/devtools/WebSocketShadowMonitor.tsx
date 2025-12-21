@@ -1,14 +1,14 @@
 /**
  * Shadow Mode Monitor - WebSocket Testing
- * 
+ *
  * Shows phased cutover status:
  * - Green features = using WebSocket
  * - Gray features = still using REST (shadow mode logs)
  */
 
 import { useEffect, useState } from 'react';
-import { useWsConnection, useWsMessage } from '../realtime';
-import type { WsMessage } from '../realtime/types';
+import { useWsConnection, useWsMessage } from '..';
+import type { WsMessage } from '../types';
 
 export function WebSocketShadowMonitor() {
   const connected = useWsConnection();
