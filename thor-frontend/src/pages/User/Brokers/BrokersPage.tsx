@@ -77,8 +77,6 @@ export default function BrokersPage() {
 
     setNotice("Schwab connection updated. Refreshing data…");
     load();
-    const timeout = setTimeout(() => setNotice(null), 4000);
-    return () => clearTimeout(timeout);
   }, [justConnected, load]);
 
   const statusText = loading

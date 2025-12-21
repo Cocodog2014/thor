@@ -71,13 +71,7 @@ const FooterRibbon: React.FC = () => {
       setError(lastErr instanceof Error ? lastErr.message : 'Unknown error');
     };
 
-    // Fetch immediately
     fetchRibbonData();
-
-    // Poll every 2 seconds
-    const interval = setInterval(fetchRibbonData, 2000);
-
-    return () => clearInterval(interval);
   }, [ribbonUrls]);
 
   const extendedRibbonData = useMemo(() => {

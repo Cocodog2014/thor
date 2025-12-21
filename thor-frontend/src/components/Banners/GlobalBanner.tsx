@@ -8,7 +8,6 @@ import TopRow from './TopRow';
 import BalanceRow from './BalanceRow';
 import TabsRow from './TabsRow';
 import SchwabHealthCard from './SchwabHealthCard';
-import { useGlobalTimer } from '../../context/GlobalTimerContext';
 import { useAuth } from '../../context/AuthContext';
 import { useSelectedAccount } from '../../context/SelectedAccountContext';
 import { useAccountBalance } from '../../hooks/useAccountBalance';
@@ -21,14 +20,13 @@ type UserProfile = {
 const GlobalBanner: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { now } = useGlobalTimer();
   const { token } = useAuth();
   const { accountId, setAccountId } = useSelectedAccount();
   const { data: balance, isFetching: balanceLoading } = useAccountBalance(accountId);
 
   const [connectionStatus, setConnectionStatus] =
     useState<'connected' | 'disconnected'>('disconnected');
-  const [lastUpdate, setLastUpdate] = useState<string | null>(null);
+  const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
 
   // Accounts + selected account for the dropdown
   const [accounts, setAccounts] = useState<AccountSummary[]>([]);
@@ -58,7 +56,7 @@ const GlobalBanner: React.FC = () => {
 
         if (hasLiveData) {
           setConnectionStatus('connected');
-          setLastUpdate(new Date().toLocaleTimeString());
+          setLastUpdate(new Date());
         } else {
           setConnectionStatus('disconnected');
         }
@@ -70,11 +68,9 @@ const GlobalBanner: React.FC = () => {
     };
 
     checkConnection();
-    const interval = setInterval(checkConnection, 5000);
 
     return () => {
       isMounted = false;
-      clearInterval(interval);
     };
   }, []);
 
@@ -100,11 +96,9 @@ const GlobalBanner: React.FC = () => {
     };
 
     fetchHealth();
-    const interval = setInterval(fetchHealth, 15000);
 
     return () => {
       isMounted = false;
-      clearInterval(interval);
     };
   }, []);
 
@@ -182,14 +176,8 @@ const GlobalBanner: React.FC = () => {
 
   const isConnected = connectionStatus === 'connected';
   const connectionLabel = isConnected ? 'Connected' : 'Disconnected';
-  const realtimeClock = now.toLocaleTimeString('en-US', {
-    hour12: false,
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-  });
   const connectionDetails = isConnected
-    ? `Realtime data · ${realtimeClock}${lastUpdate ? ` (last feed ${lastUpdate})` : ''}`
+    ? `Realtime data${lastUpdate ? ` · last feed ${lastUpdate.toLocaleTimeString('en-US')}` : ''}`
     : 'Waiting for live feed';
 
   // Parent (top) tabs

@@ -48,10 +48,9 @@ export const useMarketSessions = (apiUrl?: string): UseMarketSessionsResult => {
     return init;
   });
 
-  // Main sessions + live status polling
+  // Main sessions + live status fetch (single run)
   useEffect(() => {
     let cancelled = false;
-    let running = false;
 
     async function loadSessions() {
       try {
@@ -106,25 +105,13 @@ export const useMarketSessions = (apiUrl?: string): UseMarketSessionsResult => {
       }
     }
 
-    async function tick() {
-      if (running) return;
-      running = true;
-      try {
-        await Promise.all([loadSessions(), loadLiveStatus()]);
-      } finally {
-        running = false;
-      }
-    }
-
-    tick();
-    const id = setInterval(tick, 1000);
+    Promise.all([loadSessions(), loadLiveStatus()]);
     return () => {
       cancelled = true;
-      clearInterval(id);
     };
   }, [resolvedApiUrl, resolvedLiveStatusUrl]);
 
-  // Intraday health polling (lag vs now)
+  // Intraday health fetch (single run)
   useEffect(() => {
     let cancelled = false;
 
@@ -158,14 +145,12 @@ export const useMarketSessions = (apiUrl?: string): UseMarketSessionsResult => {
     }
 
     loadHealth();
-    const id = setInterval(loadHealth, 5000);
     return () => {
       cancelled = true;
-      clearInterval(id);
     };
   }, [resolvedIntradayHealthUrl]);
 
-  // Intraday polling per card / future (excluding TOTAL)
+  // Intraday fetch per card / future (excluding TOTAL)
   useEffect(() => {
     let cancelled = false;
 
@@ -196,11 +181,9 @@ export const useMarketSessions = (apiUrl?: string): UseMarketSessionsResult => {
       if (!cancelled) setIntradayLatest((prev) => ({ ...prev, ...updates }));
     }
 
-    const id = setInterval(loadIntraday, 1000);
     loadIntraday();
     return () => {
       cancelled = true;
-      clearInterval(id);
     };
   }, [selected, sessionApiUrl]);
 

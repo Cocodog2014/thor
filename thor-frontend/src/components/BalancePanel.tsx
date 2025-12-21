@@ -5,7 +5,7 @@ export default function BalancePanel({
 }: {
   accountId?: string | null;
 }) {
-  const { data, isLoading, isError } = useAccountBalance(accountId, 1000);
+  const { data, isLoading, isError } = useAccountBalance(accountId);
 
   if (isLoading) return <div className="panel">Loading balance…</div>;
   if (isError || !data) return <div className="panel error">No balance data</div>;

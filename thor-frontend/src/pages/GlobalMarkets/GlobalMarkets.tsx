@@ -1,13 +1,10 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import type { Market } from '../../types';
 import marketsService from '../../services/markets';
-import { useGlobalTimer } from '../../context/GlobalTimerContext';
 import { useWebSocketMessage } from '../../hooks/useWebSocket';
 import './GlobalMarkets.css';
 
 const GlobalMarkets: React.FC = () => {
-  const { now, marketStatus, statusError } = useGlobalTimer();
-
   const [markets, setMarkets] = useState<Market[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -179,10 +176,11 @@ const GlobalMarkets: React.FC = () => {
     return m.market_close_time;
   };
 
+  const now = lastUpdate ?? new Date();
+
   return (
     <div className="timezone-container">
       {error && <div className="error-message">⚠️ {error}</div>}
-      {statusError && <div className="error-message">⚠️ {statusError}</div>}
       <div className="markets-table-container">
         <div className="markets-table-header">
           <div className="last-update">

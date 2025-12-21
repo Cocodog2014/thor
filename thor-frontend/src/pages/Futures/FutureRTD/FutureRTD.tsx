@@ -23,8 +23,6 @@ const FUTURES_11 = [
   "ZB", // vol, dollar, 30Y
 ];
 
-const POLL_INTERVAL_MS = 1000;
-
 const normalizeSymbol = (symbol: string) => symbol.replace(/^\//, "").toUpperCase();
 
 // Helper to create an empty placeholder row for missing symbols
@@ -72,7 +70,7 @@ export default function FutureRTD({ onToggleMarketOpen, showMarketOpen }: Future
   const theme = useTheme();
 
   // ✅ Single source of truth for quotes
-  const { rows, total, loading, error, hasLoadedOnce } = useFuturesQuotes(POLL_INTERVAL_MS);
+  const { rows, total, loading, error, hasLoadedOnce } = useFuturesQuotes();
 
   const [routingPlan, setRoutingPlan] = useState<RoutingPlanResponse | null>(null);
   const [routingError, setRoutingError] = useState<string | null>(null);

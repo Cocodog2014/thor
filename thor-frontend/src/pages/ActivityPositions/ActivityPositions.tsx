@@ -160,7 +160,7 @@ const ActivityPositions: React.FC = () => {
       return payload;
     },
     enabled: !!accountId,
-    refetchInterval: 15000,
+    refetchInterval: false,
     staleTime: 0,
     refetchOnMount: "always",
   });

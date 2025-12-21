@@ -8,7 +8,6 @@ import App from './App.tsx'
 import theme from './theme'
 import './styles/global.css'
 import { AuthProvider } from './context/AuthContext'
-import { GlobalTimerProvider } from './context/GlobalTimerContext'
 import { SelectedAccountProvider } from './context/SelectedAccountContext'
 import { RealTimeProvider } from './realtime/RealTimeProvider'
 
@@ -35,9 +34,7 @@ createRoot(document.getElementById('root')!).render(
           <AuthProvider>
             <SelectedAccountProvider>
               <RealTimeProvider>
-                <GlobalTimerProvider>
-                  <App />
-                </GlobalTimerProvider>
+                <App />
               </RealTimeProvider>
             </SelectedAccountProvider>
           </AuthProvider>

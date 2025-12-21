@@ -1,7 +1,6 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import "./WarRoomBanner.css";
 
-const ROTATION_INTERVAL_MS = 2000;
 const ROTATING_LINES = [
   "You command your army of AI.",
   "Unleash your storm upon the world.",
@@ -10,19 +9,7 @@ const ROTATING_LINES = [
 ];
 
 const WarRoomBanner: React.FC = () => {
-  const [lineIndex, setLineIndex] = useState(0);
-  const [messageKey, setMessageKey] = useState(0);
-
-  useEffect(() => {
-    const id = window.setInterval(() => {
-      setLineIndex((prev) => (prev + 1) % ROTATING_LINES.length);
-      setMessageKey((prev) => prev + 1);
-    }, ROTATION_INTERVAL_MS);
-
-    return () => window.clearInterval(id);
-  }, []);
-
-  const currentLine = ROTATING_LINES[lineIndex];
+  const currentLine = ROTATING_LINES[0];
 
   return (
     <div className="war-banner">
@@ -30,7 +17,7 @@ const WarRoomBanner: React.FC = () => {
         <h1>⚡ THOR'S WAR ROOM ⚡</h1>
         <p className="banner-subtitle">Activating AI Battle System...</p>
         <div className="banner-rotator" aria-live="polite">
-          <span key={messageKey}>{currentLine}</span>
+          <span>{currentLine}</span>
         </div>
       </div>
     </div>

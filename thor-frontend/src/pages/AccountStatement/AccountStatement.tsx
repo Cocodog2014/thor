@@ -197,7 +197,7 @@ const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({
 
 const AccountStatements: React.FC = () => {
   const { accountId } = useSelectedAccount();
-  const { data: balance, isFetching: balanceLoading } = useAccountBalance(accountId, 5000);
+  const { data: balance, isFetching: balanceLoading } = useAccountBalance(accountId);
 
   // Date filters
   const [rangeMode, setRangeMode] = useState<'daysBack' | 'custom'>('daysBack');

@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useGlobalTimer } from "../../../../context/GlobalTimerContext";
 import type { ApiResponse, MarketData } from "../types";
 
 type RollingVwapResponse = {
@@ -15,21 +14,15 @@ type UseFuturesQuotesResult = {
   hasLoadedOnce: boolean;
 };
 
-export function useFuturesQuotes(pollMs: number): UseFuturesQuotesResult {
-  console.log("useFuturesQuotes mounted with poll", pollMs);
-
-  const { tick } = useGlobalTimer();
-  const pollEveryTicks = Math.max(1, Math.round(pollMs / 1000));
+export function useFuturesQuotes(): UseFuturesQuotesResult {
 
   const [rows, setRows] = useState<MarketData[]>([]);
   const [total, setTotal] = useState<ApiResponse["total"] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
-  const [nextFetchTick, setNextFetchTick] = useState(0);
   // Prevent state updates after unmount (handles React StrictMode double-mount in dev)
   const mountedRef = useRef(true);
-  const bootstrapRef = useRef(false);
   useEffect(() => {
     mountedRef.current = true;
     return () => {
@@ -37,7 +30,7 @@ export function useFuturesQuotes(pollMs: number): UseFuturesQuotesResult {
     };
   }, []);
 
-  const fetchQuotes = useCallback(async (reason: "initial" | "timer", currentTick: number) => {
+  const fetchQuotes = useCallback(async (reason: "initial" | "manual" = "initial") => {
 
     if (!hasLoadedOnce) {
       setLoading(true);
@@ -99,22 +92,13 @@ export function useFuturesQuotes(pollMs: number): UseFuturesQuotesResult {
       if (mountedRef.current) {
         setHasLoadedOnce(true);
         setLoading(false);
-        bootstrapRef.current = true;
-        setNextFetchTick(currentTick + pollEveryTicks);
       }
     }
-  }, [hasLoadedOnce, pollEveryTicks]);
+  }, [hasLoadedOnce]);
 
   useEffect(() => {
-    fetchQuotes("initial", 0);
+    fetchQuotes("initial");
   }, [fetchQuotes]);
-
-  useEffect(() => {
-    if (!bootstrapRef.current) return;
-    if (tick === 0) return;
-    if (tick < nextFetchTick) return;
-    fetchQuotes("timer", tick);
-  }, [fetchQuotes, nextFetchTick, tick]);
 
   return { rows, total, loading, error, hasLoadedOnce };
 }

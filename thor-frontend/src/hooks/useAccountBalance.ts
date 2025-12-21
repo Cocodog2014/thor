@@ -24,7 +24,7 @@ async function fetchAccountBalance(accountId?: string | null) {
   return res.data;
 }
 
-export function useAccountBalance(accountId?: string | null, refreshMs = 1000) {
+export function useAccountBalance(accountId?: string | null) {
   const accountKey = accountId ? `acct:${accountId}` : "acct:none";
   const [wsBalance, setWsBalance] = useState<AccountBalance | null>(null);
   const useWebSocket = wssCutover.isWebSocketEnabled('account_balance');
@@ -59,7 +59,7 @@ export function useAccountBalance(accountId?: string | null, refreshMs = 1000) {
   const query = useQuery({
     queryKey: qk.balances(accountKey),
     queryFn: () => fetchAccountBalance(accountId),
-    refetchInterval: useWebSocket ? false : refreshMs, // Disable polling if using WebSocket
+    refetchInterval: false,
     refetchOnWindowFocus: false,
     retry: 1,
     initialData: wsBalance || undefined,
