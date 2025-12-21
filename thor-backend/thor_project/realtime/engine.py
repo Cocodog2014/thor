@@ -77,10 +77,9 @@ def run_heartbeat(
             broadcaster.broadcast_heartbeat_tick(context.channel_layer, logger)
             broadcaster.broadcast_market_clocks(context.channel_layer, logger)
 
-        if tick_count % 5 == 0 and context.channel_layer:
-            from thor_project.realtime import broadcaster
-
-            broadcaster.broadcast_account_and_status(context.channel_layer, logger)
+            # GlobalMarkets-only mode: skip account/status broadcasts for now
+            # if tick_count % 5 == 0:
+            #     broadcaster.broadcast_account_and_status(context.channel_layer, logger)
 
         if tick_count % 30 == 0:
             logger.info("💓 Heartbeat alive (tick=%s, tick_seconds=%s)", tick_count, current_tick)
