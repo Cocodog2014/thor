@@ -80,19 +80,12 @@ def start_thor_background_stack(force: bool = False):
         else:
             logger.info("🔓 Leader lock disabled (dev mode)")
 
-        # Build registry once and register all jobs
+        # Build registry once (GlobalMarkets only for now)
         registry = JobRegistry()
-        register_all_jobs(registry)
-        
-        # Safer job list logging (handles JobEntry wrapper or direct jobs)
-        try:
-            job_names = [entry.job.name for entry in registry.jobs]
-        except (AttributeError, TypeError):
-            try:
-                job_names = [j.name for j in registry.jobs]
-            except Exception:
-                job_names = ["<unable to list jobs>"]
-        logger.info("✅ Jobs registered: %s", job_names)
+
+        # GLOBAL MARKETS FIRST: do not register the other Thor jobs yet
+        # register_all_jobs(registry)
+        logger.info("✅ Jobs registered: [] (global markets only mode)")
 
         def tick_seconds_fn(context):
             # GLOBAL MARKETS FIRST: always tick every second
