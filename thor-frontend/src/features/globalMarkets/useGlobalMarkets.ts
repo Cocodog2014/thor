@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Market } from '../../types';
 import marketsService from '../../services/markets';
 import { useWsMessage } from '../../realtime';
+import type { WsMessage } from '../../realtime/types';
 
 export function useGlobalMarkets() {
   const [markets, setMarkets] = useState<Market[]>([]);
@@ -43,8 +44,8 @@ export function useGlobalMarkets() {
     fetchMarkets();
   }, [fetchMarkets]);
 
-  useWsMessage('market_status', (msg) => {
-    const payload = (msg as { data?: Partial<Market> & { market_id?: number; id?: number } }).data;
+  useWsMessage('market_status', (msg: WsMessage) => {
+    const payload = (msg as WsMessage & { data?: Partial<Market> & { market_id?: number; id?: number; current_time?: Market['current_time'] } }).data;
     if (!payload) return;
 
     const marketId = payload.market_id ?? payload.id;
@@ -76,14 +77,15 @@ export function useGlobalMarkets() {
     setIsStale(false);
   });
 
-  useWsMessage('global_markets_tick', (msg) => {
-    const data = (msg as { data?: { markets?: Array<{ market_id?: number; current_time?: any }> } }).data;
+  useWsMessage('global_markets_tick', (msg: WsMessage) => {
+    type TickMarket = { market_id?: number; current_time?: Partial<NonNullable<Market['current_time']>> };
+    const data = (msg as WsMessage & { data?: { markets?: TickMarket[] } }).data;
     const marketsPayload = data?.markets ?? [];
     if (!marketsPayload.length) return;
 
     setMarkets((prev) => {
       let changed = false;
-      const byId = new Map<number, { current_time?: any }>();
+      const byId = new Map<number, TickMarket>();
       for (const m of marketsPayload) {
         if (m.market_id != null) byId.set(m.market_id, m);
       }

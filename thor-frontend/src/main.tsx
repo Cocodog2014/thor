@@ -9,7 +9,6 @@ import theme from './theme'
 import './styles/global.css'
 import { AuthProvider } from './context/AuthContext'
 import { SelectedAccountProvider } from './context/SelectedAccountContext'
-import { RealTimeProvider } from './realtime/RealTimeProvider'
 
 // Create a client
 const queryClient = new QueryClient({
@@ -33,9 +32,7 @@ createRoot(document.getElementById('root')!).render(
         <BrowserRouter>
           <AuthProvider>
             <SelectedAccountProvider>
-              <RealTimeProvider>
-                <App />
-              </RealTimeProvider>
+              <App />
             </SelectedAccountProvider>
           </AuthProvider>
         </BrowserRouter>
