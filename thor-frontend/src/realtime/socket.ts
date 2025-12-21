@@ -15,21 +15,25 @@ let shouldReconnect = true;
 const messageQueue: string[] = [];
 const connectionHandlers = new Set<ConnectionHandler>();
 
+function ensureTrailingSlash(url: string): string {
+  return url.endsWith('/') ? url : `${url}/`;
+}
+
 function resolveUrl(): string {
   const explicit = import.meta.env.VITE_WS_URL;
-  if (explicit) return explicit;
+  if (explicit) return ensureTrailingSlash(explicit);
 
   const protocol = typeof window !== 'undefined' && window.location.protocol === 'https:' ? 'wss' : 'ws';
   if (typeof window !== 'undefined') {
     const host = window.location.hostname;
     const port = window.location.port;
     if (host === 'localhost' || host === '127.0.0.1') {
-      return `${protocol}://localhost:8000/ws`;
+      return `${protocol}://localhost:8000/ws/`;
     }
     const base = `${host}${port ? `:${port}` : ''}`;
-    return `${protocol}://${base}/ws`;
+    return `${protocol}://${base}/ws/`;
   }
-  return `${protocol}://localhost:8000/ws`;
+  return `${protocol}://localhost:8000/ws/`;
 }
 
 function notifyConnection(state: boolean) {
