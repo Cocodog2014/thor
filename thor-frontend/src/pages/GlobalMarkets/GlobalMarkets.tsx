@@ -64,7 +64,18 @@ const GlobalMarkets: React.FC = () => {
     return m.market_close_time;
   };
 
-  const now = lastUpdate ?? new Date();
+  const now = new Date();
+
+  const formatUtcTime = (d: Date | null) =>
+    d
+      ? d.toLocaleTimeString('en-US', {
+          timeZone: 'UTC',
+          hour12: false,
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+        })
+      : '—';
 
   const activeCount = markets.filter((m) => m.market_status?.current_state === 'OPEN').length;
   const totalCount = markets.length;
@@ -79,20 +90,8 @@ const GlobalMarkets: React.FC = () => {
               {isStale ? '🟡' : '🟢'}
             </span>
             {' '}
-            UTC time: {now.toLocaleTimeString('en-US', {
-              timeZone: 'UTC',
-              hour12: false,
-              hour: '2-digit',
-              minute: '2-digit',
-              second: '2-digit'
-            })}
-            {' • '}Last update: {lastUpdate.toLocaleTimeString('en-US', {
-              timeZone: 'UTC',
-              hour12: false,
-              hour: '2-digit',
-              minute: '2-digit',
-              second: '2-digit'
-            })}
+            UTC time: {formatUtcTime(now)}
+            {' • '}Last update: {formatUtcTime(lastUpdate)}
           </div>
           <div className="markets-table-status">
             <span>
