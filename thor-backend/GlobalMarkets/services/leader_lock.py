@@ -5,6 +5,7 @@ import logging
 import time
 from typing import Optional
 
+from redis.exceptions import LockNotOwnedError
 from LiveData.shared.redis_client import live_data_redis
 
 logger = logging.getLogger(__name__)
@@ -73,7 +74,11 @@ class LeaderLock:
         if not self._acquired:
             return
         try:
-            self._lock.release()
+            # Guard against releases after TTL expiry or ownership loss
+            if self._lock and self._lock.owned():
+                self._lock.release()
+        except LockNotOwnedError:
+            logger.info("Leader lock already lost — skipping release")
         except Exception:
             logger.exception("Leader lock release failed for %s", self.key)
         finally:
