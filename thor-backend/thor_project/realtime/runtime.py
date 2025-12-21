@@ -78,8 +78,18 @@ def start_realtime(force: bool = False) -> None:
 
         atexit.register(lambda: _request_shutdown("atexit"))
 
+        prev_sigint = signal.getsignal(signal.SIGINT)
+        prev_sigterm = signal.getsignal(signal.SIGTERM)
+
         def _handler(signum, frame):  # type: ignore[override]
             _request_shutdown(f"signal {signum}")
+
+            prev = prev_sigint if signum == signal.SIGINT else prev_sigterm
+            if callable(prev):
+                return prev(signum, frame)
+
+            if signum == signal.SIGINT:
+                raise KeyboardInterrupt
 
         try:
             signal.signal(signal.SIGINT, _handler)
