@@ -72,7 +72,7 @@ def start_thor_background_stack(force: bool = False):
         
         lock = None
         if not disable_lock:
-            lock = LeaderLock(key="thor:leader:heartbeat", ttl_seconds=30)
+            lock = LeaderLock(key="thor:leader:heartbeat", ttl_seconds=5)
             if not lock.acquire(blocking=False, timeout=0):
                 logger.info("🔒 Heartbeat skipped (leader lock held by another worker)")
                 return
@@ -95,8 +95,8 @@ def start_thor_background_stack(force: bool = False):
         logger.info("✅ Jobs registered: %s", job_names)
 
         def tick_seconds_fn(context):
-            # FAST when any control markets are open, SLOW otherwise
-            return 1.0 if has_active_markets() else 120.0
+            # GLOBAL MARKETS FIRST: always tick every second
+            return 1.0
 
         try:
             # Get channel layer for WebSocket broadcasting (shadow mode)
