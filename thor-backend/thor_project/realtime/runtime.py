@@ -101,6 +101,13 @@ def start_realtime(force: bool = False) -> None:
     _install_shutdown_hooks_once()
 
     def _start_heartbeat():
+        import time as _time
+        from django.apps import apps as django_apps
+
+        # Ensure Django finished initializing before any ORM access inside heartbeat jobs
+        while not django_apps.ready:
+            _time.sleep(0.05)
+
         from channels.layers import get_channel_layer
         from thor_project.realtime.engine import HeartbeatContext
 
