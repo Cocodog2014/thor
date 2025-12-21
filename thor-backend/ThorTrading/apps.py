@@ -106,24 +106,6 @@ class ThorTradingConfig(AppConfig):
         except Exception:
             logger.exception("❌ Failed to import ThorTrading GlobalMarkets hooks")
 
-        try:
-            from ThorTrading.services.stack_start import start_thor_background_stack
-        except Exception:
-            logger.exception("❌ Failed to import Thor background stack")
-            return
-
-        def _delayed_start():
-            time.sleep(1.0)
-            try:
-                logger.info("🔥 ThorTrading app ready: initializing background stack (delayed)...")
-                start_thor_background_stack()
-                logger.info("🚀 Thor master stack started successfully.")
-            except Exception:
-                logger.exception("❌ Failed to start Thor master stack")
-
-        threading.Thread(
-            target=_delayed_start,
-            name="ThorStackDelayedStart",
-            daemon=True,
-        ).start()
+        # Realtime heartbeat now starts from thor_project.apps.ThorProjectConfig
+        logger.info("ℹ️ Realtime stack startup handled by thor_project.apps.ThorProjectConfig")
 

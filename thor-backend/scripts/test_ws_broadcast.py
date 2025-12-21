@@ -5,9 +5,9 @@ import django
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "thor_project.settings")
 django.setup()
 
-from GlobalMarkets.services.heartbeat import run_heartbeat, HeartbeatContext
+from thor_project.realtime.engine import run_heartbeat, HeartbeatContext
 from core.infra.jobs import JobRegistry
-from ThorTrading.services.supervisors.register_jobs import register_all_jobs
+from thor_project.realtime.registry import register_jobs
 from channels.layers import get_channel_layer
 import logging
 
@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 # Build registry
 registry = JobRegistry()
-register_all_jobs(registry)
+register_jobs(registry)
 
 # Get channel layer
 channel_layer = get_channel_layer()
@@ -34,7 +34,6 @@ ctx = HeartbeatContext(
 print("Testing heartbeat with WebSocket broadcast...")
 
 # Simulate a few ticks to hit the broadcast threshold
-from GlobalMarkets.services.heartbeat import run_heartbeat
 import time
 
 # Patch run_heartbeat to run for limited time

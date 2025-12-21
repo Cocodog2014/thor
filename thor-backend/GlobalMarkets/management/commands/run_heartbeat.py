@@ -61,7 +61,7 @@ class Command(BaseCommand):
         # Acquire leader lock if requested
         lock = None
         if use_lock:
-            from GlobalMarkets.services.leader_lock import LeaderLock
+            from thor_project.realtime.leader_lock import LeaderLock
 
             lock = LeaderLock(key="globalmarkets:leader:heartbeat", ttl_seconds=30)
             if not lock.acquire(blocking=True, timeout=10):
@@ -78,17 +78,15 @@ class Command(BaseCommand):
 
     def _run_heartbeat(self, fast_tick: float, slow_tick: float) -> None:
         from core.infra.jobs import JobRegistry
-        from GlobalMarkets.services.heartbeat import run_heartbeat, HeartbeatContext
+        from thor_project.realtime.engine import HeartbeatContext, run_heartbeat
         from GlobalMarkets.services.active_markets import has_active_markets
-        from ThorTrading.services.supervisors.register_jobs import register_all_jobs
+        from thor_project.realtime.registry import register_jobs
 
         # Create single registry (source of truth for all jobs)
         registry = JobRegistry()
 
-        # Register all jobs from central location
-        register_all_jobs(registry)
-
-        logger.info("Heartbeat ready with %d jobs", len(registry.jobs))
+        job_names = register_jobs(registry) or []
+        logger.info("Heartbeat ready with %d jobs: %s", len(registry.jobs), job_names)
 
         # Set up graceful shutdown on SIGTERM/SIGINT
         stop_event = threading.Event()

@@ -54,6 +54,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'thor_project.apps.ThorProjectConfig',
     'channels',  # Django Channels for WebSocket support
     'rest_framework',
     'corsheaders',

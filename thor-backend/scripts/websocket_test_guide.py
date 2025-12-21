@@ -46,8 +46,8 @@ HEARTBEAT SCHEDULE:
 - Markets OPEN (control market active):  Fast tick = 1 second → broadcast every 30 sec
 - Markets CLOSED (no control market):    Slow tick = 120 seconds → broadcast every 60 min
 
-Currently: Markets closed (off-hours) → using SLOW TICK (120s)
-To test immediately: Use fast tick = 1.0 in stack_start.py
+Currently: Heartbeat is fixed to 1.0s in thor_project/realtime/runtime.py (tick_seconds_fn).
+To change cadence for testing, adjust tick_seconds_fn in that module.
 
 MANUAL TEST:
 ===========

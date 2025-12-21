@@ -3,7 +3,7 @@
 Neutral job registry: register jobs and run those that are due.
 No domain imports here. Shared state tracks last_run per job name.
 
-Used by the heartbeat scheduler (GlobalMarkets/services/heartbeat.py) to
+Used by the realtime heartbeat scheduler (thor_project/realtime/engine.py) to
 dispatch all periodic jobs on a unified tick. This is the only JobRegistry
 implementation in the codebase.
 """

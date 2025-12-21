@@ -577,7 +577,7 @@ Phase 2 – Backend: Intraday/VWAP/52-Week Orchestration
   - VWAP minute capture + 52-week monitor supervisors (global workers)
 - Close events finalize metrics, stop the intraday worker for that market, and only stop global workers (grader, VWAP capture, 52-week supervisor) after the *last* controlled market closes.
 - `apps.ThorTradingConfig.ready()` bootstraps already-open markets at process start so workers run even if no new signal fires.
-- `services/stack_start.py` now skips legacy MarketGrader + 52-week supervisors whenever `THOR_USE_GLOBAL_MARKET_TIMER=1`, preventing duplicate loops.
+- Legacy `services/stack_start.py` removed; realtime heartbeat now lives in `thor_project/realtime/runtime.py` and runs singly at 1s cadence.
 
 Remaining clean-up: once GlobalMarkets orchestration covers all workers (including MarketOpen capture loop + pre-open/Excel supervisors), simplify `start_thor_background_stack` to only start legacy tasks explicitly requested for non-global deployments.
 

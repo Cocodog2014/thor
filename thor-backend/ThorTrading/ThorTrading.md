@@ -83,7 +83,7 @@ class ThorTradingConfig(AppConfig):
         if not auto_start:
             return
 
-        from ThorTrading.services.stack_start import start_thor_background_stack
+        from thor_project.realtime.runtime import start_realtime
         ...
         threading.Thread(
             target=_delayed_start,
@@ -96,29 +96,14 @@ On Django app ready, a delayed thread is started.
 
 Unless THOR_STACK_AUTO_START is set to 0/false/no, it calls:
 
-start_thor_background_stack() after ~1 second.
+start_realtime() after ~1 second.
 
-start_thor_background_stack
+start_realtime
 
-Located in ThorTrading/services/stack_start.py:
+Located in thor_project/realtime/runtime.py:
 
-Bootstraps all Thor background services (supervisors), typically including:
-
-Excel/Redis poller for RTD data
-
-Intraday metric supervisor
-
-Market open capture coordinator
-
-Market grading / VWAP minute capture
-
-52-week extremes supervisor
-
-Any pre-open backtest / support services
-
-Each of these usually runs in its own thread with its own loop and sleep interval.
-
-Important: As of now, these supervisors are independent – there is no single global heartbeat; each one has its own timing.
+Bootstraps the realtime heartbeat (single scheduler) and WebSocket broadcasts.
+Legacy per-service supervisors were removed; add future jobs via thor_project/realtime/registry.py.
 
 5. Data Models (Conceptual Overview)
 

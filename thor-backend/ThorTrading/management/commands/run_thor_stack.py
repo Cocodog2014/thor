@@ -21,11 +21,11 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         keepalive = max(options.get("keepalive", 30), 1)
 
-        from ThorTrading.services.stack_start import start_thor_background_stack
+        from thor_project.realtime.runtime import start_realtime
 
-        logger.info("🔥 run_thor_stack command launching Thor background stack...")
-        start_thor_background_stack(force=True)
-        self.stdout.write(self.style.SUCCESS("Thor background stack started."))
+        logger.info("🔥 run_thor_stack command launching Thor realtime stack...")
+        start_realtime(force=True)
+        self.stdout.write(self.style.SUCCESS("Thor realtime stack started."))
 
         try:
             while True:

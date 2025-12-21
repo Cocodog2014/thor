@@ -42,7 +42,7 @@ class GlobalMarketsConfig(AppConfig):
             time.sleep(1.0)
             try:
                 from .monitor import start_monitor
-                from GlobalMarkets.services.leader_lock import LeaderLock, set_monitor_leader_lock
+                from thor_project.realtime.leader_lock import LeaderLock, set_monitor_leader_lock
 
                 lock = LeaderLock(key="globalmarkets:leader:monitor", ttl_seconds=60)
                 if not lock.acquire(blocking=False, timeout=0):

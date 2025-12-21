@@ -1,4 +1,4 @@
-"""Simple Redis-based leader lock with periodic renewal."""
+"""Redis-backed leader lock utilities for realtime heartbeat."""
 from __future__ import annotations
 
 import logging
@@ -12,12 +12,11 @@ logger = logging.getLogger(__name__)
 
 
 class LeaderLock:
-    """
-    Redis leader lock.
+    """Simple leader lock wrapper around redis-py Lock.
 
-    IMPORTANT:
+    Notes:
     - redis-py Lock stores the token in thread-local storage.
-    - Therefore renew/extend MUST occur in the same thread that acquired the lock.
+    - Renew/extend MUST occur in the same thread that acquired the lock.
     """
 
     def __init__(self, key: str, ttl_seconds: int = 30, renew_every: Optional[float] = None) -> None:
@@ -49,8 +48,8 @@ class LeaderLock:
         return True
 
     def renew_if_due(self) -> bool:
-        """
-        Extend lock TTL if renew interval has passed.
+        """Extend lock TTL if renew interval has passed.
+
         Must be called from the same thread that acquired the lock.
         Returns False if renew failed (caller should stop work).
         """
@@ -62,7 +61,7 @@ class LeaderLock:
             return True
 
         try:
-            # extend by ttl seconds (support newer redis-py kwargs, fall back to positional)
+            # Extend by ttl seconds; support newer redis-py kwargs, fall back to positional
             try:
                 self._lock.extend(additional_time=self.ttl, replace_ttl=True)
             except TypeError:
@@ -105,3 +104,10 @@ def set_monitor_leader_lock(lock: LeaderLock) -> None:
 
 def get_monitor_leader_lock() -> Optional[LeaderLock]:
     return _monitor_leader_lock
+
+
+__all__ = [
+    "LeaderLock",
+    "set_monitor_leader_lock",
+    "get_monitor_leader_lock",
+]
