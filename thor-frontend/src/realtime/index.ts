@@ -5,13 +5,18 @@ import type { MessageHandler } from './types';
 
 // Public API
 export { subscribe } from './router';
-export type { MessageHandler } from './types';
+export type { MessageHandler, WsMessage } from './types';
 
-// Optional convenience aliases
-export const connectWs = connectSocket;
-export const disconnectWs = disconnectSocket;
-export const sendWsMessage = sendMessage;
+// Socket facade for consumers that prefer an object
+export const marketSocket = {
+  connect: connectSocket,
+  disconnect: disconnectSocket,
+  send: sendMessage,
+  onConnectionChange,
+  isConnected,
+};
 
+// Hooks
 export function useWsMessage(messageType: string, handler: MessageHandler, enabled = true): void {
   const handlerRef = useRef(handler);
 
@@ -38,6 +43,13 @@ export function useWsConnection(): boolean {
 
   return state;
 }
+
+// Friendly aliases to match the requested API
+export const useChannel = useWsMessage;
+export const useConnection = useWsConnection;
+export const sendWsMessage = sendMessage;
+export const connectWs = connectSocket;
+export const disconnectWs = disconnectSocket;
 
 export function getWsStatus() {
   return { connected: isConnected() };
