@@ -62,8 +62,11 @@ class LeaderLock:
             return True
 
         try:
-            # extend by ttl seconds
-            self._lock.extend(self.ttl)
+            # extend by ttl seconds (support newer redis-py kwargs, fall back to positional)
+            try:
+                self._lock.extend(additional_time=self.ttl, replace_ttl=True)
+            except TypeError:
+                self._lock.extend(self.ttl)
             self._last_renew = now
             return True
         except Exception:
