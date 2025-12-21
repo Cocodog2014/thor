@@ -149,7 +149,7 @@ def start_realtime(force: bool = False) -> None:
         t = threading.Thread(
             target=_start_heartbeat,
             name="ThorRealtimeHeartbeat",
-            daemon=False,
+            daemon=True,
         )
         t.start()
         _thread = t

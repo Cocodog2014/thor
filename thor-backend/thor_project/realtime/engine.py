@@ -98,7 +98,13 @@ def run_heartbeat(
         if tick_count % 30 == 0:
             logger.info("💓 Heartbeat alive (tick=%s, tick_seconds=%s)", tick_count, current_tick)
 
-        time.sleep(current_tick)
+        # Use stop_event-aware wait to exit promptly on shutdown
+        if context.stop_event:
+            if context.stop_event.wait(timeout=current_tick):
+                logger.info("heartbeat stopping on stop_event (wait)")
+                break
+        else:
+            time.sleep(current_tick)
 
 
 __all__ = ["HeartbeatContext", "run_heartbeat"]
