@@ -103,6 +103,7 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'thor_project.wsgi.application'
+ASGI_APPLICATION = 'thor_project.asgi.application'
 
 
 # Database
