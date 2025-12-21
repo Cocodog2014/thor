@@ -7,13 +7,13 @@
  */
 
 import { useEffect, useState } from 'react';
-import { useWebSocketConnection, useWebSocketMessage } from '../hooks/useWebSocket';
+import { useWsConnection, useWsMessage } from '../realtime';
 import { wssCutover } from '../services/websocket-cutover';
 
 type FeatureStatus = 'ws' | 'rest' | 'both';
 
 export function WebSocketShadowMonitor() {
-  const connected = useWebSocketConnection();
+  const connected = useWsConnection();
   const [messageCount, setMessageCount] = useState(0);
   const [lastMessageTime, setLastMessageTime] = useState<string>('Never');
   const [featureStatuses, setFeatureStatuses] = useState({
@@ -42,17 +42,17 @@ export function WebSocketShadowMonitor() {
   }, []);
 
   // Monitor all message types and update count
-  useWebSocketMessage('heartbeat', () => {
+  useWsMessage('heartbeat', () => {
     setMessageCount((c) => c + 1);
     setLastMessageTime(new Date().toLocaleTimeString());
   });
-
-  useWebSocketMessage('account_balance', () => {});
-  useWebSocketMessage('positions', () => {});
-  useWebSocketMessage('intraday_bar', () => {});
-  useWebSocketMessage('market_status', () => {});
-  useWebSocketMessage('vwap_update', () => {});
-  useWebSocketMessage('twenty_four_hour', () => {});
+  useWsMessage('account_balance', () => {});
+  useWsMessage('positions', () => {});
+  useWsMessage('intraday_bar', () => {});
+  useWsMessage('market_status', () => {});
+  useWsMessage('vwap_update', () => {});
+  useWsMessage('twenty_four_hour', () => {});
+  useWsMessage('error_message', () => {});
   useWebSocketMessage('error_message', () => {});
 
   useEffect(() => {

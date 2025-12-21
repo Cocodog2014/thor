@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import type { Market } from '../../types';
 import marketsService from '../../services/markets';
-import { useWebSocketMessage } from '../../hooks/useWebSocket';
+import { useWsMessage } from '../../realtime';
 import './GlobalMarkets.css';
 
 const GlobalMarkets: React.FC = () => {
@@ -48,7 +48,7 @@ const GlobalMarkets: React.FC = () => {
   }, [fetchMarkets]);
 
   // Live updates via WebSocket (market_status messages)
-  useWebSocketMessage('market_status', (msg) => {
+  useWsMessage('market_status', (msg) => {
     const payload = (msg as { data?: Partial<Market> & { market_id?: number; id?: number } }).data;
     if (!payload) return;
 
@@ -82,7 +82,7 @@ const GlobalMarkets: React.FC = () => {
   });
 
   // Fast per-market clock ticks so CURRENT TIME advances without waiting for status updates
-  useWebSocketMessage('global_markets_tick', (msg) => {
+  useWsMessage('global_markets_tick', (msg) => {
     const data = (msg as { data?: { markets?: Array<{ market_id?: number; country?: string; current_time?: any }> } }).data;
     const marketsPayload = data?.markets ?? [];
     if (!marketsPayload.length) return;
