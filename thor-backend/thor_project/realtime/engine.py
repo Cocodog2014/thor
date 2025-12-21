@@ -8,7 +8,6 @@ from dataclasses import dataclass
 from typing import Any, Callable
 
 from core.infra.jobs import JobRegistry
-from thor_project.realtime import broadcaster
 
 
 @dataclass
@@ -34,6 +33,9 @@ def run_heartbeat(
 
     if channel_layer and not context.channel_layer:
         context.channel_layer = channel_layer
+
+    # Lazy import broadcaster to avoid ORM access during app initialization
+    from thor_project.realtime import broadcaster
 
     logger.info("heartbeat starting (tick=%.2fs)", tick_seconds)
     current_tick = tick_seconds
