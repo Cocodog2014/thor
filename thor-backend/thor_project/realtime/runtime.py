@@ -21,6 +21,7 @@ logger = logging.getLogger(__name__)
 _stop_event = threading.Event()
 _thread: threading.Thread | None = None
 _lock: LeaderLock | None = None
+_shutdown_once = threading.Event()
 
 
 def _truthy_env(name: str, default: str = "0") -> bool:
@@ -60,6 +61,10 @@ def start_realtime(force: bool = False) -> None:
     logger.info("🚀 Starting realtime heartbeat stack now%s...", " (forced)" if force else "")
 
     def _request_shutdown(reason: str):
+        if _shutdown_once.is_set():
+            return
+        _shutdown_once.set()
+
         logger.info("🛑 Realtime shutdown requested (%s)", reason)
         _stop_event.set()
 
