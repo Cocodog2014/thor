@@ -49,9 +49,27 @@ def start_realtime(force: bool = False) -> None:
             logger.info("⏭️ Skipping realtime heartbeat during management command.")
             return
 
-    if not force and os.environ.get("RUN_MAIN") != "true":
-        logger.info("⏭️ Not main runserver process — skipping realtime heartbeat.")
-        return
+    argv0 = os.path.basename(sys.argv[0]).lower()
+    argv_all = " ".join(sys.argv).lower()
+
+    is_runserver = sys.argv[1:2] == ["runserver"]
+    is_runserver_child = os.environ.get("RUN_MAIN") == "true"
+
+    # Detect ASGI servers even when invoked as `python -m daphne ...`
+    is_asgi_server = any(name in argv_all for name in ("daphne", "uvicorn", "hypercorn")) or any(
+        name in argv0 for name in ("daphne", "uvicorn", "hypercorn")
+    )
+
+    force_env = os.environ.get("THOR_REALTIME_FORCE", "0") == "1"
+
+    if not force and not force_env:
+        if is_runserver and not is_runserver_child:
+            logger.info("⏭️ Django reloader parent process — skipping realtime heartbeat.")
+            return
+
+        if (not is_runserver) and (not is_asgi_server):
+            logger.info("⏭️ Not runserver child / ASGI server — skipping realtime heartbeat.")
+            return
 
     start_realtime._started = True
 

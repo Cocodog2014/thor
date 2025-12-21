@@ -234,8 +234,7 @@ Start everything in the right order
 
 Open three terminals (or PowerShell windows).
 
-1. cd A:\Thor\thor-backend
-   python manage.py runserver 0.0.0.0:8000
+1. 
 
    # NOTE: With Channels configured, runserver now supports WebSockets!
    # WebSocket endpoint: ws://127.0.0.1:8000/ws/
@@ -292,5 +291,11 @@ Local
 http://127.0.0.1:8000/api/schwab/account/summary/?account_number=60910485
 
 
+Run Daphne pointing at your ASGI app:
+
+python -m daphne -b 127.0.0.1 -p 8000 thor_project.asgi:application
+
+cd A:\Thor\thor-backend
+python -m daphne -b 0.0.0.0 -p 8000 thor_project.asgi:application
 
 

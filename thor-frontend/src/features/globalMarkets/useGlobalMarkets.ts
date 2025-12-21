@@ -1,48 +1,38 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { Market } from '../../types';
 import marketsService from '../../services/markets';
 import { useWsMessage } from '../../realtime';
 import type { WsMessage } from '../../realtime/types';
+import { qk } from '../../realtime/queryKeys';
 
 export function useGlobalMarkets() {
-  const [markets, setMarkets] = useState<Market[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [lastUpdate, setLastUpdate] = useState(new Date());
+  const queryClient = useQueryClient();
+  const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
   const [isStale, setIsStale] = useState(false);
-
-  const bootstrapRef = useRef(false);
-  const inFlightRef = useRef(false);
+  const [error, setError] = useState<string | null>(null);
 
   const fetchMarkets = useCallback(async () => {
-    if (inFlightRef.current) return;
-    inFlightRef.current = true;
-
-    if (!bootstrapRef.current) {
-      setLoading(true);
-    }
-
-    try {
-      const data = await marketsService.getAll();
-      const sorted = data.results.sort((a, b) => a.sort_order - b.sort_order);
-      setMarkets(sorted);
-      setLastUpdate(new Date());
-      setError(null);
-      setIsStale(false);
-    } catch (err) {
-      console.error('[GlobalMarkets] fetch failed', err);
-      setError('Lost connection to global markets');
-      setIsStale(true);
-    } finally {
-      bootstrapRef.current = true;
-      setLoading(false);
-      inFlightRef.current = false;
-    }
+    const data = await marketsService.getAll();
+    return data.results.sort((a, b) => a.sort_order - b.sort_order);
   }, []);
 
+  const marketsQuery = useQuery({
+    queryKey: qk.globalMarkets(),
+    queryFn: fetchMarkets,
+    refetchOnWindowFocus: false,
+    retry: 1,
+  });
+
   useEffect(() => {
-    fetchMarkets();
-  }, [fetchMarkets]);
+    if (marketsQuery.isError) {
+      setError('Lost connection to global markets');
+      setIsStale(true);
+    } else {
+      setError(null);
+      setIsStale(false);
+    }
+  }, [marketsQuery.isError]);
 
   useWsMessage('market_status', (msg: WsMessage) => {
     const payload = (msg as WsMessage & { data?: Partial<Market> & { market_id?: number; id?: number; current_time?: Market['current_time'] } }).data;
@@ -51,7 +41,8 @@ export function useGlobalMarkets() {
     const marketId = payload.market_id ?? payload.id;
     if (!marketId) return;
 
-    setMarkets((prev) => {
+    queryClient.setQueryData<Market[] | undefined>(qk.globalMarkets(), (prev) => {
+      if (!prev) return prev;
       const idx = prev.findIndex((m) => m.id === marketId);
       if (idx === -1) return prev;
 
@@ -83,7 +74,8 @@ export function useGlobalMarkets() {
     const marketsPayload = data?.markets ?? [];
     if (!marketsPayload.length) return;
 
-    setMarkets((prev) => {
+    queryClient.setQueryData<Market[] | undefined>(qk.globalMarkets(), (prev) => {
+      if (!prev) return prev;
       let changed = false;
       const byId = new Map<number, TickMarket>();
       for (const m of marketsPayload) {
@@ -112,7 +104,13 @@ export function useGlobalMarkets() {
     setIsStale(false);
   });
 
-  return { markets, loading, error, lastUpdate, isStale };
+  return {
+    markets: marketsQuery.data ?? [],
+    loading: marketsQuery.isLoading || marketsQuery.isFetching,
+    error,
+    lastUpdate,
+    isStale,
+  };
 }
 
 export type UseGlobalMarketsReturn = ReturnType<typeof useGlobalMarkets>;
