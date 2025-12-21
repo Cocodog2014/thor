@@ -53,7 +53,6 @@ export function WebSocketShadowMonitor() {
   useWsMessage('vwap_update', () => {});
   useWsMessage('twenty_four_hour', () => {});
   useWsMessage('error_message', () => {});
-  useWebSocketMessage('error_message', () => {});
 
   useEffect(() => {
     if (connected) {
