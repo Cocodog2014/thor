@@ -62,7 +62,6 @@ def start_realtime(force: bool = False) -> None:
     def _request_shutdown(reason: str):
         logger.info("🛑 Realtime shutdown requested (%s)", reason)
         _stop_event.set()
-        _stop_thread()
 
     def _stop_thread():
         global _thread
@@ -146,6 +145,8 @@ def start_realtime(force: bool = False) -> None:
 
     try:
         global _thread
+        _stop_event.clear()
+
         t = threading.Thread(
             target=_start_heartbeat,
             name="ThorRealtimeHeartbeat",
