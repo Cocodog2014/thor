@@ -31,11 +31,10 @@ def run_heartbeat(
     logger = (ctx.logger if ctx else None) or logging.getLogger("heartbeat")
     context = ctx or HeartbeatContext(logger=logger, shared_state={})
 
+    broadcaster = None
+
     if channel_layer and not context.channel_layer:
         context.channel_layer = channel_layer
-
-    # Lazy import broadcaster to avoid ORM access during app initialization
-    from thor_project.realtime import broadcaster
 
     logger.info("heartbeat starting (tick=%.2fs)", tick_seconds)
     current_tick = tick_seconds
@@ -72,7 +71,9 @@ def run_heartbeat(
             current_tick = tick_seconds
 
         if context.channel_layer:
-            from thor_project.realtime import broadcaster
+            if broadcaster is None:
+                from thor_project.realtime import broadcaster as _b
+                broadcaster = _b
 
             broadcaster.broadcast_heartbeat_tick(context.channel_layer, logger)
             broadcaster.broadcast_market_clocks(context.channel_layer, logger)
