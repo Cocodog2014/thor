@@ -72,10 +72,14 @@ def run_heartbeat(
             current_tick = tick_seconds
 
         if context.channel_layer:
+            from thor_project.realtime import broadcaster
+
             broadcaster.broadcast_heartbeat_tick(context.channel_layer, logger)
             broadcaster.broadcast_market_clocks(context.channel_layer, logger)
 
         if tick_count % 5 == 0 and context.channel_layer:
+            from thor_project.realtime import broadcaster
+
             broadcaster.broadcast_account_and_status(context.channel_layer, logger)
 
         if tick_count % 30 == 0:

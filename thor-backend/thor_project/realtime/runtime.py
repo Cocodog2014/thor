@@ -59,7 +59,7 @@ def start_realtime(force: bool = False) -> None:
 
         lock = None
         if not disable_lock:
-            lock = LeaderLock(key="thor:leader:heartbeat", ttl_seconds=5)
+            lock = LeaderLock(key="thor:leader:heartbeat", ttl_seconds=30)
             if not lock.acquire(blocking=False, timeout=0):
                 logger.info("🔒 Heartbeat skipped (leader lock held by another worker)")
                 return
