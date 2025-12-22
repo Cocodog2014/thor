@@ -14,8 +14,8 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         dry = options.get('dry_run')
-        qs = MarketSession.objects.filter(capture_group__isnull=True)
-        total = qs.count()
+        qs_base = MarketSession.objects.filter(capture_group__isnull=True)
+        total = qs_base.count()
         if total == 0:
             self.stdout.write(self.style.SUCCESS('No rows require backfill.'))
             return
@@ -27,7 +27,11 @@ class Command(BaseCommand):
         batch_size = 5000
         with transaction.atomic():
             while True:
-                batch = list(qs.values_list('pk', 'session_number')[:batch_size])
+                batch = list(
+                    MarketSession.objects
+                    .filter(capture_group__isnull=True)
+                    .values_list('pk', 'session_number')[:batch_size]
+                )
                 if not batch:
                     break
                 for pk, session_number in batch:
