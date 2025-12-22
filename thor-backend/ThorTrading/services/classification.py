@@ -252,15 +252,42 @@ def enrich_quote_row(row: dict) -> dict:
 def compute_composite(rows: list[dict]) -> dict:
     """Compute weighted composite from enriched rows.
 
-    Returns dict with sum_weighted, avg_weighted, count, denominator, as_of, composite_signal, composite_signal_weight.
+    Enforces homogeneity on (country, future/symbol, capture_group) to avoid
+    silently mixing instruments. Sorts by timestamp descending to keep as_of
+    meaningful and stable.
     """
+
+    if not rows:
+        return {
+            'sum_weighted': '0.00',
+            'avg_weighted': None,
+            'count': 0,
+            'denominator': '0.00',
+            'as_of': None,
+            'signal_weight_sum': 0,
+            'composite_signal': None,
+            'composite_signal_weight': 0,
+        }
+
+    def _identity(row: dict) -> tuple:
+        inst = row.get('instrument', {})
+        return (
+            inst.get('country'),
+            inst.get('future') or inst.get('symbol'),
+            row.get('capture_group') or inst.get('capture_group'),
+        )
+
+    target_identity = _identity(rows[0])
+    filtered_rows = [r for r in rows if _identity(r) == target_identity]
+
+    # Ensure deterministic order newest→oldest if timestamps provided
+    filtered_rows.sort(key=lambda r: r.get('timestamp') or '', reverse=True)
+
     sum_weighted = Decimal('0')
     denom = Decimal('0')
-    
-    # Calculate weighted sum using signal_weight (not stat_value) for composite signal classification
     signal_weight_sum = 0
-    
-    for r in rows:
+
+    for r in filtered_rows:
         ext = r.get('extended_data', {})
         try:
             v = Decimal(str(ext.get('stat_value')))
@@ -268,39 +295,37 @@ def compute_composite(rows: list[dict]) -> dict:
             signal_weight = int(ext.get('signal_weight', 0))
         except Exception:
             continue
-        
+
         sum_weighted += v * w
         denom += abs(w)
         signal_weight_sum += signal_weight
 
     avg = (sum_weighted / denom) if denom > 0 else None
-    as_of = rows[0].get('timestamp') if rows else None
-    
-    # VBA Composite Signal Classification Logic
-    # TotalBuyV = 9, TotalHoldHighV = 3, TotalHoldLowV = -3, TotalSellV = -9
+    as_of = filtered_rows[0].get('timestamp') if filtered_rows else None
+
     composite_signal = None
     composite_signal_weight = 0
-    
+
     if signal_weight_sum > 9:  # Strong Buy
         composite_signal = "STRONG_BUY"
         composite_signal_weight = 2
-    elif signal_weight_sum > 3 and signal_weight_sum <= 9:  # Buy
-        composite_signal = "BUY" 
+    elif 3 < signal_weight_sum <= 9:  # Buy
+        composite_signal = "BUY"
         composite_signal_weight = 1
-    elif signal_weight_sum >= -3 and signal_weight_sum <= 3:  # Hold
+    elif -3 <= signal_weight_sum <= 3:  # Hold
         composite_signal = "HOLD"
         composite_signal_weight = 0
-    elif signal_weight_sum < -3 and signal_weight_sum >= -9:  # Sell
+    elif -9 <= signal_weight_sum < -3:  # Sell
         composite_signal = "SELL"
         composite_signal_weight = -1
     elif signal_weight_sum < -9:  # Strong Sell
         composite_signal = "STRONG_SELL"
         composite_signal_weight = -2
-    
+
     return {
         'sum_weighted': str(sum_weighted.quantize(Decimal('0.01'))),
         'avg_weighted': str(avg.quantize(Decimal('0.001'))) if avg is not None else None,
-        'count': len(rows),
+        'count': len(filtered_rows),
         'denominator': str(denom.quantize(Decimal('0.01'))),
         'as_of': as_of,
         'signal_weight_sum': signal_weight_sum,
