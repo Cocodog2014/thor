@@ -21,6 +21,8 @@ export function useGlobalMarkets() {
     queryKey: qk.globalMarkets(),
     queryFn: fetchMarkets,
     refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    staleTime: Infinity,
     retry: 1,
   });
 
