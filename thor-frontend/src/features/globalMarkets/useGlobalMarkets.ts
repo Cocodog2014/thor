@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { Market } from '../../types';
 import marketsService from '../../services/markets';
-import { useWsMessage } from '../../realtime';
+import { useWsConnection, useWsMessage } from '../../realtime';
 import type { WsEnvelope } from '../../realtime/types';
 import { qk } from '../../realtime/queryKeys';
 
@@ -18,8 +18,8 @@ type TickMarket = {
 export function useGlobalMarkets() {
   const queryClient = useQueryClient();
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
-  const [isStale, setIsStale] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const wsConnected = useWsConnection();
 
   const fetchMarkets = useCallback(async () => {
     const data = await marketsService.getAll();
@@ -34,16 +34,6 @@ export function useGlobalMarkets() {
     staleTime: Infinity,
     retry: 1,
   });
-
-  useEffect(() => {
-    if (marketsQuery.isError) {
-      setError('Lost connection to global markets');
-      setIsStale(true);
-    } else {
-      setError(null);
-      setIsStale(false);
-    }
-  }, [marketsQuery.isError]);
 
   useWsMessage<{ markets?: TickMarket[]; timestamp?: number }>('global_markets_tick', (msg: WsEnvelope<{ markets?: TickMarket[]; timestamp?: number }>) => {
     const { data, ts } = msg;
@@ -100,15 +90,15 @@ export function useGlobalMarkets() {
 
     const stamp = ts ?? (data?.timestamp as number | undefined);
     setLastUpdate(stamp ? new Date(stamp * 1000) : new Date());
-    setIsStale(false);
+    setError(null);
   });
 
   return {
     markets: marketsQuery.data ?? [],
     loading: marketsQuery.isLoading || marketsQuery.isFetching,
-    error,
+    error: marketsQuery.isError ? 'Lost connection to global markets' : error,
     lastUpdate,
-    isStale,
+    isStale: !wsConnected,
   };
 }
 
