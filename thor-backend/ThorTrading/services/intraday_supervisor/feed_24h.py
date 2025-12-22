@@ -39,6 +39,7 @@ def update_24h_for_country(country: str, enriched_rows):
     now_dt = timezone.now()
     counts = {'twentyfour_updates': 0}
     twentyfour_map = {}
+    last_volume_seen = {}
 
     for row in enriched_rows:
         sym = row.get('instrument', {}).get('symbol')
@@ -54,7 +55,7 @@ def update_24h_for_country(country: str, enriched_rows):
         vol = int(row.get('volume') or 0)
 
         twentyfour, _ = FutureTrading24Hour.objects.get_or_create(
-            session_group=str(latest_group),
+            session_group=latest_group,
             future=future,
             defaults={
                 'session_date': now_dt.date(),
@@ -96,18 +97,24 @@ def update_24h_for_country(country: str, enriched_rows):
             except Exception:
                 pass
 
-        if updated:
-            twentyfour.save(update_fields=['low_24h', 'high_24h', 'range_diff_24h', 'range_pct_24h'])
-            counts['twentyfour_updates'] += 1
+        # Delta volume accumulation to avoid double-counting
+        vol_updates = []
+        prior_seen = last_volume_seen.get((latest_group, future), 0)
+        if vol > 0:
+            delta = max(vol - prior_seen, 0)
+            if delta > 0:
+                twentyfour.volume_24h = (twentyfour.volume_24h or 0) + delta
+                vol_updates.append('volume_24h')
+            last_volume_seen[(latest_group, future)] = vol
 
-        # Increment volume
-        try:
-            current_vol = twentyfour.volume_24h or 0
-            twentyfour.volume_24h = current_vol + vol
-            twentyfour.save(update_fields=['volume_24h'])
+        fields_to_update = []
+        if updated:
+            fields_to_update.extend(['low_24h', 'high_24h', 'range_diff_24h', 'range_pct_24h'])
+        fields_to_update.extend(vol_updates)
+
+        if fields_to_update:
+            twentyfour.save(update_fields=fields_to_update)
             counts['twentyfour_updates'] += 1
-        except Exception:
-            pass
 
     return counts, twentyfour_map
 
