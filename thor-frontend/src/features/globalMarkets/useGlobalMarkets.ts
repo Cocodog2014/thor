@@ -35,7 +35,15 @@ export function useGlobalMarkets() {
   }, [marketsQuery.isError]);
 
   useWsMessage('market_status', (msg: WsMessage) => {
-    const payload = (msg as WsMessage & { data?: Partial<Market> & { market_id?: number; id?: number; current_time?: Market['current_time'] } }).data;
+    const payload = (msg as WsMessage & {
+      data?: Partial<Market> & {
+        market_id?: number;
+        id?: number;
+        current_time?: Market['current_time'];
+        market_status?: Market['market_status'];
+        timestamp?: number;
+      };
+    }).data;
     if (!payload) return;
 
     const marketId = payload.market_id ?? payload.id;
@@ -64,13 +72,21 @@ export function useGlobalMarkets() {
       return next;
     });
 
-    setLastUpdate(new Date());
+    if (payload.timestamp) {
+      setLastUpdate(new Date(payload.timestamp * 1000));
+    } else {
+      setLastUpdate(new Date());
+    }
     setIsStale(false);
   });
 
   useWsMessage('global_markets_tick', (msg: WsMessage) => {
-    type TickMarket = { market_id?: number; current_time?: Partial<NonNullable<Market['current_time']>> };
-    const data = (msg as WsMessage & { data?: { markets?: TickMarket[] } }).data;
+    type TickMarket = {
+      market_id?: number;
+      current_time?: Partial<NonNullable<Market['current_time']>>;
+      market_status?: Partial<Market['market_status']>;
+    };
+    const data = (msg as WsMessage & { data?: { markets?: TickMarket[]; timestamp?: number } }).data;
     const marketsPayload = data?.markets ?? [];
     if (!marketsPayload.length) return;
 
@@ -85,22 +101,36 @@ export function useGlobalMarkets() {
 
       const next = prev.map((m) => {
         const incoming = byId.get(m.id);
-        if (!incoming || !incoming.current_time) return m;
-        changed = true;
-        return {
-          ...m,
-          current_time: { ...m.current_time, ...incoming.current_time },
-          market_status: {
+        if (!incoming) return m;
+
+        const updated: Market = { ...m } as Market;
+
+        if (incoming.current_time) {
+          changed = true;
+          updated.current_time = { ...m.current_time, ...incoming.current_time };
+        }
+
+        if (incoming.market_status) {
+          changed = true;
+          updated.market_status = {
             ...m.market_status,
-            current_time: incoming.current_time.timestamp ?? m.market_status.current_time,
-          },
-        } as Market;
+            ...incoming.market_status,
+            current_time:
+              (incoming.market_status.current_time as Market['market_status']['current_time']) ?? m.market_status.current_time,
+          } as Market['market_status'];
+        }
+
+        return updated;
       });
 
       return changed ? next : prev;
     });
 
-    setLastUpdate(new Date());
+    if (data?.timestamp) {
+      setLastUpdate(new Date(data.timestamp * 1000));
+    } else {
+      setLastUpdate(new Date());
+    }
     setIsStale(false);
   });
 

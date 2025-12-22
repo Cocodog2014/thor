@@ -64,8 +64,6 @@ const GlobalMarkets: React.FC = () => {
     return m.market_close_time;
   };
 
-  const now = new Date();
-
   const formatUtcTime = (d: Date | null) =>
     d
       ? d.toLocaleTimeString('en-US', {
@@ -90,7 +88,7 @@ const GlobalMarkets: React.FC = () => {
               {isStale ? '🟡' : '🟢'}
             </span>
             {' '}
-            UTC time: {formatUtcTime(now)}
+            UTC time: {formatUtcTime(lastUpdate)}
             {' • '}Last update: {formatUtcTime(lastUpdate)}
           </div>
           <div className="markets-table-status">
