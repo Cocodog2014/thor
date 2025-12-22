@@ -40,15 +40,16 @@ def is_market_open_now(market):
     market_time_data = get_market_time(market)
     if not market_time_data:
         return False
-    
-    # Futures market trades Sun 5 PM CT → Fri 5 PM CT (special handling for overnight session)
+
+    day_num = market_time_data.get('day_number', 0)
+
     if market.country == "Futures":
-        # Futures is open Sun-Fri, but uses overnight window (open > close)
-        # So don't skip on weekends; let the time window logic handle it
-        pass
+        # Futures: open Sunday (day 6) through Friday close; closed all-day Saturday (day 5)
+        if day_num == 5:
+            return False
     else:
-        # Regular markets: skip weekends
-        if market_time_data.get('day_number', 0) >= 5:
+        # Regular markets: skip weekends (Sat=5, Sun=6)
+        if day_num >= 5:
             return False
 
     current_time = market_time_data['datetime'].time()
@@ -75,7 +76,11 @@ def get_market_status(market):
             return False
 
     def is_trading_day(d: datetime) -> bool:
-        return d.weekday() < 5 and not is_holiday(d)
+        wd = d.weekday()  # Mon=0 ... Sun=6
+        if market.country == "Futures":
+            # Futures trades Sun (6) through Fri (4); closed all-day Saturday (5)
+            return wd in {6, 0, 1, 2, 3, 4} and not is_holiday(d)
+        return wd < 5 and not is_holiday(d)
 
     def combine_local(d: datetime, t: time) -> datetime:
         naive = datetime(d.year, d.month, d.day, t.hour, t.minute, t.second)
@@ -114,7 +119,11 @@ def get_market_status(market):
             close_nd = close_nd + timedelta(days=1)
         return close_nd
 
-    weekend = market_time.get('day_number', 0) >= 5
+    day_num = market_time.get('day_number', 0)
+    if market.country == "Futures":
+        weekend = day_num == 5  # Only Saturday is treated as weekend/blocked
+    else:
+        weekend = day_num >= 5
     holiday_today = is_holiday(now_local)
     in_hours = False if (weekend or holiday_today) else is_market_open_now(market)
 
@@ -168,6 +177,11 @@ def should_collect_data(market):
     market_time_data = get_market_time(market)
     if not market_time_data:
         return False
-    if market_time_data.get('day_number', 0) >= 5:
-        return False
+    day_num = market_time_data.get('day_number', 0)
+    if market.country == "Futures":
+        if day_num == 5:  # Saturday blocked
+            return False
+    else:
+        if day_num >= 5:
+            return False
     return market.is_active and market.status == 'OPEN'

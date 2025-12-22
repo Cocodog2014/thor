@@ -51,7 +51,11 @@ class BroadcastMarketClocksJob:
             return
 
         market_ticks = []
-        for market in Market.objects.filter(is_active=True):
+        markets_qs = Market.objects.filter(is_active=True, is_control_market=True)
+        # Optionally include futures display rows if desired; maintain stable sort
+        markets_qs = markets_qs.order_by("display_order", "country")
+
+        for market in markets_qs:
             mt = get_market_time(market)
             status = None
             try:
