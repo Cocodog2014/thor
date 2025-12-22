@@ -1,25 +1,16 @@
 from django.db import models
-
-# Canonical country choices (enforced at model level)
-COUNTRY_CHOICES = (
-    ("USA", "USA"),
-    ("Pre_USA", "Pre_USA"),
-    ("China", "China"),
-    ("Japan", "Japan"),
-    ("United Kingdom", "United Kingdom"),
-    ("India", "India"),
-)
+from GlobalMarkets.models.constants import CONTROL_COUNTRY_CHOICES
 
 class FutureTrading24Hour(models.Model):
     """
     Rolling 24-hour global session stats (JP→US).
     Continuously updated as ticks arrive; finalized at US close.
     """
-    session_group = models.CharField(max_length=32, db_index=True, help_text="Shared key with MarketSession.capture_group")
+    session_group = models.IntegerField(db_index=True, help_text="Shared key with MarketSession.capture_group")
     session_date = models.DateField(db_index=True)
     country = models.CharField(
         max_length=32,
-        choices=COUNTRY_CHOICES,
+        choices=CONTROL_COUNTRY_CHOICES,
         help_text="Market region (canonical values only)"
     )
     future = models.CharField(max_length=20)

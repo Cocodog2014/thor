@@ -34,10 +34,10 @@ class Command(BaseCommand):
 
         processed = 0
         linked = 0
-        session_group_cache: Dict[str, str | None] = {}
-        twentyfour_cache: Dict[Tuple[str, str], FutureTrading24Hour] = {}
+        session_group_cache: Dict[str, int | None] = {}
+        twentyfour_cache: Dict[Tuple[int, str], FutureTrading24Hour] = {}
 
-        def resolve_session_group(country: str) -> str | None:
+        def resolve_session_group(country: str) -> int | None:
             if country in session_group_cache:
                 return session_group_cache[country]
             sg = (
@@ -47,9 +47,8 @@ class Command(BaseCommand):
                 .values_list("capture_group", flat=True)
                 .first()
             )
-            sg_str = str(sg) if sg is not None else None
-            session_group_cache[country] = sg_str
-            return sg_str
+            session_group_cache[country] = sg
+            return sg
 
         buffer = []
 
@@ -62,7 +61,8 @@ class Command(BaseCommand):
 
             sg = resolve_session_group(country)
             if sg is None:
-                sg = f"date:{row.timestamp_minute.date().isoformat()}"
+                # Cannot link without a numeric capture_group; skip
+                continue
 
             cache_key = (sg, future)
             twentyfour = twentyfour_cache.get(cache_key)
