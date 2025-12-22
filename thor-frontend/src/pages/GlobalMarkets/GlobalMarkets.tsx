@@ -1,6 +1,7 @@
 import React from 'react';
 import type { Market } from '../../types';
 import { useGlobalMarkets } from '../../features/globalMarkets/useGlobalMarkets';
+import { displayNameForMarket } from '../../constants/markets';
 import './GlobalMarkets.css';
 
 const GlobalMarkets: React.FC = () => {
@@ -122,14 +123,15 @@ const GlobalMarkets: React.FC = () => {
               const state = market.market_status?.current_state ?? 'UNKNOWN';
               const isOpen = state === 'OPEN' || state === 'PRECLOSE';
               const statusColor = isOpen ? 'open' : 'closed';
-              
+              const displayName = displayNameForMarket(market.display_name || market.country);
+
               return (
                 <tr
                   key={market.id}
                   className={statusColor}
-                  title={`${market.display_name} - ${market.timezone_name} (${market.currency})`}
+                  title={`${displayName} - ${market.timezone_name} (${market.currency})`}
                 >
-                  <td className="market-name">{market.display_name}</td>
+                  <td className="market-name">{displayName}</td>
                   <td className="market-year">{market.current_time.year}</td>
                   <td className="market-month">{market.current_time.month}</td>
                   <td className="market-date">{market.current_time.date}</td>
