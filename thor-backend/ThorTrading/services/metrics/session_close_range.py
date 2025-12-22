@@ -4,7 +4,6 @@ import logging
 from decimal import Decimal, InvalidOperation
 from django.utils import timezone
 from django.db import transaction
-from django.db.models import Max
 from ThorTrading.models.MarketSession import MarketSession
 
 logger = logging.getLogger(__name__)
@@ -43,13 +42,15 @@ class MarketCloseMetric:
             country, timezone.now(),
         )
 
-        latest_session = (
+        latest_group = (
             MarketSession.objects
             .filter(country=country)
-            .aggregate(max_session=Max("session_number"))
-            .get("max_session")
+            .exclude(capture_group__isnull=True)
+            .order_by('-capture_group')
+            .values_list('capture_group', flat=True)
+            .first()
         )
-        if latest_session is None:
+        if latest_group is None:
             logger.info("MarketCloseMetric → No session for %s; skipping", country)
             return 0
 
@@ -68,7 +69,7 @@ class MarketCloseMetric:
             session = (
                 MarketSession.objects
                 .select_for_update()
-                .filter(country=country, future=future, session_number=latest_session)
+                .filter(country=country, future=future, capture_group=latest_group)
                 .first()
             )
             if not session:
@@ -125,8 +126,8 @@ class MarketCloseMetric:
             updated_count += 1
 
         logger.info(
-            "MarketCloseMetric complete → %s rows updated for %s (session %s)",
-            updated_count, country, latest_session,
+            "MarketCloseMetric complete → %s rows updated for %s (capture_group %s)",
+            updated_count, country, latest_group,
         )
         return updated_count
 
@@ -142,20 +143,22 @@ class MarketRangeMetric:
             country, timezone.now(),
         )
 
-        latest_session = (
+        latest_group = (
             MarketSession.objects
             .filter(country=country)
-            .aggregate(max_session=Max("session_number"))
-            .get("max_session")
+            .exclude(capture_group__isnull=True)
+            .order_by('-capture_group')
+            .values_list('capture_group', flat=True)
+            .first()
         )
-        if latest_session is None:
+        if latest_group is None:
             logger.info("MarketRangeMetric → No session for %s; skipping", country)
             return 0
 
         sessions = (
             MarketSession.objects
             .select_for_update()
-            .filter(country=country, session_number=latest_session)
+            .filter(country=country, capture_group=latest_group)
         )
 
         updated_count = 0
@@ -181,8 +184,8 @@ class MarketRangeMetric:
             updated_count += 1
 
         logger.info(
-            "MarketRangeMetric complete → %s rows updated for %s (session=%s)",
-            updated_count, country, latest_session,
+            "MarketRangeMetric complete → %s rows updated for %s (capture_group=%s)",
+            updated_count, country, latest_group,
         )
         return updated_count
 
