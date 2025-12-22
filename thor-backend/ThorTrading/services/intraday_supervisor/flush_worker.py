@@ -17,7 +17,7 @@ def _pop_closed_bars(country: str, batch_size: int = 500) -> Tuple[List[dict], L
     return decoded, raw_items, queue_left
 
 
-def _resolve_session_group(country: str) -> str | None:
+def _resolve_session_group(country: str) -> int | None:
     return (
         MarketSession.objects
         .filter(country=country)
@@ -28,7 +28,7 @@ def _resolve_session_group(country: str) -> str | None:
     )
 
 
-def _to_intraday_models(country: str, bars: List[dict], session_group: str | None):
+def _to_intraday_models(country: str, bars: List[dict], session_group: int | None):
     rows = []
     twentyfour_cache = {}
     warned_fallback = False
@@ -49,20 +49,19 @@ def _to_intraday_models(country: str, bars: List[dict], session_group: str | Non
             # Use latest capture_group when available; fall back to session_date to avoid dropping data
             sg = session_group
             if sg is None:
-                sg = f"date:{ts.date().isoformat()}"
                 if not warned_fallback:
                     warned_fallback = True
                     logger.warning(
-                        "No capture_group found for %s; using session_date fallback %s for intraday bars",
+                        "No capture_group found for %s; deferring bar flush until capture_group exists",
                         country,
-                        sg,
                     )
+                return []
 
             cache_key = (sg, future)
             twentyfour = twentyfour_cache.get(cache_key)
             if twentyfour is None:
                 twentyfour, _ = FutureTrading24Hour.objects.get_or_create(
-                    session_group=str(sg),
+                    session_group=sg,
                     future=future,
                     defaults={
                         "session_date": ts.date(),
@@ -107,6 +106,11 @@ def flush_closed_bars(country: str, batch_size: int = 500, max_batches: int = 20
             break
 
         rows = _to_intraday_models(norm_country, bars, session_group=session_group)
+        if session_group is None:
+            # No capture_group yet: return bars to queue and stop to avoid data loss with mixed keys
+            live_data_redis.return_closed_bars(norm_country, raw_items)
+            logger.warning("Skipped flush for %s: capture_group missing; returned %s bars to queue", norm_country, len(bars))
+            break
         if rows:
             try:
                 with transaction.atomic():
