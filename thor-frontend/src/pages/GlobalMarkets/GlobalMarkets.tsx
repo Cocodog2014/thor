@@ -65,7 +65,10 @@ const GlobalMarkets: React.FC = () => {
         })
       : '—';
 
-  const activeCount = markets.filter((m) => m.market_status?.current_state === 'OPEN').length;
+  const activeCount = markets.filter((m) => {
+    const s = m.market_status?.current_state;
+    return s === 'OPEN' || s === 'PRECLOSE';
+  }).length;
   const totalCount = markets.length;
 
   return (
