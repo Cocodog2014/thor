@@ -25,13 +25,19 @@ class MarketSessionListSerializer(MarketSessionBaseSerializer):
             'strong_sell_didnt_work', 'strong_sell_didnt_work_percentage',
             'sell_worked', 'sell_worked_percentage',
             'sell_didnt_work', 'sell_didnt_work_percentage',
-            'last_price',
+            'last_price', 'ask_price', 'ask_size', 'bid_price', 'bid_size',
+            'volume',
             'market_open', 'market_high_open', 'market_high_pct_open',
             'market_low_open', 'market_low_pct_open',
             'market_close', 'market_high_pct_close', 'market_low_pct_close', 'market_close_vs_open_pct',
             'market_range', 'market_range_pct',
+            'spread',
+            'prev_close_24h', 'open_price_24h', 'open_prev_diff_24h', 'open_prev_pct_24h',
+            'low_24h', 'high_24h', 'range_diff_24h', 'range_pct_24h',
+            'low_52w', 'low_pct_52w', 'high_52w', 'high_pct_52w', 'range_52w', 'range_pct_52w',
             'entry_price', 'target_high', 'target_low',
             'target_hit_at', 'target_hit_price', 'target_hit_type',
+            'weighted_average', 'instrument_count'
         ]
 
 
