@@ -12,6 +12,7 @@ from typing import Dict, Any, Optional, Tuple, List
 
 import redis
 from django.conf import settings
+from ThorTrading.services.country_codes import normalize_country_code
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +33,10 @@ class LiveDataRedis:
             db=getattr(settings, 'REDIS_DB', 0),
             decode_responses=True
         )
+
+    def _norm_country(self, country: str) -> str:
+        normalized = normalize_country_code(country) if country is not None else None
+        return normalized or country
     
     def publish(self, channel: str, data: Dict[str, Any]) -> int:
         """
@@ -60,7 +65,8 @@ class LiveDataRedis:
         Cache latest tick for a symbol (per country) with a short TTL.
         Key: tick:{country}:{symbol}
         """
-        key = f"tick:{country}:{symbol}".lower()
+        norm_country = self._norm_country(country)
+        key = f"tick:{norm_country}:{symbol}".lower()
         try:
             self.client.set(key, json.dumps(payload, default=str), ex=ttl)
         except Exception as e:
@@ -73,7 +79,8 @@ class LiveDataRedis:
         closed_bar is None unless the minute bucket rolled over.
         Expected tick keys: price/last and volume (best-effort fallback to 0 volume).
         """
-        key = f"bar:1m:current:{country}:{symbol}".lower()
+        norm_country = self._norm_country(country)
+        key = f"bar:1m:current:{norm_country}:{symbol}".lower()
         now = int(time.time())
         bucket = now // 60
 
@@ -110,7 +117,7 @@ class LiveDataRedis:
                 "l": price,
                 "c": price,
                 "v": volume,
-                "country": country,
+                "country": norm_country,
                 "symbol": symbol,
             }
         else:
@@ -128,7 +135,9 @@ class LiveDataRedis:
         Push a finalized 1m bar onto the per-country queue for later DB flush.
         Key: q:bars:1m:{country}
         """
-        key = f"q:bars:1m:{country}".lower()
+        norm_country = self._norm_country(country)
+        key = f"q:bars:1m:{norm_country}".lower()
+        bar = {**bar, "country": norm_country}
         try:
             self.client.rpush(key, json.dumps(bar, default=str))
         except Exception as e:
@@ -136,8 +145,9 @@ class LiveDataRedis:
 
     def requeue_processing_closed_bars(self, country: str, limit: int = 10000) -> int:
         """Move any bars stuck in the processing queue back to the main queue (crash recovery)."""
-        source = f"q:bars:1m:{country}:processing".lower()
-        target = f"q:bars:1m:{country}".lower()
+        norm_country = self._norm_country(country)
+        source = f"q:bars:1m:{norm_country}:processing".lower()
+        target = f"q:bars:1m:{norm_country}".lower()
         moved = 0
         try:
             for _ in range(limit):
@@ -155,8 +165,9 @@ class LiveDataRedis:
 
         Returns: (decoded_bars, raw_items, queue_left)
         """
-        source = f"q:bars:1m:{country}".lower()
-        processing = f"q:bars:1m:{country}:processing".lower()
+        norm_country = self._norm_country(country)
+        source = f"q:bars:1m:{norm_country}".lower()
+        processing = f"q:bars:1m:{norm_country}:processing".lower()
         items: List[str] = []
         try:
             pipe = self.client.pipeline()
@@ -167,7 +178,7 @@ class LiveDataRedis:
             *moved_items, queue_left = results
             items = [i for i in moved_items if i]
         except Exception as e:
-            logger.error(f"Failed to checkout closed bars for {country}: {e}")
+            logger.error(f"Failed to checkout closed bars for {norm_country}: {e}")
             return [], [], 0
 
         if not items:
@@ -178,31 +189,33 @@ class LiveDataRedis:
             try:
                 decoded.append(json.loads(item))
             except Exception:
-                logger.warning("Failed to decode closed bar payload for %s: %s", country, item)
-        return decoded, items, int(queue_left or 0)
+                logger.warning("Failed to decode closed bar payload for %s: %s", norm_country, item)
+            return decoded, items, int(queue_left or 0)
 
     def acknowledge_closed_bars(self, country: str, items: List[str]) -> None:
         """Remove successfully processed items from the processing queue."""
         if not items:
             return
-        key = f"q:bars:1m:{country}:processing".lower()
+        norm_country = self._norm_country(country)
+        key = f"q:bars:1m:{norm_country}:processing".lower()
         try:
             pipe = self.client.pipeline()
             for item in items:
                 pipe.lrem(key, 1, item)
             pipe.execute()
         except Exception as e:
-            logger.error(f"Failed to acknowledge closed bars for {country}: {e}")
+            logger.error(f"Failed to acknowledge closed bars for {norm_country}: {e}")
 
     def return_closed_bars(self, country: str, items: List[str]) -> None:
         """Return items to the main queue if processing failed."""
         if not items:
             return
-        key = f"q:bars:1m:{country}".lower()
+        norm_country = self._norm_country(country)
+        key = f"q:bars:1m:{norm_country}".lower()
         try:
             self.client.rpush(key, *items)
         except Exception as e:
-            logger.error(f"Failed to return closed bars for {country}: {e}")
+            logger.error(f"Failed to return closed bars for {norm_country}: {e}")
 
     # --- Snapshot (latest) helpers ---
     LATEST_QUOTES_HASH = "live_data:latest:quotes"

@@ -9,6 +9,7 @@ Tracks trades based on TOTAL composite signals and grades outcomes.
 from django.db import models
 from django.utils import timezone
 from GlobalMarkets.models.constants import CONTROL_COUNTRY_CHOICES
+from ThorTrading.services.country_codes import normalize_country_code
 
 # Grouping support
 
@@ -529,6 +530,14 @@ class MarketSession(models.Model):
     )
 
     # Removed legacy strong_sell_flag (no longer tracked)
+
+    def save(self, *args, **kwargs):
+        # Enforce canonical country codes at write time to prevent drift between writers.
+        if self.country:
+            normalized = normalize_country_code(self.country)
+            if normalized:
+                self.country = normalized
+        super().save(*args, **kwargs)
 
     class Meta:
         ordering = ['-captured_at', 'future']
