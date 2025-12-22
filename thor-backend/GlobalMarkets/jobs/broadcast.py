@@ -53,14 +53,26 @@ class BroadcastMarketClocksJob:
         market_ticks = []
         for market in Market.objects.filter(is_active=True):
             mt = get_market_time(market)
+            status = None
+            try:
+                status = market.get_market_status()
+            except Exception as exc:
+                logger.debug("Market status fetch failed for %s: %s", market.country, exc)
+
+            if not mt and not status:
+                continue
+
+            payload = {
+                "market_id": market.id,
+                "country": market.country,
+            }
+
             if mt:
-                market_ticks.append(
-                    {
-                        "market_id": market.id,
-                        "country": market.country,
-                        "current_time": _serialize_market_time(mt),
-                    }
-                )
+                payload["current_time"] = _serialize_market_time(mt)
+            if status:
+                payload["market_status"] = status
+
+            market_ticks.append(payload)
 
         if not market_ticks:
             return
