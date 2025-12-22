@@ -304,8 +304,10 @@ def api_overview(request):
     api_urls = {
         'Overview': '/api/',
         'Statistics': '/api/stats/',
-        'Quotes Snapshot': '/api/quotes?symbols=ES,YM',
-        'Quotes Stream (SSE)': '/api/quotes/stream',
+        'Quotes Snapshot': '/api/quotes/?symbols=ES,YM',
+        'Quotes Stream (SSE)': '/api/quotes/stream/',
+        'Intraday Health': '/api/intraday/health/?markets=USA,Pre_USA&threshold_minutes=3',
+        'Session': '/api/session/?market=Tokyo&future=YM',
         'WorldClock': '/api/worldclock/',
         'Admin': '/admin/',
     }
