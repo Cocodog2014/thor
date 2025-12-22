@@ -84,7 +84,14 @@ def get_market_status(market):
 
     def combine_local(d: datetime, t: time) -> datetime:
         naive = datetime(d.year, d.month, d.day, t.hour, t.minute, t.second)
-        return tz.localize(naive)
+        try:
+            return tz.localize(naive, is_dst=None)
+        except (pytz.NonExistentTimeError, pytz.AmbiguousTimeError):
+            # Fallback: try both offsets and pick the earliest future time
+            try:
+                return tz.localize(naive, is_dst=True)
+            except Exception:
+                return tz.localize(naive, is_dst=False)
 
     open_today = combine_local(now_local, market.market_open_time)
     close_today = combine_local(now_local, market.market_close_time)
@@ -154,10 +161,12 @@ def get_market_status(market):
 
     seconds_to_next_event = max(0, int((target_dt - now_local).total_seconds()))
 
-    # Derive status from computed trading state to keep payload deterministic
+    # Derive status and data collection from computed trading state to keep payload deterministic
     effective_status = 'OPEN' if in_hours else 'CLOSED'
     if holiday_today:
         effective_status = 'CLOSED'
+
+    should_collect = market.is_active and in_hours and (not weekend) and (not holiday_today)
 
     return {
         'country': market.country,
@@ -167,7 +176,7 @@ def get_market_status(market):
         'market_close': market.market_close_time.strftime('%H:%M'),
         'is_in_trading_hours': in_hours,
         'status': effective_status,
-        'should_collect_data': False if weekend else should_collect_data(market),
+        'should_collect_data': should_collect,
         'current_state': current_state,
         'next_open_at': next_open_at_dt.isoformat(),
         'next_close_at': next_close_at_dt.isoformat(),
@@ -175,17 +184,3 @@ def get_market_status(market):
         'seconds_to_next_event': seconds_to_next_event,
         'is_holiday_today': holiday_today,
     }
-
-
-def should_collect_data(market):
-    market_time_data = get_market_time(market)
-    if not market_time_data:
-        return False
-    day_num = market_time_data.get('day_number', 0)
-    if market.country == "Futures":
-        if day_num == 5:  # Saturday blocked
-            return False
-    else:
-        if day_num >= 5:
-            return False
-    return market.is_active and market.status == 'OPEN'
