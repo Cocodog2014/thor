@@ -51,11 +51,10 @@ class BroadcastMarketClocksJob:
             return
 
         market_ticks = []
-        markets_qs = Market.objects.filter(is_active=True, is_control_market=True)
-        # Optionally include futures display rows if desired; maintain stable sort
-        markets_qs = markets_qs.order_by("display_order", "country")
+        markets = list(Market.objects.filter(is_active=True, is_control_market=True))
+        markets.sort(key=lambda m: m.get_sort_order())
 
-        for market in markets_qs:
+        for market in markets:
             mt = get_market_time(market)
             status = None
             try:
@@ -74,6 +73,10 @@ class BroadcastMarketClocksJob:
             if mt:
                 payload["current_time"] = _serialize_market_time(mt)
             if status:
+                ct = status.get("current_time") if isinstance(status, dict) else None
+                if isinstance(ct, dict):
+                    status = status.copy()
+                    status["current_time"] = _serialize_market_time(ct)
                 payload["market_status"] = status
 
             market_ticks.append(payload)

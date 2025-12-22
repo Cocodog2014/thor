@@ -153,9 +153,6 @@ def start_realtime(force: bool = False) -> None:
         job_names = register_jobs(registry) or []
         logger.info("✅ Jobs registered: %s", job_names)
 
-        def tick_seconds_fn(context):
-            return 1.0
-
         try:
             channel_layer = get_channel_layer()
 
@@ -169,7 +166,6 @@ def start_realtime(force: bool = False) -> None:
             logger.info("💓 Heartbeat starting (single scheduler)...")
             run_heartbeat(
                 registry=registry,
-                tick_seconds_fn=tick_seconds_fn,
                 leader_lock=lock,
                 channel_layer=channel_layer,
                 ctx=ctx,

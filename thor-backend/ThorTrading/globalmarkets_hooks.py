@@ -39,6 +39,10 @@ _ACTIVE_COUNTRIES: Set[str] = set()
 _ACTIVE_LOCK = threading.RLock()
 
 
+def _heartbeat_mode_active() -> bool:
+    return os.environ.get("THOR_SCHEDULER_MODE", "heartbeat").lower() == "heartbeat"
+
+
 def _is_controlled_market(market: Market | None) -> bool:
     if market is None or not market.is_active:
         return False
@@ -72,8 +76,7 @@ def _register_close(country: str) -> bool:
 
 def _start_global_background_services():
     """Start VWAP and 52-week services, but only if NOT in heartbeat scheduler mode."""
-    scheduler_mode = os.environ.get("THOR_SCHEDULER_MODE", "heartbeat").lower()
-    if scheduler_mode == "heartbeat":
+    if _heartbeat_mode_active():
         logger.debug("Skipping legacy VWAP/52w starters (heartbeat scheduler mode active)")
         return
     
@@ -86,8 +89,7 @@ def _start_global_background_services():
 
 def _stop_global_background_services():
     """Stop VWAP and 52-week services, but only if NOT in heartbeat scheduler mode."""
-    scheduler_mode = os.environ.get("THOR_SCHEDULER_MODE", "heartbeat").lower()
-    if scheduler_mode == "heartbeat":
+    if _heartbeat_mode_active():
         logger.debug("Skipping legacy VWAP/52w stoppers (heartbeat scheduler mode active)")
         return
     
@@ -126,7 +128,11 @@ def bootstrap_open_markets():
             logger.exception("Intraday bootstrap failed for %s", country)
 
     _start_global_background_services()
-    start_grading_service()
+
+    if _heartbeat_mode_active():
+        logger.info("Skipping MarketGrader start (heartbeat scheduler active)")
+    else:
+        start_grading_service()
 
 
 @receiver(market_opened)
@@ -152,10 +158,13 @@ def handle_market_opened(sender, instance: Market, **kwargs):
     except Exception:
         logger.exception("Failed to start intraday supervisor for %s", country)
 
-    try:
-        start_grading_service()
-    except Exception:
-        logger.exception("Failed to start MarketGrader after %s open", country)
+    if _heartbeat_mode_active():
+        logger.info("Skipping MarketGrader start (heartbeat scheduler active)")
+    else:
+        try:
+            start_grading_service()
+        except Exception:
+            logger.exception("Failed to start MarketGrader after %s open", country)
 
     if first_open:
         _start_global_background_services()
@@ -187,10 +196,14 @@ def handle_market_closed(sender, instance: Market, **kwargs):
 
     if last_close:
         _stop_global_background_services()
-        try:
-            stop_grading_service()
-        except Exception:
-            logger.exception("Failed to stop MarketGrader after %s close", country)
+
+        if _heartbeat_mode_active():
+            logger.info("Skipping MarketGrader stop (heartbeat scheduler active)")
+        else:
+            try:
+                stop_grading_service()
+            except Exception:
+                logger.exception("Failed to stop MarketGrader after %s close", country)
 
 
 __all__ = [
