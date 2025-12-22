@@ -275,7 +275,7 @@ class MarketOpenCaptureService:
                     len(enriched),
                 )
             session_number = self.get_next_session_number()
-            # Derive next capture_group (reuse session_number if desired, but keep independent for flexibility)
+            # Derive next capture_group (canonical session identity)
             last_group = MarketSession.objects.exclude(capture_group__isnull=True).order_by('-capture_group').first()
             capture_group = (last_group.capture_group + 1) if last_group and last_group.capture_group is not None else 1
             
@@ -308,7 +308,7 @@ class MarketOpenCaptureService:
 
             # ?? Populate market_open from last_price for this session
             try:
-                MarketOpenMetric.update(session_number)
+                MarketOpenMetric.update_for_capture_group(capture_group)
 
             except Exception as metrics_error:
                 logger.warning(
@@ -323,8 +323,8 @@ class MarketOpenCaptureService:
 
             try:
                 # Only update WNDW totals for THIS session & THIS market
-                _country_future_wndw_service.update_for_session_country(
-                    session_number=session_number,
+                _country_future_wndw_service.update_for_capture_group(
+                    capture_group=capture_group,
                     country=country_code or display_country,
                 )
             except Exception as stats_error:

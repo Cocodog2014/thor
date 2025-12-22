@@ -11,9 +11,10 @@ from ThorTrading.services.market_metrics import (
 
 
 def make_session(country: str, future: str, session_number: int, last_price=None, market_open=None,
-                 high=None, low=None):
+                 high=None, low=None, capture_group: int | None = None):
     return MarketSession.objects.create(
         session_number=session_number,
+        capture_group=capture_group if capture_group is not None else session_number,
         year=2025,
         month=11,
         date=22,
@@ -32,7 +33,7 @@ class MarketOpenMetricTests(TestCase):
         ym = make_session("USA", "YM", 1, last_price=Decimal("100"))
         total = make_session("USA", "TOTAL", 1, last_price=Decimal("250"))
 
-        updated = MarketOpenMetric.update(1)
+        updated = MarketOpenMetric.update_for_capture_group(1)
         self.assertEqual(updated, 2)
         ym.refresh_from_db(); total.refresh_from_db()
         self.assertEqual(ym.market_open, Decimal("100"))
@@ -42,7 +43,7 @@ class MarketOpenMetricTests(TestCase):
         """Verify TOTAL row gets market_open just like individual futures."""
         for future in ["YM", "ES", "NQ", "TOTAL"]:
             make_session("USA", future, 2, last_price=Decimal("100"))
-        updated = MarketOpenMetric.update(2)
+        updated = MarketOpenMetric.update_for_capture_group(2)
         self.assertEqual(updated, 4)
         total = MarketSession.objects.get(country="USA", future="TOTAL", session_number=2)
         self.assertEqual(total.market_open, Decimal("100"))

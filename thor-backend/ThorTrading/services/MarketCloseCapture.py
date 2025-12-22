@@ -5,16 +5,28 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict
 
-from django.db.models import Max
-
 from ThorTrading.models.MarketSession import MarketSession
 from ThorTrading.services.quotes import get_enriched_quotes_with_composite
 from ThorTrading.services.market_metrics import (
     MarketCloseMetric,
     MarketRangeMetric,
 )
+from ThorTrading.services.country_codes import normalize_country_code
 
 logger = logging.getLogger(__name__)
+
+
+def _latest_capture_group(country: str | None):
+    if not country:
+        return None
+    return (
+        MarketSession.objects
+        .filter(country=country)
+        .exclude(capture_group__isnull=True)
+        .order_by('-capture_group')
+        .values_list('capture_group', flat=True)
+        .first()
+    )
 
 
 def _base_payload(country: str | None) -> Dict[str, Any]:
@@ -24,7 +36,7 @@ def _base_payload(country: str | None) -> Dict[str, Any]:
 
 
 def capture_market_close(country: str | None, force: bool = False) -> Dict[str, Any]:
-    """Finalize close + range metrics for the latest session of a country."""
+    """Finalize close + range metrics for the latest capture_group of a country."""
     payload = _base_payload(country)
 
     if not country:
@@ -36,13 +48,11 @@ def capture_market_close(country: str | None, force: bool = False) -> Dict[str, 
         )
         return payload
 
-    latest_session = (
-        MarketSession.objects.filter(country=country)
-        .aggregate(Max("session_number"))
-        .get("session_number__max")
-    )
+    country = normalize_country_code(country) or country
 
-    if latest_session is None:
+    latest_group = _latest_capture_group(country)
+
+    if latest_group is None:
         payload.update(
             {
                 "status": "no-sessions",
@@ -51,11 +61,11 @@ def capture_market_close(country: str | None, force: bool = False) -> Dict[str, 
         )
         return payload
 
-    payload["session_number"] = latest_session
+    payload["capture_group"] = latest_group
 
     already_closed = MarketSession.objects.filter(
         country=country,
-        session_number=latest_session,
+        capture_group=latest_group,
         market_close__isnull=False,
     ).exists()
 

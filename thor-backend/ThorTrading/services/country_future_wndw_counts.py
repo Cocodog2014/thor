@@ -34,21 +34,21 @@ class CountryFutureWndwTotalsService:
         self.model = model
         self.logger = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
 
-    def update_for_session_country(self, session_number: int, country: str) -> int:
-        """Populate snapshots for all NEW rows captured in a session.
+    def update_for_capture_group(self, capture_group: int, country: str) -> int:
+        """Populate snapshots for all NEW rows captured in a capture_group.
 
         Returns the number of rows updated. Only rows whose
         ``country_future_wndw_total`` is empty/NULL are touched so we never
         overwrite previously recorded history.
         """
-        if not session_number or not country:
+        if capture_group in (None, "") or not country:
             self.logger.warning(
-                "update_for_session_country requires session_number and country; nothing to do."
+                "update_for_capture_group requires capture_group and country; nothing to do."
             )
             return 0
 
         pending_rows = self.model.objects.filter(
-            session_number=session_number,
+            capture_group=capture_group,
             country=country,
         ).filter(Q(country_future_wndw_total__isnull=True) | Q(country_future_wndw_total=0))
 
@@ -76,9 +76,9 @@ class CountryFutureWndwTotalsService:
             )
 
         self.logger.info(
-            "Set %s WNDW snapshots for session %s, country %s.",
+            "Set %s WNDW snapshots for capture_group %s, country %s.",
             updated,
-            session_number,
+            capture_group,
             country,
         )
         return updated
@@ -143,9 +143,9 @@ class CountryFutureWndwTotalsService:
 _service = CountryFutureWndwTotalsService()
 
 
-def update_country_future_wndw_total(session_number: int, country: str) -> int:
-    """Backward-compatible wrapper around the service."""
-    return _service.update_for_session_country(session_number=session_number, country=country)
+def update_country_future_wndw_total(capture_group: int, country: str) -> int:
+    """Wrapper around the service."""
+    return _service.update_for_capture_group(capture_group=capture_group, country=country)
 
 
 __all__ = [

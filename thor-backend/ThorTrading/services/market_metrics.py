@@ -74,6 +74,11 @@ class MarketOpenMetric:
     """Populate market_open = last_price for all rows in a session."""
 
     @staticmethod
+    def update(session_number: int) -> int:  # Backward compatibility alias
+        # Treat legacy callers as if they passed capture_group
+        return MarketOpenMetric.update_for_capture_group(session_number)
+
+    @staticmethod
     def update_for_capture_group(capture_group: int) -> int:
         logger.info("MarketOpenMetric → capture_group %s", capture_group)
 
