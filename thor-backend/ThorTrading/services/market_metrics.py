@@ -74,11 +74,11 @@ class MarketOpenMetric:
     """Populate market_open = last_price for all rows in a session."""
 
     @staticmethod
-    def update(session_number: int) -> int:
-        logger.info("MarketOpenMetric → Session %s", session_number)
+    def update_for_capture_group(capture_group: int) -> int:
+        logger.info("MarketOpenMetric → capture_group %s", capture_group)
 
-        # First set market_open from last_price for all rows in this session.
-        base_qs = MarketSession.objects.filter(session_number=session_number)
+        # First set market_open from last_price for all rows in this capture_group.
+        base_qs = MarketSession.objects.filter(capture_group=capture_group)
         open_updated = base_qs.update(market_open=F("last_price"))
 
         # Initialize high/low columns at the moment of open so the dashboard
@@ -107,10 +107,18 @@ class MarketOpenMetric:
 
         total = open_updated  # rows where open price copied
         logger.info(
-            "MarketOpenMetric complete → %s open prices, %s high/low initialized (session %s)",
-            open_updated, initialized_count, session_number
+            "MarketOpenMetric complete → %s open prices, %s high/low initialized (capture_group %s)",
+            open_updated, initialized_count, capture_group
         )
         return total
+
+    @staticmethod
+    def update_latest_for_country(country: str) -> int:
+        latest_group = _latest_capture_group(country)
+        if latest_group is None:
+            logger.info("MarketOpenMetric → No capture_group found for %s", country)
+            return 0
+        return MarketOpenMetric.update_for_capture_group(latest_group)
 
 
 # -------------------------------------------------------------------------
