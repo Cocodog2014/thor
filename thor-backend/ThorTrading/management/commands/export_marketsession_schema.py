@@ -9,8 +9,17 @@ class Command(BaseCommand):
     help = "Export MarketSession model field names and types to CSV and stdout"
 
     def add_arguments(self, parser):
-        parser.add_argument('--out', type=str, default='export/MarketSession_schema.csv',
-                            help='Output CSV path relative to thor-backend root')
+        parser.add_argument(
+            '--out',
+            type=str,
+            default='export/MarketSession_schema.csv',
+            help='Output CSV path relative to thor-backend root',
+        )
+        parser.add_argument(
+            '--absolute',
+            action='store_true',
+            help='Treat --out as an absolute path (skip BASE_DIR join)',
+        )
 
     def handle(self, *args, **options):
         fields = [
@@ -23,9 +32,12 @@ class Command(BaseCommand):
         for name, ftype in fields:
             self.stdout.write(f"{name},{ftype}")
         # Write CSV
-        out_rel = options['out']
-        base_dir = Path(getattr(settings, 'BASE_DIR', Path(__file__).resolve().parents[3]))
-        out_path = (base_dir / out_rel).resolve()
+        out_arg = options['out']
+        if options.get('absolute'):
+            out_path = Path(out_arg).expanduser().resolve()
+        else:
+            base_dir = Path(getattr(settings, 'BASE_DIR', Path(__file__).resolve().parents[3]))
+            out_path = (base_dir / out_arg).resolve()
         try:
             out_path.parent.mkdir(parents=True, exist_ok=True)
             with out_path.open('w', newline='') as fp:
