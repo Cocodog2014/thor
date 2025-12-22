@@ -39,6 +39,8 @@ import json
 import os
 
 from GlobalMarkets.models.market import Market
+from GlobalMarkets.models.constants import ALLOWED_CONTROL_COUNTRIES
+from ThorTrading.services.country_codes import normalize_country_code
 try:
     from ThorTrading.models import instruments  # placeholder if a dedicated instruments model exists
 except Exception:
@@ -59,14 +61,24 @@ class Command(BaseCommand):
         data_dir = options["data_dir"]
         self.stdout.write(self.style.NOTICE(f"Seeding from {data_dir}"))
 
+        # Build a case-insensitive map of canonical market keys
+        canonical_map = {c.lower(): c for c in ALLOWED_CONTROL_COUNTRIES}
+
         markets_path = os.path.join(data_dir, "seed_markets.json")
         if os.path.exists(markets_path):
             with open(markets_path, "r", encoding="utf-8") as f:
                 markets = json.load(f)
             created, updated = 0, 0
             for m in markets:
+                raw_name = m.get("name")
+                normalized = normalize_country_code(raw_name)
+                canonical = canonical_map.get(normalized.lower()) if normalized else None
+                if not canonical:
+                    self.stdout.write(self.style.WARNING(f"Skipping unknown market key: {raw_name!r}"))
+                    continue
+
                 obj, is_created = Market.objects.update_or_create(
-                    country=m.get("name"),
+                    country=canonical,
                     defaults={
                         "timezone_name": m.get("timezone"),
                         "is_control_market": m.get("is_control_market", True),
