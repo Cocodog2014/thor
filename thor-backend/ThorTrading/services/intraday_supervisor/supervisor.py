@@ -230,6 +230,7 @@ class IntradayMarketSupervisor:
                     logger.warning("Intraday %s: tick capture failed for %s", country, sym)
 
     def _flush_closed_bars_1m(self, country: str):
+        # Single bar writer: Redis → flush_worker only. No per-tick DB writes elsewhere.
         total = 0
         batch_size = 500
         try:
