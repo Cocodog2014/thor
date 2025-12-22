@@ -234,13 +234,8 @@ Start everything in the right order
 
 Open three terminals (or PowerShell windows).
 
-1. 
-
-   # NOTE: With Channels configured, runserver now supports WebSockets!
-   # WebSocket endpoint: ws://127.0.0.1:8000/ws/
-
-1.a. Alternative: Use Daphne explicitly (optional, runserver now works)
-     python -m daphne -b 127.0.0.1 -p 8000 thor_project.asgi:application
+1. cd A:\Thor\thor-backend
+python -m daphne -b 127.0.0.1 -p 8000 thor_project.asgi:application
 
 2. cd A:\Thor\thor-backend
    python manage.py run_heartbeat
@@ -254,7 +249,7 @@ Open three terminals (or PowerShell windows).
    npm run dev:local
 
 5. cd A:\Thor
-    cloudflared tunnel run dev-thor
+   cloudflared tunnel run dev-thor
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 Production
 
