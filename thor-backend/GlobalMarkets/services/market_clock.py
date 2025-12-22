@@ -153,7 +153,11 @@ def get_market_status(market):
         target_dt = next_open_at_dt
 
     seconds_to_next_event = max(0, int((target_dt - now_local).total_seconds()))
-    effective_status = 'CLOSED' if weekend else market.status
+
+    # Derive status from computed trading state to keep payload deterministic
+    effective_status = 'OPEN' if in_hours else 'CLOSED'
+    if holiday_today:
+        effective_status = 'CLOSED'
 
     return {
         'country': market.country,
