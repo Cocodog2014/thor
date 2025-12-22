@@ -9,6 +9,10 @@ from .utils import safe_decimal
 
 logger = logging.getLogger(__name__)
 
+# Track last seen cumulative volumes per (session_group, future) to prevent
+# re-adding the same cumulative feed volume on each heartbeat.
+_LAST_SEEN_VOLUME: dict[tuple[int, str], int] = {}
+
 @transaction.atomic
 def update_24h_for_country(country: str, enriched_rows):
     """Upsert and update rolling 24h stats for each instrument in enriched_rows.
@@ -39,7 +43,6 @@ def update_24h_for_country(country: str, enriched_rows):
     now_dt = timezone.now()
     counts = {'twentyfour_updates': 0}
     twentyfour_map = {}
-    last_volume_seen = {}
 
     for row in enriched_rows:
         sym = row.get('instrument', {}).get('symbol')
@@ -99,13 +102,16 @@ def update_24h_for_country(country: str, enriched_rows):
 
         # Delta volume accumulation to avoid double-counting
         vol_updates = []
-        prior_seen = last_volume_seen.get((latest_group, future), 0)
+        key = (latest_group, future)
+        prior_seen = _LAST_SEEN_VOLUME.get(key)
+        if prior_seen is None:
+            prior_seen = int(twentyfour.volume_24h or 0)
         if vol > 0:
             delta = max(vol - prior_seen, 0)
             if delta > 0:
                 twentyfour.volume_24h = (twentyfour.volume_24h or 0) + delta
                 vol_updates.append('volume_24h')
-            last_volume_seen[(latest_group, future)] = vol
+            _LAST_SEEN_VOLUME[key] = vol
 
         fields_to_update = []
         if updated:
