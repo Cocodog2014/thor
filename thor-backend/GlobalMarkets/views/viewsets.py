@@ -105,10 +105,10 @@ class MarketViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         """
-        Return ONLY control markets in east→west order.
+        Default list returns only ACTIVE control markets in east→west order.
 
-        If you want *all* markets for admin screens, use the default list endpoint
-        with appropriate filters.
+        To widen the set (e.g., admin review), supply filters like
+        ?is_control_market=false or ?is_active=false as needed.
         """
         qs = Market.objects.filter(is_control_market=True)
         # Keep only active control markets by default (you can override via filters)
