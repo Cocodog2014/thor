@@ -38,7 +38,7 @@ def _is_open_now(tz_name: str, open_t: time, close_t: time) -> bool:
 @permission_classes([AllowAny])
 def control_markets(request):
     """
-    Return the 9 control markets. If DB rows exist, include DB fields (weight/is_control_market).
+    Return control markets. If DB rows exist, include DB fields (weight/is_control_market).
     Otherwise, compute from static defaults (no DB required).
     """
     results = []
@@ -49,13 +49,21 @@ def control_markets(request):
         open_t = defaults['open']
         close_t = defaults['close']
         active = _is_open_now(tz, open_t, close_t)
+        state = None
         results.append({
             'country': country,
             'display_name': db_obj.get_display_name() if db_obj else country,
             'timezone_name': db_obj.timezone_name if db_obj else tz,
             'market_open_time': (db_obj.market_open_time.strftime('%H:%M') if db_obj else f"{open_t.hour:02d}:{open_t.minute:02d}"),
             'market_close_time': (db_obj.market_close_time.strftime('%H:%M') if db_obj else f"{close_t.hour:02d}:{close_t.minute:02d}"),
-            'is_open_now': active if not db_obj else db_obj.is_market_open_now(),
+            'is_open_now': active if not db_obj else (lambda s: s in {'OPEN', 'PRECLOSE'})(
+                (lambda st: st.get('current_state') if isinstance(st, dict) else None)(
+                    db_obj.get_market_status()
+                )
+            ),
+            'state': state if not db_obj else (lambda st: st.get('current_state') if isinstance(st, dict) else None)(
+                db_obj.get_market_status()
+            ),
             'is_control_market': True if not db_obj else db_obj.is_control_market,
             'weight': float(weight) if not db_obj else float(db_obj.weight),
             'has_db_record': db_obj is not None,
@@ -106,7 +114,7 @@ def composite_index(request):
     return Response({
         'composite_score': round(composite_score, 2),
         'active_markets': active_count,
-        'total_control_markets': 9,
+        'total_control_markets': len(CONTROL_MARKET_WEIGHTS),
         'max_possible': 100.0,
         'session_phase': phase,
         'contributions': contributions,

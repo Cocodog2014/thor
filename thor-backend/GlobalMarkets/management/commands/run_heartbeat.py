@@ -1,15 +1,13 @@
-"""Management command to run the unified heartbeat scheduler.
+"""
+Management command to run the unified heartbeat scheduler.
 
-This is the single entry point for all market-related periodic jobs:
-- Intraday tick capture
-- Session volume accumulation
-- 24h rolling stats
-- Closed bar flushing
-- Market metrics
-- 52-week extremes
-- Pre-open backtests
+✅ COMPLIANT WITH "ONE TIMER" RULE:
+- NO while True loops
+- NO time.sleep polling
+- NO tick selection logic here (no tick_seconds_fn)
+- This command only boots the single realtime heartbeat loop.
 
-Acquires a Redis leader lock to ensure only one heartbeat runs in multi-worker environments.
+All scheduling policy lives in thor_project/realtime (engine/runtime).
 """
 import logging
 import os
@@ -23,20 +21,14 @@ logger = logging.getLogger(__name__)
 
 
 class Command(BaseCommand):
-    help = "Run the unified heartbeat scheduler for all market jobs"
+    help = "Run the unified heartbeat scheduler (single realtime engine)"
 
     def add_arguments(self, parser):
         parser.add_argument(
-            "--fast-tick",
+            "--tick",
             type=float,
             default=1.0,
-            help="Heartbeat tick in seconds when markets are open (default: 1.0)",
-        )
-        parser.add_argument(
-            "--slow-tick",
-            type=float,
-            default=60.0,
-            help="Heartbeat tick in seconds when markets are closed (default: 60.0)",
+            help="Heartbeat tick in seconds (default: 1.0)",
         )
         parser.add_argument(
             "--no-lock",
@@ -45,20 +37,16 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
-        import os
-        fast_tick = options.get("fast_tick", 1.0)
-        slow_tick = options.get("slow_tick", 60.0)
-        use_lock = not options.get("no_lock", False)
+        tick = float(options.get("tick", 1.0))
+        use_lock = not bool(options.get("no_lock", False))
 
-        # Set heartbeat mode so legacy supervisors don't run
+        # Ensure legacy supervisors do not start
         os.environ["THOR_SCHEDULER_MODE"] = "heartbeat"
 
         self.stdout.write(self.style.SUCCESS("🚀 Heartbeat scheduler starting"))
-        self.stdout.write(f"   Fast tick: {fast_tick}s (markets open)")
-        self.stdout.write(f"   Slow tick: {slow_tick}s (markets closed)")
+        self.stdout.write(f"   Tick: {tick}s")
         self.stdout.write(f"   Leader lock: {'enabled' if use_lock else 'disabled'}")
 
-        # Acquire leader lock if requested
         lock = None
         if use_lock:
             from thor_project.realtime.leader_lock import LeaderLock
@@ -70,25 +58,23 @@ class Command(BaseCommand):
             self.stdout.write(self.style.SUCCESS("✓ Leader lock acquired"))
 
         try:
-            self._run_heartbeat(fast_tick, slow_tick)
+            self._run_heartbeat(tick)
         finally:
             if lock:
                 lock.release()
                 self.stdout.write("Leader lock released")
 
-    def _run_heartbeat(self, fast_tick: float, slow_tick: float) -> None:
+    def _run_heartbeat(self, tick: float) -> None:
         from core.infra.jobs import JobRegistry
         from thor_project.realtime.engine import HeartbeatContext, run_heartbeat
-        from GlobalMarkets.services.active_markets import has_active_markets
         from thor_project.realtime.registry import register_jobs
 
-        # Create single registry (source of truth for all jobs)
+        # Single registry (source of truth for all jobs)
         registry = JobRegistry()
-
         job_names = register_jobs(registry) or []
         logger.info("Heartbeat ready with %d jobs: %s", len(registry.jobs), job_names)
 
-        # Set up graceful shutdown on SIGTERM/SIGINT
+        # Graceful shutdown on SIGTERM/SIGINT
         stop_event = threading.Event()
 
         def _on_signal(sig, frame):
@@ -98,18 +84,14 @@ class Command(BaseCommand):
         signal.signal(signal.SIGTERM, _on_signal)
         signal.signal(signal.SIGINT, _on_signal)
 
-        # Create heartbeat context
+        # Heartbeat context
         ctx = HeartbeatContext(
             logger=logger,
             shared_state={"last_run": {}},
             stop_event=stop_event,
         )
 
-        # Dynamic tick selector: fast when markets are open, slow when closed
-        def _select_tick(context: HeartbeatContext) -> float:
-            return fast_tick if has_active_markets() else slow_tick
-
-        # Get channel layer for WebSocket broadcasting (shadow mode)
+        # Channel layer (optional) for WebSocket broadcasting
         try:
             from channels.layers import get_channel_layer
             channel_layer = get_channel_layer()
@@ -117,14 +99,13 @@ class Command(BaseCommand):
             logger.warning("Could not get channel layer for WebSocket broadcasting")
             channel_layer = None
 
-        # Run the heartbeat loop with the single registry
+        # Run the single realtime heartbeat loop
         try:
             run_heartbeat(
                 registry=registry,
-                tick_seconds=fast_tick,  # Default to fast; selector can change it per tick
-                tick_seconds_fn=_select_tick,
+                tick_seconds=tick,
                 ctx=ctx,
-                channel_layer=channel_layer,  # Shadow mode: broadcast to WebSocket clients
+                channel_layer=channel_layer,
             )
         except KeyboardInterrupt:
             logger.info("Heartbeat interrupted")

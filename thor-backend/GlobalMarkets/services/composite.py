@@ -20,30 +20,48 @@ def calculate_global_composite(cls):
     active_count = 0
     contributions = {}
 
-    for market in cls.objects.filter(is_control_market=True, is_active=True):
+    control_markets = list(cls.objects.filter(is_control_market=True, is_active=True))
+    total_control_markets = len(control_markets)
+
+    for market in control_markets:
         weight = float(market.weight)
         market_name = market.get_display_name()
 
-        if market.is_market_open_now():
+        status = None
+        try:
+            status = market.get_market_status()
+        except Exception:
+            status = None
+
+        current_state = status.get('current_state') if isinstance(status, dict) else None
+        is_active_state = current_state in {'OPEN', 'PRECLOSE'}
+
+        if status is None:
+            # Fallback to legacy open check if status unavailable
+            is_active_state = market.is_market_open_now()
+
+        if is_active_state:
             contribution = weight * 100
             composite_score += contribution
             active_count += 1
             contributions[market_name] = {
                 'weight': weight * 100,
                 'active': True,
-                'contribution': contribution
+                'contribution': contribution,
+                'state': current_state,
             }
         else:
             contributions[market_name] = {
                 'weight': weight * 100,
                 'active': False,
-                'contribution': 0
+                'contribution': 0,
+                'state': current_state,
             }
 
     return {
         'composite_score': round(composite_score, 2),
         'active_markets': active_count,
-        'total_control_markets': 9,
+        'total_control_markets': total_control_markets,
         'max_possible': 100.0,
         'session_phase': _determine_session_phase(),
         'contributions': contributions,
