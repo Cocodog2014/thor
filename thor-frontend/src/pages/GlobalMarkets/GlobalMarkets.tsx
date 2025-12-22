@@ -33,34 +33,24 @@ const GlobalMarkets: React.FC = () => {
 
   const openCellText = (m: Market): string => {
     const ms = m.market_status;
-    const state: string | undefined = ms.current_state;
     const secs: number = (ms.seconds_to_next_event as number | undefined) ?? 0;
     const hours = Math.floor(secs / 3600);
 
-    // When closed and next event is open, show days or countdown
-    if ((state === 'CLOSED' || state === 'PREOPEN' || state === 'HOLIDAY_CLOSED') && ms.next_event === 'open') {
+    if (ms.next_event === 'open' && secs > 0) {
       if (hours >= 24) {
         const days = Math.max(1, Math.ceil(secs / 86400));
         return `${days} day${days > 1 ? 's' : ''}`;
       }
-      return `${formatHms(secs)}`;
+      return formatHms(secs);
     }
 
-    // Default to scheduled open time
     return m.market_open_time;
   };
 
   const closeCellText = (m: Market): string => {
-    const ms = m.market_status;
-    const state: string | undefined = ms.current_state;
-    const secs: number = (ms.seconds_to_next_event as number | undefined) ?? 0;
-
+    const state: string | undefined = m.market_status.current_state;
     if (isWeekend(m)) return 'WEEKEND';
     if (state === 'HOLIDAY_CLOSED') return 'HOLIDAY';
-
-    if (state === 'OPEN' || state === 'PRECLOSE') {
-      return formatHms(secs);
-    }
     return m.market_close_time;
   };
 
@@ -124,7 +114,8 @@ const GlobalMarkets: React.FC = () => {
           </thead>
           <tbody>
             {markets.map((market) => {
-              const isOpen = market.market_status.is_in_trading_hours && market.status === 'OPEN';
+              const state = market.market_status.current_state;
+              const isOpen = state === 'OPEN' || state === 'PRECLOSE';
               const statusColor = isOpen ? 'open' : 'closed';
               
               return (
@@ -142,7 +133,7 @@ const GlobalMarkets: React.FC = () => {
                   <td className="market-close">{closeCellText(market)}</td>
                   <td className="market-time">{market.current_time.formatted_24h}</td>
                   <td className="market-status">
-                    <span className={`status-indicator ${statusColor}`}>{isOpen ? 'OPEN' : 'CLOSED'}</span>
+                    <span className={`status-indicator ${statusColor}`}>{state ?? 'UNKNOWN'}</span>
                   </td>
                 </tr>
               );

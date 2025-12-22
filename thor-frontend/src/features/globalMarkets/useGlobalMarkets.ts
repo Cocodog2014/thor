@@ -34,57 +34,14 @@ export function useGlobalMarkets() {
     }
   }, [marketsQuery.isError]);
 
-  useWsMessage('market_status', (msg: WsMessage) => {
-    const payload = (msg as WsMessage & {
-      data?: Partial<Market> & {
-        market_id?: number;
-        id?: number;
-        current_time?: Market['current_time'];
-        market_status?: Market['market_status'];
-        timestamp?: number;
-      };
-    }).data;
-    if (!payload) return;
-
-    const marketId = payload.market_id ?? payload.id;
-    if (!marketId) return;
-
-    queryClient.setQueryData<Market[] | undefined>(qk.globalMarkets(), (prev) => {
-      if (!prev) return prev;
-      const idx = prev.findIndex((m) => m.id === marketId);
-      if (idx === -1) return prev;
-
-      const next = [...prev];
-      const current = next[idx];
-
-      next[idx] = {
-        ...current,
-        status: payload.status ?? current.status,
-        market_status: {
-          ...current.market_status,
-          ...(payload.market_status ?? {}),
-        },
-        current_time: payload.current_time
-          ? { ...current.current_time, ...payload.current_time }
-          : current.current_time,
-      } as Market;
-
-      return next;
-    });
-
-    if (payload.timestamp) {
-      setLastUpdate(new Date(payload.timestamp * 1000));
-    } else {
-      setLastUpdate(new Date());
-    }
-    setIsStale(false);
-  });
-
   useWsMessage('global_markets_tick', (msg: WsMessage) => {
     type TickMarket = {
       market_id?: number;
       current_time?: Partial<NonNullable<Market['current_time']>>;
       market_status?: Partial<Market['market_status']>;
+      status?: Market['status'];
+      market_open_time?: string;
+      market_close_time?: string;
     };
     const data = (msg as WsMessage & { data?: { markets?: TickMarket[]; timestamp?: number } }).data;
     const marketsPayload = data?.markets ?? [];
@@ -105,6 +62,13 @@ export function useGlobalMarkets() {
 
         const updated: Market = { ...m } as Market;
 
+        if (incoming.market_open_time) {
+          updated.market_open_time = incoming.market_open_time;
+        }
+        if (incoming.market_close_time) {
+          updated.market_close_time = incoming.market_close_time;
+        }
+
         if (incoming.current_time) {
           changed = true;
           updated.current_time = { ...m.current_time, ...incoming.current_time };
@@ -120,17 +84,18 @@ export function useGlobalMarkets() {
           } as Market['market_status'];
         }
 
+        if (incoming.status) {
+          changed = true;
+          updated.status = incoming.status;
+        }
+
         return updated;
       });
 
       return changed ? next : prev;
     });
 
-    if (data?.timestamp) {
-      setLastUpdate(new Date(data.timestamp * 1000));
-    } else {
-      setLastUpdate(new Date());
-    }
+    setLastUpdate(data?.timestamp ? new Date(data.timestamp * 1000) : new Date());
     setIsStale(false);
   });
 
