@@ -34,6 +34,8 @@ def run_heartbeat(
     if channel_layer and not context.channel_layer:
         context.channel_layer = channel_layer
 
+    # Force a 1s cadence for now (can be revisited later)
+    tick_seconds = 1.0
     logger.info("heartbeat starting (tick=%.2fs)", tick_seconds)
     current_tick = tick_seconds
     tick_count = 0
@@ -53,20 +55,8 @@ def run_heartbeat(
             logger.info("heartbeat stopping on stop_event")
             break
 
-        if tick_seconds_fn:
-            try:
-                current_tick = float(tick_seconds_fn(context))
-            except Exception:
-                logger.exception(
-                    "tick_seconds_fn failed; keeping previous tick=%.2f", current_tick
-                )
-        if current_tick <= 0:
-            logger.warning(
-                "invalid tick %.3f; falling back to default %.2f",
-                current_tick,
-                tick_seconds,
-            )
-            current_tick = tick_seconds
+        # keep tick fixed at 1s for now
+        current_tick = tick_seconds
 
         if tick_count % 30 == 0:
             logger.info("💓 Heartbeat alive (tick=%s, tick_seconds=%s)", tick_count, current_tick)
