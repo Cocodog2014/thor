@@ -6,10 +6,12 @@ from typing import Optional
 
 from django.utils import timezone
 
+from ThorTrading.models.MarketIntraDay import MarketIntraday
 from ThorTrading.services.quotes import get_enriched_quotes_with_composite
 from ThorTrading.services.account_snapshots import trigger_account_daily_snapshots
 from ThorTrading.services.country_codes import normalize_country_code
 from ThorTrading.services.intraday_supervisor.flush_worker import flush_closed_bars
+from ThorTrading.services.metrics.session_close_range import MarketCloseMetric, MarketRangeMetric
 from LiveData.shared.redis_client import live_data_redis
 
 logger = logging.getLogger(__name__)
@@ -198,6 +200,7 @@ class IntradayMarketSupervisor:
         for market in open_markets:
             try:
                 self._process_market_tick(market)
+                self._maybe_alert_lag(self._get_normalized_country(market))
             except Exception:
                 logger.exception("Intraday step_once failed for %s", self._get_normalized_country(market))
 
@@ -224,6 +227,11 @@ class IntradayMarketSupervisor:
         updated_count = 0
 
         for row in enriched or []:
+            row_country = normalize_country_code(
+                row.get('country') or row.get('instrument', {}).get('country')
+            )
+            if row_country and row_country != country:
+                continue
             sym = row.get('instrument', {}).get('symbol')
             if not sym:
                 continue

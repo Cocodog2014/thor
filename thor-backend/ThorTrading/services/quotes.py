@@ -22,6 +22,7 @@ from ThorTrading.constants import FUTURES_SYMBOLS, REDIS_SYMBOL_MAP, SYMBOL_NORM
 from ThorTrading.models.extremes import Rolling52WeekStats
 from ThorTrading.models import TradingInstrument
 from ThorTrading.services.classification import enrich_quote_row, compute_composite
+from ThorTrading.services.country_codes import normalize_country_code
 from ThorTrading.services.metrics import compute_row_metrics
 
 logger = logging.getLogger(__name__)
@@ -72,6 +73,8 @@ def build_enriched_rows(raw_quotes: Dict[str, Dict]) -> List[Dict]:
         norm = SYMBOL_NORMALIZE_MAP.get(sym, sym)
         stat = stats_52w.get(norm)
 
+        row_country = normalize_country_code(quote.get('country') or quote.get('market'))
+
         meta = instrument_meta.get(norm, {})
         row = {
             'instrument': {
@@ -85,7 +88,9 @@ def build_enriched_rows(raw_quotes: Dict[str, Dict]) -> List[Dict]:
                 'sort_order': idx,
                 'tick_value': meta.get('tick_value'),
                 'margin_requirement': meta.get('margin_requirement'),
+                'country': row_country,
             },
+            'country': row_country,
             # Ensure downstream composite has a timestamp
             'timestamp': quote.get('timestamp'),
             'price': _to_str(quote.get('last')),
