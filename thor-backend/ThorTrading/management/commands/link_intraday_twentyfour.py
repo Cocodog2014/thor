@@ -47,8 +47,9 @@ class Command(BaseCommand):
                 .values_list("capture_group", flat=True)
                 .first()
             )
-            session_group_cache[country] = sg
-            return sg
+            sg_str = str(sg) if sg is not None else None
+            session_group_cache[country] = sg_str
+            return sg_str
 
         buffer = []
 
@@ -63,11 +64,11 @@ class Command(BaseCommand):
             if sg is None:
                 sg = f"date:{row.timestamp_minute.date().isoformat()}"
 
-            cache_key = (str(sg), future)
+            cache_key = (sg, future)
             twentyfour = twentyfour_cache.get(cache_key)
             if twentyfour is None:
                 twentyfour, _ = FutureTrading24Hour.objects.get_or_create(
-                    session_group=str(sg),
+                    session_group=sg,
                     future=future,
                     defaults={
                         "session_date": row.timestamp_minute.date(),

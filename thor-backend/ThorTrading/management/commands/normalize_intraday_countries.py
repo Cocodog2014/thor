@@ -6,13 +6,18 @@ from ThorTrading.models.MarketIntraDay import MarketIntraday
 from ThorTrading.models.Martket24h import FutureTrading24Hour
 from GlobalMarkets.models.market import Market
 
+# Canonical set aligned with GlobalMarkets.ALLOWED_CONTROL_COUNTRIES
 CANONICAL = {
-    "USA",
-    "Pre_USA",
     "Japan",
     "China",
     "India",
+    "Germany",
     "United Kingdom",
+    "Pre_USA",
+    "USA",
+    "Canada",
+    "Mexico",
+    "Futures",
 }
 
 # Legacy bad labels we have seen
