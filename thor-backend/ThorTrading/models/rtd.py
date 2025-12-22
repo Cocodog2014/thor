@@ -36,9 +36,9 @@ class InstrumentCategory(models.Model):
 
 class TradingInstrument(models.Model):
     """Flexible model for any type of trading instrument"""
-    
+
     # Basic identification
-    symbol = models.CharField(max_length=50, unique=True)  # e.g., '/NQ', 'AAPL', 'BTC-USD'
+    symbol = models.CharField(max_length=50, unique=True, help_text="Canonical contract code (e.g., NQ, ES, AAPL)")
     name = models.CharField(max_length=200)  # e.g., 'Nasdaq 100 Futures', 'Apple Inc'
     description = models.TextField(blank=True)
     
@@ -69,6 +69,11 @@ class TradingInstrument(models.Model):
     # API configuration
     api_provider = models.CharField(max_length=50, blank=True)  # 'alpha_vantage', 'iex', 'polygon'
     api_symbol = models.CharField(max_length=100, blank=True)  # Symbol as used by API provider
+    feed_symbol = models.CharField(
+        max_length=100,
+        blank=True,
+        help_text="Raw feed symbol (/NQ, NQH26, etc.) when different from canonical code",
+    )
     update_frequency = models.IntegerField(default=5)  # Seconds between updates
     
     # Status
