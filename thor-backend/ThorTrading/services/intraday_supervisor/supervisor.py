@@ -144,35 +144,6 @@ class IntradayMarketSupervisor:
             return
         logger.info("Intraday worker loop started for %s", country)
 
-        # Schedule slower tasks (metrics/session/24h) on their own timers
-        def _schedule_timer(name, interval, func):
-            timers_for_market = self._timers.setdefault(market.id, {})
-
-            def _run():
-                if stop_event.is_set():
-                    return
-                try:
-                    func()
-                except Exception:
-                    logger.exception("Intraday %s %s task failed", country, name)
-                finally:
-                    if not stop_event.is_set():
-                        t = threading.Timer(interval, _run)
-                        t.daemon = True
-                        timers_for_market[name] = t
-                        t.start()
-
-            t = threading.Timer(interval, _run)
-            t.daemon = True
-            timers_for_market[name] = t
-            t.start()
-
-        # Placeholder slow tasks (no-ops for now; hook real logic later)
-        _schedule_timer("metrics", self.metrics_interval, lambda: None)
-        _schedule_timer("session", self.session_interval, lambda: None)
-        _schedule_timer("day", self.day_interval, lambda: None)
-        _schedule_timer("flush_1m", self.bar_flush_interval, lambda: self._flush_closed_bars_1m(country))
-
         while not stop_event.is_set():
             try:
                 self._process_market_tick(market)
