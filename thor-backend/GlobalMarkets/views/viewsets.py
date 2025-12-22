@@ -1,345 +1,468 @@
-from rest_framework import filters, viewsets
-from rest_framework.decorators import api_view, action, permission_classes
-from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated, AllowAny
-from django_filters.rest_framework import DjangoFilterBackend
+from datetime import date, timedelta
+import os
+
+from django.db.models import Case, When, IntegerField
 from django.http import HttpResponse
 from django.utils import timezone
-from datetime import date, timedelta, datetime
-import os
+
+from rest_framework import filters, viewsets
+from rest_framework.decorators import api_view, action, permission_classes
+from rest_framework.permissions import (
+    AllowAny,
+    IsAuthenticated,
+    IsAdminUser,
+)
+from rest_framework.response import Response
+
+from django_filters.rest_framework import DjangoFilterBackend
 
 from ..models import Market, USMarketStatus, MarketDataSnapshot, UserMarketWatchlist
 from ..serializers import (
-    MarketSerializer, USMarketStatusSerializer,
-    MarketDataSnapshotSerializer, UserMarketWatchlistSerializer
+    MarketSerializer,
+    USMarketStatusSerializer,
+    MarketDataSnapshotSerializer,
+    UserMarketWatchlistSerializer,
 )
 
 
+# -----------------------------------------------------------------------------
+# Helpers (no timers; compute-only)
+# -----------------------------------------------------------------------------
+
+CONTROL_COUNTRIES_ORDER = [
+    "Japan",
+    "China",
+    "India",
+    "Germany",
+    "United Kingdom",
+    "Pre_USA",
+    "USA",
+    "Canada",
+    "Mexico",
+    "Futures",  # include Futures if you have it as a control market
+]
+
+
+def _annotate_control_order(qs):
+    """
+    DB-safe ordering without .extra().
+    Any unknown country gets 999 and falls to the bottom.
+    """
+    whens = [When(country=name, then=idx + 1) for idx, name in enumerate(CONTROL_COUNTRIES_ORDER)]
+    return qs.annotate(
+        custom_order=Case(*whens, default=999, output_field=IntegerField())
+    ).order_by("custom_order")
+
+
+def _safe_market_status(m: Market) -> dict | None:
+    try:
+        st = m.get_market_status()
+        return st if isinstance(st, dict) else None
+    except Exception:
+        return None
+
+
+def _computed_is_open(st: dict | None) -> bool:
+    """
+    Truth source for "open": computed state from get_market_status(),
+    not DB Market.status.
+    """
+    if not st:
+        return False
+    state = st.get("current_state")
+    return state in {"OPEN", "PRECLOSE"}
+
+
+# -----------------------------------------------------------------------------
+# ViewSets
+# -----------------------------------------------------------------------------
+
 class MarketViewSet(viewsets.ModelViewSet):
     """
-    ViewSet for managing global markets
-    """
-    queryset = Market.objects.all()
-    serializer_class = MarketSerializer
-    permission_classes = [AllowAny]
-    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    filterset_fields = ['status', 'is_active', 'currency', 'is_control_market']
-    search_fields = ['country', 'timezone_name']
-    ordering_fields = ['country', 'market_open_time', 'created_at']
-    ordering = ['country']
-    
-    def get_queryset(self):
-        """Return ONLY control markets in east→west order (earliest open to latest)."""
-        control_countries = [
-            'Japan',
-            'China',
-            'India',
-            'Germany',
-            'United Kingdom',
-            'Pre_USA',
-            'USA',
-            'Canada',
-            'Mexico',
-        ]
+    Global Markets API.
 
-        queryset = Market.objects.filter(country__in=control_countries).extra(
-            select={
-                'custom_order': """
-                CASE 
-                    WHEN country = 'Japan' THEN 1
-                    WHEN country = 'China' THEN 2
-                    WHEN country = 'India' THEN 3
-                    WHEN country = 'Germany' THEN 4
-                    WHEN country = 'United Kingdom' THEN 5
-                    WHEN country = 'Pre_USA' THEN 6
-                    WHEN country = 'USA' THEN 7
-                    WHEN country = 'Canada' THEN 8
-                    WHEN country = 'Mexico' THEN 9
-                    ELSE 999
-                END
-                """
-            }
-        ).order_by('custom_order')
-        
-        return queryset
-    
-    @action(detail=False, methods=['get'], permission_classes=[AllowAny])
+    ✅ WS-first architecture compatible:
+    - Avoids relying on DB Market.status for "open/active" truth
+    - Avoids US gating for global markets
+    - Avoids .extra()
+    - Keeps ordering stable and includes Futures
+    """
+
+    serializer_class = MarketSerializer
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = ["status", "is_active", "currency", "is_control_market"]
+    search_fields = ["country", "timezone_name"]
+    ordering_fields = ["country", "market_open_time", "created_at"]
+    ordering = ["country"]
+
+    def get_permissions(self):
+        """
+        Fix security: public can read; only admins can write.
+        """
+        if self.request.method in {"GET", "HEAD", "OPTIONS"}:
+            return [AllowAny()]
+        return [IsAdminUser()]
+
+    def get_queryset(self):
+        """
+        Return ONLY control markets in east→west order.
+
+        If you want *all* markets for admin screens, use the default list endpoint
+        with appropriate filters.
+        """
+        qs = Market.objects.filter(is_control_market=True)
+        # Keep only active control markets by default (you can override via filters)
+        qs = qs.filter(is_active=True)
+        return _annotate_control_order(qs)
+
+    @action(detail=False, methods=["get"], permission_classes=[AllowAny])
     def control(self, request):
-        """Return only control markets (9)"""
+        """
+        Return only active control markets in stable order.
+        """
         qs = Market.objects.filter(is_active=True, is_control_market=True)
+        qs = _annotate_control_order(qs)
         serializer = self.get_serializer(qs, many=True)
         return Response(serializer.data)
-    
-    @action(detail=False, methods=['get'], permission_classes=[AllowAny])
+
+    @action(detail=False, methods=["get"], permission_classes=[AllowAny])
     def active_markets(self, request):
-        """Get all active markets that should be tracked"""
-        active_markets = Market.objects.filter(is_active=True, status='OPEN')
-        serializer = self.get_serializer(active_markets, many=True)
-        return Response(serializer.data)
-    
-    @action(detail=False, methods=['get'], permission_classes=[AllowAny])
+        """
+        Return markets that are currently trading based on computed state.
+        (Does NOT trust DB Market.status.)
+        """
+        qs = Market.objects.filter(is_active=True, is_control_market=True)
+        qs = _annotate_control_order(qs)
+
+        results = []
+        for m in qs:
+            st = _safe_market_status(m)
+            if _computed_is_open(st):
+                # Return the normal serializer plus computed state if you want.
+                results.append({
+                    "id": m.id,
+                    "country": m.country,
+                    "display_name": m.get_display_name() if hasattr(m, "get_display_name") else m.country,
+                    "timezone_name": m.timezone_name,
+                    "market_open_time": m.market_open_time.strftime("%H:%M") if m.market_open_time else None,
+                    "market_close_time": m.market_close_time.strftime("%H:%M") if m.market_close_time else None,
+                    "current_state": st.get("current_state") if st else None,
+                })
+
+        return Response({"count": len(results), "results": results})
+
+    @action(detail=False, methods=["get"], permission_classes=[AllowAny])
     def live_status(self, request):
-        """Get real-time status of all markets"""
-        us_market_open = USMarketStatus.is_us_market_open_today()
-        
-        if not us_market_open:
-            return Response({
-                'us_market_open': False,
-                'message': 'US markets are closed - no data collection active',
-                'markets': []
-            })
-        
-        markets = Market.objects.filter(is_active=True)
-        market_data = []
-        
-        for market in markets:
-            status = market.get_market_status()
-            if status:
-                market_data.append(status)
-        
+        """
+        Real-time status for all active control markets.
+
+        IMPORTANT:
+        - NO US gating here. Global markets operate even when US is closed.
+        - Always uses computed get_market_status().
+        """
+        qs = Market.objects.filter(is_active=True, is_control_market=True)
+        qs = _annotate_control_order(qs)
+
+        markets = []
+        for m in qs:
+            st = _safe_market_status(m)
+            if st:
+                markets.append(st)
+
         return Response({
-            'us_market_open': True,
-            'total_markets': len(market_data),
-            'markets': market_data
+            "total_markets": len(markets),
+            "markets": markets,
         })
+
+    @action(detail=False, methods=["get"], permission_classes=[AllowAny])
+    def live_status_cached(self, request):
+        """
+        Redis-first live status payload (WS truth blob).
+
+        Reads:
+          - thor:global_markets:status
+        Fallback:
+          - compute from DB methods if Redis missing
+        """
+        import json
+        import time
+
+        # Try redis first
+        try:
+            from LiveData.shared.redis_client import live_data_redis  # type: ignore
+            raw = live_data_redis.client.get("thor:global_markets:status")
+            if raw:
+                payload = json.loads(raw)
+                return Response({"source": "redis", **payload})
+        except Exception:
+            pass
+
+        # Fallback compute (kept as safety net)
+        markets = self.get_queryset()
+        results = []
+        for m in markets:
+            try:
+                st = m.get_market_status()
+                if not isinstance(st, dict):
+                    st = None
+            except Exception:
+                st = None
+
+            results.append(
+                {
+                    "market_id": m.id,
+                    "country": m.country,
+                    "status": m.status,
+                    "market_status": st,
+                    "server_time": time.time(),
+                }
+            )
+
+        return Response({"source": "computed", "timestamp": time.time(), "markets": results})
 
 
 class USMarketStatusViewSet(viewsets.ModelViewSet):
     """
-    ViewSet for managing US market trading days and holidays
+    US market trading days and holidays.
     """
     queryset = USMarketStatus.objects.all()
     serializer_class = USMarketStatusSerializer
-    permission_classes = [AllowAny]
-    ordering = ['-date']
-    
-    @action(detail=False, methods=['get'])
+    ordering = ["-date"]
+
+    def get_permissions(self):
+        # Public can read; only admins can write.
+        if self.request.method in {"GET", "HEAD", "OPTIONS"}:
+            return [AllowAny()]
+        return [IsAdminUser()]
+
+    @action(detail=False, methods=["get"], permission_classes=[AllowAny])
     def today_status(self, request):
-        """Get today's US market status"""
         today = date.today()
         is_open = USMarketStatus.is_us_market_open_today()
-        
+
         try:
             status_obj = USMarketStatus.objects.get(date=today)
             serializer = self.get_serializer(status_obj)
-            return Response({
-                'is_open': is_open,
-                'status': serializer.data
-            })
+            return Response({"is_open": is_open, "status": serializer.data})
         except USMarketStatus.DoesNotExist:
             return Response({
-                'is_open': is_open,
-                'status': {
-                    'date': today,
-                    'is_trading_day': is_open,
-                    'holiday_name': '' if is_open else 'Weekend',
-                    'created_at': None
-                }
+                "is_open": is_open,
+                "status": {
+                    "date": today,
+                    "is_trading_day": is_open,
+                    "holiday_name": "" if is_open else "Weekend",
+                    "created_at": None,
+                },
             })
-    
-    @action(detail=False, methods=['get'])
+
+    @action(detail=False, methods=["get"], permission_classes=[AllowAny])
     def upcoming_holidays(self, request):
-        """Get upcoming US market holidays"""
         today = date.today()
         upcoming = USMarketStatus.objects.filter(
             date__gte=today,
-            is_trading_day=False
-        ).order_by('date')[:10]
-        
+            is_trading_day=False,
+        ).order_by("date")[:10]
         serializer = self.get_serializer(upcoming, many=True)
         return Response(serializer.data)
 
 
 class MarketDataSnapshotViewSet(viewsets.ReadOnlyModelViewSet):
     """
-    ViewSet for viewing market data snapshots
+    View market data snapshots (read-only).
     """
     queryset = MarketDataSnapshot.objects.all()
     serializer_class = MarketDataSnapshotSerializer
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]  # tighten security; snapshots are internal
     filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
-    filterset_fields = ['market', 'market_status', 'dst_active']
-    ordering_fields = ['collected_at', 'market_time']
-    ordering = ['-collected_at']
-    
-    @action(detail=False, methods=['get'])
+    filterset_fields = ["market", "market_status", "dst_active"]
+    ordering_fields = ["collected_at", "market_time"]
+    ordering = ["-collected_at"]
+
+    @action(detail=False, methods=["get"])
     def latest_snapshots(self, request):
-        """Get latest snapshot for each market"""
+        """
+        Latest snapshot for each market (correct ordering).
+        """
         latest_snapshots = []
         markets = Market.objects.filter(is_active=True)
-        
+
         for market in markets:
-            latest = MarketDataSnapshot.objects.filter(market=market).first()
+            latest = (
+                MarketDataSnapshot.objects
+                .filter(market=market)
+                .order_by("-collected_at")
+                .first()
+            )
             if latest:
                 latest_snapshots.append(latest)
-        
+
         serializer = self.get_serializer(latest_snapshots, many=True)
         return Response(serializer.data)
-    
-    @action(detail=False, methods=['get'])
+
+    @action(detail=False, methods=["get"])
     def market_history(self, request):
-        """Get recent history for a specific market"""
-        market_id = request.query_params.get('market_id')
-        hours = int(request.query_params.get('hours', 24))
-        
+        market_id = request.query_params.get("market_id")
+        hours = int(request.query_params.get("hours", 24))
+
         if not market_id:
-            return Response({'error': 'market_id parameter required'}, status=400)
-        
+            return Response({"error": "market_id parameter required"}, status=400)
+
         since = timezone.now() - timedelta(hours=hours)
-        
-        snapshots = MarketDataSnapshot.objects.filter(
-            market_id=market_id,
-            collected_at__gte=since
-        ).order_by('-collected_at')
-        
+
+        snapshots = (
+            MarketDataSnapshot.objects
+            .filter(market_id=market_id, collected_at__gte=since)
+            .order_by("-collected_at")
+        )
         serializer = self.get_serializer(snapshots, many=True)
         return Response(serializer.data)
 
 
 class UserMarketWatchlistViewSet(viewsets.ModelViewSet):
     """
-    ViewSet for managing user's market watchlist
+    User's market watchlist.
     """
     serializer_class = UserMarketWatchlistSerializer
     permission_classes = [IsAuthenticated]
-    
+
     def get_queryset(self):
-        return UserMarketWatchlist.objects.filter(user=self.request.user)
-    
+        # Prevent N+1 when serializer includes nested MarketSerializer
+        return (
+            UserMarketWatchlist.objects
+            .filter(user=self.request.user)
+            .select_related("market")
+            .order_by("order", "id")
+        )
+
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
-    
-    @action(detail=False, methods=['post'])
+
+    @action(detail=False, methods=["post"])
     def reorder(self, request):
-        """Reorder user's watchlist"""
-        watchlist_orders = request.data.get('watchlist_orders', [])
-        
-        for item in watchlist_orders:
+        watchlist_orders = request.data.get("watchlist_orders", [])
+
+        for item_data in watchlist_orders:
+            watchlist_id = item_data.get("id")
+            new_order = item_data.get("order")
             try:
-                watchlist_item = UserMarketWatchlist.objects.get(
-                    id=item['id'],
-                    user=request.user
-                )
-                watchlist_item.order = item['order']
+                watchlist_item = UserMarketWatchlist.objects.get(id=watchlist_id, user=request.user)
+                watchlist_item.order = new_order
                 watchlist_item.save()
             except UserMarketWatchlist.DoesNotExist:
                 continue
-        
-        return Response({'status': 'success'})
+
+        return Response({"status": "success"})
 
 
-@api_view(['GET'])
+# -----------------------------------------------------------------------------
+# Function-based endpoints (dev + stats)
+# -----------------------------------------------------------------------------
+
+@api_view(["GET"])
 @permission_classes([AllowAny])
 def worldclock_stats(request):
     """
-    Get WorldClock application statistics
+    WorldClock application statistics.
+
+    IMPORTANT:
+    - "currently_trading" is computed from get_market_status() current_state
+      (does NOT trust DB Market.status).
     """
-    us_market_open = USMarketStatus.is_us_market_open_today()
-    
     stats = {
-        'us_market_open': us_market_open,
-        'total_markets': Market.objects.filter(is_active=True).count(),
-        'active_markets': Market.objects.filter(is_active=True, status='OPEN').count(),
-        'total_snapshots': MarketDataSnapshot.objects.count(),
-        'total_users_with_watchlists': UserMarketWatchlist.objects.values('user').distinct().count(),
+        "us_market_open": USMarketStatus.is_us_market_open_today(),
+        "total_markets": Market.objects.filter(is_active=True).count(),
+        "total_snapshots": MarketDataSnapshot.objects.count(),
+        "total_users_with_watchlists": UserMarketWatchlist.objects.values("user").distinct().count(),
     }
-    
+
     last_24h = timezone.now() - timedelta(hours=24)
-    stats['recent_snapshots'] = MarketDataSnapshot.objects.filter(
-        collected_at__gte=last_24h
-    ).count()
-    
-    if us_market_open:
-        open_markets = []
-        for market in Market.objects.filter(is_active=True, status='OPEN'):
-            if market.is_market_open_now():
-                open_markets.append(market.country)
-        stats['currently_trading'] = open_markets
-    else:
-        stats['currently_trading'] = []
-    
+    stats["recent_snapshots"] = MarketDataSnapshot.objects.filter(collected_at__gte=last_24h).count()
+
+    # Compute currently trading from computed status (control markets only)
+    currently_trading = []
+    qs = Market.objects.filter(is_active=True, is_control_market=True)
+    qs = _annotate_control_order(qs)
+
+    for m in qs:
+        st = _safe_market_status(m)
+        if _computed_is_open(st):
+            currently_trading.append(m.country)
+
+    stats["currently_trading"] = currently_trading
+    stats["active_markets"] = len(currently_trading)
+
     return Response(stats)
 
 
-@api_view(['GET'])
+@api_view(["GET"])
+@permission_classes([IsAdminUser])
 def api_test_page(request):
     """
-    Serve the API test page for development/debugging
+    Serve the API test page (admin-only).
     """
     current_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    html_file_path = os.path.join(current_dir, 'api_test.html')
-    
+    html_file_path = os.path.join(current_dir, "api_test.html")
+
     try:
-        with open(html_file_path, 'r', encoding='utf-8') as f:
+        with open(html_file_path, "r", encoding="utf-8") as f:
             html_content = f.read()
-        return HttpResponse(html_content, content_type='text/html')
+        return HttpResponse(html_content, content_type="text/html")
     except FileNotFoundError:
         return HttpResponse(
             "<h1>Error: api_test.html not found</h1>"
             "<p>Make sure api_test.html is in the project root directory</p>",
-            content_type='text/html'
+            content_type="text/html",
         )
 
 
-@api_view(['GET'])
-@permission_classes([AllowAny])
+@api_view(["GET"])
+@permission_classes([IsAdminUser])
 def debug_market_times(request):
     """
-    Debug endpoint to check current market times and ordering
+    Debug endpoint: current market times + ordering (admin-only).
     """
     all_markets = Market.objects.all()
     active_markets = Market.objects.filter(is_active=True)
-    
-    markets = Market.objects.filter(is_active=True).extra(
-        select={
-            'custom_order': """
-            CASE 
-                WHEN country = 'Japan' THEN 1
-                WHEN country = 'China' THEN 2
-                WHEN country = 'India' THEN 3
-                WHEN country = 'Germany' THEN 4
-                WHEN country = 'United Kingdom' THEN 5
-                WHEN country = 'Pre_USA' THEN 6
-                WHEN country = 'USA' THEN 7
-                WHEN country = 'Canada' THEN 8
-                WHEN country = 'Mexico' THEN 9
-                ELSE 999
-            END
-            """
-        }
-    ).order_by('custom_order')
-    
+
+    qs = Market.objects.filter(is_active=True, is_control_market=True)
+    qs = _annotate_control_order(qs)
+
     debug_info = {
-        'total_markets_in_db': all_markets.count(),
-        'active_markets_count': active_markets.count(),
-        'ordered_markets_count': markets.count(),
-        'current_time': timezone.now().isoformat(),
-        'all_countries': [m.country for m in all_markets],
-        'active_countries': [m.country for m in active_markets],
-        'markets': []
+        "total_markets_in_db": all_markets.count(),
+        "active_markets_count": active_markets.count(),
+        "ordered_markets_count": qs.count(),
+        "current_time": timezone.now().isoformat(),
+        "all_countries": [m.country for m in all_markets],
+        "active_countries": [m.country for m in active_markets],
+        "markets": [],
     }
-    
-    for market in markets:
-        current_time_info = market.get_current_market_time()
-        debug_info['markets'].append({
-            'position': len(debug_info['markets']) + 1,
-            'country': market.country,
-            'display_name': market.get_display_name(),
-            'sort_order': market.get_sort_order(),
-            'timezone': market.timezone_name,
-            'market_hours': f"{market.market_open_time} - {market.market_close_time}",
-            'current_time': current_time_info,
-            'is_active': market.is_active,
-            'status': market.status
+
+    for market in qs:
+        st = _safe_market_status(market) or {}
+        current_time_info = st.get("current_time")
+
+        debug_info["markets"].append({
+            "position": len(debug_info["markets"]) + 1,
+            "country": market.country,
+            "display_name": market.get_display_name() if hasattr(market, "get_display_name") else market.country,
+            "sort_order": market.get_sort_order() if hasattr(market, "get_sort_order") else None,
+            "timezone": market.timezone_name,
+            "market_hours": f"{market.market_open_time} - {market.market_close_time}",
+            "current_time": current_time_info,
+            "is_active": market.is_active,
+            "db_status": market.status,  # show DB value for debugging only
+            "computed_state": st.get("current_state"),
+            "next_event": st.get("next_event"),
+            "seconds_to_next_event": st.get("seconds_to_next_event"),
         })
-    
+
     return Response(debug_info)
 
 
-@api_view(['POST', 'GET'])
-@permission_classes([AllowAny])
+@api_view(["POST", "GET"])
+@permission_classes([IsAdminUser])
 def sync_markets(request):
     """
-    Sync markets for development only (kept for compatibility)
+    Deprecated compatibility endpoint (admin-only).
     """
-    return Response({'detail': 'Deprecated: use control markets config instead.'})
+    return Response({"detail": "Deprecated: use control markets config / seed commands instead."})

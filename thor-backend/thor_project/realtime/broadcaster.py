@@ -1,10 +1,34 @@
 """WebSocket broadcast helpers for realtime heartbeat."""
 from __future__ import annotations
 
+import json
 import logging
 import time
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, Dict, Optional
+
+
+def _get_redis_client():
+    """
+    Returns live_data_redis.client if available, else None.
+    We keep this optional so imports never break app startup.
+    """
+    try:
+        from LiveData.shared.redis_client import live_data_redis  # type: ignore
+        return live_data_redis.client
+    except Exception:
+        return None
+
+
+def _redis_set_json(key: str, payload: Dict[str, Any], ttl_seconds: int = 10) -> None:
+    client = _get_redis_client()
+    if not client:
+        return
+    try:
+        client.setex(key, int(ttl_seconds), json.dumps(payload, default=str))
+    except Exception:
+        # Never allow Redis issues to break heartbeat
+        pass
 
 
 def broadcast_heartbeat_tick(channel_layer: Any, logger: logging.Logger) -> None:
@@ -21,12 +45,20 @@ def broadcast_heartbeat_tick(channel_layer: Any, logger: logging.Logger) -> None
             },
         }
         broadcast_to_websocket_sync(channel_layer, heartbeat_msg)
+        _redis_set_json("thor:realtime:heartbeat", heartbeat_msg["data"], ttl_seconds=10)
     except Exception as exc:
         logger.debug("WebSocket heartbeat broadcast failed: %s", exc)
 
 
 def broadcast_market_clocks(channel_layer: Any, logger: logging.Logger) -> None:
-    """Broadcast per-market clock ticks every heartbeat so frontends advance clocks."""
+    """
+    Broadcast per-market clock ticks every heartbeat so frontends advance clocks.
+
+    Writes:
+      - thor:global_markets:clocks (TTL)
+    Broadcasts:
+      - type=global_markets_tick
+    """
     try:
         from api.websocket.broadcast import broadcast_to_websocket_sync
         from GlobalMarkets.models import Market
@@ -64,73 +96,68 @@ def broadcast_market_clocks(channel_layer: Any, logger: logging.Logger) -> None:
                 )
 
         if market_ticks:
-            tick_msg = {
-                "type": "global_markets_tick",
-                "data": {
-                    "timestamp": time.time(),
-                    "markets": market_ticks,
-                },
+            payload = {
+                "timestamp": time.time(),
+                "markets": market_ticks,
             }
+            tick_msg = {"type": "global_markets_tick", "data": payload}
+
+            # Broadcast
             broadcast_to_websocket_sync(channel_layer, tick_msg)
+
+            # Cache
+            _redis_set_json("thor:global_markets:clocks", payload, ttl_seconds=15)
+
     except Exception as exc:
         logger.debug("Global markets tick broadcast failed: %s", exc)
 
 
-def broadcast_account_and_status(channel_layer: Any, logger: logging.Logger) -> None:
-    """Broadcast account balance and market status snapshots."""
+def broadcast_global_market_status(channel_layer: Any, logger: logging.Logger) -> None:
+    """
+    Broadcast consolidated market status for all active markets.
+
+    Writes:
+      - thor:global_markets:status (TTL)
+    Broadcasts:
+      - type=market_status with data={"timestamp":..., "markets":[...]}
+        (consumer already supports "market_status")
+    """
     try:
         from api.websocket.broadcast import broadcast_to_websocket_sync
-        from api.websocket.messages import build_account_balance_message, build_market_status_message
-    except Exception as exc:
-        logger.debug("WebSocket broadcast helpers unavailable: %s", exc)
-        return
-
-    # 1. Broadcast account balance (for TEST-001)
-    try:
-        from ActAndPos.models import Account
-
-        account = Account.objects.filter(account_id="TEST-001").first()
-        if account:
-            balance_data = {
-                "account_id": account.account_id,
-                "cash": float(account.cash or 0),
-                "portfolio_value": float(account.net_liq or 0),
-                "buying_power": float(account.buying_power or 0),
-                "equity": float(account.equity or 0),
-                "timestamp": time.time(),
-            }
-            balance_msg = build_account_balance_message(balance_data)
-            broadcast_to_websocket_sync(channel_layer, balance_msg)
-    except Exception as exc:
-        logger.debug("Account balance broadcast failed: %s", exc)
-
-    # 2. Broadcast market status per active market
-    try:
         from GlobalMarkets.models import Market
 
         markets = Market.objects.filter(is_active=True)
+
+        results = []
         for market in markets:
             try:
-                status_data = market.get_market_status()
-                if status_data:
-                    status_data["current_time"] = float(time.time())
-                    market_data = {
+                st = market.get_market_status()
+                if not isinstance(st, dict):
+                    st = None
+                results.append(
+                    {
                         "market_id": market.id,
                         "country": market.country,
                         "status": market.status,
-                        "market_status": status_data,
-                        "current_time": status_data.get("current_time"),
+                        "market_status": st,
+                        "server_time": time.time(),
                     }
-                    market_msg = build_market_status_message(market_data)
-                    broadcast_to_websocket_sync(channel_layer, market_msg)
+                )
             except Exception as exc:
-                logger.debug("Market status broadcast failed for %s: %s", market.country, exc)
+                logger.debug("Market status build failed for %s: %s", getattr(market, "country", "?"), exc)
+
+        payload = {"timestamp": time.time(), "markets": results}
+
+        msg = {"type": "market_status", "data": payload}
+        broadcast_to_websocket_sync(channel_layer, msg)
+        _redis_set_json("thor:global_markets:status", payload, ttl_seconds=15)
+
     except Exception as exc:
-        logger.debug("Market status broadcast failed: %s", exc)
+        logger.debug("Global market status broadcast failed: %s", exc)
 
 
 __all__ = [
     "broadcast_heartbeat_tick",
     "broadcast_market_clocks",
-    "broadcast_account_and_status",
+    "broadcast_global_market_status",
 ]

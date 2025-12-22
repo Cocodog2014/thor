@@ -5,57 +5,50 @@ All WebSocket broadcast functionality centralized here.
 Domain apps call these to broadcast their data without knowing about WebSocket internals.
 """
 
-import asyncio
 import logging
 from typing import Any, Dict
 
+from asgiref.sync import async_to_sync
+
 logger = logging.getLogger(__name__)
 
+DEFAULT_GROUP_NAME = "market_data"
 
-def broadcast_to_websocket_sync(channel_layer, message: Dict[str, Any]):
+
+def broadcast_to_websocket_sync(channel_layer: Any, message: Dict[str, Any], group_name: str = DEFAULT_GROUP_NAME) -> None:
     """
-    Synchronous wrapper for broadcasting messages to WebSocket.
-    
-    Creates a new event loop to run the async broadcast without blocking.
-    Safe to call from synchronous code (e.g., Django jobs in domain apps).
-    
-    Args:
-        channel_layer: Django Channels layer instance
-        message: Message dictionary with 'type' and 'data' keys
+    Sync-safe broadcast to Channels group.
+
+    - Does NOT create event loops.
+    - Safe to call from sync code (heartbeat thread, Django views, mgmt commands).
     """
     if not channel_layer:
         logger.warning("No channel_layer provided - skipping WebSocket broadcast")
         return
-    
+
     try:
-        logger.info(f"📡 Broadcasting to WebSocket: {message.get('type')}")
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        try:
-            loop.run_until_complete(
-                channel_layer.group_send("market_data", message)
-            )
-            logger.debug(f"✅ WebSocket broadcast sent: {message.get('type')}")
-        finally:
-            loop.close()
-    except Exception as e:
+        msg_type = message.get("type")
+        logger.debug("📡 Broadcasting to WebSocket: %s", msg_type)
+        async_to_sync(channel_layer.group_send)(group_name, message)
+        logger.debug("✅ WebSocket broadcast sent: %s", msg_type)
+    except Exception:
         # Never let WebSocket errors block the calling code
-        logger.error(f"❌ WebSocket broadcast error: {e}", exc_info=True)
+        logger.exception("❌ WebSocket broadcast error")
 
 
-async def broadcast_to_websocket(channel_layer, message: Dict[str, Any]):
+async def broadcast_to_websocket(channel_layer: Any, message: Dict[str, Any], group_name: str = DEFAULT_GROUP_NAME) -> None:
     """
-    Async broadcast to WebSocket group.
-    
-    Use this in async code. For sync code, use broadcast_to_websocket_sync().
+    Async broadcast to Channels group.
+    Use in async code (consumers, async views).
     """
     if not channel_layer:
         logger.warning("No channel_layer provided - skipping WebSocket broadcast")
         return
-    
+
     try:
-        logger.info(f"📡 Broadcasting to WebSocket (async): {message.get('type')}")
-        await channel_layer.group_send("market_data", message)
-        logger.debug(f"✅ WebSocket broadcast sent (async): {message.get('type')}")
-    except Exception as e:
-        logger.error(f"❌ WebSocket broadcast error: {e}", exc_info=True)
+        msg_type = message.get("type")
+        logger.debug("📡 Broadcasting to WebSocket (async): %s", msg_type)
+        await channel_layer.group_send(group_name, message)
+        logger.debug("✅ WebSocket broadcast sent (async): %s", msg_type)
+    except Exception:
+        logger.exception("❌ WebSocket broadcast error (async)")
