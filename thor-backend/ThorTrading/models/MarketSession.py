@@ -8,6 +8,7 @@ Tracks trades based on TOTAL composite signals and grades outcomes.
 
 from django.db import models
 from django.utils import timezone
+from GlobalMarkets.models.constants import CONTROL_COUNTRY_CHOICES
 
 # Grouping support
 
@@ -37,7 +38,11 @@ class MarketSession(models.Model):
     captured_at = models.DateTimeField(default=timezone.now, help_text="Exact timestamp of capture")
 
     # Market Info
-    country = models.CharField(max_length=50, help_text="Market region (Japan, China, Europe, USA, etc.)")
+    country = models.CharField(
+        max_length=50,
+        choices=CONTROL_COUNTRY_CHOICES,
+        help_text="Market region (canonical control market key)",
+    )
     future = models.CharField(
         max_length=10,
         null=True,

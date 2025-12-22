@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from typing import Optional
+from GlobalMarkets.models.constants import ALLOWED_CONTROL_COUNTRIES
 
 # Canonical outputs map to the values expected by downstream services.
 # Alias keys should be uppercase for easier comparison.
@@ -27,6 +28,8 @@ COUNTRY_CODE_MAP = {
     "UK": "United Kingdom",
 }
 
+CANONICAL_LOWER = {c.lower(): c for c in ALLOWED_CONTROL_COUNTRIES}
+
 
 def normalize_country_code(raw: Optional[str]) -> Optional[str]:
     """Normalize assorted country strings to canonical codes (e.g., JP, CN)."""
@@ -40,6 +43,11 @@ def normalize_country_code(raw: Optional[str]) -> Optional[str]:
     lookup = COUNTRY_CODE_MAP.get(trimmed.upper())
     if lookup:
         return lookup
+
+    # Try to map directly to canonical set
+    canon = CANONICAL_LOWER.get(trimmed.lower())
+    if canon:
+        return canon
 
     return trimmed.upper()
 
