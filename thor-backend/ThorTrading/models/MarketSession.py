@@ -532,7 +532,7 @@ class MarketSession(models.Model):
 
     class Meta:
         ordering = ['-captured_at', 'future']
-        unique_together = ['country', 'year', 'month', 'date', 'future']
+        unique_together = ['capture_group', 'future']
         verbose_name = 'Market Session'
         verbose_name_plural = 'Market Sessions'
 
