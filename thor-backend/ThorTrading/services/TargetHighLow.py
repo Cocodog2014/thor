@@ -48,9 +48,13 @@ def _get_quant_for_symbol(symbol: str) -> Optional[Decimal]:
     """
     base = symbol.lstrip("/").upper()
 
-    inst = TradingInstrument.objects.filter(
-        symbol__in=[base, f"/{base}"]
-    ).first()
+    inst = (
+        TradingInstrument.objects.filter(symbol__iexact=base)
+        .first()
+        or TradingInstrument.objects.filter(symbol__iexact=f"/{base}").first()
+        or TradingInstrument.objects.filter(feed_symbol__iexact=symbol).first()
+        or TradingInstrument.objects.filter(feed_symbol__iexact=f"/{base}").first()
+    )
 
     if not inst:
         logger.warning("No TradingInstrument for %s; skipping quantization.", symbol)
