@@ -532,23 +532,7 @@ class MarketSession(models.Model):
 
     class Meta:
         ordering = ['-captured_at', 'future']
-Unify the session key type
-
-MarketSession.capture_group (int) vs FutureTrading24Hour.session_group (str) must be unified.
-
-Fix MarketSession uniqueness
-
-Current constraint prevents multiple sessions per day per future per country. 
-
-MarketSession
-
-
-This will definitely cause overwrites/missing events.
-
-Canonicalize country everywhere
-
-Intraday/24h enforce choices; MarketSession does not.
-This will cause linking failures and “why isn’t it updating?” problems.        unique_together = ['capture_group', 'future']
+        unique_together = ['capture_group', 'future']
         verbose_name = 'Market Session'
         verbose_name_plural = 'Market Sessions'
 
