@@ -22,15 +22,23 @@ class Command(BaseCommand):
         future = options['future']
         capture_group = options.get('capture_group')
 
-        # Resolve the target MarketSession
-        session_qs = MarketSession.objects.filter(country=country).order_by('-captured_at')
-        if not session_qs.exists():
-            raise CommandError(f"No MarketSession found for country={country}. Open capture must run first.")
-
-        session = session_qs.first()
-        group = capture_group if capture_group is not None else session.capture_group
-        if group is None:
-            raise CommandError("MarketSession.capture_group is None; cannot resolve 24h session group.")
+        # Resolve the target MarketSession via capture_group identity instead of timestamp heuristics
+        if capture_group is not None:
+            session = MarketSession.objects.filter(country=country, capture_group=capture_group).order_by('-id').first()
+            if session is None:
+                raise CommandError(f"No MarketSession found for country={country} capture_group={capture_group}.")
+            group = capture_group
+        else:
+            session = (
+                MarketSession.objects
+                .filter(country=country)
+                .exclude(capture_group__isnull=True)
+                .order_by('-capture_group', '-id')
+                .first()
+            )
+            if session is None:
+                raise CommandError(f"No MarketSession with capture_group for country={country}.")
+            group = session.capture_group
 
         # Get 24h row for instrument + group
         try:
