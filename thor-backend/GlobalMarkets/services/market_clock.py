@@ -44,20 +44,34 @@ def is_market_open_now(market):
     day_num = market_time_data.get('day_number', 0)
 
     if market.country == "Futures":
-        # Futures: open Sunday (day 6) through Friday close; closed all-day Saturday (day 5)
+        # Futures special-case: open Sunday 17:00 through Friday 17:00 (close time), closed all-day Saturday
         if day_num == 5:
-            return False
-    else:
-        # Regular markets: skip weekends (Sat=5, Sun=6)
-        if day_num >= 5:
-            return False
+            return False  # Saturday closed
+
+        current_time = market_time_data['datetime'].time()
+
+        # If open and close are equal (e.g., 17:00), treat as continuous weekly session
+        if market.market_open_time == market.market_close_time:
+            if day_num == 6:  # Sunday
+                return current_time >= market.market_open_time
+            if day_num in {0, 1, 2, 3}:  # Mon-Thu
+                return True
+            if day_num == 4:  # Friday
+                return current_time <= market.market_close_time
+        # Otherwise fall back to standard overnight-aware window
+        if market.market_open_time <= market.market_close_time:
+            return market.market_open_time <= current_time <= market.market_close_time
+        return current_time >= market.market_open_time or current_time <= market.market_close_time
+
+    # Regular markets: skip weekends (Sat=5, Sun=6)
+    if day_num >= 5:
+        return False
 
     current_time = market_time_data['datetime'].time()
 
     if market.market_open_time <= market.market_close_time:
         return market.market_open_time <= current_time <= market.market_close_time
-    else:
-        return current_time >= market.market_open_time or current_time <= market.market_close_time
+    return current_time >= market.market_open_time or current_time <= market.market_close_time
 
 
 def get_market_status(market):
