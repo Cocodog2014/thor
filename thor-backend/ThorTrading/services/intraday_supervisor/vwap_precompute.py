@@ -11,13 +11,20 @@ def precompute_rolling_vwap(symbols):
     for sym in symbols:
         try:
             val = vwap_service.calculate_rolling_vwap(sym, window_minutes, now_dt=now_dt)
-            vwap_payload[sym] = str(val) if val is not None else None
+            vwap_payload[sym] = {
+                'raw': float(val) if val is not None else None,
+                'text': str(val) if val is not None else None,
+            }
         except Exception:
-            vwap_payload[sym] = None
+            vwap_payload[sym] = {'raw': None, 'text': None}
 
     live_data_redis.set_json(
         f"rolling_vwap:{window_minutes}",
-        {'window_minutes': window_minutes, 'as_of': now_dt.isoformat(), 'values': vwap_payload},
+        {
+            'window_minutes': window_minutes,
+            'as_of': now_dt.isoformat(),
+            'values': vwap_payload,
+        },
         ex=120,
     )
 
