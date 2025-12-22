@@ -5,7 +5,7 @@ import logging
 import threading
 import time
 from dataclasses import dataclass
-from typing import Any, Callable
+from typing import Any
 
 from core.infra.jobs import JobRegistry
 
@@ -22,7 +22,6 @@ class HeartbeatContext:
 def run_heartbeat(
     registry: JobRegistry,
     tick_seconds: float = 1.0,
-    tick_seconds_fn: Callable[[HeartbeatContext], float] | None = None,
     ctx: HeartbeatContext | None = None,
     channel_layer: Any | None = None,
     leader_lock: Any | None = None,
