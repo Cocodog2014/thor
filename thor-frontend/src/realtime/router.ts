@@ -1,19 +1,19 @@
-import type { MessageHandler, WsMessage } from './types';
+import type { MessageHandler, WsEnvelope } from './types';
 
 const subscribers = new Map<string, Set<MessageHandler>>();
 
-export function subscribe(messageType: string, handler: MessageHandler): () => void {
+export function subscribe<T = unknown>(messageType: string, handler: MessageHandler<T>): () => void {
   if (!subscribers.has(messageType)) {
     subscribers.set(messageType, new Set());
   }
-  subscribers.get(messageType)!.add(handler);
+  subscribers.get(messageType)!.add(handler as MessageHandler);
 
   return () => {
     subscribers.get(messageType)?.delete(handler);
   };
 }
 
-export function dispatch(message: WsMessage): void {
+export function dispatch(message: WsEnvelope): void {
   const type = message?.type;
   if (!type) return;
 
@@ -29,6 +29,6 @@ export function dispatch(message: WsMessage): void {
 }
 
 // Alias for clarity with requested API shape
-export function emit(type: string, message: WsMessage): void {
+export function emit(type: string, message: WsEnvelope): void {
   dispatch({ ...message, type });
 }

@@ -3,8 +3,17 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { Market } from '../../types';
 import marketsService from '../../services/markets';
 import { useWsMessage } from '../../realtime';
-import type { WsMessage } from '../../realtime/types';
+import type { WsEnvelope } from '../../realtime/types';
 import { qk } from '../../realtime/queryKeys';
+
+type TickMarket = {
+  market_id?: number;
+  current_time?: Partial<NonNullable<Market['current_time']>>;
+  market_status?: Partial<Market['market_status']>;
+  status?: Market['status'];
+  market_open_time?: string;
+  market_close_time?: string;
+};
 
 export function useGlobalMarkets() {
   const queryClient = useQueryClient();
@@ -36,16 +45,8 @@ export function useGlobalMarkets() {
     }
   }, [marketsQuery.isError]);
 
-  useWsMessage('global_markets_tick', (msg: WsMessage) => {
-    type TickMarket = {
-      market_id?: number;
-      current_time?: Partial<NonNullable<Market['current_time']>>;
-      market_status?: Partial<Market['market_status']>;
-      status?: Market['status'];
-      market_open_time?: string;
-      market_close_time?: string;
-    };
-    const data = (msg as WsMessage & { data?: { markets?: TickMarket[]; timestamp?: number } }).data;
+  useWsMessage<{ markets?: TickMarket[]; timestamp?: number }>('global_markets_tick', (msg: WsEnvelope<{ markets?: TickMarket[]; timestamp?: number }>) => {
+    const { data, ts } = msg;
     const marketsPayload = data?.markets ?? [];
     if (!marketsPayload.length) return;
 
@@ -97,7 +98,8 @@ export function useGlobalMarkets() {
       return changed ? next : prev;
     });
 
-    setLastUpdate(data?.timestamp ? new Date(data.timestamp * 1000) : new Date());
+    const stamp = ts ?? (data?.timestamp as number | undefined);
+    setLastUpdate(stamp ? new Date(stamp * 1000) : new Date());
     setIsStale(false);
   });
 

@@ -8,7 +8,7 @@
 
 import { useEffect, useState } from 'react';
 import { useWsConnection, useWsMessage } from '..';
-import type { WsMessage } from '../types';
+import type { WsEnvelope } from '../types';
 
 export function WebSocketShadowMonitor() {
   const connected = useWsConnection();
@@ -17,7 +17,7 @@ export function WebSocketShadowMonitor() {
   const [lastMessageType, setLastMessageType] = useState<string>('none');
 
   // Track all messages flowing through the new realtime router
-  useWsMessage('all', (msg: WsMessage) => {
+  useWsMessage<unknown>('all', (msg: WsEnvelope) => {
     setMessageCount((c) => c + 1);
     setLastMessageTime(new Date().toLocaleTimeString());
     if (msg?.type) setLastMessageType(msg.type);

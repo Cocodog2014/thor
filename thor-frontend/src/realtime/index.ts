@@ -2,7 +2,7 @@ import { connectSocket, disconnectSocket, sendMessage, onConnectionChange, isCon
 
 // Public API surface
 export { subscribe } from './router';
-export type { MessageHandler, WsMessage } from './types';
+export type { MessageHandler, WsMessage, WsEnvelope } from './types';
 export { useWsMessage, useWsConnection, useChannel, useConnection } from './hooks';
 
 // Socket facade for consumers that prefer an object

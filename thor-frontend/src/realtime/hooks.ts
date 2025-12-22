@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { subscribe } from './router';
 import { connectSocket, onConnectionChange, isConnected } from './socket';
-import type { MessageHandler } from './types';
+import type { MessageHandler, WsEnvelope } from './types';
 
-export function useWsMessage(messageType: string, handler: MessageHandler, enabled = true): void {
-  const handlerRef = useRef(handler);
+export function useWsMessage<T = unknown>(messageType: string, handler: MessageHandler<T>, enabled = true): void {
+  const handlerRef = useRef(handler as MessageHandler);
 
   useEffect(() => {
     handlerRef.current = handler;
@@ -13,7 +13,7 @@ export function useWsMessage(messageType: string, handler: MessageHandler, enabl
   useEffect(() => {
     if (!enabled) return;
     connectSocket();
-    const off = subscribe(messageType, (msg) => handlerRef.current(msg));
+    const off = subscribe<T>(messageType, (msg: WsEnvelope<T>) => handlerRef.current(msg));
     return off;
   }, [messageType, enabled]);
 }
