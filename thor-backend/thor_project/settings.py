@@ -282,6 +282,11 @@ CHANNEL_LAYERS = {
     },
 }
 
+# Realtime job providers (plugins loaded by thor_project.realtime.registry)
+REALTIME_JOB_PROVIDERS = [
+    "GlobalMarkets.realtime.provider",
+]
+
 
 # Frontend base URL exposed in admin shortcuts and cross-links
 FRONTEND_BASE_URL = config('FRONTEND_BASE_URL', default='http://localhost:5173/')

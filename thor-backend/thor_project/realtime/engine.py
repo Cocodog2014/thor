@@ -16,7 +16,7 @@ class HeartbeatContext:
     shared_state: dict[str, Any]
     settings: Any | None = None
     stop_event: threading.Event | None = None
-    channel_layer: Any | None = None  # For WebSocket broadcasting
+    channel_layer: Any | None = None  # Passed to jobs that need it
 
 
 def run_heartbeat(
@@ -30,8 +30,6 @@ def run_heartbeat(
     """Run the blocking heartbeat loop that dispatches registered jobs."""
     logger = (ctx.logger if ctx else None) or logging.getLogger("heartbeat")
     context = ctx or HeartbeatContext(logger=logger, shared_state={})
-
-    broadcaster = None
 
     if channel_layer and not context.channel_layer:
         context.channel_layer = channel_layer
@@ -69,34 +67,6 @@ def run_heartbeat(
                 tick_seconds,
             )
             current_tick = tick_seconds
-
-        if context.channel_layer:
-            if broadcaster is None:
-                from thor_project.realtime import broadcaster as _b
-                broadcaster = _b
-
-            broadcaster.broadcast_heartbeat_tick(context.channel_layer, logger)
-            broadcaster.broadcast_market_clocks(context.channel_layer, logger)
-
-            # Optional debug clock logging guarded by env to avoid noisy ORM during init
-            try:
-                import os
-
-                if os.environ.get("THOR_DEBUG_CLOCK_LOGS") == "1":
-                    from GlobalMarkets.models import Market
-                    from GlobalMarkets.services.market_clock import get_market_time
-
-                    markets = Market.objects.filter(is_active=True)
-                    for market in markets:
-                        mt = get_market_time(market)
-                        if mt:
-                            logger.info("⏰ %s | %s", market.country, mt.get("formatted_24h"))
-            except Exception as exc:
-                logger.debug("Clock logging failed: %s", exc)
-
-            # GlobalMarkets-only mode: skip account/status broadcasts for now
-            # if tick_count % 5 == 0:
-            #     broadcaster.broadcast_account_and_status(context.channel_layer, logger)
 
         if tick_count % 30 == 0:
             logger.info("💓 Heartbeat alive (tick=%s, tick_seconds=%s)", tick_count, current_tick)
