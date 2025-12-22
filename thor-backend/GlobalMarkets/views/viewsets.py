@@ -88,6 +88,7 @@ class MarketViewSet(viewsets.ModelViewSet):
     - Keeps ordering stable and includes Futures
     """
 
+    queryset = Market.objects.all()
     serializer_class = MarketSerializer
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ["status", "is_active", "currency", "is_control_market"]

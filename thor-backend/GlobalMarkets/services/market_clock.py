@@ -198,3 +198,11 @@ def get_market_status(market):
         'seconds_to_next_event': seconds_to_next_event,
         'is_holiday_today': holiday_today,
     }
+
+
+def should_collect_data(market):
+    # Keep a dedicated helper for model callers that only need the boolean flag
+    status = get_market_status(market)
+    if not status:
+        return False
+    return bool(status.get('should_collect_data', False))

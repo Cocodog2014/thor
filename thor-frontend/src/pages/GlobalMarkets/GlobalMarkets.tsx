@@ -32,7 +32,7 @@ const GlobalMarkets: React.FC = () => {
   const isWeekend = (m: Market) => m.current_time.day === 'Sat' || m.current_time.day === 'Sun';
 
   const openCellText = (m: Market): string => {
-    const ms = m.market_status;
+    const ms = m.market_status ?? { next_event: 'open', seconds_to_next_event: 0 };
     const secs: number = (ms.seconds_to_next_event as number | undefined) ?? 0;
     const hours = Math.floor(secs / 3600);
 
@@ -48,7 +48,7 @@ const GlobalMarkets: React.FC = () => {
   };
 
   const closeCellText = (m: Market): string => {
-    const state: string | undefined = m.market_status.current_state;
+    const state: string | undefined = m.market_status?.current_state;
     if (isWeekend(m)) return 'WEEKEND';
     if (state === 'HOLIDAY_CLOSED') return 'HOLIDAY';
     return m.market_close_time;
@@ -113,8 +113,10 @@ const GlobalMarkets: React.FC = () => {
             </tr>
           </thead>
           <tbody>
-            {markets.map((market) => {
-              const state = market.market_status.current_state;
+            {markets
+              .filter((market) => market.market_status && market.current_time)
+              .map((market) => {
+              const state = market.market_status?.current_state ?? 'UNKNOWN';
               const isOpen = state === 'OPEN' || state === 'PRECLOSE';
               const statusColor = isOpen ? 'open' : 'closed';
               
