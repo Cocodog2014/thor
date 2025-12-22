@@ -26,8 +26,18 @@ def _is_open_now(tz_name: str, open_t: time, close_t: time) -> bool:
     now = datetime.now(tz)
     if now.weekday() >= 5:
         return False
-    open_dt = tz.localize(datetime(now.year, now.month, now.day, open_t.hour, open_t.minute))
-    close_dt = tz.localize(datetime(now.year, now.month, now.day, close_t.hour, close_t.minute))
+
+    def _localize_safe(dt: datetime):
+        try:
+            return tz.localize(dt, is_dst=None)
+        except (pytz.NonExistentTimeError, pytz.AmbiguousTimeError):
+            try:
+                return tz.localize(dt, is_dst=True)
+            except Exception:
+                return tz.localize(dt, is_dst=False)
+
+    open_dt = _localize_safe(datetime(now.year, now.month, now.day, open_t.hour, open_t.minute))
+    close_dt = _localize_safe(datetime(now.year, now.month, now.day, close_t.hour, close_t.minute))
     if open_t > close_t:
         # Overnight
         close_dt += timedelta(days=1)
@@ -48,26 +58,39 @@ def control_markets(request):
         tz = defaults['timezone']
         open_t = defaults['open']
         close_t = defaults['close']
-        active = _is_open_now(tz, open_t, close_t)
-        state = None
-        results.append({
-            'country': country,
-            'display_name': db_obj.get_display_name() if db_obj else country,
-            'timezone_name': db_obj.timezone_name if db_obj else tz,
-            'market_open_time': (db_obj.market_open_time.strftime('%H:%M') if db_obj else f"{open_t.hour:02d}:{open_t.minute:02d}"),
-            'market_close_time': (db_obj.market_close_time.strftime('%H:%M') if db_obj else f"{close_t.hour:02d}:{close_t.minute:02d}"),
-            'is_open_now': active if not db_obj else (lambda s: s in {'OPEN', 'PRECLOSE'})(
-                (lambda st: st.get('current_state') if isinstance(st, dict) else None)(
-                    db_obj.get_market_status()
-                )
-            ),
-            'state': state if not db_obj else (lambda st: st.get('current_state') if isinstance(st, dict) else None)(
-                db_obj.get_market_status()
-            ),
-            'is_control_market': True if not db_obj else db_obj.is_control_market,
-            'weight': float(weight) if not db_obj else float(db_obj.weight),
-            'has_db_record': db_obj is not None,
-        })
+
+        if db_obj:
+            status = db_obj.get_market_status()
+            state = status.get("current_state") if isinstance(status, dict) else None
+            is_open_now = state in {"OPEN", "PRECLOSE"}
+
+            results.append({
+                'country': country,
+                'display_name': db_obj.get_display_name(),
+                'timezone_name': db_obj.timezone_name,
+                'market_open_time': db_obj.market_open_time.strftime('%H:%M'),
+                'market_close_time': db_obj.market_close_time.strftime('%H:%M'),
+                'is_open_now': is_open_now,
+                'state': state,
+                'is_control_market': db_obj.is_control_market,
+                'weight': float(db_obj.weight),
+                'has_db_record': True,
+            })
+        else:
+            active = _is_open_now(tz, open_t, close_t)
+
+            results.append({
+                'country': country,
+                'display_name': country,
+                'timezone_name': tz,
+                'market_open_time': f"{open_t.hour:02d}:{open_t.minute:02d}",
+                'market_close_time': f"{close_t.hour:02d}:{close_t.minute:02d}",
+                'is_open_now': active,
+                'state': None,
+                'is_control_market': True,
+                'weight': float(weight),
+                'has_db_record': False,
+            })
     return Response({'results': results})
 
 
