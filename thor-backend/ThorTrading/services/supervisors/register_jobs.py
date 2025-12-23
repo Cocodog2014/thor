@@ -29,7 +29,7 @@ def register_all_jobs(registry: JobRegistry) -> int:
     from ThorTrading.realtime.jobs.market_metrics import MarketMetricsJob
     from ThorTrading.realtime.jobs.closed_bars_flush import ClosedBarsFlushJob
     from ThorTrading.services.week52_extremes_job import Week52ExtremesJob
-    from ThorTrading.services.preopen_backtest_job import PreOpenBacktestJob
+    from ThorTrading.realtime.jobs.preopen_backtest import PreOpenBacktestJob
     from ThorTrading.realtime.jobs.market_grader import MarketGraderJob
 
     # Register all jobs with their intervals (in execution order for clarity)

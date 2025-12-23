@@ -71,6 +71,20 @@ def get_active_control_countries() -> set[str]:
         return set()
 
 
+def get_control_markets(statuses: Iterable[str] | None = None):
+    """Return active control markets, optionally filtered by status values."""
+    try:
+        from GlobalMarkets.models.market import Market
+
+        qs = Market.objects.filter(is_control_market=True, is_active=True)
+        if statuses is not None:
+            qs = qs.filter(status__in=list(statuses))
+        return qs
+    except Exception:
+        logger.exception("Failed to fetch control markets")
+        return []
+
+
 def has_active_markets() -> bool:
     try:
         return bool(live_data_redis.client.scard(ACTIVE_MARKETS_KEY))
