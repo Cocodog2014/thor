@@ -1,7 +1,7 @@
 from django.urls import path
-from .views.RTD import LatestQuotesView, RibbonQuotesView
-from .views.MarketCloseCapture import MarketCloseCaptureView
-from .views.MarketSession import (
+from ThorTrading.api.views.quotes import LatestQuotesView, RibbonQuotesView
+from ThorTrading.api.views.market_close import MarketCloseCaptureView
+from ThorTrading.api.views.market_sessions import (
     MarketOpenSessionListView,
     MarketOpenSessionDetailView,
     TodayMarketOpensView,

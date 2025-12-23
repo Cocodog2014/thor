@@ -5,33 +5,41 @@ the core heartbeat loop in thor_project/realtime/engine.py.
 """
 import logging
 
-from ThorTrading.services.intraday_job import IntradayJob
-from ThorTrading.services.week52_extremes_job import Week52ExtremesJob
-from ThorTrading.services.market_metrics_job import MarketMetricsJob
-from ThorTrading.services.twentyfour_hour_job import TwentyFourHourJob
-from ThorTrading.services.preopen_backtest_job import PreOpenBacktestJob
-from ThorTrading.services.closed_bars_flush_job import ClosedBarsFlushJob
-from ThorTrading.services.market_grader_job import MarketGraderJob
+from ThorTrading.realtime.jobs import (
+    intraday_tick,
+    closed_bars_flush,
+    market_metrics,
+    market_grader,
+    week52_extremes,
+    vwap_minute_capture,
+    twentyfour_hour,
+    preopen_backtest,
+)
 
 logger = logging.getLogger(__name__)
+
+
+_JOB_MODULES = (
+    intraday_tick,
+    closed_bars_flush,
+    market_metrics,
+    market_grader,
+    week52_extremes,
+    vwap_minute_capture,
+    twentyfour_hour,
+    preopen_backtest,
+)
 
 
 def register(registry):
     job_names = []
 
-    jobs = [
-        IntradayJob(interval_seconds=1.0),
-        Week52ExtremesJob(interval_seconds=2.0),
-        MarketGraderJob(interval_seconds=1.0),
-        MarketMetricsJob(interval_seconds=10.0),
-        TwentyFourHourJob(interval_seconds=30.0),
-        PreOpenBacktestJob(interval_seconds=30.0),
-        ClosedBarsFlushJob(interval_seconds=60.0),
-    ]
-
-    for job in jobs:
-        registry.register(job, interval_seconds=job.interval_seconds)
-        job_names.append(job.name)
+    for module in _JOB_MODULES:
+        try:
+            added = module.register(registry) or []
+            job_names.extend(added)
+        except Exception:  # noqa: BLE001
+            logger.exception("Failed to register job module %s", getattr(module, "__name__", module))
 
     logger.info("ThorTrading jobs registered: %s", job_names)
     return job_names
