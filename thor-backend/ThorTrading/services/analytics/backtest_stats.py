@@ -1,5 +1,3 @@
-# ThorTrading/services/backtest_stats.py
-
 """Historical backtest statistics for MarketSession rows."""
 
 from __future__ import annotations
@@ -18,6 +16,7 @@ BHS_STRONG_SELL = "STRONG_SELL"
 
 WNDW_WORKED = "WORKED"
 WNDW_DIDNT_WORK = "DIDNT_WORK"
+
 
 def _base_queryset(country: str, future: str, as_of: Optional[datetime]):
     qs = MarketSession.objects.filter(country=country, future=future)
@@ -93,4 +92,3 @@ __all__ = [
     "WNDW_WORKED",
     "WNDW_DIDNT_WORK",
 ]
-

@@ -23,7 +23,7 @@ except Exception as e:
     print("Failed Django setup:", e)
     raise
 
-from ThorTrading.services.backtest_stats import compute_backtest_stats_for_country_future
+from ThorTrading.services.analytics.backtest_stats import compute_backtest_stats_for_country_future
 
 SYMBOLS = ["YM", "ES", "NQ", "TOTAL"]
 DEFAULT_COUNTRY = os.environ.get("BACKTEST_STATS_COUNTRY", "USA")

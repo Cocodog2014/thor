@@ -8,7 +8,7 @@ from typing import Any
 
 from core.infra.jobs import Job
 from ThorTrading.constants import FUTURES_SYMBOLS
-from ThorTrading.services.backtest_stats import compute_backtest_stats_for_country_future
+from ThorTrading.services.analytics.backtest_stats import compute_backtest_stats_for_country_future
 
 
 class PreOpenBacktestJob(Job):
