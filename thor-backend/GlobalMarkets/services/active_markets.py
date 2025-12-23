@@ -56,6 +56,21 @@ def get_active_market_ids() -> set[int]:
         return set()
 
 
+def get_active_control_countries() -> set[str]:
+    ids = get_active_market_ids()
+    if not ids:
+        return set()
+
+    try:
+        from GlobalMarkets.models.market import Market
+
+        qs = Market.objects.filter(id__in=ids, is_control_market=True, is_active=True, status="OPEN")
+        return {m.country for m in qs if getattr(m, "country", None)}
+    except Exception:
+        logger.exception("Failed to fetch active control countries")
+        return set()
+
+
 def has_active_markets() -> bool:
     try:
         return bool(live_data_redis.client.scard(ACTIVE_MARKETS_KEY))
