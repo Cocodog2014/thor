@@ -74,6 +74,9 @@ def build_enriched_rows(raw_quotes: Dict[str, Dict]) -> List[Dict]:
         stat = stats_52w.get(norm)
 
         row_country = normalize_country_code(quote.get('country') or quote.get('market'))
+        if not row_country:
+            logger.error("Dropping quote for %s missing country: %s", sym, quote)
+            continue
 
         meta = instrument_meta.get(norm, {})
         row = {

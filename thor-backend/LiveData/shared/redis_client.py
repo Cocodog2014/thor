@@ -37,6 +37,18 @@ class LiveDataRedis:
     def _norm_country(self, country: str) -> str:
         normalized = normalize_country_code(country) if country is not None else None
         return normalized or country
+
+    def _require_country(self, data: Dict[str, Any], *, symbol: Optional[str] = None) -> Optional[str]:
+        """Extract and normalize country/market, logging if absent."""
+        raw = data.get("country") or data.get("market")
+        normalized = self._norm_country(raw)
+        if not normalized:
+            sym_txt = f" for symbol {symbol}" if symbol else ""
+            logger.error("Dropping quote missing country%s", sym_txt)
+            return None
+        if normalized != raw:
+            data["country"] = normalized
+        return normalized
     
     def publish(self, channel: str, data: Dict[str, Any]) -> int:
         """
@@ -225,8 +237,11 @@ class LiveDataRedis:
 
         Stored as JSON string to preserve types; use default=str for Decimals.
         """
+        norm_country = self._require_country(data, symbol=symbol)
+        if not norm_country:
+            return
         try:
-            payload = json.dumps({"symbol": symbol.upper(), **data}, default=str)
+            payload = json.dumps({"symbol": symbol.upper(), **data, "country": norm_country}, default=str)
             self.client.hset(self.LATEST_QUOTES_HASH, symbol.upper(), payload)
         except Exception as e:
             logger.error(f"Failed to cache latest quote for {symbol}: {e}")
@@ -292,11 +307,16 @@ class LiveDataRedis:
         """
         from .channels import get_quotes_channel
         channel = get_quotes_channel(symbol)
-        
+
+        norm_country = self._require_country(data, symbol=symbol)
+        if not norm_country:
+            return 0
+
         payload = {
             "type": "quote",
             "symbol": symbol.upper(),
-            **data
+            **data,
+            "country": norm_country,
         }
         # Publish to subscribers
         result = self.publish(channel, payload)
