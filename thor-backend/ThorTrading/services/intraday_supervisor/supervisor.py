@@ -160,7 +160,12 @@ class IntradayMarketSupervisor:
         try:
             from GlobalMarkets.models.market import Market
 
-            open_markets = Market.objects.filter(is_active=True, is_control_market=True, status='OPEN')
+            open_markets = Market.objects.filter(
+                is_active=True,
+                is_control_market=True,
+                status='OPEN',
+                enable_futures_capture=True  # Only include markets with intraday tracking enabled
+            )
         except Exception:
             logger.exception("Intraday step_once failed to load markets")
             return
@@ -184,10 +189,6 @@ class IntradayMarketSupervisor:
 
         if self.disabled:
             logger.info("Intraday metrics disabled; skipping tick for %s", country)
-            return
-
-        if not self._refresh_and_check_tracking(market):
-            logger.info("Intraday tick skipping for %s (market disabled)", country)
             return
 
         enriched, _ = get_enriched_quotes_with_composite()
