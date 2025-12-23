@@ -9,8 +9,10 @@ import logging
 from decimal import Decimal
 from django.utils import timezone
 from django.db import transaction
+from django.db.models import Max
 
 from ThorTrading.models.MarketSession import MarketSession
+from ThorTrading.constants import FUTURES_SYMBOLS
 from ThorTrading.services.country_future_counts import CountryFutureCounter
 from ThorTrading.services.country_future_wndw_counts import (
     CountryFutureWndwTotalsService,
@@ -251,6 +253,16 @@ class MarketOpenCaptureService:
             if not enriched:
                 logger.error(f"No enriched rows for {country_code or display_country or '?'}")
                 return None
+            # Filter to this country and expected symbols only
+            allowed_symbols = set([s.lstrip('/') for s in FUTURES_SYMBOLS])
+            enriched = [
+                r for r in enriched
+                if (r.get('country') == (country_code or display_country))
+                and (r.get('instrument', {}).get('symbol') or '').lstrip('/') in allowed_symbols
+            ]
+            if not enriched:
+                logger.error(f"No enriched rows for {country_code or display_country or '?'} after country/symbol filter")
+                return None
             composite_signal = (composite.get('composite_signal') or 'HOLD').upper()
             
             time_info = market.get_current_market_time()
@@ -276,8 +288,13 @@ class MarketOpenCaptureService:
                 )
             session_number = self.get_next_session_number()
             # Derive next capture_group (canonical session identity)
-            last_group = MarketSession.objects.exclude(capture_group__isnull=True).order_by('-capture_group').first()
-            capture_group = (last_group.capture_group + 1) if last_group and last_group.capture_group is not None else 1
+            with transaction.atomic():
+                last_group_val = (
+                    MarketSession.objects.exclude(capture_group__isnull=True)
+                    .aggregate(max_group=Max('capture_group'))
+                    .get('max_group')
+                ) or 0
+                capture_group = int(last_group_val) + 1
             
             # Create 11 future sessions
             sessions_created = []
