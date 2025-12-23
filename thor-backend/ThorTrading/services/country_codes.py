@@ -26,6 +26,12 @@ COUNTRY_CODE_MAP = {
     "GREAT BRITAIN": "United Kingdom",
     "ENGLAND": "United Kingdom",
     "UK": "United Kingdom",
+    "GERMANY": "Germany",
+    "DE": "Germany",
+    "CANADA": "Canada",
+    "CA": "Canada",
+    "MEXICO": "Mexico",
+    "MX": "Mexico",
 }
 
 CANONICAL_LOWER = {c.lower(): c for c in ALLOWED_CONTROL_COUNTRIES}
