@@ -1,4 +1,4 @@
-"""Helpers to trigger account snapshot commands from Thor services."""
+"""Integration adapter to trigger account snapshot commands."""
 
 from __future__ import annotations
 
@@ -21,7 +21,7 @@ def _format_trading_date(value: Optional[DateLike]) -> Optional[str]:
     return str(value)
 
 
-def trigger_account_daily_snapshots(
+def trigger_daily_account_snapshots(
     *,
     trading_date: Optional[DateLike] = None,
     broker: str = "ALL",
@@ -55,4 +55,4 @@ def trigger_account_daily_snapshots(
         return False
 
 
-__all__ = ["trigger_account_daily_snapshots"]
+__all__ = ["trigger_daily_account_snapshots"]

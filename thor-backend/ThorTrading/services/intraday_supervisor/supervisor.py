@@ -8,7 +8,7 @@ from django.utils import timezone
 
 from ThorTrading.models.MarketIntraDay import MarketIntraday
 from ThorTrading.services.quotes import get_enriched_quotes_with_composite
-from ThorTrading.services.account_snapshots import trigger_account_daily_snapshots
+from ThorTrading.integrations.accounts.snapshots import trigger_daily_account_snapshots
 from ThorTrading.services.config.country_codes import normalize_country_code
 from ThorTrading.services.intraday_supervisor.flush_worker import flush_closed_bars
 from ThorTrading.services.intraday_supervisor.session_volume import update_session_volume_for_country
@@ -287,7 +287,7 @@ class IntradayMarketSupervisor:
             return
 
         try:
-            succeeded = trigger_account_daily_snapshots(
+            succeeded = trigger_daily_account_snapshots(
                 trading_date=trading_date,
                 broker="SCHWAB",
                 source="AUTO",
