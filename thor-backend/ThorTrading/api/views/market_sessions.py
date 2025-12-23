@@ -8,7 +8,7 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from ThorTrading.constants import CONTROL_COUNTRIES
+from ThorTrading.config.markets import CONTROL_COUNTRIES
 from ThorTrading.models.MarketSession import MarketSession
 from ThorTrading.serializers.MarketSession import (
 	MarketOpenSessionDetailSerializer,

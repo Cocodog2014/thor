@@ -12,7 +12,7 @@ from django.db import transaction
 from django.db.models import Max
 from django.utils import timezone
 
-from ThorTrading.constants import FUTURES_SYMBOLS
+from ThorTrading.config.symbols import FUTURES_SYMBOLS
 from ThorTrading.models.MarketSession import MarketSession
 from ThorTrading.services.indicators import compute_targets_for_symbol
 from ThorTrading.services.analytics.backtest_stats import compute_backtest_stats_for_country_future

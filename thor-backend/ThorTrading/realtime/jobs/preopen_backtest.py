@@ -6,7 +6,7 @@ from typing import Any
 
 from core.infra.jobs import Job
 from GlobalMarkets.services.active_markets import get_control_markets
-from ThorTrading.constants import FUTURES_SYMBOLS
+from ThorTrading.config.symbols import FUTURES_SYMBOLS
 from ThorTrading.services.analytics.backtest_stats import compute_backtest_stats_for_country_future
 
 log = logging.getLogger(__name__)

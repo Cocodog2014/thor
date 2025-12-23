@@ -19,7 +19,7 @@ from django.core.management.base import BaseCommand
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 from LiveData.shared.redis_client import live_data_redis
-from ThorTrading.constants import FUTURES_SYMBOLS, REDIS_SYMBOL_MAP
+from ThorTrading.config.symbols import FUTURES_SYMBOLS, REDIS_SYMBOL_MAP
 from ThorTrading.models.vwap import VwapMinute
 
 

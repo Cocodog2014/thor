@@ -17,7 +17,7 @@ from functools import lru_cache
 from typing import Optional, Tuple
 
 from ThorTrading.models import SignalStatValue, ContractWeight, SignalWeight
-from ThorTrading.constants import SYMBOL_NORMALIZE_MAP
+from ThorTrading.config.symbols import SYMBOL_NORMALIZE_MAP
 
 
 FALLBACK_STAT_MAP = {

@@ -14,7 +14,8 @@ import random
 
 from ThorTrading.models.MarketSession import MarketSession
 from ThorTrading.services.indicators import compute_targets_for_symbol
-from ThorTrading.constants import FUTURES_SYMBOLS, CONTROL_COUNTRIES
+from ThorTrading.config.symbols import FUTURES_SYMBOLS
+from ThorTrading.config.markets import CONTROL_COUNTRIES
 
 
 # Centralized lists now imported from constants

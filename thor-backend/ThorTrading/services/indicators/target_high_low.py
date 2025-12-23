@@ -7,7 +7,7 @@ from functools import lru_cache
 from decimal import Decimal
 from typing import Optional, Tuple
 
-from ThorTrading.constants import SYMBOL_NORMALIZE_MAP
+from ThorTrading.config.symbols import SYMBOL_NORMALIZE_MAP
 from ThorTrading.models.target_high_low import TargetHighLowConfig
 from ThorTrading.models import TradingInstrument
 

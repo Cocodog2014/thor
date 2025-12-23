@@ -17,7 +17,8 @@ from typing import List, Dict, Tuple
 import logging
 
 from LiveData.shared.redis_client import live_data_redis
-from ThorTrading.constants import CONTROL_COUNTRIES, FUTURES_SYMBOLS, REDIS_SYMBOL_MAP, SYMBOL_NORMALIZE_MAP
+from ThorTrading.config.markets import CONTROL_COUNTRIES
+from ThorTrading.config.symbols import FUTURES_SYMBOLS, REDIS_SYMBOL_MAP, SYMBOL_NORMALIZE_MAP
 from ThorTrading.models.extremes import Rolling52WeekStats
 from ThorTrading.models import TradingInstrument
 from ThorTrading.services.quotes.classification import enrich_quote_row, compute_composite
