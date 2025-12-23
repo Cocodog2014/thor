@@ -253,15 +253,37 @@ class MarketOpenCaptureService:
             if not enriched:
                 logger.error(f"No enriched rows for {country_code or display_country or '?'}")
                 return None
-            # Filter to this country and expected symbols only
-            allowed_symbols = set([s.lstrip('/') for s in FUTURES_SYMBOLS])
-            enriched = [
-                r for r in enriched
-                if (r.get('country') == (country_code or display_country))
-                and (r.get('instrument', {}).get('symbol') or '').lstrip('/') in allowed_symbols
-            ]
+
+            # Enriched data must already carry per-country tagging. Drop any rows
+            # missing a country or whose normalized country does not match this market.
+            allowed_symbols = {s.lstrip('/') for s in FUTURES_SYMBOLS}
+            filtered = []
+            dropped_symbols = []
+            for r in enriched:
+                symbol = (r.get('instrument', {}) or {}).get('symbol') or ''
+                base_symbol = symbol.lstrip('/')
+                if base_symbol not in allowed_symbols:
+                    continue
+
+                row_country_raw = r.get('country')
+                row_country = normalize_country_code(row_country_raw) if row_country_raw else None
+                if not row_country:
+                    dropped_symbols.append(base_symbol)
+                    continue
+
+                if row_country != (country_code or display_country):
+                    # Ignore rows for other countries instead of stamping them.
+                    continue
+
+                filtered.append(r)
+
+            enriched = filtered
             if not enriched:
-                logger.error(f"No enriched rows for {country_code or display_country or '?'} after country/symbol filter")
+                logger.error(
+                    "No enriched rows for %s after country/symbol filter%s",
+                    country_code or display_country or '?',
+                    f"; dropped_missing_country={dropped_symbols}" if dropped_symbols else "",
+                )
                 return None
             composite_signal = (composite.get('composite_signal') or 'HOLD').upper()
             

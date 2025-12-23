@@ -187,19 +187,18 @@ class LatestPerMarketSessionsView(APIView):
     def get(self, request):
         full_sessions = []
         for country in self.CONTROL_COUNTRIES:
-            latest = (MarketSession.objects
-                      .filter(country=country)
-                      .order_by('-captured_at')
-                      .first())
+            latest = (
+                MarketSession.objects
+                .filter(country=country, capture_group__isnull=False)
+                .order_by('-capture_group', '-captured_at')
+                .first()
+            )
             if not latest:
                 continue
 
             session_rows = MarketSession.objects.filter(
                 country=country,
-                year=latest.year,
-                month=latest.month,
-                date=latest.date,
-                session_number=latest.session_number,
+                capture_group=latest.capture_group,
             ).order_by('future')
             full_sessions.extend(session_rows)
 
