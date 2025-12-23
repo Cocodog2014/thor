@@ -54,6 +54,8 @@ class MarketOpenCaptureService:
 	def create_session_for_future(self, symbol, row, session_number, capture_group, time_info, country, composite_signal):
 		"""Create one MarketSession row for a single future."""
 
+		canonical_symbol = symbol.lstrip("/").upper()
+
 		ext = row.get("extended_data", {})
 
 		data = {
@@ -64,7 +66,7 @@ class MarketOpenCaptureService:
 			"date": time_info["date"],
 			"day": time_info["day"],
 			"country": country,
-			"future": symbol,
+			"future": canonical_symbol,
 			"captured_at": timezone.now(),
 			"last_price": self.safe_decimal(row.get("last")),
 			"ask_price": self.safe_decimal(row.get("ask")),
@@ -103,7 +105,7 @@ class MarketOpenCaptureService:
 				data["entry_price"] = data.get("bid_price")
 			entry = data["entry_price"]
 			if entry:
-				high, low = compute_targets_for_symbol(symbol, entry)
+				high, low = compute_targets_for_symbol(canonical_symbol, entry)
 				data["target_high"] = high
 				data["target_low"] = low
 
