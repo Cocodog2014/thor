@@ -85,16 +85,29 @@ class TodayMarketSessionsView(APIView):
     """
     GET /api/futures/market-opens/today/
     
-    Get all market open sessions captured today.
+    Get all market open sessions captured today (capture_group-based).
     """
     
     def get(self, request):
-        today = timezone.now()
-        sessions = MarketSession.objects.filter(
-            year=today.year,
-            month=today.month,
-            date=today.day
+        today = timezone.now().date()
+
+        # Prefer capture_group identity for today's sessions; fall back to legacy date filter.
+        capture_groups = (
+            MarketSession.objects
+            .filter(captured_at__date=today, capture_group__isnull=False)
+            .values_list('capture_group', flat=True)
+            .distinct()
         )
+
+        if capture_groups:
+            sessions = MarketSession.objects.filter(capture_group__in=capture_groups)
+        else:
+            sessions = MarketSession.objects.filter(
+                year=today.year,
+                month=today.month,
+                date=today.day,
+            )
+
         serializer = MarketSessionDetailSerializer(sessions, many=True)
         return Response(serializer.data)
 
