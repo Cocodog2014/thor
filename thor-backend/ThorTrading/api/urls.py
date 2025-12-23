@@ -2,6 +2,7 @@
 from django.urls import path
 
 from ThorTrading.api.views.market_close import MarketCloseCaptureView
+from ThorTrading.api.views.market_open import MarketOpenCaptureView
 from ThorTrading.api.views.market_sessions import (
 	LatestPerMarketOpensView,
 	MarketOpenSessionDetailView,
@@ -23,6 +24,7 @@ urlpatterns = [
 	path("market-opens/latest/", LatestPerMarketOpensView.as_view(), name="market-opens-latest"),
 	path("market-opens/pending/", PendingMarketOpensView.as_view(), name="market-opens-pending"),
 	path("market-opens/stats/", MarketOpenStatsView.as_view(), name="market-opens-stats"),
+	path("market-open/capture", MarketOpenCaptureView.as_view(), name="market-open-capture"),
 	path("market-close/capture", MarketCloseCaptureView.as_view(), name="market-close-capture"),
 ]
 
