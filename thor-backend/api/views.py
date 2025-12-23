@@ -14,7 +14,7 @@ from .redis_client import get_redis, latest_key, unified_stream_key
 from LiveData.shared.redis_client import live_data_redis
 from ThorTrading.models.MarketIntraDay import MarketIntraday
 from ThorTrading.services.country_codes import normalize_country_code
-from ThorTrading.services.vwap import vwap_service
+from ThorTrading.services.indicators.vwap import vwap_service
 
 def _safe_float(value):
     """Convert DB numerics to float, skipping NaN/Inf payloads."""

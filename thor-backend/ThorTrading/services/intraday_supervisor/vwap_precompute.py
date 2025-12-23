@@ -1,7 +1,7 @@
 import os
 from django.utils import timezone
 from LiveData.shared.redis_client import live_data_redis
-from ThorTrading.services.vwap import vwap_service
+from ThorTrading.services.indicators.vwap import vwap_service
 
 
 def precompute_rolling_vwap(symbols):
