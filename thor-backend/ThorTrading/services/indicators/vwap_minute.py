@@ -9,7 +9,7 @@ from typing import Any, Dict, Tuple
 from django.utils import timezone
 
 from LiveData.shared.redis_client import live_data_redis
-from ThorTrading.constants import FUTURES_SYMBOLS, REDIS_SYMBOL_MAP
+from ThorTrading.config.symbols import FUTURES_SYMBOLS, REDIS_SYMBOL_MAP
 from ThorTrading.models.vwap import VwapMinute
 
 logger = logging.getLogger(__name__)
