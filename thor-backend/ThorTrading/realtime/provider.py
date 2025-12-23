@@ -12,6 +12,7 @@ from ThorTrading.services.twentyfour_hour_job import TwentyFourHourJob
 from ThorTrading.services.preopen_backtest_job import PreOpenBacktestJob
 from ThorTrading.services.vwap_minute_capture_job import VwapMinuteCaptureJob
 from ThorTrading.services.closed_bars_flush_job import ClosedBarsFlushJob
+from ThorTrading.services.market_grader_job import MarketGraderJob
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +23,7 @@ def register(registry):
     jobs = [
         IntradayJob(interval_seconds=1.0),
         Week52ExtremesJob(interval_seconds=2.0),
+        MarketGraderJob(interval_seconds=1.0),
         MarketMetricsJob(interval_seconds=10.0),
         TwentyFourHourJob(interval_seconds=30.0),
         PreOpenBacktestJob(interval_seconds=30.0),

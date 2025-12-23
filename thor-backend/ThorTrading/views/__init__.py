@@ -14,6 +14,7 @@ try:
     from .RTD import LatestQuotesView  # noqa: F401
     from .MarketSession import *  # noqa: F401, F403
     from .MarketOpenCapture import capture_market_open  # noqa: F401
+    # Grader runs via heartbeat job; legacy thread starter retained for compatibility
     from .MarketGrader import start_grading_service  # noqa: F401
 except Exception:
     pass

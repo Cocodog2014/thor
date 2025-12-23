@@ -40,9 +40,9 @@ class Command(BaseCommand):
             f"Starting MarketGrader (interval={interval}s). Press Ctrl+C to stop."
         ))
 
-        # NOTE:
-        # Our MarketGrader currently gets its interval in __init__.
-        # If you want to use the CLI interval, you can modify MarketGrader
+            # NOTE:
+            # Our MarketGrader currently gets its interval in __init__.
+            # If you want to use the CLI interval, you can modify MarketGrader
         # to accept it or just leave it at the default.
         try:
             start_grading_service(blocking=True)

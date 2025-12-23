@@ -24,33 +24,10 @@ The grader does NOT:
 import time
 import logging
 import threading
+import os
 from django.utils import timezone
 from decimal import Decimal
 
-from ThorTrading.models.vwap import VwapMinute
-from ThorTrading.constants import FUTURES_SYMBOLS, REDIS_SYMBOL_MAP
-
-
-def _dec(val):
-    if val in (None, '', ' '):
-        return None
-    try:
-        from decimal import Decimal as _D
-        return _D(str(val))
-    except Exception:
-        return None
-
-
-def _int(val):
-    if val in (None, '', ' '):
-        return None
-    try:
-        return int(val)
-    except Exception:
-        try:
-            return int(float(val))
-        except Exception:
-            return None
 from ThorTrading.models.MarketSession import MarketSession
 from LiveData.shared.redis_client import live_data_redis
 
@@ -62,6 +39,20 @@ _CONTROL_MARKET_CACHE = {
     "timestamp": None,
     "is_open": True,
 }
+
+
+def _grade_pending_once() -> None:
+    """Grade all pending sessions once (no loop, no VWAP capture)."""
+    if not _any_control_markets_open():
+        return
+
+    pending_sessions = MarketSession.objects.filter(wndw='PENDING')
+
+    if pending_sessions.exists():
+        logger.debug("Grading %d pending sessions...", pending_sessions.count())
+
+        for session in pending_sessions:
+            grader.grade_session(session)
 
 
 def _any_control_markets_open() -> bool:
@@ -312,49 +303,13 @@ class MarketGrader:
         logger.info("Starting Market Open Grader (interval: %ss)", self.check_interval)
         self.running = True
 
-        # Track last persisted VWAP minute per symbol (avoid duplicates)
-        last_minute_per_symbol = {}
-
         while self.running:
             try:
                 if not _any_control_markets_open():
                     time.sleep(self.check_interval)
                     continue
 
-                # Fetch all trades not yet resolved
-                pending_sessions = MarketSession.objects.filter(wndw='PENDING')
-
-                if pending_sessions.exists():
-                    logger.debug("Grading %d pending sessions...", pending_sessions.count())
-
-                    for session in pending_sessions:
-                        self.grade_session(session)
-
-                # --- VWAP Minute Snapshot (integrated) ---
-                # Persist at minute boundary only; inexpensive check each loop.
-                now = timezone.now()
-                current_minute = now.replace(second=0, microsecond=0)
-                for sym in FUTURES_SYMBOLS:
-                    # Skip if already captured this minute for symbol
-                    if last_minute_per_symbol.get(sym) == current_minute:
-                        continue
-                    redis_key = REDIS_SYMBOL_MAP.get(sym, sym)
-                    quote = live_data_redis.get_latest_quote(redis_key)
-                    if not quote:
-                        continue
-                    # Create or ignore duplicate (race protection if loop overlaps minute change)
-                    try:
-                        VwapMinute.objects.get_or_create(
-                            symbol=sym,
-                            timestamp_minute=current_minute,
-                            defaults={
-                                'last_price': _dec(quote.get('last')),
-                                'cumulative_volume': _int(quote.get('volume')),
-                            }
-                        )
-                        last_minute_per_symbol[sym] = current_minute
-                    except Exception as vw_err:
-                        logger.debug("VWAP minute capture failed for %s: %s", sym, vw_err)
+                _grade_pending_once()
 
                 # Wait before next grading pass
                 time.sleep(self.check_interval)
@@ -390,6 +345,10 @@ def start_grading_service(*, blocking: bool = False) -> bool:
     Returns:
         bool indicating whether a new loop was started.
     """
+
+    if os.getenv("THOR_SCHEDULER_MODE", "heartbeat").lower() == "heartbeat":
+        logger.info("Heartbeat scheduler active; skipping legacy MarketGrader thread")
+        return False
 
     if blocking:
         logger.info("MarketGrader starting in blocking mode.")

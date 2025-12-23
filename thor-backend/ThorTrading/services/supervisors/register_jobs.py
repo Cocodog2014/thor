@@ -31,10 +31,12 @@ def register_all_jobs(registry: JobRegistry) -> int:
     from ThorTrading.services.week52_extremes_job import Week52ExtremesJob
     from ThorTrading.services.preopen_backtest_job import PreOpenBacktestJob
     from ThorTrading.services.vwap_minute_capture_job import VwapMinuteCaptureJob
+    from ThorTrading.services.market_grader_job import MarketGraderJob
 
     # Register all jobs with their intervals (in execution order for clarity)
     registry.register(IntradayJob(interval_seconds=1.0))
     registry.register(Week52ExtremesJob(interval_seconds=2.0))
+    registry.register(MarketGraderJob(interval_seconds=1.0))
     registry.register(MarketMetricsJob(interval_seconds=10.0))
     registry.register(TwentyFourHourJob(interval_seconds=30.0))
     registry.register(PreOpenBacktestJob(interval_seconds=30.0))
