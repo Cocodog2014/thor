@@ -85,7 +85,7 @@ class ThorTradingConfig(AppConfig):
             return
 
         try:
-            from ThorTrading import globalmarkets_hooks  # noqa: F401
+            from ThorTrading.integrations import globalmarkets_hooks  # noqa: F401
             logger.info("📡 ThorTrading GlobalMarkets hooks registered.")
 
             def _bootstrap_hooks():
