@@ -176,7 +176,7 @@ class MarketHighMetric:
                 .first()
             )
             if not session:
-                logger.debug("[DIAG High] No session row for %s country=%s session=%s", future, country, latest_session)
+                logger.debug("[DIAG High] No session row for %s country=%s capture_group=%s", future, country, latest_group)
                 continue
 
             # You must have a valid open to compute anything
@@ -270,7 +270,7 @@ class MarketLowMetric:
                 .first()
             )
             if not session:
-                logger.debug("[DIAG Low] No session row for %s country=%s session=%s", future, country, latest_session)
+                logger.debug("[DIAG Low] No session row for %s country=%s capture_group=%s", future, country, latest_group)
                 continue
 
             current_low = session.market_low_open
@@ -298,11 +298,12 @@ class MarketLowMetric:
                 pct = None
             pct = _quantize_pct(pct)
 
-            session.market_low_open = current_low
-            session.market_low_pct_open = pct
-            session.save(update_fields=["market_low_pct_open"])
-            logger.debug("[DIAG Low] ABOVE LOW %s: last=%s low=%s runup=%s pct=%s", future, last_price, current_low, move_up if 'move_up' in locals() else None, pct)
-            updated_count += 1
+            # Only write if pct changed to avoid noisy updates when no new low.
+            if pct != session.market_low_pct_open:
+                session.market_low_pct_open = pct
+                session.save(update_fields=["market_low_pct_open"])
+                updated_count += 1
+                logger.debug("[DIAG Low] ABOVE LOW %s: last=%s low=%s runup=%s pct=%s", future, last_price, current_low, move_up if 'move_up' in locals() else None, pct)
 
         logger.info(
             "MarketLowMetric complete → %s updated for %s (session %s)",

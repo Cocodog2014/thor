@@ -23,6 +23,7 @@ CANONICAL_ORDER = (
 )
 
 CANONICAL_MARKET_KEYS = CANONICAL_ORDER
+# Ensure ALLOWED_CONTROL_COUNTRIES matches country_codes.py canonical values.
 _CANONICAL_MAP = {c.lower(): c for c in ALLOWED_CONTROL_COUNTRIES}
 
 MARKET_DISPLAY_NAMES = {
@@ -46,7 +47,8 @@ def normalize_market_key(raw: str | None) -> str | None:
     normalized = normalize_country_code(raw)
     if not normalized:
         return normalized
-    return _CANONICAL_MAP.get(normalized.lower())
+    # Fall back to normalized value when ALLOWED_CONTROL_COUNTRIES is already canonical
+    return _CANONICAL_MAP.get(normalized.lower(), normalized)
 
 
 def display_name_for_market(key: str) -> str:

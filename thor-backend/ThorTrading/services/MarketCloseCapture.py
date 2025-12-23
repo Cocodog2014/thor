@@ -90,6 +90,9 @@ def capture_market_close(country: str | None, force: bool = False) -> Dict[str, 
         )
         return payload
 
+    # Filter enriched to this country to avoid looping unrelated rows
+    enriched = [r for r in enriched or [] if (r.get("country") or r.get("instrument", {}).get("country")) == country]
+
     try:
         close_updated = MarketCloseMetric.update_for_country_on_close(country, enriched)
     except Exception as exc:
