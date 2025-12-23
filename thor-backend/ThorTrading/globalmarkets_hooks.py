@@ -17,6 +17,7 @@ from ThorTrading.services.MarketOpenCapture import capture_market_open
 from ThorTrading.services.intraday_supervisor import intraday_market_supervisor
 from ThorTrading.views.MarketGrader import start_grading_service, stop_grading_service
 from ThorTrading.services.country_codes import normalize_country_code
+from ThorTrading.constants import CONTROL_COUNTRIES
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +26,7 @@ GLOBAL_TIMER_ENABLED = os.environ.get("THOR_USE_GLOBAL_MARKET_TIMER", "1").lower
     "false",
     "no",
 }
-CONTROLLED_COUNTRIES = {"USA", "Pre_USA", "Japan", "China", "India", "United Kingdom"}
+CONTROLLED_COUNTRIES = set(CONTROL_COUNTRIES)
 
 _ACTIVE_COUNTRIES: Set[str] = set()
 _ACTIVE_LOCK = threading.RLock()
