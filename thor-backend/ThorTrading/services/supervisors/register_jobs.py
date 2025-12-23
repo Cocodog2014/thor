@@ -25,7 +25,6 @@ def register_all_jobs(registry: JobRegistry) -> int:
     """
     # Import all job classes (lazy to avoid circular imports)
     from ThorTrading.services.intraday_job import IntradayJob
-    from ThorTrading.services.session_volume_job import SessionVolumeJob
     from ThorTrading.services.twentyfour_hour_job import TwentyFourHourJob
     from ThorTrading.services.market_metrics_job import MarketMetricsJob
     from ThorTrading.services.closed_bars_flush_job import ClosedBarsFlushJob
@@ -36,7 +35,6 @@ def register_all_jobs(registry: JobRegistry) -> int:
     # Register all jobs with their intervals (in execution order for clarity)
     registry.register(IntradayJob(interval_seconds=1.0))
     registry.register(Week52ExtremesJob(interval_seconds=2.0))
-    registry.register(SessionVolumeJob(interval_seconds=10.0))
     registry.register(MarketMetricsJob(interval_seconds=10.0))
     registry.register(TwentyFourHourJob(interval_seconds=30.0))
     registry.register(PreOpenBacktestJob(interval_seconds=30.0))
