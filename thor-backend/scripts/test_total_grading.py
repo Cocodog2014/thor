@@ -10,7 +10,7 @@ if PROJECT_ROOT not in sys.path:
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'thor_project.settings')
 django.setup()
 
-from ThorTrading.views.MarketGrader import MarketGrader
+from ThorTrading.api.views.market_grader import MarketGrader
 from ThorTrading.models.MarketSession import MarketSession
 
 grader = MarketGrader()

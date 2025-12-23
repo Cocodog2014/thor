@@ -15,7 +15,7 @@ from django.conf import settings
 from django.utils import timezone
 
 from ThorTrading.services.country_codes import normalize_country_code
-from ThorTrading.views.MarketOpenCapture import capture_market_open as _view_capture_market_open
+from ThorTrading.api.views.market_open import capture_market_open as _view_capture_market_open
 
 logger = logging.getLogger(__name__)
 

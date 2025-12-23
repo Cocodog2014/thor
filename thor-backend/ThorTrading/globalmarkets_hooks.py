@@ -15,7 +15,7 @@ from GlobalMarkets.signals import market_opened, market_closed
 from ThorTrading.services.MarketCloseCapture import capture_market_close
 from ThorTrading.services.MarketOpenCapture import capture_market_open
 from ThorTrading.services.intraday_supervisor import intraday_market_supervisor
-from ThorTrading.views.MarketGrader import start_grading_service, stop_grading_service
+from ThorTrading.api.views.market_grader import start_grading_service, stop_grading_service
 from ThorTrading.services.country_codes import normalize_country_code
 from ThorTrading.constants import CONTROL_COUNTRIES
 

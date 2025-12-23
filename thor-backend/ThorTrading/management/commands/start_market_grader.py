@@ -15,7 +15,7 @@ Stop it with Ctrl+C in the terminal.
 import logging
 from django.core.management.base import BaseCommand
 
-from ThorTrading.views.MarketGrader import start_grading_service, stop_grading_service
+from ThorTrading.api.views.market_grader import start_grading_service, stop_grading_service
 
 
 def _heartbeat_active() -> bool:

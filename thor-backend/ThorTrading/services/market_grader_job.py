@@ -8,7 +8,7 @@ import logging
 from typing import Any
 
 from core.infra.jobs import Job
-from ThorTrading.views.MarketGrader import _grade_pending_once
+from ThorTrading.api.views.market_grader import _grade_pending_once
 
 logger = logging.getLogger(__name__)
 

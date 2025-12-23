@@ -3,7 +3,7 @@
 ## Entrypoints
 - Heartbeat jobs: ThorTrading/realtime/jobs/* (registered via ThorTrading.realtime.provider)
 - GlobalMarkets signals: ThorTrading/integrations/globalmarkets_hooks.py
-- HTTP endpoints: ThorTrading/api/* (aliases of ThorTrading.views)
+- HTTP endpoints: ThorTrading/api/*
 
 ## Heartbeat jobs (reads → writes)
 - intraday_tick: LiveData quotes → intraday supervisor step → bar queues/DB
