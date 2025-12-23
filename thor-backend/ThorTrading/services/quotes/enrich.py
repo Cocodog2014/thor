@@ -22,7 +22,7 @@ from ThorTrading.config.symbols import FUTURES_SYMBOLS, REDIS_SYMBOL_MAP, SYMBOL
 from ThorTrading.models.extremes import Rolling52WeekStats
 from ThorTrading.models import TradingInstrument
 from ThorTrading.services.quotes.classification import enrich_quote_row, compute_composite
-from GlobalMarkets.models.constants import ALLOWED_CONTROL_COUNTRIES
+from ThorTrading.config.markets import CONTROL_COUNTRIES
 from ThorTrading.services.config.country_codes import normalize_country_code, is_known_country
 from ThorTrading.services.quotes.row_metrics import compute_row_metrics
 
@@ -122,7 +122,7 @@ def build_enriched_rows(raw_quotes: Dict[str, Dict]) -> List[Dict]:
         if not row_country:
             logger.error("Dropping quote for %s missing country: %s", sym, quote)
             continue
-        if not is_known_country(row_country, controlled=set(ALLOWED_CONTROL_COUNTRIES)):
+        if not is_known_country(row_country, controlled=set(CONTROL_COUNTRIES)):
             logger.error("Dropping quote for %s with unknown country '%s': %s", sym, row_country, quote)
             continue
         quote['country'] = row_country
