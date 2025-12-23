@@ -25,28 +25,6 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
-  # Dedicated background worker for intraday + supervisors
-  worker:
-    build:
-      context: .
-      dockerfile: ./thor-backend/Dockerfile
-    container_name: thor_worker
-    command: python manage.py run_thor_stack --keepalive 15
-    env_file:
-      - .env
-    environment:
-      DB_HOST: postgres
-      REDIS_HOST: redis
-      REDIS_URL: redis://redis:6379/0
-      THOR_STACK_AUTO_START: "1"
-      THOR_ENABLE_EXCEL_POLLER: "0"
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    restart: unless-stopped
-
   # PostgreSQL Database (for local development)
   postgres:
     image: postgres:15-alpine

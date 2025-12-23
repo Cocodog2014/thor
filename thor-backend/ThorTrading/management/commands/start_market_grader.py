@@ -17,6 +17,10 @@ from django.core.management.base import BaseCommand
 
 from ThorTrading.views.MarketGrader import start_grading_service, stop_grading_service
 
+
+def _heartbeat_active() -> bool:
+    return os.getenv("THOR_SCHEDULER_MODE", "heartbeat").lower() == "heartbeat"
+
 logger = logging.getLogger(__name__)
 
 
@@ -33,6 +37,12 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         interval = options['interval']
+
+        if _heartbeat_active():
+            msg = "Heartbeat scheduler is active; start_market_grader is obsolete. Use heartbeat jobs instead."
+            logger.warning(msg)
+            self.stdout.write(self.style.WARNING(msg))
+            return
 
         # Optional: log the configured interval
         logger.info("Starting MarketGrader with interval=%ss", interval)

@@ -16,7 +16,6 @@ MANAGEMENT_GUARD_COMMANDS = {
     "flush",
     "loaddata",
     "inspectdb",
-    "run_thor_stack",
 }
 
 SERVER_PROCESS_MARKERS = (

@@ -137,25 +137,45 @@ class MarketSessionStatsView(APIView):
     """
     
     def get(self, request):
-        total_sessions = MarketSession.objects.count()
+        total_sessions = MarketSession.objects.exclude(capture_group__isnull=True).count()
         
         # Overall stats
-        worked = MarketSession.objects.filter(wndw='WORKED').count()
-        didnt_work = MarketSession.objects.filter(wndw='DIDNT_WORK').count()
-        pending = MarketSession.objects.filter(wndw='PENDING').count()
-        neutral = MarketSession.objects.filter(wndw='NEUTRAL').count()
+        base_qs = MarketSession.objects.exclude(capture_group__isnull=True)
+        worked = base_qs.filter(wndw='WORKED').count()
+        didnt_work = base_qs.filter(wndw='DIDNT_WORK').count()
+        pending = base_qs.filter(wndw='PENDING').count()
+        neutral = base_qs.filter(wndw='NEUTRAL').count()
         
         # Calculate win rate (exclude pending and neutral)
         graded_sessions = worked + didnt_work
         win_rate = (worked / graded_sessions * 100) if graded_sessions > 0 else 0
         
         # Stats by market
-        market_stats = MarketSession.objects.values('country').annotate(
-            total=Count('id'),
-            worked=Count('id', filter=Q(wndw='WORKED')),
-            didnt_work=Count('id', filter=Q(wndw='DIDNT_WORK')),
-            pending=Count('id', filter=Q(wndw='PENDING'))
-        ).order_by('-total')
+        # Aggregate per country over distinct capture_groups to avoid double-counting
+        market_stats = (
+            MarketSession.objects.exclude(capture_group__isnull=True)
+            .values('country', 'capture_group')
+            .annotate(
+                total=Count('id'),
+                worked=Count('id', filter=Q(wndw='WORKED')),
+                didnt_work=Count('id', filter=Q(wndw='DIDNT_WORK')),
+                pending=Count('id', filter=Q(wndw='PENDING')),
+            )
+        )
+
+        # Collapse per-capture_group stats back to per-country rollups
+        country_rollup = {}
+        for row in market_stats:
+            country = row['country']
+            agg = country_rollup.setdefault(country, {'total': 0, 'worked': 0, 'didnt_work': 0, 'pending': 0})
+            agg['total'] += row['total']
+            agg['worked'] += row['worked']
+            agg['didnt_work'] += row['didnt_work']
+            agg['pending'] += row['pending']
+
+        ordered_stats = [
+            {'country': country, **vals} for country, vals in sorted(country_rollup.items(), key=lambda kv: kv[1]['total'], reverse=True)
+        ]
         
         # Recent performance (last 7 days)
         seven_days_ago = timezone.now() - timedelta(days=7)
@@ -176,7 +196,7 @@ class MarketSessionStatsView(APIView):
                 'neutral': neutral,
                 'win_rate': round(win_rate, 2)
             },
-            'by_market': list(market_stats),
+            'by_market': ordered_stats,
             'recent_7_days': {
                 'total': recent_sessions.count(),
                 'worked': recent_worked,
