@@ -51,14 +51,19 @@ def _has_capture_for_date(market, capture_date: date_cls) -> bool:
     from ThorTrading.models.MarketSession import MarketSession
 
     country_code = normalize_country_code(getattr(market, "country", None)) or getattr(market, "country", None)
-
-    return MarketSession.objects.filter(
-        country=country_code,
-        year=capture_date.year,
-        month=capture_date.month,
-        date=capture_date.day,
-        future="TOTAL",
-    ).exists()
+    latest = (
+        MarketSession.objects.filter(country=country_code)
+        .exclude(capture_group__isnull=True)
+        .order_by("-capture_group")
+        .first()
+    )
+    if not latest:
+        return False
+    return (
+        latest.year == capture_date.year
+        and latest.month == capture_date.month
+        and latest.date == capture_date.day
+    )
 
 
 def _scan_and_capture_once():
