@@ -1,5 +1,6 @@
 from django.contrib import admin
 from .constants import CONTROL_COUNTRIES
+from .services.country_codes import normalize_country_code
 from .models import (
     InstrumentCategory, TradingInstrument,
     SignalStatValue, ContractWeight, SignalWeight
@@ -44,38 +45,29 @@ class ContractWeightInline(admin.StackedInline):
 
 
 class MarketSessionCountryFilter(admin.SimpleListFilter):
-    """Normalize country choices so alias rows (Pre-USA vs Pre_USA) collapse to one option."""
+    """Normalize country choices so alias rows collapse to canonical options."""
 
     title = "By country"
     parameter_name = "country"
-
-    _ALIASES = {
-        'Pre_USA': {'Pre_USA', 'Pre-USA'},
-    }
-    _LABEL_OVERRIDES = {
-        'Pre_USA': 'Pre-USA',
-    }
 
     def lookups(self, request, model_admin):
         queryset = model_admin.get_queryset(request)
         seen = set()
         options = []
 
-        def add_option(canonical_name: str):
-            if canonical_name in seen:
+        def add_option(raw_country: str):
+            canonical = normalize_country_code(raw_country)
+            if not canonical or canonical in seen:
                 return
-            seen.add(canonical_name)
-            label = self._LABEL_OVERRIDES.get(canonical_name, canonical_name)
-            options.append((canonical_name, label))
+            seen.add(canonical)
+            options.append((canonical, self._label(canonical)))
 
         for country in CONTROL_COUNTRIES:
-            add_option(self._to_canonical(country))
+            add_option(country)
 
         dynamic_countries = queryset.order_by().values_list('country', flat=True).distinct()
         for raw in dynamic_countries:
-            canonical = self._to_canonical(raw)
-            if canonical:
-                add_option(canonical)
+            add_option(raw)
 
         return options
 
@@ -83,18 +75,36 @@ class MarketSessionCountryFilter(admin.SimpleListFilter):
         value = self.value()
         if not value:
             return queryset
-        variants = self._ALIASES.get(value, {value})
+        variants = self._variants(value)
+        if not variants:
+            return queryset.none()
         return queryset.filter(country__in=variants)
 
-    def _to_canonical(self, value):
-        if not value:
-            return None
-        normalized = value.strip()
-        key = normalized.replace('-', '_')
-        lower_key = key.lower()
-        if lower_key == 'pre_usa':
-            return 'Pre_USA'
-        return normalized
+    def _variants(self, raw_country: str) -> set[str]:
+        canonical = normalize_country_code(raw_country)
+        if not canonical:
+            return set()
+
+        variants = {canonical, raw_country}
+        toggled = []
+        if "_" in canonical:
+            toggled.append(canonical.replace("_", "-"))
+        if "-" in canonical:
+            toggled.append(canonical.replace("-", "_"))
+
+        for value in list(variants) + toggled:
+            variants.update({value, value.upper(), value.lower(), value.title()})
+            if "_" in value:
+                variants.add(value.replace("_", "-"))
+            if "-" in value:
+                variants.add(value.replace("-", "_"))
+
+        return {entry for entry in variants if entry}
+
+    def _label(self, canonical: str) -> str:
+        if canonical == "Pre_USA":
+            return "Pre-USA"
+        return canonical
 
 
 @admin.register(InstrumentCategory)
