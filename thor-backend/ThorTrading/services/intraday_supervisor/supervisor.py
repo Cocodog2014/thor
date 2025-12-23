@@ -11,6 +11,7 @@ from ThorTrading.services.quotes import get_enriched_quotes_with_composite
 from ThorTrading.services.account_snapshots import trigger_account_daily_snapshots
 from ThorTrading.services.country_codes import normalize_country_code
 from ThorTrading.services.intraday_supervisor.flush_worker import flush_closed_bars
+from ThorTrading.services.intraday_supervisor.session_volume import update_session_volume_for_country
 from ThorTrading.services.metrics.session_close_range import MarketCloseMetric, MarketRangeMetric
 from LiveData.shared.redis_client import live_data_redis
 
@@ -196,6 +197,7 @@ class IntradayMarketSupervisor:
 
         closed_count = 0
         updated_count = 0
+        filtered_rows = []
 
         for row in enriched or []:
             row_country = normalize_country_code(
@@ -207,6 +209,7 @@ class IntradayMarketSupervisor:
             if not sym:
                 continue
             sym = sym.lstrip('/').upper()
+            filtered_rows.append(row)
             tick = {
                 "symbol": sym,
                 "country": country,
@@ -228,6 +231,12 @@ class IntradayMarketSupervisor:
                     logger.exception("Intraday %s: tick capture failed for %s", country, sym)
                 else:
                     logger.warning("Intraday %s: tick capture failed for %s", country, sym)
+
+        if filtered_rows:
+            try:
+                update_session_volume_for_country(country, filtered_rows)
+            except Exception:
+                logger.exception("Intraday %s: session volume update failed", country)
 
     def _flush_closed_bars_1m(self, country: str):
         # Single bar writer: Redis → flush_worker only. No per-tick DB writes elsewhere.

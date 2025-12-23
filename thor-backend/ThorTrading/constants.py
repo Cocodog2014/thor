@@ -7,15 +7,19 @@ Provides single source of truth for:
 - Symbol normalization map (all sources → canonical form)
 """
 
+from GlobalMarkets.models.constants import ALLOWED_CONTROL_COUNTRIES
+
 FUTURES_SYMBOLS = [
     'YM', 'ES', 'NQ', 'RTY', 'CL', 'SI', 'HG', 'GC', 'VX', 'DX', 'ZB'
 ]
 
 # Order matters for east→west control flow (mirrors GlobalMarkets)
-CONTROL_COUNTRIES = [
+_CONTROL_ORDER = [
     'Japan', 'China', 'India', 'Germany', 'United Kingdom',
     'Pre_USA', 'USA', 'Canada', 'Mexico'
 ]
+# Preserve east→west ordering while deriving from the canonical allowed set.
+CONTROL_COUNTRIES = [c for c in _CONTROL_ORDER if c in ALLOWED_CONTROL_COUNTRIES]
 
 # Mapping from canonical symbol to Redis key (or other external feed key)
 REDIS_SYMBOL_MAP = {
