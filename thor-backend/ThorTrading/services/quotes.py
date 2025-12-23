@@ -18,14 +18,57 @@ from decimal import Decimal
 import logging
 
 from LiveData.shared.redis_client import live_data_redis
-from ThorTrading.constants import FUTURES_SYMBOLS, REDIS_SYMBOL_MAP, SYMBOL_NORMALIZE_MAP
+from ThorTrading.constants import CONTROL_COUNTRIES, FUTURES_SYMBOLS, REDIS_SYMBOL_MAP, SYMBOL_NORMALIZE_MAP
 from ThorTrading.models.extremes import Rolling52WeekStats
 from ThorTrading.models import TradingInstrument
 from ThorTrading.services.classification import enrich_quote_row, compute_composite
-from ThorTrading.services.country_codes import normalize_country_code
+from GlobalMarkets.models.constants import ALLOWED_CONTROL_COUNTRIES
+from ThorTrading.services.country_codes import normalize_country_code, is_known_country
 from ThorTrading.services.metrics import compute_row_metrics
 
 logger = logging.getLogger(__name__)
+
+
+def _fallback_country_from_clock() -> str | None:
+    """Best-effort country assignment when quotes lack country.
+
+    Uses the currently open control market (if any), ordered by CONTROL_COUNTRIES
+    to provide a deterministic fallback.
+    """
+    try:
+        from GlobalMarkets.models.market import Market
+
+        markets = list(Market.objects.filter(is_active=True, is_control_market=True))
+    except Exception:
+        return None
+
+    if not markets:
+        return None
+
+    def _is_open(market) -> bool:
+        status = getattr(market, "status", None)
+        if status == "OPEN":
+            return True
+        try:
+            info = market.get_market_status()
+            if info and (info.get("status") == "OPEN" or info.get("is_open")):
+                return True
+        except Exception:
+            return False
+        return False
+
+    open_markets = [m for m in markets if _is_open(m)]
+    candidates = open_markets or markets
+
+    order = {normalize_country_code(c) or c: idx for idx, c in enumerate(CONTROL_COUNTRIES)}
+
+    def _rank(market):
+        key = normalize_country_code(getattr(market, "country", None)) or getattr(market, "country", None)
+        return order.get(key, len(order))
+
+    candidates.sort(key=_rank)
+    chosen = candidates[0]
+    return normalize_country_code(getattr(chosen, "country", None)) or getattr(chosen, "country", None)
 
 
 def fetch_raw_quotes() -> Dict[str, Dict]:
@@ -65,6 +108,7 @@ def build_enriched_rows(raw_quotes: Dict[str, Dict]) -> List[Dict]:
             'margin_requirement': _to_str(inst.margin_requirement),
         }
     rows: List[Dict] = []
+    fallback_country = _fallback_country_from_clock()
 
     for idx, sym in enumerate(FUTURES_SYMBOLS):
         quote = raw_quotes.get(sym)
@@ -73,10 +117,15 @@ def build_enriched_rows(raw_quotes: Dict[str, Dict]) -> List[Dict]:
         norm = SYMBOL_NORMALIZE_MAP.get(sym, sym)
         stat = stats_52w.get(norm)
 
-        row_country = normalize_country_code(quote.get('country') or quote.get('market'))
+        raw_country = quote.get('country') or quote.get('market')
+        row_country = normalize_country_code(raw_country) or fallback_country
         if not row_country:
             logger.error("Dropping quote for %s missing country: %s", sym, quote)
             continue
+        if not is_known_country(row_country, controlled=set(ALLOWED_CONTROL_COUNTRIES)):
+            logger.error("Dropping quote for %s with unknown country '%s': %s", sym, row_country, quote)
+            continue
+        quote['country'] = row_country
 
         meta = instrument_meta.get(norm, {})
         row = {

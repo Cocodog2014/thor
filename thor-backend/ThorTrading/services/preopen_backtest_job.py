@@ -43,7 +43,7 @@ class PreOpenBacktestJob(Job):
                 # Market is about to open within a minute – run backtests
                 for future in FUTURES_SYMBOLS:
                     try:
-                        compute_backtest_stats_for_country_future(m.country, future)
+                        compute_backtest_stats_for_country_future(country=m.country, future=future)
                     except Exception:
                         pass
             except Exception:
