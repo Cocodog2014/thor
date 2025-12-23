@@ -10,7 +10,6 @@ from ThorTrading.services.week52_extremes_job import Week52ExtremesJob
 from ThorTrading.services.market_metrics_job import MarketMetricsJob
 from ThorTrading.services.twentyfour_hour_job import TwentyFourHourJob
 from ThorTrading.services.preopen_backtest_job import PreOpenBacktestJob
-from ThorTrading.services.vwap_minute_capture_job import VwapMinuteCaptureJob
 from ThorTrading.services.closed_bars_flush_job import ClosedBarsFlushJob
 from ThorTrading.services.market_grader_job import MarketGraderJob
 
@@ -27,7 +26,6 @@ def register(registry):
         MarketMetricsJob(interval_seconds=10.0),
         TwentyFourHourJob(interval_seconds=30.0),
         PreOpenBacktestJob(interval_seconds=30.0),
-        VwapMinuteCaptureJob(interval_seconds=60.0),
         ClosedBarsFlushJob(interval_seconds=60.0),
     ]
 

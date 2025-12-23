@@ -1,4 +1,8 @@
-"""Market close capture service shared by API and GlobalMarkets hooks."""
+"""Market close capture service shared by API and GlobalMarkets hooks.
+
+Operates on the latest capture_group per country to keep close/range metrics
+aligned with the canonical open session grouping.
+"""
 
 from __future__ import annotations
 

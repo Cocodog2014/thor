@@ -30,7 +30,6 @@ def register_all_jobs(registry: JobRegistry) -> int:
     from ThorTrading.services.closed_bars_flush_job import ClosedBarsFlushJob
     from ThorTrading.services.week52_extremes_job import Week52ExtremesJob
     from ThorTrading.services.preopen_backtest_job import PreOpenBacktestJob
-    from ThorTrading.services.vwap_minute_capture_job import VwapMinuteCaptureJob
     from ThorTrading.services.market_grader_job import MarketGraderJob
 
     # Register all jobs with their intervals (in execution order for clarity)
@@ -40,7 +39,6 @@ def register_all_jobs(registry: JobRegistry) -> int:
     registry.register(MarketMetricsJob(interval_seconds=10.0))
     registry.register(TwentyFourHourJob(interval_seconds=30.0))
     registry.register(PreOpenBacktestJob(interval_seconds=30.0))
-    registry.register(VwapMinuteCaptureJob(interval_seconds=60.0))
     registry.register(ClosedBarsFlushJob(interval_seconds=60.0))
 
     count = len(registry.jobs)
