@@ -15,14 +15,6 @@ from GlobalMarkets.signals import market_opened, market_closed
 from ThorTrading.services.MarketCloseCapture import capture_market_close
 from ThorTrading.services.MarketOpenCapture import capture_market_open
 from ThorTrading.services.intraday_supervisor import intraday_market_supervisor
-from ThorTrading.services.vwap_capture import (
-    start_vwap_capture_service,
-    stop_vwap_capture_service,
-)
-from ThorTrading.services.Week52Supervisor import (
-    start_52w_monitor_supervisor,
-    stop_52w_monitor_supervisor,
-)
 from ThorTrading.views.MarketGrader import start_grading_service, stop_grading_service
 from ThorTrading.services.country_codes import normalize_country_code
 
@@ -75,29 +67,13 @@ def _register_close(country: str) -> bool:
 
 
 def _start_global_background_services():
-    """Start VWAP and 52-week services, but only if NOT in heartbeat scheduler mode."""
-    if _heartbeat_mode_active():
-        logger.debug("Skipping legacy VWAP/52w starters (heartbeat scheduler mode active)")
-        return
-    
-    start_vwap_capture_service()
-    try:
-        start_52w_monitor_supervisor()
-    except Exception:
-        logger.exception("Failed to start 52-week monitor supervisor")
+    """Placeholder: 52w monitoring now handled by heartbeat jobs."""
+    logger.debug("Skipping legacy 52w starters (handled by heartbeat)")
 
 
 def _stop_global_background_services():
-    """Stop VWAP and 52-week services, but only if NOT in heartbeat scheduler mode."""
-    if _heartbeat_mode_active():
-        logger.debug("Skipping legacy VWAP/52w stoppers (heartbeat scheduler mode active)")
-        return
-    
-    stop_vwap_capture_service()
-    try:
-        stop_52w_monitor_supervisor()
-    except Exception:
-        logger.exception("Failed to stop 52-week monitor supervisor")
+    """Placeholder: 52w monitoring now handled by heartbeat jobs."""
+    logger.debug("Skipping legacy 52w stoppers (handled by heartbeat)")
 
 
 def bootstrap_open_markets():
