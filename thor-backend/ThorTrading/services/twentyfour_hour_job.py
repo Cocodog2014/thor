@@ -4,11 +4,14 @@ Tracks 24h highs, lows, and range at 15-60s intervals.
 """
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from core.infra.jobs import Job
 from ThorTrading.services.quotes import get_enriched_quotes_with_composite
 from ThorTrading.services.intraday_supervisor.feed_24h import update_24h_for_country
+
+logger = logging.getLogger(__name__)
 
 
 class TwentyFourHourJob(Job):
@@ -25,16 +28,20 @@ class TwentyFourHourJob(Job):
         try:
             enriched, _ = get_enriched_quotes_with_composite()
         except Exception:
+            logger.exception("24h: failed to load enriched quotes")
             return
 
         if not enriched:
             return
 
-        countries = set()
-        for row in enriched:
-            country = row.get("country")
-            if country:
-                countries.add(country)
+        missing_country = [r for r in enriched if not r.get("country")]
+        if missing_country:
+            logger.warning("24h: dropping %s quotes missing country", len(missing_country))
+        enriched = [r for r in enriched if r.get("country")]
+        if not enriched:
+            return
+
+        countries = {r.get("country") for r in enriched if r.get("country")}
 
         for country in countries:
             try:
