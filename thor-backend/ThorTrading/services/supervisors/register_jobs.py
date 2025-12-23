@@ -26,7 +26,7 @@ def register_all_jobs(registry: JobRegistry) -> int:
     # Import all job classes (lazy to avoid circular imports)
     from ThorTrading.realtime.jobs.intraday_tick import IntradayJob
     from ThorTrading.services.twentyfour_hour_job import TwentyFourHourJob
-    from ThorTrading.services.market_metrics_job import MarketMetricsJob
+    from ThorTrading.realtime.jobs.market_metrics import MarketMetricsJob
     from ThorTrading.realtime.jobs.closed_bars_flush import ClosedBarsFlushJob
     from ThorTrading.services.week52_extremes_job import Week52ExtremesJob
     from ThorTrading.services.preopen_backtest_job import PreOpenBacktestJob
