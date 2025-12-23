@@ -1,9 +1,10 @@
 from django.test import TestCase
 
+from ThorTrading.services.metrics.row_metrics import compute_row_metrics
+
 
 class MetricsHelperTests(TestCase):
 	def setUp(self):
-		from ThorTrading.services.metrics import compute_row_metrics
 		self.compute_row_metrics = compute_row_metrics
 
 	def test_basic_metrics(self):
