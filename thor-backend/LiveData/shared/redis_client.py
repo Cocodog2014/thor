@@ -12,7 +12,7 @@ from typing import Dict, Any, Optional, Tuple, List
 
 import redis
 from django.conf import settings
-from ThorTrading.services.country_codes import normalize_country_code
+from ThorTrading.services.config.country_codes import normalize_country_code
 
 logger = logging.getLogger(__name__)
 
