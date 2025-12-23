@@ -20,6 +20,7 @@ Behavior:
 from __future__ import annotations
 
 import logging
+from functools import lru_cache
 from decimal import Decimal
 from typing import Optional, Tuple
 
@@ -34,6 +35,7 @@ logger = logging.getLogger(__name__)
 # Helpers
 # ---------------------------------------------------------------------------
 
+@lru_cache(maxsize=128)
 def _get_quant_for_symbol(symbol: str) -> Optional[Decimal]:
     """
     Use TradingInstrument.display_precision (admin-set)
