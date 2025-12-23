@@ -1,5 +1,4 @@
-"""Utilities for managing the ``country_future`` ordering column."""
-
+"""Session-domain counters and sequencing helpers."""
 from __future__ import annotations
 
 from decimal import Decimal
@@ -12,11 +11,7 @@ from ThorTrading.models.MarketSession import MarketSession
 class CountryFutureCounter:
     """Assigns ``country_future`` counters per (country, future) pair.
 
-    Historically this module ran a bulk recalculation after every capture which
-    overwrote past values. The counter is now an append-only sequence that
-    should be set exactly once—when a row is created. Moving the logic into a
-    class keeps the behavior in one place so it can be reused outside
-    ``MarketOpenCapture`` (tests, repair scripts, etc.).
+    Append-only sequence; set on row creation, optionally repair with overwrite.
     """
 
     def __init__(self, model=MarketSession):
@@ -24,13 +19,7 @@ class CountryFutureCounter:
         self.logger = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
 
     def assign_sequence(self, session: MarketSession, *, overwrite: bool = False) -> Optional[Decimal]:
-        """Ensure ``session.country_future`` has the next sequence value.
-
-        Returns the value that was written, or ``None`` if no write occurred.
-        ``overwrite`` defaults to ``False`` so we only write brand-new rows.
-        Pass ``overwrite=True`` explicitly if a repair job truly needs to
-        recalc historical rows.
-        """
+        """Ensure ``session.country_future`` has the next sequence value."""
         if session is None:
             return None
         if session.country_future is not None:
@@ -70,7 +59,7 @@ class CountryFutureCounter:
         return updated
 
     def _next_value(self, country: str, future: str, exclude_id: Optional[int] = None) -> Decimal:
-        queryset = self.model.objects.filter(country=country, future=future)
+        queryset = self.model.objects.filter(country=country, future=future).exclude(country_future__isnull=True)
         if exclude_id is not None:
             queryset = queryset.exclude(id=exclude_id)
         last_session = queryset.order_by('-country_future').first()

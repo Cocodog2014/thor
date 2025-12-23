@@ -17,7 +17,7 @@ from ThorTrading.models.MarketSession import MarketSession
 from ThorTrading.services.indicators import compute_targets_for_symbol
 from ThorTrading.services.analytics.backtest_stats import compute_backtest_stats_for_country_future
 from ThorTrading.services.config.country_codes import normalize_country_code
-from ThorTrading.services.country_future_counts import CountryFutureCounter
+from ThorTrading.services.sessions.counters import CountryFutureCounter
 from ThorTrading.services.country_future_wndw_counts import CountryFutureWndwTotalsService
 from ThorTrading.services.sessions.metrics import MarketOpenMetric
 from ThorTrading.services.quotes import get_enriched_quotes_with_composite
