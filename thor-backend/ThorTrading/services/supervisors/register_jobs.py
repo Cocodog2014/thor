@@ -24,7 +24,7 @@ def register_all_jobs(registry: JobRegistry) -> int:
         Number of jobs registered.
     """
     # Import all job classes (lazy to avoid circular imports)
-    from ThorTrading.services.intraday_job import IntradayJob
+    from ThorTrading.realtime.jobs.intraday_tick import IntradayJob
     from ThorTrading.services.twentyfour_hour_job import TwentyFourHourJob
     from ThorTrading.services.market_metrics_job import MarketMetricsJob
     from ThorTrading.realtime.jobs.closed_bars_flush import ClosedBarsFlushJob
