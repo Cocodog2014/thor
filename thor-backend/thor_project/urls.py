@@ -55,8 +55,8 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', include('api.urls')),           # Thor APIs
     path('api/accounts/balance/', account_balance_view, name='account-balance'),
-    # ThorTrading APIs
-    path('api/', include(('ThorTrading.urls', 'ThorTrading'), namespace='ThorTrading')),
+    # ThorTrading APIs (routed through ThorTrading.api.urls)
+    path('api/', include(('ThorTrading.api.urls', 'ThorTrading'), namespace='ThorTrading')),
     path('api/users/', include('users.urls')),   # User authentication
     # LiveData endpoints (new structure)
     path('api/schwab/', include(('LiveData.schwab.urls', 'schwab'), namespace='schwab')),
