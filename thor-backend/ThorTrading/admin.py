@@ -1,6 +1,6 @@
 from django.contrib import admin
 from .constants import CONTROL_COUNTRIES
-from .services.country_codes import normalize_country_code
+from .services.config.country_codes import normalize_country_code
 from .models import (
     InstrumentCategory, TradingInstrument,
     SignalStatValue, ContractWeight, SignalWeight

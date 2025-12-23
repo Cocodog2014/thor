@@ -14,12 +14,12 @@ from django.utils import timezone
 
 from ThorTrading.constants import FUTURES_SYMBOLS
 from ThorTrading.models.MarketSession import MarketSession
-from ThorTrading.services.TargetHighLow import compute_targets_for_symbol
+from ThorTrading.services.indicators import compute_targets_for_symbol
 from ThorTrading.services.backtest_stats import compute_backtest_stats_for_country_future
-from ThorTrading.services.country_codes import normalize_country_code
+from ThorTrading.services.config.country_codes import normalize_country_code
 from ThorTrading.services.country_future_counts import CountryFutureCounter
 from ThorTrading.services.country_future_wndw_counts import CountryFutureWndwTotalsService
-from ThorTrading.services.market_metrics import MarketOpenMetric
+from ThorTrading.services.sessions.metrics import MarketOpenMetric
 from ThorTrading.services.quotes import get_enriched_quotes_with_composite
 
 logger = logging.getLogger(__name__)

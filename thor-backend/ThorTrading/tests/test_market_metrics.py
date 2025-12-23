@@ -1,7 +1,7 @@
 from decimal import Decimal
 from django.test import TestCase
 from ThorTrading.models.MarketSession import MarketSession
-from ThorTrading.services.market_metrics import (
+from ThorTrading.services.sessions.metrics import (
     MarketOpenMetric,
     MarketHighMetric,
     MarketLowMetric,

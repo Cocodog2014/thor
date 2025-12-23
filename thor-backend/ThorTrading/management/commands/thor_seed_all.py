@@ -40,7 +40,7 @@ import os
 
 from GlobalMarkets.models.market import Market
 from GlobalMarkets.models.constants import ALLOWED_CONTROL_COUNTRIES
-from ThorTrading.services.country_codes import normalize_country_code
+from ThorTrading.services.config.country_codes import normalize_country_code
 try:
     from ThorTrading.models import instruments  # placeholder if a dedicated instruments model exists
 except Exception:

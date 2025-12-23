@@ -3,7 +3,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 
-from ThorTrading.services.MarketCloseCapture import capture_market_close
+from ThorTrading.services.sessions import capture_market_close
 
 
 class MarketCloseCaptureView(APIView):

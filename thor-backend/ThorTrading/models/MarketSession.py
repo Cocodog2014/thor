@@ -9,7 +9,7 @@ Tracks trades based on TOTAL composite signals and grades outcomes.
 from django.db import models
 from django.utils import timezone
 from GlobalMarkets.models.constants import CONTROL_COUNTRY_CHOICES
-from ThorTrading.services.country_codes import normalize_country_code
+from ThorTrading.services.config.country_codes import normalize_country_code
 
 # Grouping support
 

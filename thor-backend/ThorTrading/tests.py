@@ -1,6 +1,6 @@
 from django.test import TestCase
 
-from ThorTrading.services.metrics.row_metrics import compute_row_metrics
+from ThorTrading.services.quotes.row_metrics import compute_row_metrics
 
 
 class MetricsHelperTests(TestCase):

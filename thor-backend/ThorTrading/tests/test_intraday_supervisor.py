@@ -36,7 +36,7 @@ class IntradayMarketSupervisorTests(TestCase):
 
     def test_manual_metric_flow_without_threads(self):
         """Deterministic metric progression without threads for reliability."""
-        from ThorTrading.services.market_metrics import (
+        from ThorTrading.services.sessions.metrics import (
             MarketHighMetric,
             MarketLowMetric,
             MarketCloseMetric,

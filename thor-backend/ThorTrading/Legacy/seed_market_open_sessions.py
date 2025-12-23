@@ -13,7 +13,7 @@ from decimal import Decimal
 import random
 
 from ThorTrading.models.MarketSession import MarketSession
-from ThorTrading.services.TargetHighLow import compute_targets_for_symbol
+from ThorTrading.services.indicators import compute_targets_for_symbol
 from ThorTrading.constants import FUTURES_SYMBOLS, CONTROL_COUNTRIES
 
 

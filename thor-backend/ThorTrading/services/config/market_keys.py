@@ -1,14 +1,9 @@
-"""Canonical market key helpers shared across Thor services.
-
-Keep this aligned with GlobalMarkets.ALLOWED_CONTROL_COUNTRIES so DB, Redis,
-WS payloads, and UI use the same identifiers.
-"""
+"""Canonical market key helpers shared across Thor services."""
 from __future__ import annotations
 
 from GlobalMarkets.models.constants import ALLOWED_CONTROL_COUNTRIES
-from ThorTrading.services.country_codes import normalize_country_code
+from ThorTrading.services.config.country_codes import normalize_country_code
 
-# East→west ordering used in GlobalMarkets views and UI tables.
 CANONICAL_ORDER = (
     "Japan",
     "China",
@@ -23,7 +18,6 @@ CANONICAL_ORDER = (
 )
 
 CANONICAL_MARKET_KEYS = CANONICAL_ORDER
-# Ensure ALLOWED_CONTROL_COUNTRIES matches country_codes.py canonical values.
 _CANONICAL_MAP = {c.lower(): c for c in ALLOWED_CONTROL_COUNTRIES}
 
 MARKET_DISPLAY_NAMES = {
@@ -41,13 +35,11 @@ MARKET_DISPLAY_NAMES = {
 
 
 def normalize_market_key(raw: str | None) -> str | None:
-    """Return canonical market key or None if unknown."""
     if raw is None:
         return None
     normalized = normalize_country_code(raw)
     if not normalized:
         return normalized
-    # Fall back to normalized value when ALLOWED_CONTROL_COUNTRIES is already canonical
     return _CANONICAL_MAP.get(normalized.lower(), normalized)
 
 

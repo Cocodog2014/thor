@@ -1,8 +1,4 @@
-"""Market close capture service shared by API and GlobalMarkets hooks.
-
-Operates on the latest capture_group per country to keep close/range metrics
-aligned with the canonical open session grouping.
-"""
+"""Market close capture service shared by API and GlobalMarkets hooks."""
 
 from __future__ import annotations
 
@@ -11,11 +7,11 @@ from typing import Any, Dict
 
 from ThorTrading.models.MarketSession import MarketSession
 from ThorTrading.services.quotes import get_enriched_quotes_with_composite
-from ThorTrading.services.market_metrics import (
+from ThorTrading.services.sessions.metrics import (
     MarketCloseMetric,
     MarketRangeMetric,
 )
-from ThorTrading.services.country_codes import normalize_country_code
+from ThorTrading.services.config.country_codes import normalize_country_code
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +36,6 @@ def _base_payload(country: str | None) -> Dict[str, Any]:
 
 
 def capture_market_close(country: str | None, force: bool = False) -> Dict[str, Any]:
-    """Finalize close + range metrics for the latest capture_group of a country."""
     payload = _base_payload(country)
 
     if not country:
@@ -84,7 +79,7 @@ def capture_market_close(country: str | None, force: bool = False) -> Dict[str, 
 
     try:
         enriched, _ = get_enriched_quotes_with_composite()
-    except Exception as exc:  # pragma: no cover - defensive against feed failures
+    except Exception as exc:
         logger.exception("Quote fetch failed for close capture: country=%s", country)
         payload.update(
             {
@@ -94,7 +89,6 @@ def capture_market_close(country: str | None, force: bool = False) -> Dict[str, 
         )
         return payload
 
-    # Filter enriched to this country to avoid looping unrelated rows
     country_rows = [
         r
         for r in enriched or []

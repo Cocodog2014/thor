@@ -1,7 +1,7 @@
 from django.core.management.base import BaseCommand
 from django.db import transaction
 
-from ThorTrading.services.country_codes import normalize_country_code
+from ThorTrading.services.config.country_codes import normalize_country_code
 from ThorTrading.models.MarketIntraDay import MarketIntraday
 from ThorTrading.models.Martket24h import FutureTrading24Hour
 from GlobalMarkets.models.market import Market

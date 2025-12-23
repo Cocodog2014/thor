@@ -14,17 +14,16 @@ Used by:
 from __future__ import annotations
 
 from typing import List, Dict, Tuple
-from decimal import Decimal
 import logging
 
 from LiveData.shared.redis_client import live_data_redis
 from ThorTrading.constants import CONTROL_COUNTRIES, FUTURES_SYMBOLS, REDIS_SYMBOL_MAP, SYMBOL_NORMALIZE_MAP
 from ThorTrading.models.extremes import Rolling52WeekStats
 from ThorTrading.models import TradingInstrument
-from ThorTrading.services.classification import enrich_quote_row, compute_composite
+from ThorTrading.services.quotes.classification import enrich_quote_row, compute_composite
 from GlobalMarkets.models.constants import ALLOWED_CONTROL_COUNTRIES
-from ThorTrading.services.country_codes import normalize_country_code, is_known_country
-from ThorTrading.services.metrics import compute_row_metrics
+from ThorTrading.services.config.country_codes import normalize_country_code, is_known_country
+from ThorTrading.services.quotes.row_metrics import compute_row_metrics
 
 logger = logging.getLogger(__name__)
 
@@ -185,9 +184,9 @@ def get_enriched_quotes_with_composite() -> Tuple[List[Dict], Dict]:
     composite = compute_composite(rows) if rows else {}
     return rows, composite
 
+
 __all__ = [
     'fetch_raw_quotes',
     'build_enriched_rows',
     'get_enriched_quotes_with_composite',
 ]
-

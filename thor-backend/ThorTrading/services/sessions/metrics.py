@@ -1,23 +1,11 @@
-"""MarketSession metrics system.
-
-Defines metric update helpers for intraday calculations. Keep each metric
-focused so they can be composed by background monitors without overlap.
-
-Implemented:
-    - MarketOpenMetric  → copies last_price → market_open after capture
-        - MarketHighMetric  → updates market_high_open / market_high_pct_open
-
-Placeholders (to implement later):
-  - MarketLowMetric
-  - MarketCloseMetric
-  - MarketRangeMetric
-"""
+"""MarketSession metrics (open/high/low/close/range)."""
 
 import logging
 from decimal import Decimal, InvalidOperation
 from django.utils import timezone
 from django.db import transaction
 from django.db.models import F
+
 from ThorTrading.models.MarketSession import MarketSession
 
 logger = logging.getLogger(__name__)
@@ -33,7 +21,6 @@ def _safe_decimal(val):
 
 
 def _quantize_pct(pct: Decimal | None) -> Decimal | None:
-    """Force percentage values to four decimal places if not None."""
     if pct is None:
         return None
     try:
@@ -43,7 +30,6 @@ def _quantize_pct(pct: Decimal | None) -> Decimal | None:
 
 
 def _move_from_open_pct(open_price: Decimal | None, target_price: Decimal | None) -> Decimal | None:
-    """Compute percent move from open to target, clamped at zero for non-positive moves."""
     if open_price in (None, 0) or target_price is None:
         return None
     try:
@@ -66,35 +52,25 @@ def _latest_capture_group(country: str):
     )
 
 
-# -------------------------------------------------------------------------
-# ⭐ MARKET OPEN METRIC
-# -------------------------------------------------------------------------
-
 class MarketOpenMetric:
     """Populate market_open = last_price for all rows in a session."""
 
     @staticmethod
-    def update(session_number: int) -> int:  # Backward compatibility alias
-        # Treat legacy callers as if they passed capture_group
+    def update(session_number: int) -> int:
         return MarketOpenMetric.update_for_capture_group(session_number)
 
     @staticmethod
     def update_for_capture_group(capture_group: int) -> int:
         logger.info("MarketOpenMetric → capture_group %s", capture_group)
 
-        # First set market_open from last_price for all rows in this capture_group.
         base_qs = MarketSession.objects.filter(capture_group=capture_group)
         open_updated = base_qs.update(market_open=F("last_price"))
 
-        # Initialize high/low columns at the moment of open so the dashboard
-        # immediately shows starting values instead of nulls. We only set them
-        # if not already populated (defensive against re-runs).
         initialized_count = 0
         for session in base_qs.only(
             "id", "market_high_open", "market_low_open", "last_price", "market_high_pct_open", "market_low_pct_open"
         ):
             lp = session.last_price
-            # Skip if we have no last price yet.
             if lp in (None, 0):
                 continue
             to_update = []
@@ -110,7 +86,7 @@ class MarketOpenMetric:
                 session.save(update_fields=to_update)
                 initialized_count += 1
 
-        total = open_updated  # rows where open price copied
+        total = open_updated
         logger.info(
             "MarketOpenMetric complete → %s open prices, %s high/low initialized (capture_group %s)",
             open_updated, initialized_count, capture_group
@@ -126,21 +102,8 @@ class MarketOpenMetric:
         return MarketOpenMetric.update_for_capture_group(latest_group)
 
 
-# -------------------------------------------------------------------------
-# ⭐ MARKET HIGH METRIC
-# -------------------------------------------------------------------------
-
 class MarketHighMetric:
-    """
-    Track intraday high and percent move from market open to that high
-    for a country during the active market session.
-
-    Logic:
-    - market_high_open = highest last_price seen so far
-    - market_high_pct_open = ((high - open) / open) * 100
-        → 0% at the open
-        → grows only when a new high is set
-    """
+    """Track intraday high and percent move from market open to that high."""
 
     @staticmethod
     @transaction.atomic
@@ -179,7 +142,6 @@ class MarketHighMetric:
                 logger.debug("[DIAG High] No session row for %s country=%s capture_group=%s", future, country, latest_group)
                 continue
 
-            # You must have a valid open to compute anything
             market_open = session.market_open
             if market_open is None or market_open == 0:
                 logger.debug("[DIAG High] Skip %s: market_open missing (%s)", future, market_open)
@@ -188,7 +150,6 @@ class MarketHighMetric:
             current_high = session.market_high_open
             open_price = session.market_open
 
-            # FIRST TICK (no high recorded yet)
             if current_high is None:
                 session.market_high_open = last_price
                 pct = _move_from_open_pct(open_price, last_price) or Decimal("0")
@@ -198,7 +159,6 @@ class MarketHighMetric:
                 updated_count += 1
                 continue
 
-            # NEW HIGH — reset percentage to 0
             if last_price > current_high:
                 session.market_high_open = last_price
                 pct = _move_from_open_pct(open_price, last_price) or Decimal("0")
@@ -211,7 +171,6 @@ class MarketHighMetric:
                 updated_count += 1
                 continue
 
-            # BELOW THE HIGH → no change to percent (still tracking peak move from open)
             logger.debug(
                 "[DIAG High] BELOW HIGH %s: last=%s high=%s pct=%s",
                 future,
@@ -298,7 +257,6 @@ class MarketLowMetric:
                 pct = None
             pct = _quantize_pct(pct)
 
-            # Only write if pct changed to avoid noisy updates when no new low.
             if pct != session.market_low_pct_open:
                 session.market_low_pct_open = pct
                 session.save(update_fields=["market_low_pct_open"])
@@ -313,33 +271,20 @@ class MarketLowMetric:
 
 
 class MarketCloseMetric:
-    """
-    Handles copying last_price → market_close and computing closing metrics
-    when a market transitions from OPEN to CLOSED.
-
-    This is a one-time event per session, unlike high/low which run continuously.
-
-        Columns:
-        - market_close                     = last_price at close
-        - market_high_pct_close            = percent below the intraday high
-        - market_low_pct_close             = percent above the intraday low
-        - market_close_vs_open_pct  = (close - open) / open * 100
-    """
+    """Copy last_price → market_close and compute close metrics."""
 
     @staticmethod
     @transaction.atomic
     def update_for_country_on_close(country: str, enriched_rows) -> int:
-        """Store close metrics when a country's market transitions to CLOSED."""
         if not enriched_rows:
             return 0
 
         logger.info(
             "MarketCloseMetric → Closing values for %s at %s",
-            country, timezone.now()
+            country, timezone.now(),
         )
 
         latest_group = _latest_capture_group(country)
-
         if latest_group is None:
             logger.info("MarketCloseMetric → No session for %s; skipping", country)
             return 0
@@ -359,11 +304,7 @@ class MarketCloseMetric:
             session = (
                 MarketSession.objects
                 .select_for_update()
-                .filter(
-                    country=country,
-                    future=future,
-                    capture_group=latest_group,
-                )
+                .filter(country=country, future=future, capture_group=latest_group)
                 .first()
             )
             if not session:
@@ -417,33 +358,23 @@ class MarketCloseMetric:
             updated_count += 1
 
         logger.info(
-            "MarketCloseMetric complete → %s rows updated for %s (session %s)",
-            updated_count, country, latest_group
+            "MarketCloseMetric complete → %s rows updated for %s (capture_group %s)",
+            updated_count, country, latest_group,
         )
         return updated_count
 
 
 class MarketRangeMetric:
-    """
-    Computes full intraday range for each (country, future) at market close.
-
-    Columns:
-    - market_range            = market_high_open - market_low_open
-    - market_range_pct        = (market_range / market_open) * 100
-
-    This should be called once when a market transitions to CLOSED,
-    after high/low metrics have already been updated for the session.
-    """
+    """Compute full intraday range at market close."""
 
     @staticmethod
     @transaction.atomic
     def update_for_country_on_close(country: str) -> int:
         logger.info(
             "MarketRangeMetric → Computing range for %s at %s",
-            country, timezone.now()
+            country, timezone.now(),
         )
 
-        # Latest session for this country
         latest_group = _latest_capture_group(country)
         if latest_group is None:
             logger.info("MarketRangeMetric → No session for %s; skipping", country)
@@ -456,18 +387,15 @@ class MarketRangeMetric:
         )
 
         updated_count = 0
-
         for session in sessions:
             high = session.market_high_open
             low = session.market_low_open
             open_price = session.market_open
 
-            # Need both a high and a low to compute range
             if high is None or low is None:
                 continue
 
             range_number = high - low
-
             pct = None
             if open_price not in (None, 0):
                 try:
@@ -477,17 +405,20 @@ class MarketRangeMetric:
 
             session.market_range = range_number
             session.market_range_pct = pct
-            session.save(
-                update_fields=[
-                    "market_range",
-                    "market_range_pct",
-                ]
-            )
+            session.save(update_fields=["market_range", "market_range_pct"])
             updated_count += 1
 
         logger.info(
             "MarketRangeMetric complete → %s rows updated for %s (capture_group=%s)",
-            updated_count, country, latest_group
+            updated_count, country, latest_group,
         )
         return updated_count
 
+
+__all__ = [
+    "MarketOpenMetric",
+    "MarketHighMetric",
+    "MarketLowMetric",
+    "MarketCloseMetric",
+    "MarketRangeMetric",
+]

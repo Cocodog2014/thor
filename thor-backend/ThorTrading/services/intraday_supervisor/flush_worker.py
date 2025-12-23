@@ -7,7 +7,7 @@ from LiveData.shared.redis_client import live_data_redis
 from ThorTrading.models.Martket24h import FutureTrading24Hour
 from ThorTrading.models.MarketIntraDay import MarketIntraday
 from ThorTrading.models.MarketSession import MarketSession
-from ThorTrading.services.country_codes import normalize_country_code
+from ThorTrading.services.config.country_codes import normalize_country_code
 
 logger = logging.getLogger(__name__)
 

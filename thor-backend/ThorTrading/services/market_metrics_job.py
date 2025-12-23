@@ -9,7 +9,7 @@ from typing import Any
 
 from core.infra.jobs import Job
 from ThorTrading.services.quotes import get_enriched_quotes_with_composite
-from ThorTrading.services.market_metrics import MarketHighMetric
+from ThorTrading.services.sessions.metrics import MarketHighMetric
 
 
 logger = logging.getLogger(__name__)
