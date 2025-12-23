@@ -1,6 +1,6 @@
 from django.contrib import admin
-from .constants import CONTROL_COUNTRIES
-from .services.config.country_codes import normalize_country_code
+from ThorTrading.config.markets import CONTROL_COUNTRIES
+from ThorTrading.services.config.country_codes import normalize_country_code
 from .models import (
     InstrumentCategory, TradingInstrument,
     SignalStatValue, ContractWeight, SignalWeight
