@@ -51,7 +51,7 @@ class Command(BaseCommand):
                 )
             )
 
-        markets = Market.objects.filter(is_active=True, is_control_market=True)
+        markets = Market.objects.filter(is_active=True)
 
         for market in markets:
             self.reconcile_market(market, us_open)

@@ -82,7 +82,7 @@ def broadcast_market_clocks(channel_layer: Any, logger: logging.Logger) -> None:
                 "dst_active": mt.get("dst_active"),
             }
 
-        markets = Market.objects.filter(is_active=True, is_control_market=True)
+        markets = Market.objects.filter(is_active=True)
         market_ticks = []
         for market in markets:
             mt = get_market_time(market)
@@ -126,7 +126,7 @@ def broadcast_global_market_status(channel_layer: Any, logger: logging.Logger) -
         from api.websocket.broadcast import broadcast_to_websocket_sync
         from GlobalMarkets.models import Market
 
-        markets = Market.objects.filter(is_active=True, is_control_market=True)
+        markets = Market.objects.filter(is_active=True)
 
         results = []
         for market in markets:

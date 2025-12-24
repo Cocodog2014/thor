@@ -407,8 +407,7 @@ def _has_capture_for_date(market, capture_date: date_cls) -> bool:
 
 def _scan_and_capture_once():
     from GlobalMarkets.models.market import Market
-
-    markets = Market.objects.filter(is_active=True, is_control_market=True)
+    markets = Market.objects.filter(is_active=True)
 
     for market in markets:
         if not getattr(market, "enable_futures_capture", True):

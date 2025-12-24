@@ -45,7 +45,7 @@ def _any_control_markets_open() -> bool:
     try:
         from GlobalMarkets.models.market import Market
 
-        is_open = Market.objects.filter(is_control_market=True, is_active=True, status="OPEN").exists()
+        is_open = Market.objects.filter(is_active=True, status="OPEN").exists()
     except Exception:
         logger.debug("GlobalMarkets availability check failed; assuming markets open.", exc_info=True)
         is_open = True

@@ -33,10 +33,6 @@ class Market(models.Model):
         default='CLOSED'
     )
 
-    # Control market configuration
-    is_control_market = models.BooleanField(default=False)
-    weight = models.DecimalField(max_digits=4, decimal_places=2, default=0.00)
-
     # Market configuration
     is_active = models.BooleanField(default=True)
 
@@ -88,11 +84,13 @@ class Market(models.Model):
         active_count = 0
         contributions = {}
 
-        control_markets = list(cls.objects.filter(is_control_market=True, is_active=True))
-        total_control_markets = len(control_markets)
+        markets = list(cls.objects.filter(is_active=True))
+        total_control_markets = len(markets)
 
-        for market in control_markets:
-            weight = float(market.weight)
+        # Equal-weight placeholder since weights are removed
+        weight_each = 1.0 / total_control_markets if total_control_markets else 0.0
+
+        for market in markets:
             market_name = market.get_display_name()
 
             status = None
@@ -108,18 +106,18 @@ class Market(models.Model):
                 is_active_state = market.is_market_open_now()
 
             if is_active_state:
-                contribution = weight * 100
+                contribution = weight_each * 100
                 composite_score += contribution
                 active_count += 1
                 contributions[market_name] = {
-                    'weight': weight * 100,
+                    'weight': weight_each * 100,
                     'active': True,
                     'contribution': contribution,
                     'state': current_state,
                 }
             else:
                 contributions[market_name] = {
-                    'weight': weight * 100,
+                    'weight': weight_each * 100,
                     'active': False,
                     'contribution': 0,
                     'state': current_state,

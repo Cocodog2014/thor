@@ -25,8 +25,6 @@ def control_markets(request):
             'market_close_time': market.market_close_time.strftime('%H:%M'),
             'is_open_now': is_open_now,
             'state': state,
-            'is_control_market': market.is_control_market,
-            'weight': float(market.weight),
             'has_db_record': True,
         })
 
@@ -40,7 +38,7 @@ def composite_index(request):
     Return composite using DB-backed control markets only. If none are flagged,
     return a simple status message.
     """
-    if Market.objects.filter(is_control_market=True).exists():
+    if Market.objects.filter(is_active=True).exists():
         data = Market.calculate_global_composite()
         return Response(data)
 

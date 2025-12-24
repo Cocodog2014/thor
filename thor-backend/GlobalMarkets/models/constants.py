@@ -27,6 +27,9 @@ ALLOWED_CONTROL_COUNTRIES = {
     "Mexico",
 }
 
+# Backward-compatible choices tuple; safe to keep for admin/importers that still reference it.
+CONTROL_COUNTRY_CHOICES = [(c, c) for c in sorted(ALLOWED_CONTROL_COUNTRIES)]
+
 # Strict IANA timezone list for admin dropdown (no aliases)
 TIMEZONE_CHOICES = [(tz, tz) for tz in pytz.common_timezones]
 

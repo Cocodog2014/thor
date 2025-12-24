@@ -38,7 +38,7 @@ def _fallback_country_from_clock() -> str | None:
     try:
         from GlobalMarkets.models.market import Market
 
-        markets = list(Market.objects.filter(is_active=True, is_control_market=True))
+        markets = list(Market.objects.filter(is_active=True))
     except Exception:
         return None
 

@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 def reconcile_market_statuses(*, ctx=None) -> dict:
     """Heartbeat job: single source of truth for Market.status."""
     us_open = USMarketStatus.is_us_market_open_today()
-    markets = Market.objects.filter(is_active=True, is_control_market=True)
+    markets = Market.objects.filter(is_active=True)
 
     changed = 0
     checked = 0

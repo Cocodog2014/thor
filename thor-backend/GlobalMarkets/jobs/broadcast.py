@@ -51,7 +51,7 @@ class BroadcastMarketClocksJob:
             return
 
         market_ticks = []
-        markets = list(Market.objects.filter(is_active=True, is_control_market=True))
+        markets = list(Market.objects.filter(is_active=True))
         markets.sort(key=lambda m: m.get_sort_order())
 
         for market in markets:

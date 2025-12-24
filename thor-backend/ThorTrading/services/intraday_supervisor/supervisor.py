@@ -162,7 +162,6 @@ class IntradayMarketSupervisor:
 
             open_markets = Market.objects.filter(
                 is_active=True,
-                is_control_market=True,
                 status='OPEN',
                 enable_futures_capture=True  # Only include markets with intraday tracking enabled
             )

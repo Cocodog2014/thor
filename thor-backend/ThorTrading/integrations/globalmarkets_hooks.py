@@ -83,7 +83,6 @@ def bootstrap_open_markets():
 	try:
 		open_markets = Market.objects.filter(
 			is_active=True,
-			is_control_market=True,
 			status="OPEN",
 		)
 	except Exception:

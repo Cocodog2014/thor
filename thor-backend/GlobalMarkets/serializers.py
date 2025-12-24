@@ -3,9 +3,6 @@ from .models import Market, USMarketStatus, MarketDataSnapshot, UserMarketWatchl
 
 
 class MarketSerializer(serializers.ModelSerializer):
-    weight = serializers.DecimalField(max_digits=4, decimal_places=2, read_only=True)
-    is_control_market = serializers.BooleanField(read_only=True)
-
     display_name = serializers.SerializerMethodField()
     sort_order = serializers.SerializerMethodField()
 
@@ -21,13 +18,14 @@ class MarketSerializer(serializers.ModelSerializer):
             "status",
             "is_active",
             "currency",
-            "weight",
-            "is_control_market",
+            "enable_futures_capture",
+            "enable_open_capture",
+            "enable_close_capture",
             "sort_order",
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["id", "created_at", "updated_at", "weight", "is_control_market"]
+        read_only_fields = ["id", "created_at", "updated_at"]
 
     def get_display_name(self, obj):
         return obj.get_display_name()
@@ -39,20 +37,16 @@ class MarketSerializer(serializers.ModelSerializer):
 class USMarketStatusSerializer(serializers.ModelSerializer):
     class Meta:
         model = USMarketStatus
-        fields = ["date", "is_trading_day", "holiday_name", "created_at"]
-        read_only_fields = ["created_at"]
+        fields = ["id", "date", "is_trading_day", "holiday_name", "created_at"]
+        read_only_fields = ["id", "created_at"]
 
 
 class MarketDataSnapshotSerializer(serializers.ModelSerializer):
-    market_country = serializers.CharField(source="market.country", read_only=True)
-
     class Meta:
         model = MarketDataSnapshot
         fields = [
             "id",
             "market",
-            "market_country",
-            "collected_at",
             "market_year",
             "market_month",
             "market_date",
@@ -62,8 +56,9 @@ class MarketDataSnapshotSerializer(serializers.ModelSerializer):
             "utc_offset",
             "dst_active",
             "is_in_trading_hours",
+            "collected_at",
         ]
-        read_only_fields = ["id", "collected_at", "market_country"]
+        read_only_fields = ["id", "collected_at"]
 
 
 class UserMarketWatchlistSerializer(serializers.ModelSerializer):

@@ -20,11 +20,12 @@ def calculate_global_composite(cls):
     active_count = 0
     contributions = {}
 
-    control_markets = list(cls.objects.filter(is_control_market=True, is_active=True))
-    total_control_markets = len(control_markets)
+    markets = list(cls.objects.filter(is_active=True))
+    total_control_markets = len(markets)
+    weight_each = 1.0 / total_control_markets if total_control_markets else 0.0
 
-    for market in control_markets:
-        weight = float(market.weight)
+    for market in markets:
+        weight = weight_each
         market_name = market.get_display_name()
 
         status = None

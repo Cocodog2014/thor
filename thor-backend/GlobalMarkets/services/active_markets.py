@@ -1,4 +1,4 @@
-"""Track active (open) control markets for heartbeat cadence.
+"""Track active (open) markets for heartbeat cadence.
 
 Listeners attach to GlobalMarkets signals to maintain a Redis set of active
 market IDs. Keep logic light and avoid domain cross-imports.
@@ -16,15 +16,7 @@ from LiveData.shared.redis_client import live_data_redis
 logger = logging.getLogger(__name__)
 
 ACTIVE_MARKETS_KEY = "heartbeat:active_markets"
-
-
-def _is_control_market(market) -> bool:
-    return getattr(market, "is_control_market", True) and getattr(market, "is_active", True)
-
-
 def mark_open(market) -> None:
-    if not _is_control_market(market):
-        return
     try:
         live_data_redis.client.sadd(ACTIVE_MARKETS_KEY, market.id)
     except Exception:
@@ -32,8 +24,6 @@ def mark_open(market) -> None:
 
 
 def mark_closed(market) -> None:
-    if not _is_control_market(market):
-        return
     try:
         live_data_redis.client.srem(ACTIVE_MARKETS_KEY, market.id)
     except Exception:
@@ -64,7 +54,7 @@ def get_active_control_countries() -> set[str]:
     try:
         from GlobalMarkets.models.market import Market
 
-        qs = Market.objects.filter(id__in=ids, is_control_market=True, is_active=True, status="OPEN")
+        qs = Market.objects.filter(id__in=ids, is_active=True, status="OPEN")
         return {m.country for m in qs if getattr(m, "country", None)}
     except Exception:
         logger.exception("Failed to fetch active control countries")
@@ -72,11 +62,11 @@ def get_active_control_countries() -> set[str]:
 
 
 def get_control_markets(statuses: Iterable[str] | None = None):
-    """Return active control markets, optionally filtered by status values."""
+    """Return active markets, optionally filtered by status values."""
     try:
         from GlobalMarkets.models.market import Market
 
-        qs = Market.objects.filter(is_control_market=True, is_active=True)
+        qs = Market.objects.filter(is_active=True)
         if statuses is not None:
             qs = qs.filter(status__in=list(statuses))
         return qs
@@ -94,11 +84,11 @@ def has_active_markets() -> bool:
 
 
 def sync_active_markets(markets: Iterable) -> None:
-    """Rebuild the active set from iterable of markets (open + control)."""
+    """Rebuild the active set from iterable of markets (open markets)."""
     try:
         pipe = live_data_redis.client.pipeline()
         pipe.delete(ACTIVE_MARKETS_KEY)
-        ids = [m.id for m in markets if _is_control_market(m) and getattr(m, "status", "") == "OPEN"]
+        ids = [m.id for m in markets if getattr(m, "is_active", True) and getattr(m, "status", "") == "OPEN"]
         if ids:
             pipe.sadd(ACTIVE_MARKETS_KEY, *ids)
         pipe.execute()

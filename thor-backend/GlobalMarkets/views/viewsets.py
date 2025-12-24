@@ -65,7 +65,7 @@ class MarketViewSet(viewsets.ModelViewSet):
     queryset = Market.objects.all()
     serializer_class = MarketSerializer
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    filterset_fields = ["status", "is_active", "currency", "is_control_market"]
+    filterset_fields = ["status", "is_active", "currency"]
     search_fields = ["country", "timezone_name"]
     ordering_fields = ["country", "market_open_time", "created_at"]
     ordering = ["country"]
@@ -87,9 +87,9 @@ class MarketViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=["get"], permission_classes=[AllowAny])
     def control(self, request):
         """
-        Return only active control markets.
+        Return active markets.
         """
-        qs = Market.objects.filter(is_active=True, is_control_market=True)
+        qs = Market.objects.filter(is_active=True)
         serializer = self.get_serializer(qs, many=True)
         return Response(serializer.data)
 
@@ -121,7 +121,7 @@ class MarketViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=["get"], permission_classes=[AllowAny])
     def live_status(self, request):
         """
-        Real-time status for all active control markets.
+        Real-time status for all active markets.
 
         IMPORTANT:
         - NO US gating here. Global markets operate even when US is closed.
@@ -389,7 +389,7 @@ def debug_market_times(request):
     all_markets = Market.objects.all()
     active_markets = Market.objects.filter(is_active=True)
 
-    qs = Market.objects.filter(is_active=True, is_control_market=True)
+    qs = Market.objects.filter(is_active=True)
     qs = _annotate_control_order(qs)
 
     debug_info = {
