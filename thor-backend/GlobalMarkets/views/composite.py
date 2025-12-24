@@ -7,32 +7,6 @@ from ..models import Market
 
 @api_view(['GET'])
 @permission_classes([AllowAny])
-def markets_overview(request):
-    """Return all markets from the DB (no hardcoded schedules)."""
-    markets = Market.objects.all().order_by('country')
-    results = []
-
-    for market in markets:
-        status = market.get_market_status()
-        state = status.get("current_state") if isinstance(status, dict) else None
-        is_open_now = state in {"OPEN", "PRECLOSE"} or market.is_market_open_now()
-
-        results.append({
-            'country': market.country,
-            'display_name': market.get_display_name(),
-            'timezone_name': market.timezone_name,
-            'market_open_time': market.market_open_time.strftime('%H:%M'),
-            'market_close_time': market.market_close_time.strftime('%H:%M'),
-            'is_open_now': is_open_now,
-            'state': state,
-            'has_db_record': True,
-        })
-
-    return Response({'results': results})
-
-
-@api_view(['GET'])
-@permission_classes([AllowAny])
 def composite_index(request):
     """
     Return composite using all active markets (control flag removed). If none are active, return a stub.

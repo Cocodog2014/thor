@@ -6,7 +6,6 @@ from .views import (
     MarketDataSnapshotViewSet,
     UserMarketWatchlistViewSet,
     worldclock_stats,
-    markets_overview,
     composite_index,
 )
 
@@ -23,6 +22,5 @@ urlpatterns = [
     
     # Custom function-based views
     path('stats/', worldclock_stats, name='worldclock-stats'),
-    path('markets/overview/', markets_overview, name='markets-overview'),
     path('composite/', composite_index, name='composite-index'),
 ]
