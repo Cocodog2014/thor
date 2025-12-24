@@ -1,6 +1,7 @@
 import logging
 import os
 import threading
+from ThorTrading.services.sessions.global_market_gate import session_tracking_allowed
 from datetime import timedelta
 from typing import Optional
 
@@ -255,7 +256,7 @@ class IntradayMarketSupervisor:
             logger.info("Intraday flush 1m bars: country=%s inserted=%s", country, total)
 
     def _tracking_enabled(self, market) -> bool:
-        return getattr(market, "is_active", True) and getattr(market, "enable_session_capture", True)
+           return session_tracking_allowed(market)
 
     def _refresh_and_check_tracking(self, market) -> bool:
         """Refresh market flags and determine if intraday tracking should continue."""

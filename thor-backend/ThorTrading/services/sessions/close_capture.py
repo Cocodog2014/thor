@@ -5,13 +5,15 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict
 
+from GlobalMarkets.models.market import Market
 from ThorTrading.models.MarketSession import MarketSession
+from ThorTrading.services.config.country_codes import normalize_country_code
 from ThorTrading.services.quotes import get_enriched_quotes_with_composite
+from ThorTrading.services.sessions.global_market_gate import close_capture_allowed
 from ThorTrading.services.sessions.metrics import (
     MarketCloseMetric,
     MarketRangeMetric,
 )
-from ThorTrading.services.config.country_codes import normalize_country_code
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +50,25 @@ def capture_market_close(country: str | None, force: bool = False) -> Dict[str, 
         return payload
 
     country = normalize_country_code(country) or country
+
+    market = Market.objects.filter(country=country).first()
+    if not market:
+        payload.update(
+            {
+                "status": "unknown-market",
+                "message": f"No GlobalMarkets market found for '{country}'",
+            }
+        )
+        return payload
+
+    if not close_capture_allowed(market):
+        payload.update(
+            {
+                "status": "disabled",
+                "message": "Close capture disabled for this market",
+            }
+        )
+        return payload
 
     latest_group = _latest_capture_group(country)
 
