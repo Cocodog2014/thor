@@ -1,8 +1,7 @@
 import logging
-from django.core.exceptions import ValidationError
 from django.db import models
 
-from .constants import CONTROL_COUNTRY_CHOICES, ALLOWED_CONTROL_COUNTRIES, TIMEZONE_CHOICES
+from .constants import TIMEZONE_CHOICES
 from GlobalMarkets.services.market_clock import (
     get_market_time,
     is_market_open_now as svc_is_open,
@@ -18,7 +17,7 @@ class Market(models.Model):
     Represents stock markets around the world for monitoring while trading US markets
     """
     # Basic market information
-    country = models.CharField(max_length=50, choices=CONTROL_COUNTRY_CHOICES)
+    country = models.CharField(max_length=50)
 
     # Timezone information
     timezone_name = models.CharField(max_length=50, choices=TIMEZONE_CHOICES)
@@ -62,50 +61,10 @@ class Market(models.Model):
         return f"{self.country} ({self.timezone_name})"
 
     def get_display_name(self):
-        display_names = {
-            'Japan': 'Tokyo',
-            'China': 'Shanghai',
-            'India': 'Bombay',
-            'Germany': 'Frankfurt',
-            'United Kingdom': 'London',
-            'Pre_USA': 'Pre_USA',
-            'USA': 'USA',
-            'Canada': 'Toronto',
-            'Mexico': 'Mexican',
-            'Futures': 'CME Futures (GLOBEX)',
-        }
-        return display_names.get(self.country, self.country)
-
-    def _canonicalize_country(self, raw: str) -> str:
-        if raw is None:
-            raise ValidationError({"country": "Country is required."})
-        value = raw.strip()
-        if value not in ALLOWED_CONTROL_COUNTRIES:
-            raise ValidationError({
-                "country": (
-                    f"Unsupported market country '{value}'. Allowed: {sorted(ALLOWED_CONTROL_COUNTRIES)}"
-                )
-            })
-        return value
-
-    def save(self, *args, **kwargs):
-        self.country = self._canonicalize_country(self.country)
-        return super().save(*args, **kwargs)
+        return self.country
 
     def get_sort_order(self):
-        order_map = {
-            'Japan': 1,
-            'China': 2,
-            'India': 3,
-            'Germany': 4,
-            'United Kingdom': 5,
-            'Pre_USA': 6,
-            'USA': 7,
-            'Canada': 8,
-            'Mexico': 9,
-            'Futures': 10,
-        }
-        return order_map.get(self.country, 999)
+        return self.country.lower()
 
     # Service-backed helpers (keep public API stable)
     def get_current_market_time(self):
