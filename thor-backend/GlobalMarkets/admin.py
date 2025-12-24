@@ -7,10 +7,11 @@ class MarketAdmin(admin.ModelAdmin):
     list_display = [
         'country', 'timezone_name', 'market_open_time', 'market_close_time',
         'status', 'is_active', 'currency',
-        'enable_futures_capture',
+        'enable_open_capture',
+        'enable_close_capture',
         'live_status',
     ]
-    list_filter = ['status', 'is_active', 'currency', 'enable_futures_capture']
+    list_filter = ['status', 'is_active', 'currency', 'enable_open_capture', 'enable_close_capture']
     search_fields = ['country', 'timezone_name']
     ordering = ['country']
     list_per_page = 25
@@ -25,9 +26,8 @@ class MarketAdmin(admin.ModelAdmin):
         ('Status', {
             'fields': ('status', 'is_active')
         }),
-        ('Futures Capture', {
+        ('Session Capture', {
             'fields': (
-                'enable_futures_capture',
                 'enable_open_capture',
                 'enable_close_capture',
             ),
