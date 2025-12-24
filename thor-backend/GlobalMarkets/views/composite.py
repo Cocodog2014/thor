@@ -48,7 +48,7 @@ def composite_index(request):
         'active_markets': 0,
         'total_control_markets': 0,
         'max_possible': 100.0,
-        'session_phase': None,
+        'approx_region_phase_utc': None,
         'contributions': {},
         'timestamp': None,
     })

@@ -128,16 +128,17 @@ class Market(models.Model):
             'active_markets': active_count,
             'total_control_markets': total_control_markets,
             'max_possible': 100.0,
-            'session_phase': cls._determine_session_phase(),
+            'approx_region_phase_utc': cls._approx_region_phase_utc(),
             'contributions': contributions,
             'timestamp': datetime.now(pytz.UTC).isoformat()
         }
 
     @classmethod
-    def _determine_session_phase(cls):
+    def _approx_region_phase_utc(cls):
         from datetime import datetime
         import pytz
 
+        # Heuristic label based only on UTC hour; not authoritative trading logic.
         now_utc = datetime.now(pytz.UTC)
         hour = now_utc.hour
         if 0 <= hour < 8:

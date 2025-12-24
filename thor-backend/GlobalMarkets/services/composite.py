@@ -2,7 +2,8 @@ from datetime import datetime
 import pytz
 
 
-def _determine_session_phase():
+def _approx_region_phase_utc():
+    # Heuristic label based only on UTC hour; not authoritative trading logic.
     now_utc = datetime.now(pytz.UTC)
     hour = now_utc.hour
     if 0 <= hour < 8:
@@ -64,7 +65,7 @@ def calculate_global_composite(cls):
         'active_markets': active_count,
         'total_control_markets': total_control_markets,
         'max_possible': 100.0,
-        'session_phase': _determine_session_phase(),
+        'approx_region_phase_utc': _approx_region_phase_utc(),
         'contributions': contributions,
         'timestamp': datetime.now(pytz.UTC).isoformat()
     }

@@ -1,4 +1,10 @@
-"""GlobalMarkets realtime job provider for the heartbeat registry."""
+"""GlobalMarkets realtime job provider for the heartbeat registry.
+
+Jobs registered here are passive definitions only:
+- Status job: reconciles and persists Market.status in the DB.
+- Broadcast job: pushes market clocks/status snapshots to WebSockets.
+Nothing runs until the heartbeat engine starts and ticks these jobs.
+"""
 import logging
 
 from GlobalMarkets.jobs.status import ReconcileMarketStatusesJob
