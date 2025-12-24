@@ -84,10 +84,10 @@ class MarketViewSet(viewsets.ModelViewSet):
         """
         return Market.objects.filter(is_active=True)
 
-    @action(detail=False, methods=["get"], permission_classes=[AllowAny])
-    def control(self, request):
+    @action(detail=False, methods=["get"], permission_classes=[AllowAny], url_path="control")
+    def markets_overview(self, request):
         """
-        Return active markets.
+        Return all active markets (formerly "control").
         """
         qs = Market.objects.filter(is_active=True)
         serializer = self.get_serializer(qs, many=True)

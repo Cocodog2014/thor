@@ -7,8 +7,8 @@ from ..models import Market
 
 @api_view(['GET'])
 @permission_classes([AllowAny])
-def control_markets(request):
-    """Return markets from the DB (no hardcoded schedules)."""
+def markets_overview(request):
+    """Return all markets from the DB (no hardcoded schedules)."""
     markets = Market.objects.all().order_by('country')
     results = []
 
