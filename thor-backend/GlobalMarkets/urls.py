@@ -23,6 +23,6 @@ urlpatterns = [
     
     # Custom function-based views
     path('stats/', worldclock_stats, name='worldclock-stats'),
-    path('control-markets/', markets_overview, name='control-markets'),
+    path('markets/overview/', markets_overview, name='markets-overview'),
     path('composite/', composite_index, name='composite-index'),
 ]
