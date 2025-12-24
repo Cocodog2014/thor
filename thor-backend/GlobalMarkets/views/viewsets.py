@@ -59,7 +59,7 @@ class MarketViewSet(viewsets.ModelViewSet):
     - Avoids relying on DB Market.status for "open/active" truth
     - Avoids US gating for global markets
     - Avoids .extra()
-    - Keeps ordering stable and includes Futures
+    - Keeps ordering stable across all admin-managed markets
     """
 
     queryset = Market.objects.all()
