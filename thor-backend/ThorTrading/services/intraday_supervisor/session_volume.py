@@ -9,7 +9,7 @@ from ThorTrading.models.MarketSession import MarketSession
 
 logger = logging.getLogger(__name__)
 
-# Cache last seen cumulative volume per (capture_group, future) to prevent
+# Cache last seen cumulative volume per (capture_group, symbol) to prevent
 # re-adding the same cumulative feed volume on each tick.
 _LAST_SEEN: Dict[tuple[int, str], int] = {}
 
@@ -20,7 +20,7 @@ def update_session_volume_for_country(country: str, enriched_rows: Iterable[dict
 
     Mirrors the VWAP delta approach: uses cumulative feed volume and stores
     only the positive delta since the last seen cumulative for a given
-    capture_group + future pair.
+    capture_group + symbol pair.
     """
     # Fast exit when no quotes
     enriched_rows = list(enriched_rows or [])
@@ -38,17 +38,17 @@ def update_session_volume_for_country(country: str, enriched_rows: Iterable[dict
     if latest_group is None:
         return {"session_volume_updates": 0}
 
-    # Build a cache of sessions for this capture_group keyed by future.
+    # Build a cache of sessions for this capture_group keyed by symbol.
     sessions = {
-        row.future: row
+        row.symbol: row
         for row in MarketSession.objects.filter(country=country, capture_group=latest_group)
     }
 
     updates = 0
     for row in enriched_rows:
         sym = (row.get('instrument', {}) or {}).get('symbol') or ''
-        future = sym.lstrip('/').upper()
-        if not future or future == 'TOTAL':
+        symbol = sym.lstrip('/').upper()
+        if not symbol or symbol == 'TOTAL':
             continue
 
         vol = row.get('volume')
@@ -59,11 +59,11 @@ def update_session_volume_for_country(country: str, enriched_rows: Iterable[dict
         if vol_int <= 0:
             continue
 
-        session = sessions.get(future)
+        session = sessions.get(symbol)
         if not session:
             continue
 
-        key = (latest_group, future)
+        key = (latest_group, symbol)
         prior_seen = _LAST_SEEN.get(key)
         if prior_seen is None:
             prior_seen = int(session.session_volume or 0)

@@ -1,47 +1,83 @@
+from __future__ import annotations
 from django.db import models
+from GlobalMarkets.models.constants import CONTROL_COUNTRY_CHOICES
 
-# Canonical country choices (enforced at model level)
-COUNTRY_CHOICES = (
-    ("USA", "USA"),
-    ("Pre_USA", "Pre_USA"),
-    ("China", "China"),
-    ("Japan", "Japan"),
-    ("United Kingdom", "United Kingdom"),
-    ("India", "India"),
-)
 
 class MarketIntraday(models.Model):
     """
-    1-minute OHLCV bars for each future, every minute.
+    1-minute OHLCV bars for each symbol, every minute.
+
+    Instrument-neutral: works for futures, equities, ETFs, bonds, indexes, etc.
     Used for charting, ML, and building higher timeframe candles.
     """
-    timestamp_minute = models.DateTimeField(db_index=True, help_text="Minute bucket (UTC)")
+
+    timestamp_minute = models.DateTimeField(
+        db_index=True,
+        help_text="Minute bucket (UTC)"
+    )
+
     country = models.CharField(
         max_length=32,
-        choices=COUNTRY_CHOICES,
+        choices=CONTROL_COUNTRY_CHOICES,
+        db_index=True,
         help_text="Market region (canonical values only)"
     )
-    future = models.CharField(max_length=32, help_text="Future symbol (e.g., ES, YM, NQ)")
+
+    symbol = models.CharField(
+        max_length=32,
+        db_index=True,
+        help_text="Instrument symbol (e.g., ES, YM, NQ, AAPL, SPY)"
+    )
+
+    # ✅ Renamed FK (market-level, not futures-specific)
     twentyfour = models.ForeignKey(
-        'FutureTrading24Hour',
+        "MarketTrading24Hour",
         null=True,
         blank=True,
         on_delete=models.SET_NULL,
-        related_name='intraday_bars',
+        related_name="intraday_bars",
+        help_text="Optional link to the associated 24h market record"
     )
-    open_1m = models.DecimalField(max_digits=32, decimal_places=4)
-    high_1m = models.DecimalField(max_digits=32, decimal_places=4)
-    low_1m = models.DecimalField(max_digits=32, decimal_places=4)
-    close_1m = models.DecimalField(max_digits=32, decimal_places=4)
+
+    # 1-minute OHLCV
+    open_1m = models.DecimalField(max_digits=18, decimal_places=4)
+    high_1m = models.DecimalField(max_digits=18, decimal_places=4)
+    low_1m = models.DecimalField(max_digits=18, decimal_places=4)
+    close_1m = models.DecimalField(max_digits=18, decimal_places=4)
+
     volume_1m = models.BigIntegerField()
-    bid_last = models.DecimalField(max_digits=32, decimal_places=4, null=True, blank=True)
-    ask_last = models.DecimalField(max_digits=32, decimal_places=4, null=True, blank=True)
-    spread_last = models.DecimalField(max_digits=32, decimal_places=4, null=True, blank=True)
+
+    # Optional quote context
+    bid_last = models.DecimalField(max_digits=18, decimal_places=4, null=True, blank=True)
+    ask_last = models.DecimalField(max_digits=18, decimal_places=4, null=True, blank=True)
+    spread_last = models.DecimalField(max_digits=18, decimal_places=4, null=True, blank=True)
 
     class Meta:
-        unique_together = (('timestamp_minute', 'future', 'country'),)
-        indexes = [
-            models.Index(fields=['twentyfour']),
+        verbose_name = "Market Intraday Bar"
+        verbose_name_plural = "Market Intraday Bars"
+
+        # One bar per symbol per minute per country
+        constraints = [
+            models.UniqueConstraint(
+                fields=["timestamp_minute", "symbol", "country"],
+                name="uniq_intraday_minute_symbol_country",
+            )
         ]
-        verbose_name = 'Market Intraday Bar'
-        verbose_name_plural = 'Market Intraday Bars'
+
+        indexes = [
+            models.Index(
+                fields=["symbol", "country", "timestamp_minute"],
+                name="idx_intraday_sym_cty_ts"
+            ),
+            models.Index(
+                fields=["twentyfour"],
+                name="idx_intraday_twentyfour"
+            ),
+            models.Index(
+                fields=["timestamp_minute"],
+                name="idx_intraday_ts"
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.country} {self.symbol} {self.timestamp_minute:%Y-%m-%d %H:%M} O={self.open_1m} C={self.close_1m}"

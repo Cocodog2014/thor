@@ -14,12 +14,12 @@ CREATE TABLE "FutureTrading_marketsession_new" (
     "day" varchar(10) NOT NULL,
     "captured_at" timestamp with time zone NOT NULL,
     "country" varchar(50) NOT NULL,
-    "future" varchar(10),
-    "country_future" numeric(14, 4),
+    "symbol" varchar(10),
+    "country_symbol" numeric(14, 4),
     "weight" integer,
     "bhs" varchar(20) NOT NULL,
     "wndw" varchar(20),
-    "country_future_wndw_total" bigint,
+    "country_symbol_wndw_total" bigint,
     "bid_price" numeric(14, 4),
     "bid_size" integer,
     "last_price" numeric(14, 4),
@@ -83,7 +83,7 @@ CREATE TABLE "FutureTrading_marketsession_new" (
 INSERT INTO "FutureTrading_marketsession_new" 
 SELECT 
     id, session_number, capture_group, year, month, date, day, captured_at,
-    country, future, country_future, weight, bhs, wndw, country_future_wndw_total,
+    country, symbol, country_symbol, weight, bhs, wndw, country_symbol_wndw_total,
     bid_price, bid_size, last_price, spread, ask_price, ask_size,
     entry_price, target_hit_price, target_hit_type, target_high, target_low, target_hit_at,
     volume, market_open, market_high_open, market_high_pct_open,
@@ -109,7 +109,7 @@ ALTER TABLE "FutureTrading_marketsession_new" RENAME TO "FutureTrading_marketses
 -- Recreate indexes
 CREATE INDEX "FutureTrading_marke_capture_group_ef5816_idx" ON "FutureTrading_marketsession" ("capture_group");
 CREATE INDEX "FutureTrading_marketsession_country_idx" ON "FutureTrading_marketsession" ("country");
-CREATE INDEX "FutureTrading_marketsession_future_idx" ON "FutureTrading_marketsession" ("future");
+CREATE INDEX "FutureTrading_marketsession_symbol_idx" ON "FutureTrading_marketsession" ("symbol");
 CREATE INDEX "FutureTrading_marketsession_session_number_idx" ON "FutureTrading_marketsession" ("session_number");
 CREATE INDEX "FutureTrading_marketsession_captured_at_idx" ON "FutureTrading_marketsession" ("captured_at");
 CREATE INDEX "FutureTrading_marketsession_bhs_idx" ON "FutureTrading_marketsession" ("bhs");

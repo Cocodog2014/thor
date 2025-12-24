@@ -5,7 +5,7 @@ Run with:
 Or simply:
     python scripts/print_backtest_stats.py
 
-Ensures Django is initialized then calls compute_backtest_stats_for_country_future.
+Ensures Django is initialized then calls compute_backtest_stats_for_country_symbol.
 """
 
 import os
@@ -23,16 +23,16 @@ except Exception as e:
     print("Failed Django setup:", e)
     raise
 
-from ThorTrading.services.analytics.backtest_stats import compute_backtest_stats_for_country_future
+from ThorTrading.services.analytics.backtest_stats import compute_backtest_stats_for_country_symbol
 
 SYMBOLS = ["YM", "ES", "NQ", "TOTAL"]
 DEFAULT_COUNTRY = os.environ.get("BACKTEST_STATS_COUNTRY", "USA")
 
 def main(country: str = DEFAULT_COUNTRY):
     for sym in SYMBOLS:
-        stats = compute_backtest_stats_for_country_future(
+        stats = compute_backtest_stats_for_country_symbol(
             country=country,
-            future=sym,
+            symbol=sym,
         )
         print(f"{country} / {sym}: {stats}")
 

@@ -83,7 +83,7 @@ class Command(BaseCommand):
         # Normalize MarketIntraday.country
         # Use deterministic ordering so deletes/updates are stable
         for row in MarketIntraday.objects.order_by(
-            "timestamp_minute", "future", "country", "id"
+            "timestamp_minute", "symbol", "country", "id"
         ).iterator():
             before_country = row.country
             after_country = _normalize(before_country)
@@ -97,7 +97,7 @@ class Command(BaseCommand):
                 conflict = (
                     MarketIntraday.objects.filter(
                         timestamp_minute=row.timestamp_minute,
-                        future=row.future,
+                        symbol=row.symbol,
                         country=after_country,
                     )
                     .exclude(pk=row.pk)

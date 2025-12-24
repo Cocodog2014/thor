@@ -55,8 +55,8 @@ class Command(BaseCommand):
         for row in qs.iterator(chunk_size=batch_size):
             processed += 1
             country = normalize_country_code(row.country) or row.country
-            future = (row.future or "").upper()
-            if not future:
+            symbol = (row.symbol or "").upper()
+            if not symbol:
                 continue
 
             sg = resolve_session_group(country)
@@ -64,12 +64,12 @@ class Command(BaseCommand):
                 # Cannot link without a numeric capture_group; skip
                 continue
 
-            cache_key = (sg, future)
+            cache_key = (sg, symbol)
             twentyfour = twentyfour_cache.get(cache_key)
             if twentyfour is None:
                 twentyfour, _ = FutureTrading24Hour.objects.get_or_create(
                     session_group=sg,
-                    future=future,
+                    future=symbol,
                     defaults={
                         "session_date": row.timestamp_minute.date(),
                         "country": country,

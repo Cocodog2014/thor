@@ -183,7 +183,7 @@ class MarketSessionAdmin(admin.ModelAdmin):
         "basic": (
             "captured_at",
             "country",
-            "future",
+            "symbol",
             "bhs",
             "wndw",
             "day",
@@ -191,7 +191,7 @@ class MarketSessionAdmin(admin.ModelAdmin):
         "price": (
             "captured_at",
             "country",
-            "future",
+            "symbol",
             "last_price",
             "change",
             "change_percent",
@@ -205,7 +205,7 @@ class MarketSessionAdmin(admin.ModelAdmin):
         "targets": (
             "captured_at",
             "country",
-            "future",
+            "symbol",
             "bhs",
             "entry_price",
             "target_high",
@@ -217,7 +217,7 @@ class MarketSessionAdmin(admin.ModelAdmin):
         "session": (
             "captured_at",
             "country",
-            "future",
+            "symbol",
             "open_price_24h",
             "prev_close_24h",
             "open_prev_diff_24h",
@@ -236,9 +236,9 @@ class MarketSessionAdmin(admin.ModelAdmin):
         "backtest": (
             "captured_at",
             "country",
-            "future",
+            "symbol",
             "bhs",
-            "country_future_wndw_total",
+            "country_symbol_wndw_total",
             "strong_buy_worked", "strong_buy_worked_percentage",
             "strong_buy_didnt_work", "strong_buy_didnt_work_percentage",
             "buy_worked", "buy_worked_percentage",
@@ -254,12 +254,12 @@ class MarketSessionAdmin(admin.ModelAdmin):
         "full": (
             "captured_at",
             "country",
-            "future",
+            "symbol",
             "bhs",
             "wndw",
             "session_number",
             "capture_group",
-            "country_future",
+            "country_symbol",
             "year",
             "month",
             "date",
@@ -326,7 +326,7 @@ class MarketSessionAdmin(admin.ModelAdmin):
     list_filter = [
         ColumnSetFilter,
         MarketSessionCountryFilter,
-        'future',
+        'symbol',
         'day',
         'bhs',
         'wndw',  # filter by Worked / Didn't Work / Neutral labels
@@ -334,12 +334,12 @@ class MarketSessionAdmin(admin.ModelAdmin):
         'month',
         'date',
     ]
-    search_fields = ['country', 'session_number', 'future']
+    search_fields = ['country', 'session_number', 'symbol']
     readonly_fields = ['captured_at']
     
     fieldsets = (
         ('Session Info', {
-            'fields': ('session_number', 'country', 'future', 'country_future', 'year', 'month', 'date', 'day', 'captured_at')
+            'fields': ('session_number', 'country', 'symbol', 'country_symbol', 'year', 'month', 'date', 'day', 'captured_at')
         }),
         ('Live Price Data (Open)', {
             'fields': ('last_price', 'ask_price', 'ask_size',
@@ -360,7 +360,7 @@ class MarketSessionAdmin(admin.ModelAdmin):
         }),
         ('Signal & Composite', {
             'fields': (
-                    'bhs', 'country_future_wndw_total',
+                    'bhs', 'country_symbol_wndw_total',
                 'strong_buy_worked', 'strong_buy_worked_percentage',
                 'strong_buy_didnt_work', 'strong_buy_didnt_work_percentage',
                 'buy_worked', 'buy_worked_percentage', 'buy_didnt_work', 'buy_didnt_work_percentage',
@@ -378,7 +378,7 @@ class MarketSessionAdmin(admin.ModelAdmin):
         return f"{obj.year}/{obj.month:02d}/{obj.date:02d}"
     date_display.short_description = 'Date'
     
-    ordering = ['-capture_group', 'future']
+    ordering = ['-capture_group', 'symbol']
 
     class Media:
         css = {
@@ -525,16 +525,16 @@ class FutureTrading24HourAdmin(admin.ModelAdmin):
 @admin.register(MarketIntraday)
 class MarketIntradayAdmin(admin.ModelAdmin):
     list_display = (
-        "timestamp_minute", "country", "future",
+        "timestamp_minute", "country", "symbol",
         "open_1m", "high_1m", "low_1m", "close_1m", "volume_1m",
     )
     list_filter = (
-        "country", "future",
+        "country", "symbol",
     )
     search_fields = (
-        "future", "country",
+        "symbol", "country",
     )
-    ordering = ("-timestamp_minute", "future")
+    ordering = ("-timestamp_minute", "symbol")
     date_hierarchy = "timestamp_minute"
     readonly_fields = ("timestamp_minute",)
 

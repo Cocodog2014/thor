@@ -7,7 +7,7 @@ from typing import Any
 from core.infra.jobs import Job
 from GlobalMarkets.services.active_markets import get_control_markets
 from ThorTrading.config.symbols import FUTURES_SYMBOLS
-from ThorTrading.services.analytics.backtest_stats import compute_backtest_stats_for_country_future
+from ThorTrading.services.analytics.backtest_stats import compute_backtest_stats_for_country_symbol
 
 log = logging.getLogger(__name__)
 
@@ -42,7 +42,7 @@ class PreOpenBacktestJob(Job):
 
                 for future in FUTURES_SYMBOLS:
                     try:
-                        compute_backtest_stats_for_country_future(country=m.country, future=future)
+                        compute_backtest_stats_for_country_symbol(country=m.country, symbol=future)
                     except Exception:
                         log.warning(
                             "preopen_backtest: stats failed for %s/%s", m.country, future, exc_info=True

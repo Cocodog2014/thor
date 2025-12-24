@@ -18,8 +18,8 @@ WNDW_WORKED = "WORKED"
 WNDW_DIDNT_WORK = "DIDNT_WORK"
 
 
-def _base_queryset(country: str, future: str, as_of: Optional[datetime]):
-    qs = MarketSession.objects.filter(country=country, future=future)
+def _base_queryset(country: str, symbol: str, as_of: Optional[datetime]):
+    qs = MarketSession.objects.filter(country=country, symbol=symbol)
     if as_of is not None:
         qs = qs.filter(captured_at__lt=as_of)
     return qs
@@ -41,15 +41,15 @@ def _signal_counts(qs, signal: str):
     return worked, worked_pct, didnt, didnt_pct
 
 
-def compute_backtest_stats_for_country_future(
+def compute_backtest_stats_for_country_symbol(
     *,
     country: str,
-    future: str,
+    symbol: str,
     as_of: Optional[datetime] = None,
 ) -> Dict[str, Any]:
-    """Compute per-signal historical accuracy for the given (country, future)."""
+    """Compute per-signal historical accuracy for the given (country, symbol)."""
 
-    qs = _base_queryset(country=country, future=future, as_of=as_of)
+    qs = _base_queryset(country=country, symbol=symbol, as_of=as_of)
 
     stats: Dict[str, Any] = {}
 
@@ -83,7 +83,7 @@ def compute_backtest_stats_for_country_future(
 
 
 __all__ = [
-    "compute_backtest_stats_for_country_future",
+    "compute_backtest_stats_for_country_symbol",
     "BHS_STRONG_BUY",
     "BHS_BUY",
     "BHS_HOLD",

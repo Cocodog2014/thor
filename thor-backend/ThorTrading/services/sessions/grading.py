@@ -97,7 +97,7 @@ class MarketGrader:
         if not session.entry_price or not session.target_high or not session.target_low:
             logger.debug(
                 "⚠ %s (Session #%s) → NEUTRAL: missing entry=%s, target_h=%s, target_l=%s",
-                session.future,
+                session.symbol,
                 session.session_number,
                 session.entry_price,
                 session.target_high,
@@ -110,7 +110,7 @@ class MarketGrader:
         if session.bhs in ["HOLD", None, ""]:
             logger.debug(
                 "⚠ %s (Session #%s) → NEUTRAL: signal=%s (no trade)",
-                session.future,
+                session.symbol,
                 session.session_number,
                 session.bhs,
             )
@@ -118,11 +118,11 @@ class MarketGrader:
             session.save(update_fields=["wndw"])
             return True
 
-        current_price = self.get_current_price(session.future, session.bhs)
+        current_price = self.get_current_price(session.symbol, session.bhs)
         if current_price is None:
             logger.debug(
                 "⏸ %s (Session #%s) → no price available yet (signal=%s)",
-                session.future,
+                session.symbol,
                 session.session_number,
                 session.bhs,
             )
@@ -177,7 +177,7 @@ class MarketGrader:
 
         logger.info(
             "✅ %s (Session #%s) %s at ~%s [hit_type=%s]",
-            session.future,
+            session.symbol,
             session.session_number,
             verb,
             current_price,

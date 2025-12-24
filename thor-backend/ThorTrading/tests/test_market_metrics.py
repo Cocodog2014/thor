@@ -10,7 +10,7 @@ from ThorTrading.services.sessions.metrics import (
 )
 
 
-def make_session(country: str, future: str, session_number: int, last_price=None, market_open=None,
+def make_session(country: str, symbol: str, session_number: int, last_price=None, market_open=None,
                  high=None, low=None, capture_group: int | None = None):
     return MarketSession.objects.create(
         session_number=session_number,
@@ -20,7 +20,7 @@ def make_session(country: str, future: str, session_number: int, last_price=None
         date=22,
         day="Sat",
         country=country,
-        future=future,
+        symbol=symbol,
         last_price=last_price,
         market_open=market_open,
         market_high_open=high,
@@ -45,7 +45,7 @@ class MarketOpenMetricTests(TestCase):
             make_session("USA", future, 2, last_price=Decimal("100"))
         updated = MarketOpenMetric.update_for_capture_group(2)
         self.assertEqual(updated, 4)
-        total = MarketSession.objects.get(country="USA", future="TOTAL", session_number=2)
+        total = MarketSession.objects.get(country="USA", symbol="TOTAL", session_number=2)
         self.assertEqual(total.market_open, Decimal("100"))
 
 
@@ -64,8 +64,8 @@ class MarketHighMetricTests(TestCase):
     def test_high_initial_and_updates_and_drawdown(self):
         # First tick establishes highs
         MarketHighMetric.update_from_quotes("USA", self._enriched(101, 199))
-        ym = MarketSession.objects.get(country="USA", future="YM", session_number=2)
-        es = MarketSession.objects.get(country="USA", future="ES", session_number=2)
+        ym = MarketSession.objects.get(country="USA", symbol="YM", session_number=2)
+        es = MarketSession.objects.get(country="USA", symbol="ES", session_number=2)
         self.assertEqual(ym.market_high_open, Decimal("101"))
         self.assertEqual(ym.market_high_pct_open, Decimal("1"))
         self.assertEqual(es.market_high_open, Decimal("199"))
@@ -90,7 +90,7 @@ class MarketHighMetricTests(TestCase):
         make_session("USA", "TOTAL", 3, last_price=Decimal("150"), market_open=Decimal("150"))
         enriched = [{"instrument": {"symbol": "/TOTAL"}, "last": "155"}]
         MarketHighMetric.update_from_quotes("USA", enriched)
-        total = MarketSession.objects.get(country="USA", future="TOTAL", session_number=3)
+        total = MarketSession.objects.get(country="USA", symbol="TOTAL", session_number=3)
         self.assertEqual(total.market_high_open, Decimal("155"))
         self.assertEqual(total.market_high_pct_open, Decimal("3.3333"))
 
@@ -109,8 +109,8 @@ class MarketLowMetricTests(TestCase):
     def test_low_initial_and_run_up(self):
         # First tick establishes low
         MarketLowMetric.update_from_quotes("USA", self._enriched(99, 198))
-        ym = MarketSession.objects.get(country="USA", future="YM", session_number=3)
-        es = MarketSession.objects.get(country="USA", future="ES", session_number=3)
+        ym = MarketSession.objects.get(country="USA", symbol="YM", session_number=3)
+        es = MarketSession.objects.get(country="USA", symbol="ES", session_number=3)
         self.assertEqual(ym.market_low_open, Decimal("99"))
         self.assertEqual(ym.market_low_pct_open, Decimal("0"))
         self.assertEqual(es.market_low_open, Decimal("198"))
@@ -137,7 +137,7 @@ class MarketLowMetricTests(TestCase):
         make_session("USA", "TOTAL", 4, last_price=Decimal("150"), market_open=Decimal("150"))
         enriched = [{"instrument": {"symbol": "/TOTAL"}, "last": "145"}]
         MarketLowMetric.update_from_quotes("USA", enriched)
-        total = MarketSession.objects.get(country="USA", future="TOTAL", session_number=4)
+        total = MarketSession.objects.get(country="USA", symbol="TOTAL", session_number=4)
         self.assertEqual(total.market_low_open, Decimal("145"))
         self.assertEqual(total.market_low_pct_open, Decimal("0"))
         # Price moves above low
@@ -161,8 +161,8 @@ class MarketCloseAndRangeMetricTests(TestCase):
 
     def test_close_metric(self):
         MarketCloseMetric.update_for_country_on_close("USA", self._enriched(106, 211))
-        ym = MarketSession.objects.get(country="USA", future="YM", session_number=4)
-        es = MarketSession.objects.get(country="USA", future="ES", session_number=4)
+        ym = MarketSession.objects.get(country="USA", symbol="YM", session_number=4)
+        es = MarketSession.objects.get(country="USA", symbol="ES", session_number=4)
         self.assertEqual(ym.market_close, Decimal("106"))
         self.assertEqual(es.market_close, Decimal("211"))
         # Distance from high and low
@@ -178,8 +178,8 @@ class MarketCloseAndRangeMetricTests(TestCase):
         # First run close metric so highs/lows considered final
         MarketCloseMetric.update_for_country_on_close("USA", self._enriched(106, 211))
         MarketRangeMetric.update_for_country_on_close("USA")
-        ym = MarketSession.objects.get(country="USA", future="YM", session_number=4)
-        es = MarketSession.objects.get(country="USA", future="ES", session_number=4)
+        ym = MarketSession.objects.get(country="USA", symbol="YM", session_number=4)
+        es = MarketSession.objects.get(country="USA", symbol="ES", session_number=4)
         self.assertEqual(ym.market_range, Decimal("106") - Decimal("99"))
         self.assertEqual(es.market_range, Decimal("212") - Decimal("198"))
         # Range percentage = range / open * 100
@@ -192,7 +192,7 @@ class MarketCloseAndRangeMetricTests(TestCase):
         enriched = [{"instrument": {"symbol": "/TOTAL"}, "last": "155"}]
         MarketCloseMetric.update_for_country_on_close("USA", enriched)
         MarketRangeMetric.update_for_country_on_close("USA")
-        total = MarketSession.objects.get(country="USA", future="TOTAL", session_number=5)
+        total = MarketSession.objects.get(country="USA", symbol="TOTAL", session_number=5)
         self.assertEqual(total.market_close, Decimal("155"))
         # Off high / above low percentages
         self.assertEqual(total.market_high_pct_close, Decimal("3.1250"))
@@ -218,8 +218,8 @@ class MarketMetricEdgeCaseTests(TestCase):
         ]
         updated = MarketHighMetric.update_from_quotes("USA", enriched)
         self.assertEqual(updated, 0, "Should skip updates when open is None or 0")
-        ym = MarketSession.objects.get(country="USA", future="YM", session_number=5)
-        es = MarketSession.objects.get(country="USA", future="ES", session_number=5)
+        ym = MarketSession.objects.get(country="USA", symbol="YM", session_number=5)
+        es = MarketSession.objects.get(country="USA", symbol="ES", session_number=5)
         self.assertIsNone(ym.market_high_open)
         self.assertIsNone(es.market_high_open)
 
@@ -227,7 +227,7 @@ class MarketMetricEdgeCaseTests(TestCase):
         make_session("USA", "YM", 6, last_price=Decimal("100"), market_open=Decimal("100"))
         updated = MarketLowMetric.update_from_quotes("USA", [])
         self.assertEqual(updated, 0)
-        ym = MarketSession.objects.get(country="USA", future="YM", session_number=6)
+        ym = MarketSession.objects.get(country="USA", symbol="YM", session_number=6)
         self.assertIsNone(ym.market_low_open)
 
     def test_close_metric_handles_missing_or_flat_range(self):
@@ -240,9 +240,9 @@ class MarketMetricEdgeCaseTests(TestCase):
             {"instrument": {"symbol": "/NQ"}, "last": "300"},
         ]
         MarketCloseMetric.update_for_country_on_close("USA", enriched)
-        ym = MarketSession.objects.get(country="USA", future="YM", session_number=7)
-        es = MarketSession.objects.get(country="USA", future="ES", session_number=7)
-        nq = MarketSession.objects.get(country="USA", future="NQ", session_number=7)
+        ym = MarketSession.objects.get(country="USA", symbol="YM", session_number=7)
+        es = MarketSession.objects.get(country="USA", symbol="ES", session_number=7)
+        nq = MarketSession.objects.get(country="USA", symbol="NQ", session_number=7)
         self.assertEqual(ym.market_close, Decimal("151"))
         self.assertEqual(es.market_close, Decimal("251"))
         self.assertEqual(nq.market_close, Decimal("300"))
@@ -267,9 +267,9 @@ class MarketMetricEdgeCaseTests(TestCase):
         updated = MarketRangeMetric.update_for_country_on_close("USA")
         # Only NQ should update
         self.assertEqual(updated, 1)
-        nq = MarketSession.objects.get(country="USA", future="NQ", session_number=8)
-        ym = MarketSession.objects.get(country="USA", future="YM", session_number=8)
-        es = MarketSession.objects.get(country="USA", future="ES", session_number=8)
+        nq = MarketSession.objects.get(country="USA", symbol="NQ", session_number=8)
+        ym = MarketSession.objects.get(country="USA", symbol="YM", session_number=8)
+        es = MarketSession.objects.get(country="USA", symbol="ES", session_number=8)
         self.assertEqual(nq.market_range, Decimal("315") - Decimal("290"))
         self.assertIsNone(ym.market_range)
         self.assertIsNone(es.market_range)
@@ -278,7 +278,7 @@ class MarketMetricEdgeCaseTests(TestCase):
         make_session("USA", "YM", 9, market_open=Decimal("0"), high=Decimal("110"), low=Decimal("100"))
         updated = MarketRangeMetric.update_for_country_on_close("USA")
         self.assertEqual(updated, 1)
-        ym = MarketSession.objects.get(country="USA", future="YM", session_number=9)
+        ym = MarketSession.objects.get(country="USA", symbol="YM", session_number=9)
         self.assertEqual(ym.market_range, Decimal("10"))
         self.assertIsNone(ym.market_range_pct)
 

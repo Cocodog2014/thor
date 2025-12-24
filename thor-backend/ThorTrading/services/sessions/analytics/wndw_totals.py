@@ -1,4 +1,4 @@
-"""Snapshot totals for ``country_future_wndw_total`` at capture time."""
+"""Snapshot totals for ``country_symbol_wndw_total`` at capture time."""
 from __future__ import annotations
 
 import logging
@@ -9,8 +9,8 @@ from django.db.models import Q
 from ThorTrading.models.MarketSession import MarketSession
 
 
-class CountryFutureWndwTotalsService:
-    """Computes historical signal/outcome totals for a (country, future) pair."""
+class CountrySymbolWndwTotalsService:
+    """Computes historical signal/outcome totals for a (country, symbol) pair."""
 
     SIGNAL_KEYS = (
         "STRONG_BUY",
@@ -43,7 +43,7 @@ class CountryFutureWndwTotalsService:
             self.model.objects.filter(
                 capture_group=capture_group,
                 country=country,
-            ).filter(Q(country_future_wndw_total__isnull=True) | Q(country_future_wndw_total=0))
+            ).filter(Q(country_symbol_wndw_total__isnull=True) | Q(country_symbol_wndw_total=0))
         )
 
         if not pending_rows.exists():
@@ -58,14 +58,14 @@ class CountryFutureWndwTotalsService:
         for row in pending_rows:
             summary = self._build_summary_for_row(row)
             total_value = summary["total_records"]
-            row.country_future_wndw_total = total_value
-            row.save(update_fields=["country_future_wndw_total"])
+            row.country_symbol_wndw_total = total_value
+            row.save(update_fields=["country_symbol_wndw_total"])
             updated += 1
             self.logger.debug(
                 "WNDW totals snapshot id=%s (%s/%s) -> %s",
                 row.id,
                 row.country,
-                row.future,
+                row.symbol,
                 total_value,
             )
 
@@ -99,7 +99,7 @@ class CountryFutureWndwTotalsService:
     def _historical_rows(self, row) -> Iterable[Dict[str, Optional[str]]]:
         return (
             self.model.objects
-            .filter(country=row.country, future=row.future, captured_at__lte=row.captured_at)
+            .filter(country=row.country, symbol=row.symbol, captured_at__lte=row.captured_at)
             .order_by("captured_at")
             .values("bhs", "wndw")
         )
@@ -134,15 +134,20 @@ class CountryFutureWndwTotalsService:
         return self.OUTCOME_KEYS.get(upper)
 
 
-_service = CountryFutureWndwTotalsService()
+_service = CountrySymbolWndwTotalsService()
 
 
-def update_country_future_wndw_total(capture_group: int, country: str) -> int:
+def update_country_symbol_wndw_total(capture_group: int, country: str) -> int:
     """Wrapper around the service."""
     return _service.update_for_capture_group(capture_group=capture_group, country=country)
 
 
+def update_country_future_wndw_total(capture_group: int, country: str) -> int:  # Backward compatibility
+    return update_country_symbol_wndw_total(capture_group=capture_group, country=country)
+
+
 __all__ = [
-    "CountryFutureWndwTotalsService",
+    "CountrySymbolWndwTotalsService",
+    "update_country_symbol_wndw_total",
     "update_country_future_wndw_total",
 ]

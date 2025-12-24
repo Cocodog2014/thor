@@ -13,7 +13,7 @@ class DummyMarket:
         self.country = country
 
 
-def make_session(country: str, future: str, session_number: int, last_price, market_open):
+def make_session(country: str, symbol: str, session_number: int, last_price, market_open):
     return MarketSession.objects.create(
         session_number=session_number,
         year=2025,
@@ -21,7 +21,7 @@ def make_session(country: str, future: str, session_number: int, last_price, mar
         date=22,
         day="Sat",
         country=country,
-        future=future,
+        symbol=symbol,
         last_price=Decimal(str(last_price)),
         market_open=Decimal(str(market_open)),
     )
@@ -65,9 +65,9 @@ class IntradayMarketSupervisorTests(TestCase):
             MarketHighMetric.update_from_quotes("USA", enriched)
             MarketLowMetric.update_from_quotes("USA", enriched)
 
-        ym = MarketSession.objects.get(country="USA", future="YM", session_number=100)
-        es = MarketSession.objects.get(country="USA", future="ES", session_number=100)
-        total = MarketSession.objects.get(country="USA", future="TOTAL", session_number=100)
+        ym = MarketSession.objects.get(country="USA", symbol="YM", session_number=100)
+        es = MarketSession.objects.get(country="USA", symbol="ES", session_number=100)
+        total = MarketSession.objects.get(country="USA", symbol="TOTAL", session_number=100)
         self.assertEqual(ym.market_high_open, Decimal("105"))
         self.assertEqual(es.market_high_open, Decimal("210"))
         self.assertEqual(total.market_high_open, Decimal("155"))

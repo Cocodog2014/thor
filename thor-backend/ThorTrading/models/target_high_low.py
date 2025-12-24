@@ -1,102 +1,97 @@
-"""Target High / Low Configuration Model
+"""
+Target High / Low Configuration Model
 
-Provides per-symbol configurable offsets used to derive `target_high` and 
+Per-instrument configurable offsets used to derive `target_high` and
 `target_low` for a `MarketSession` when market open signals are captured.
 
-Purpose:
-Different futures contracts have vastly different tick sizes, price ranges, 
-and volatility profiles. This model allows admins to define custom target 
-offsets per symbol using either:
-- **Points mode**: Fixed absolute offsets (e.g., ES +/- 25 points)
-- **Percent mode**: Percentage-based offsets (e.g., VX +/- 5%)
-- **Disabled mode**: No targets calculated for that symbol
+This version is aligned with the new instrument-neutral naming:
+- Uses `country` + `symbol` to match TradingInstrument / MarketSession / MarketIntraday / MarketTrading24Hour
+- Quantization is driven by TradingInstrument.display_precision (caller can pass quant or precision)
 
-Configuration is 100% admin-driven via Django admin interface. Targets are
-automatically quantized to each symbol's display precision (configured in
-TradingInstrument.display_precision).
-
-Usage Flow:
-1. Admin creates one `TargetHighLowConfig` per symbol (YM, ES, NQ, RTY, etc.)
-2. Selects mode: POINTS, PERCENT, or DISABLED
-3. Sets offset values appropriate to that symbol's characteristics
-4. Market open capture queries this config to compute targets
-5. If no config exists or mode=DISABLED → targets remain None (no grading)
-
-Target Interpretation:
-- **BUY signals**: target_high = profit target, target_low = stop loss
-- **SELL signals**: target_low = profit target, target_high = stop loss
-- Grading logic evaluates which level hits first within the evaluation window
-
-Precision Handling:
-Computed targets respect TradingInstrument.display_precision:
-- YM (display_precision=0): whole numbers (47683, 47663)
-- ES (display_precision=2): two decimals (5923.25, 5898.75)
-- SI (display_precision=3): three decimals (31.850, 31.350)
+Modes:
+- POINTS: absolute offsets (e.g., ES +/- 25.00)
+- PERCENT: percentage offsets (e.g., VX +/- 0.50% as 0.50)
+- DISABLED: no targets computed
 """
+
+from __future__ import annotations
 
 from decimal import Decimal
 from django.db import models
 from django.core.exceptions import ValidationError
+from GlobalMarkets.models.constants import CONTROL_COUNTRY_CHOICES
 
 
 class TargetHighLowConfig(models.Model):
-    MODE_POINTS = 'POINTS'
-    MODE_PERCENT = 'PERCENT'
-    MODE_DISABLED = 'DISABLED'
+    MODE_POINTS = "POINTS"
+    MODE_PERCENT = "PERCENT"
+    MODE_DISABLED = "DISABLED"
+
     MODE_CHOICES = [
-        (MODE_POINTS, 'Points'),
-        (MODE_PERCENT, 'Percent'),
-        (MODE_DISABLED, 'Disabled'),
+        (MODE_POINTS, "Points"),
+        (MODE_PERCENT, "Percent"),
+        (MODE_DISABLED, "Disabled"),
     ]
 
+    # Align with TradingInstrument (country + symbol uniqueness)
+    country = models.CharField(
+        max_length=32,
+        choices=CONTROL_COUNTRY_CHOICES,
+        db_index=True,
+        help_text="Market region (canonical values only)",
+    )
+
     symbol = models.CharField(
-        max_length=10,
-        unique=True,
-        help_text="Trading symbol (YM, ES, NQ, RTY, CL, SI, HG, GC, VX, DX, ZB)"
+        max_length=32,
+        db_index=True,
+        help_text="Instrument symbol (YM, ES, NQ, RTY, CL, SI, HG, GC, VX, DX, ZB, AAPL, SPY, etc.)",
     )
 
     mode = models.CharField(
         max_length=10,
         choices=MODE_CHOICES,
         default=MODE_POINTS,
-        help_text="Computation mode: Points adds/subtracts fixed amounts; Percent uses percentage offsets; Disabled skips target calculation."
+        help_text=(
+            "Computation mode: Points adds/subtracts fixed amounts; "
+            "Percent uses percentage offsets; Disabled skips target calculation."
+        ),
     )
 
-    # Point offsets (absolute) - optional depending on mode
+    # Point offsets (absolute magnitudes) - required if mode=POINTS
     offset_high = models.DecimalField(
         max_digits=12,
-        decimal_places=4,
+        decimal_places=6,
         null=True,
         blank=True,
-        help_text="Absolute points above entry (BUY target / SELL stop)"
+        help_text="Absolute points above entry (BUY target / SELL stop)",
     )
     offset_low = models.DecimalField(
         max_digits=12,
-        decimal_places=4,
+        decimal_places=6,
         null=True,
         blank=True,
-        help_text="Absolute points below entry (BUY stop / SELL target)"
+        help_text="Absolute points below entry (BUY stop / SELL target)",
     )
 
-    # Percent offsets (if mode=PERCENT) - expressed as percentage (e.g. 0.5 => 0.5%)
+    # Percent offsets (required if mode=PERCENT) - expressed as percent (0.50 => 0.50%)
     percent_high = models.DecimalField(
-        max_digits=8,
-        decimal_places=4,
+        max_digits=10,
+        decimal_places=6,
         null=True,
         blank=True,
-        help_text="Percent above entry (e.g. 0.50 = +0.50%)"
+        help_text="Percent above entry (e.g. 0.50 = +0.50%)",
     )
     percent_low = models.DecimalField(
-        max_digits=8,
-        decimal_places=4,
+        max_digits=10,
+        decimal_places=6,
         null=True,
         blank=True,
-        help_text="Percent below entry (e.g. 0.50 = -0.50%)"
+        help_text="Percent below entry (e.g. 0.50 = -0.50%)",
     )
 
     is_active = models.BooleanField(
         default=True,
-        help_text="Deactivate without deleting. If inactive or disabled, capture falls back to legacy default if no other config exists."
+        help_text="Deactivate without deleting. If inactive or disabled, targets are not computed.",
     )
 
     updated_at = models.DateTimeField(auto_now=True)
@@ -105,41 +100,66 @@ class TargetHighLowConfig(models.Model):
     class Meta:
         verbose_name = "Target High/Low Config"
         verbose_name_plural = "Target High/Low Configs"
-        ordering = ["symbol"]
+        ordering = ["country", "symbol"]
+        unique_together = (("country", "symbol"),)
+        indexes = [
+            models.Index(fields=["country", "symbol"], name="idx_thlc_country_symbol"),
+            models.Index(fields=["country", "is_active"], name="idx_thlc_country_active"),
+        ]
 
     def __str__(self):  # pragma: no cover
+        prefix = f"{self.country} {self.symbol}"
         if self.mode == self.MODE_POINTS:
-            return f"{self.symbol}: +{self.offset_high} / -{self.offset_low} pts"
+            return f"{prefix}: +{self.offset_high} / -{self.offset_low} pts"
         if self.mode == self.MODE_PERCENT:
-            return f"{self.symbol}: +{self.percent_high}% / -{self.percent_low}%"
-        return f"{self.symbol}: (disabled)"
+            return f"{prefix}: +{self.percent_high}% / -{self.percent_low}%"
+        return f"{prefix}: (disabled)"
 
     def clean(self):
         # Ensure required fields for each mode
         if self.mode == self.MODE_POINTS:
             if self.offset_high is None or self.offset_low is None:
                 raise ValidationError("Points mode requires offset_high and offset_low")
-            if (self.offset_high is not None and self.offset_high <= 0) or (self.offset_low is not None and self.offset_low <= 0):
-                raise ValidationError("Point offsets must be positive values (enter absolute magnitudes, no minus sign)")
+            if self.offset_high <= 0 or self.offset_low <= 0:
+                raise ValidationError(
+                    "Point offsets must be positive values (enter absolute magnitudes, no minus sign)"
+                )
+
         elif self.mode == self.MODE_PERCENT:
             if self.percent_high is None or self.percent_low is None:
                 raise ValidationError("Percent mode requires percent_high and percent_low")
-            if (self.percent_high is not None and self.percent_high <= 0) or (self.percent_low is not None and self.percent_low <= 0):
-                raise ValidationError("Percent offsets must be positive (e.g. 0.50 for +0.50%)")
+            if self.percent_high <= 0 or self.percent_low <= 0:
+                raise ValidationError(
+                    "Percent offsets must be positive (e.g. 0.50 for +0.50%)"
+                )
 
-    def compute_targets(self, entry_price: Decimal, quant: Decimal | None = None):
-        """Return (target_high, target_low) or None if disabled.
+    def compute_targets(
+        self,
+        entry_price: Decimal,
+        quant: Decimal | None = None,
+        *,
+        precision: int | None = None,
+    ):
+        """
+        Return (target_high, target_low) or None if disabled/inactive.
 
-        Percent interpretation: percent_high=0.50 means +0.50% (multiply by 1.0050)
+        Percent interpretation:
+          percent_high=0.50 means +0.50%  -> multiply by (1 + 0.50/100)
 
-        `quant` is an optional Decimal quantization unit (e.g. Decimal('0.01')).
-        If not provided, no explicit quantize is applied – the caller can decide.
+        Quantization:
+          - If `quant` is provided (e.g. Decimal("0.01")), uses that.
+          - Else if `precision` is provided, quant is derived as Decimal("1").scaleb(-precision).
+          - Else returns raw Decimals (caller can quantize).
         """
         if entry_price is None:
             raise ValueError("entry_price is required to compute targets")
 
         if not self.is_active or self.mode == self.MODE_DISABLED:
             return None
+
+        if quant is None and precision is not None:
+            # precision=2 -> 0.01
+            quant = Decimal("1").scaleb(-precision)
 
         def _q(val: Decimal) -> Decimal:
             return val.quantize(quant) if quant is not None else val

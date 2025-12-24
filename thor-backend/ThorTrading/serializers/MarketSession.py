@@ -14,9 +14,9 @@ class MarketSessionListSerializer(MarketSessionBaseSerializer):
     class Meta(MarketSessionBaseSerializer.Meta):
         fields = [
             'id', 'session_number', 'capture_group', 'capture_kind', 'year', 'month', 'date', 'day',
-            'captured_at', 'country', 'future', 'country_future', 'weight', 'bhs',
+            'captured_at', 'country', 'symbol', 'country_symbol', 'weight', 'bhs',
             'wndw',
-            'country_future_wndw_total',
+            'country_symbol_wndw_total',
             'strong_buy_worked', 'strong_buy_worked_percentage',
             'strong_buy_didnt_work', 'strong_buy_didnt_work_percentage',
             'buy_worked', 'buy_worked_percentage', 'buy_didnt_work', 'buy_didnt_work_percentage',
@@ -45,9 +45,9 @@ class MarketSessionDetailSerializer(MarketSessionBaseSerializer):
     class Meta(MarketSessionBaseSerializer.Meta):
         fields = [
             'id', 'session_number', 'capture_group', 'capture_kind', 'year', 'month', 'date', 'day',
-            'captured_at', 'country', 'future', 'country_future', 'weight', 'bhs',
+            'captured_at', 'country', 'symbol', 'country_symbol', 'weight', 'bhs',
             'wndw',
-            'country_future_wndw_total', 'strong_buy_worked', 'strong_buy_worked_percentage',
+            'country_symbol_wndw_total', 'strong_buy_worked', 'strong_buy_worked_percentage',
             'strong_buy_didnt_work', 'strong_buy_didnt_work_percentage',
             'buy_worked', 'buy_worked_percentage', 'buy_didnt_work', 'buy_didnt_work_percentage',
             'hold',

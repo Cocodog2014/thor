@@ -126,25 +126,25 @@ class MarketHighMetric:
                 logger.debug("[DIAG High] Skip row: missing symbol row=%s", row)
                 continue
 
-            future = symbol.lstrip("/").upper()
+            base_symbol = symbol.lstrip("/").upper()
             last_price = _safe_decimal(row.get("last"))
             if last_price is None:
-                logger.debug("[DIAG High] Skip %s: last_price None raw_last=%s", future, row.get("last"))
+                logger.debug("[DIAG High] Skip %s: last_price None raw_last=%s", base_symbol, row.get("last"))
                 continue
 
             session = (
                 MarketSession.objects
                 .select_for_update()
-                .filter(country=country, future=future, capture_group=latest_group)
+                .filter(country=country, symbol=base_symbol, capture_group=latest_group)
                 .first()
             )
             if not session:
-                logger.debug("[DIAG High] No session row for %s country=%s capture_group=%s", future, country, latest_group)
+                logger.debug("[DIAG High] No session row for %s country=%s capture_group=%s", base_symbol, country, latest_group)
                 continue
 
             market_open = session.market_open
             if market_open is None or market_open == 0:
-                logger.debug("[DIAG High] Skip %s: market_open missing (%s)", future, market_open)
+                logger.debug("[DIAG High] Skip %s: market_open missing (%s)", base_symbol, market_open)
                 continue
 
             current_high = session.market_high_open
@@ -155,7 +155,7 @@ class MarketHighMetric:
                 pct = _move_from_open_pct(open_price, last_price) or Decimal("0")
                 session.market_high_pct_open = pct
                 session.save(update_fields=["market_high_open", "market_high_pct_open"])
-                logger.debug("[DIAG High] FIRST TICK %s: set high=%s pct=%s", future, last_price, pct)
+                logger.debug("[DIAG High] FIRST TICK %s: set high=%s pct=%s", base_symbol, last_price, pct)
                 updated_count += 1
                 continue
 
@@ -166,14 +166,14 @@ class MarketHighMetric:
                 session.save(update_fields=["market_high_open", "market_high_pct_open"])
                 logger.debug(
                     "[DIAG High] NEW HIGH %s: last=%s prev_high=%s pct=%s",
-                    future, last_price, current_high, pct
+                    base_symbol, last_price, current_high, pct
                 )
                 updated_count += 1
                 continue
 
             logger.debug(
                 "[DIAG High] BELOW HIGH %s: last=%s high=%s pct=%s",
-                future,
+                base_symbol,
                 last_price,
                 current_high,
                 session.market_high_pct_open,
@@ -212,10 +212,10 @@ class MarketLowMetric:
                 logger.debug("[DIAG Low] Skip row: missing symbol row=%s", row)
                 continue
 
-            future = symbol.lstrip("/").upper()
+            base_symbol = symbol.lstrip("/").upper()
             last_price = _safe_decimal(row.get("last"))
             if last_price is None:
-                logger.debug("[DIAG Low] Skip %s: last_price None raw_last=%s", future, row.get("last"))
+                logger.debug("[DIAG Low] Skip %s: last_price None raw_last=%s", base_symbol, row.get("last"))
                 continue
 
             session = (
@@ -223,13 +223,13 @@ class MarketLowMetric:
                 .select_for_update()
                 .filter(
                     country=country,
-                    future=future,
+                    symbol=base_symbol,
                     capture_group=latest_group,
                 )
                 .first()
             )
             if not session:
-                logger.debug("[DIAG Low] No session row for %s country=%s capture_group=%s", future, country, latest_group)
+                logger.debug("[DIAG Low] No session row for %s country=%s capture_group=%s", base_symbol, country, latest_group)
                 continue
 
             current_low = session.market_low_open
@@ -238,7 +238,7 @@ class MarketLowMetric:
                 session.market_low_open = last_price
                 session.market_low_pct_open = Decimal("0")
                 session.save(update_fields=["market_low_open", "market_low_pct_open"])
-                logger.debug("[DIAG Low] FIRST TICK %s: set low=%s pct=0", future, last_price)
+                logger.debug("[DIAG Low] FIRST TICK %s: set low=%s pct=0", base_symbol, last_price)
                 updated_count += 1
                 continue
 
@@ -246,7 +246,7 @@ class MarketLowMetric:
                 session.market_low_open = last_price
                 session.market_low_pct_open = Decimal("0")
                 session.save(update_fields=["market_low_open", "market_low_pct_open"])
-                logger.debug("[DIAG Low] NEW LOWER LOW %s: last=%s prev_low=%s pct=0", future, last_price, current_low)
+                logger.debug("[DIAG Low] NEW LOWER LOW %s: last=%s prev_low=%s pct=0", base_symbol, last_price, current_low)
                 updated_count += 1
                 continue
 
@@ -261,7 +261,14 @@ class MarketLowMetric:
                 session.market_low_pct_open = pct
                 session.save(update_fields=["market_low_pct_open"])
                 updated_count += 1
-                logger.debug("[DIAG Low] ABOVE LOW %s: last=%s low=%s runup=%s pct=%s", future, last_price, current_low, move_up if 'move_up' in locals() else None, pct)
+                logger.debug(
+                    "[DIAG Low] ABOVE LOW %s: last=%s low=%s runup=%s pct=%s",
+                    base_symbol,
+                    last_price,
+                    current_low,
+                    move_up if 'move_up' in locals() else None,
+                    pct,
+                )
 
         logger.info(
             "MarketLowMetric complete → %s updated for %s (session %s)",
@@ -296,7 +303,7 @@ class MarketCloseMetric:
             if not symbol:
                 continue
 
-            future = symbol.lstrip("/").upper()
+            base_symbol = symbol.lstrip("/").upper()
             last_price = _safe_decimal(row.get("last"))
             if last_price is None:
                 continue
@@ -304,7 +311,7 @@ class MarketCloseMetric:
             session = (
                 MarketSession.objects
                 .select_for_update()
-                .filter(country=country, future=future, capture_group=latest_group)
+                .filter(country=country, symbol=base_symbol, capture_group=latest_group)
                 .first()
             )
             if not session:

@@ -16,7 +16,7 @@ from ThorTrading.models.MarketSession import MarketSession
 grader = MarketGrader()
 
 # Get TOTAL session
-total = MarketSession.objects.filter(country='USA', future='TOTAL', wndw='PENDING').order_by('-captured_at').first()
+total = MarketSession.objects.filter(country='USA', symbol='TOTAL', wndw='PENDING').order_by('-captured_at').first()
 
 if not total:
     print("No pending TOTAL session found")

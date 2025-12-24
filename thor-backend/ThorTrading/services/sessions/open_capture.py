@@ -12,11 +12,11 @@ from django.utils import timezone
 
 from ThorTrading.config.symbols import FUTURES_SYMBOLS
 from ThorTrading.models.MarketSession import MarketSession
-from ThorTrading.services.analytics.backtest_stats import compute_backtest_stats_for_country_future
+from ThorTrading.services.analytics.backtest_stats import compute_backtest_stats_for_country_symbol
 from ThorTrading.services.config.country_codes import normalize_country_code
 from ThorTrading.services.indicators import compute_targets_for_symbol
 from ThorTrading.services.quotes import get_enriched_quotes_with_composite
-from ThorTrading.services.sessions.analytics.wndw_totals import CountryFutureWndwTotalsService
+from ThorTrading.services.sessions.analytics.wndw_totals import CountrySymbolWndwTotalsService
 from ThorTrading.services.sessions.counters import CountryFutureCounter
 from ThorTrading.services.sessions.global_market_gate import (
     open_capture_allowed,
@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 
 
 class MarketOpenCaptureService:
-    """Captures futures data at market open - matches RTD endpoint logic."""
+    """Captures symbol data at market open - matches RTD endpoint logic."""
 
     def get_next_session_number(self):
         last = MarketSession.objects.order_by("-session_number").first()
@@ -55,7 +55,7 @@ class MarketOpenCaptureService:
                 return None
 
     def create_session_for_future(self, symbol, row, session_number, capture_group, time_info, country, composite_signal):
-        """Create one MarketSession row for a single future."""
+        """Create one MarketSession row for a single symbol."""
 
         canonical_symbol = symbol.lstrip("/").upper()
 
@@ -70,7 +70,7 @@ class MarketOpenCaptureService:
             "date": time_info["date"],
             "day": time_info["day"],
             "country": country,
-            "future": canonical_symbol,
+            "symbol": canonical_symbol,
             "captured_at": timezone.now(),
             "last_price": self.safe_decimal(row.get("last")),
             "ask_price": self.safe_decimal(row.get("ask")),
@@ -139,9 +139,9 @@ class MarketOpenCaptureService:
                 pass
 
         try:
-            stats = compute_backtest_stats_for_country_future(
+            stats = compute_backtest_stats_for_country_symbol(
                 country=country,
-                future=symbol,
+                symbol=symbol,
                 as_of=data["captured_at"],
             )
             data.update(stats)
@@ -171,7 +171,7 @@ class MarketOpenCaptureService:
             "date": time_info["date"],
             "day": time_info["day"],
             "country": country,
-            "future": "TOTAL",
+            "symbol": "TOTAL",
             "captured_at": timezone.now(),
             "weighted_average": self.safe_decimal(composite.get("avg_weighted")),
             "instrument_count": composite.get("count") or 11,
@@ -186,9 +186,9 @@ class MarketOpenCaptureService:
             data["target_low"] = low
 
         try:
-            stats = compute_backtest_stats_for_country_future(
+            stats = compute_backtest_stats_for_country_symbol(
                 country=country,
-                future="TOTAL",
+                symbol="TOTAL",
                 as_of=data["captured_at"],
             )
             data.update(stats)
@@ -339,7 +339,7 @@ class MarketOpenCaptureService:
                 )
             except Exception as stats_error:  # noqa: BLE001
                 logger.warning(
-                    "Failed country/future WNDW totals refresh after capture %s: %s",
+                    "Failed country/symbol WNDW totals refresh after capture %s: %s",
                     session_number,
                     stats_error,
                     exc_info=True,
@@ -361,7 +361,7 @@ class MarketOpenCaptureService:
 
 _service = MarketOpenCaptureService()
 _country_future_counter = CountryFutureCounter()
-_country_future_wndw_service = CountryFutureWndwTotalsService()
+_country_future_wndw_service = CountrySymbolWndwTotalsService()
 
 
 def _get_capture_interval() -> float:
