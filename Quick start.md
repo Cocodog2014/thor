@@ -238,17 +238,12 @@ Open three terminals (or PowerShell windows).
 python -m daphne -b 127.0.0.1 -p 8000 thor_project.asgi:application
 
 2. cd A:\Thor\thor-backend
-   python manage.py run_heartbeat
-   
-   # This runs the heartbeat timer that broadcasts WebSocket messages every 5 seconds
-
-3. cd A:\Thor\thor-backend
    python manage.py poll_tos_excel --interval 1
 
-4. cd A:\Thor\thor-frontend
+3. cd A:\Thor\thor-frontend
    npm run dev:local
 
-5. cd A:\Thor
+4. cd A:\Thor
    cloudflared tunnel run dev-thor
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 Production
