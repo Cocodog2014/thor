@@ -35,7 +35,7 @@ def markets_overview(request):
 @permission_classes([AllowAny])
 def composite_index(request):
     """
-    Return composite using all active markets. If none are active, return a stub.
+    Return composite using all active markets (control flag removed). If none are active, return a stub.
     """
     if Market.objects.filter(is_active=True).exists():
         data = Market.calculate_global_composite()
