@@ -12,7 +12,6 @@ CONTROL_MARKET_WEIGHTS = {
     'USA': 0.25,
     'Canada': 0.03,
     'Mexico': 0.02,
-    'Futures': 0.00,  # CME/GLOBEX futures session tracker (not weighted in composite)
 }
 
 # Canonical control countries (exact strings stored in DB)
@@ -26,10 +25,7 @@ ALLOWED_CONTROL_COUNTRIES = {
     "USA",
     "Canada",
     "Mexico",
-    "Futures",  # CME/GLOBEX session (Sun 5 PM CT → Fri 5 PM CT)
 }
-
-CONTROL_COUNTRY_CHOICES = [(c, c) for c in sorted(ALLOWED_CONTROL_COUNTRIES)]
 
 # Strict IANA timezone list for admin dropdown (no aliases)
 TIMEZONE_CHOICES = [(tz, tz) for tz in pytz.common_timezones]

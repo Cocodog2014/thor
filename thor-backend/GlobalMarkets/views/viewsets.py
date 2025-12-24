@@ -1,7 +1,6 @@
 from datetime import date, timedelta
 import os
 
-from django.db.models import Case, When, IntegerField
 from django.http import HttpResponse
 from django.utils import timezone
 
@@ -28,31 +27,6 @@ from ..serializers import (
 # -----------------------------------------------------------------------------
 # Helpers (no timers; compute-only)
 # -----------------------------------------------------------------------------
-
-CONTROL_COUNTRIES_ORDER = [
-    "Japan",
-    "China",
-    "India",
-    "Germany",
-    "United Kingdom",
-    "Pre_USA",
-    "USA",
-    "Canada",
-    "Mexico",
-    "Futures",  # include Futures if you have it as a control market
-]
-
-
-def _annotate_control_order(qs):
-    """
-    DB-safe ordering without .extra().
-    Any unknown country gets 999 and falls to the bottom.
-    """
-    whens = [When(country=name, then=idx + 1) for idx, name in enumerate(CONTROL_COUNTRIES_ORDER)]
-    return qs.annotate(
-        custom_order=Case(*whens, default=999, output_field=IntegerField())
-    ).order_by("custom_order")
-
 
 def _safe_market_status(m: Market) -> dict | None:
     try:
@@ -106,23 +80,16 @@ class MarketViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         """
-        Default list returns only ACTIVE control markets in east→west order.
-
-        To widen the set (e.g., admin review), supply filters like
-        ?is_control_market=false or ?is_active=false as needed.
+        Default list returns all active markets; use filters to scope further.
         """
-        qs = Market.objects.filter(is_control_market=True)
-        # Keep only active control markets by default (you can override via filters)
-        qs = qs.filter(is_active=True)
-        return _annotate_control_order(qs)
+        return Market.objects.filter(is_active=True)
 
     @action(detail=False, methods=["get"], permission_classes=[AllowAny])
     def control(self, request):
         """
-        Return only active control markets in stable order.
+        Return only active control markets.
         """
         qs = Market.objects.filter(is_active=True, is_control_market=True)
-        qs = _annotate_control_order(qs)
         serializer = self.get_serializer(qs, many=True)
         return Response(serializer.data)
 
@@ -132,8 +99,7 @@ class MarketViewSet(viewsets.ModelViewSet):
         Return markets that are currently trading based on computed state.
         (Does NOT trust DB Market.status.)
         """
-        qs = Market.objects.filter(is_active=True, is_control_market=True)
-        qs = _annotate_control_order(qs)
+        qs = Market.objects.filter(is_active=True)
 
         results = []
         for m in qs:
@@ -161,8 +127,7 @@ class MarketViewSet(viewsets.ModelViewSet):
         - NO US gating here. Global markets operate even when US is closed.
         - Always uses computed get_market_status().
         """
-        qs = Market.objects.filter(is_active=True, is_control_market=True)
-        qs = _annotate_control_order(qs)
+        qs = Market.objects.filter(is_active=True)
 
         markets = []
         for m in qs:
@@ -379,10 +344,9 @@ def worldclock_stats(request):
     last_24h = timezone.now() - timedelta(hours=24)
     stats["recent_snapshots"] = MarketDataSnapshot.objects.filter(collected_at__gte=last_24h).count()
 
-    # Compute currently trading from computed status (control markets only)
+    # Compute currently trading from computed status (all active markets)
     currently_trading = []
-    qs = Market.objects.filter(is_active=True, is_control_market=True)
-    qs = _annotate_control_order(qs)
+    qs = Market.objects.filter(is_active=True)
 
     for m in qs:
         st = _safe_market_status(m)
