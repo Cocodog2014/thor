@@ -83,7 +83,7 @@ EXPECTED_MARKETS = [
         'status': 'OPEN', 
         'is_active': True,
         'is_control_market': True,
-        'weight': 0.05  # CME Globex Futures - Bridge between sessions
+        'weight': 0.05  # Pre-market US session
     },
     
     # Americas - 25% weight
