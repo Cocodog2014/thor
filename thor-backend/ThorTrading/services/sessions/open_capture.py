@@ -64,6 +64,7 @@ class MarketOpenCaptureService:
         data = {
             "session_number": session_number,
             "capture_group": capture_group,
+            "capture_kind": "OPEN",
             "year": time_info["year"],
             "month": time_info["month"],
             "date": time_info["date"],
@@ -164,6 +165,7 @@ class MarketOpenCaptureService:
         data = {
             "session_number": session_number,
             "capture_group": capture_group,
+            "capture_kind": "OPEN",
             "year": time_info["year"],
             "month": time_info["month"],
             "date": time_info["date"],
@@ -395,6 +397,7 @@ def _has_capture_for_date(market, capture_date: date_cls) -> bool:
     country_code = normalize_country_code(getattr(market, "country", None)) or getattr(market, "country", None)
     latest = (
         MarketSession.objects.filter(country=country_code)
+        .filter(capture_kind="OPEN")
         .exclude(capture_group__isnull=True)
         .order_by("-capture_group")
         .first()

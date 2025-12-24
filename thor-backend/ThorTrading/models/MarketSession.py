@@ -30,6 +30,17 @@ class MarketSession(models.Model):
         db_index=True,
         help_text="Group identifier for all rows captured in the same market-open event"
     )
+    capture_kind = models.CharField(
+        max_length=20,
+        default="OPEN",
+        db_index=True,
+        choices=[
+            ("OPEN", "Open"),
+            ("CLOSE", "Close"),
+            ("OTHER", "Other"),
+        ],
+        help_text="Type of capture event (OPEN, CLOSE, OTHER)",
+    )
 
     # Date/Time Info
     year = models.IntegerField()
