@@ -5,7 +5,7 @@ from django.core.management.base import BaseCommand
 from django.db import transaction
 
 from ThorTrading.models.MarketIntraDay import MarketIntraday
-from ThorTrading.models.Martket24h import FutureTrading24Hour
+from ThorTrading.models.Martket24h import MarketTrading24Hour
 from ThorTrading.models.MarketSession import MarketSession
 from ThorTrading.services.config.country_codes import normalize_country_code
 
@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 class Command(BaseCommand):
-    help = "Attach missing FutureTrading24Hour parents to MarketIntraday rows where twentyfour is NULL."
+    help = "Attach missing MarketTrading24Hour parents to MarketIntraday rows where twentyfour is NULL."
 
     def add_arguments(self, parser):
         parser.add_argument("--batch-size", type=int, default=500, help="Rows to process per bulk update.")
@@ -35,7 +35,7 @@ class Command(BaseCommand):
         processed = 0
         linked = 0
         session_group_cache: Dict[str, int | None] = {}
-        twentyfour_cache: Dict[Tuple[int, str], FutureTrading24Hour] = {}
+        twentyfour_cache: Dict[Tuple[int, str], MarketTrading24Hour] = {}
 
         def resolve_session_group(country: str) -> int | None:
             if country in session_group_cache:
@@ -67,9 +67,9 @@ class Command(BaseCommand):
             cache_key = (sg, symbol)
             twentyfour = twentyfour_cache.get(cache_key)
             if twentyfour is None:
-                twentyfour, _ = FutureTrading24Hour.objects.get_or_create(
+                twentyfour, _ = MarketTrading24Hour.objects.get_or_create(
                     session_group=sg,
-                    future=symbol,
+                    symbol=symbol,
                     defaults={
                         "session_date": row.timestamp_minute.date(),
                         "country": country,

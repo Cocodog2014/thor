@@ -7,13 +7,13 @@ from typing import Iterable
 from django.db import transaction
 from django.utils import timezone
 
-from ThorTrading.models.Martket24h import FutureTrading24Hour
+from ThorTrading.models.Martket24h import MarketTrading24Hour
 from ThorTrading.models.MarketSession import MarketSession
 from ThorTrading.services.intraday_supervisor.utils import safe_decimal
 
 logger = logging.getLogger(__name__)
 
-# Track last seen cumulative volumes per (session_group, future) to prevent
+# Track last seen cumulative volumes per (session_group, symbol) to prevent
 # re-adding the same cumulative feed volume on each heartbeat.
 _LAST_SEEN_VOLUME: dict[tuple[int, str], int] = {}
 
@@ -48,7 +48,7 @@ def update_24h_for_country(country: str, enriched_rows: Iterable[dict]):
         sym = row.get('instrument', {}).get('symbol') if isinstance(row.get('instrument'), dict) else None
         if not sym:
             continue
-        future = sym.lstrip('/').upper()
+        symbol = sym.lstrip('/').upper()
 
         last = row.get('last')
         high_price = row.get('high_price')
@@ -57,9 +57,9 @@ def update_24h_for_country(country: str, enriched_rows: Iterable[dict]):
         prev_close = row.get('previous_close') or row.get('close_price')
         vol = int(row.get('volume') or 0)
 
-        twentyfour, _ = FutureTrading24Hour.objects.get_or_create(
+        twentyfour, _ = MarketTrading24Hour.objects.get_or_create(
             session_group=latest_group,
-            future=future,
+            symbol=symbol,
             defaults={
                 'session_date': now_dt.date(),
                 'country': country,
@@ -67,7 +67,7 @@ def update_24h_for_country(country: str, enriched_rows: Iterable[dict]):
                 'prev_close_24h': safe_decimal(prev_close),
             }
         )
-        twentyfour_map[future] = twentyfour
+        twentyfour_map[symbol] = twentyfour
         updated = False
 
         # Initialize extremes
@@ -98,11 +98,11 @@ def update_24h_for_country(country: str, enriched_rows: Iterable[dict]):
                 twentyfour.range_pct_24h = pct
                 updated = True
             except Exception:
-                logger.exception("24h range compute failed for %s/%s", country, future)
+                logger.exception("24h range compute failed for %s/%s", country, symbol)
 
         # Delta volume accumulation to avoid double-counting
         vol_updates = []
-        key = (latest_group, future)
+        key = (latest_group, symbol)
         prior_seen = _LAST_SEEN_VOLUME.get(key)
         if prior_seen is None:
             prior_seen = int(twentyfour.volume_24h or 0)

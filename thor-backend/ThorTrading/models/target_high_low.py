@@ -36,6 +36,8 @@ class TargetHighLowConfig(models.Model):
         max_length=32,
         choices=CONTROL_COUNTRY_CHOICES,
         db_index=True,
+        null=False,
+        blank=False,
         help_text="Market region (canonical values only)",
     )
 

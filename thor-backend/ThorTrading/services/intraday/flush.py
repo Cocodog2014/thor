@@ -4,7 +4,7 @@ from typing import List, Tuple
 
 from django.db import transaction
 from LiveData.shared.redis_client import live_data_redis
-from ThorTrading.models.Martket24h import FutureTrading24Hour
+from ThorTrading.models.Martket24h import MarketTrading24Hour
 from ThorTrading.models.MarketIntraDay import MarketIntraday
 from ThorTrading.models.MarketSession import MarketSession
 from ThorTrading.services.config.country_codes import normalize_country_code
@@ -41,10 +41,10 @@ def _to_intraday_models(country: str, bars: List[dict], session_group: int | Non
                 continue
 
             ts = datetime.fromtimestamp(int(raw_ts), tz=dt_timezone.utc)
-            future = b.get("symbol") or b.get("future")
-            if not future:
+            symbol = b.get("symbol") or b.get("future")
+            if not symbol:
                 continue
-            future = future.upper()
+            symbol = symbol.upper()
 
             # Use latest capture_group when available; fall back to session_date to avoid dropping data
             sg = session_group
@@ -57,12 +57,12 @@ def _to_intraday_models(country: str, bars: List[dict], session_group: int | Non
                     )
                 return []
 
-            cache_key = (sg, future)
+            cache_key = (sg, symbol)
             twentyfour = twentyfour_cache.get(cache_key)
             if twentyfour is None:
-                twentyfour, _ = FutureTrading24Hour.objects.get_or_create(
+                twentyfour, _ = MarketTrading24Hour.objects.get_or_create(
                     session_group=sg,
-                    future=future,
+                    symbol=symbol,
                     defaults={
                         "session_date": ts.date(),
                         "country": country,
@@ -74,7 +74,7 @@ def _to_intraday_models(country: str, bars: List[dict], session_group: int | Non
                 MarketIntraday(
                     timestamp_minute=ts,
                     country=country,
-                    future=future,
+                    symbol=symbol,
                     twentyfour=twentyfour,
                     open_1m=b.get("o"),
                     high_1m=b.get("h"),

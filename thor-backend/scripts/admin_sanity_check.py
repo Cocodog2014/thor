@@ -12,15 +12,15 @@ if BACKEND_ROOT not in sys.path:
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'thor_project.settings')
 django.setup()
 
-from ThorTrading.models.Martket24h import FutureTrading24Hour
+from ThorTrading.models.Martket24h import MarketTrading24Hour
 from ThorTrading.models.MarketIntraDay import MarketIntraday
 
 
 def run():
     # Create or get a 24h session
-    sess, created = FutureTrading24Hour.objects.get_or_create(
+    sess, created = MarketTrading24Hour.objects.get_or_create(
         session_group='TEST-GROUP-1',
-        future='ES',
+        symbol='ES',
         defaults={
             'session_date': date.today(),
             'country': 'USA',
@@ -33,13 +33,13 @@ def run():
             'finalized': False,
         }
     )
-    print(f"24h session: id={sess.id}, created={created}, future={sess.future}")
+    print(f"24h session: id={sess.id}, created={created}, symbol={sess.symbol}")
 
     # Create a 1-minute bar linked to the 24h session
     bar = MarketIntraday.objects.create(
         timestamp_minute=datetime.utcnow().replace(second=0, microsecond=0),
         country='USA',
-        future='ES',
+        symbol='ES',
         twentyfour=sess,
         open_1m=5110.00,
         high_1m=5112.00,
@@ -47,7 +47,7 @@ def run():
         close_1m=5111.25,
         volume_1m=1234,
     )
-    print(f"Intraday bar: id={bar.id}, future={bar.future}, ts={bar.timestamp_minute}")
+    print(f"Intraday bar: id={bar.id}, symbol={bar.symbol}, ts={bar.timestamp_minute}")
 
 
 if __name__ == '__main__':

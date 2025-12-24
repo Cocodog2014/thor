@@ -3,7 +3,7 @@ from django.db import transaction
 
 from ThorTrading.services.config.country_codes import normalize_country_code
 from ThorTrading.models.MarketIntraDay import MarketIntraday
-from ThorTrading.models.Martket24h import FutureTrading24Hour
+from ThorTrading.models.Martket24h import MarketTrading24Hour
 from GlobalMarkets.models.market import Market
 
 # Canonical set aligned with GlobalMarkets.ALLOWED_CONTROL_COUNTRIES
@@ -115,8 +115,8 @@ class Command(BaseCommand):
             if updated_fields:
                 updated["intraday"] += maybe_save(row, updated_fields)
 
-        # Normalize FutureTrading24Hour.country
-        for row in FutureTrading24Hour.objects.all():
+        # Normalize MarketTrading24Hour.country
+        for row in MarketTrading24Hour.objects.all():
             before = row.country
             after = _normalize(before)
             if not after or after not in CANONICAL:
