@@ -19,7 +19,7 @@ All persistent data models for the trading stack live here. The app is now instr
   Per-minute raw snapshots (last + cumulative volume) for VWAP pipelines.
 
 - Rolling52WeekStats  
-  Rolling 52w extremes (and optional all-time extremes) per **symbol** (global, not country-scoped) with a batch update helper.
+  Rolling 52w extremes (and optional all-time extremes) per **symbol** (global, not country-scoped) with a batch update helper. Rolling52WeekStats is tracked per symbol globally, not per country.
 
 - TargetHighLowConfig  
   Per-instrument target configuration (points/percent/disabled) aligned to `country + symbol`.
