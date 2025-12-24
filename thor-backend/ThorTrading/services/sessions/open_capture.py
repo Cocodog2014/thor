@@ -415,8 +415,8 @@ def _scan_and_capture_once():
     markets = Market.objects.filter(is_active=True)
 
     for market in markets:
-		if not _session_capture_enabled(market):
-			continue
+        if not _session_capture_enabled(market):
+            continue
         if not getattr(market, "enable_open_capture", True):
             continue
         if market.status != "OPEN":
