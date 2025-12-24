@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 class Market(models.Model):
     """
-    Represents stock markets around the world for monitoring while trading US markets
+    Represents markets/venues for global session tracking and capture gating.
     """
     # Basic market information
     country = models.CharField(max_length=50)
@@ -39,8 +39,8 @@ class Market(models.Model):
     # Additional market info
     currency = models.CharField(max_length=3, blank=True)
 
-    # Futures capture control flags
-    enable_futures_capture = models.BooleanField(default=True)
+    # Session capture control flags
+    enable_session_capture = models.BooleanField(default=True)
     enable_open_capture = models.BooleanField(default=True)
     enable_close_capture = models.BooleanField(default=True)
 
@@ -61,6 +61,10 @@ class Market(models.Model):
 
     def get_sort_order(self):
         return self.country.lower()
+
+    def session_capture_enabled(self) -> bool:
+        """Return capture toggle using the session capture flag."""
+        return bool(getattr(self, "enable_session_capture", True))
 
     # Service-backed helpers (keep public API stable)
     def get_current_market_time(self):

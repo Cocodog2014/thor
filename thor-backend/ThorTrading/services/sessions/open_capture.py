@@ -25,6 +25,11 @@ from ThorTrading.services.sessions.metrics import MarketOpenMetric
 logger = logging.getLogger(__name__)
 
 
+def _session_capture_enabled(market) -> bool:
+	"""Check session capture flag (hedgefund-neutral)."""
+	return bool(getattr(market, "enable_session_capture", True))
+
+
 class MarketOpenCaptureService:
 	"""Captures futures data at market open - matches RTD endpoint logic."""
 
@@ -207,8 +212,8 @@ class MarketOpenCaptureService:
 		display_country = getattr(market, "country", None)
 		country_code = normalize_country_code(display_country) or display_country
 
-		if not getattr(market, "enable_futures_capture", True):
-			logger.info("Futures capture disabled for %s; skipping.", country_code or display_country or "?")
+		if not _session_capture_enabled(market):
+			logger.info("Session capture disabled for %s; skipping.", country_code or display_country or "?")
 			return None
 		if not getattr(market, "enable_open_capture", True):
 			logger.info("Open capture disabled for %s; skipping.", country_code or display_country or "?")
@@ -410,8 +415,8 @@ def _scan_and_capture_once():
     markets = Market.objects.filter(is_active=True)
 
     for market in markets:
-        if not getattr(market, "enable_futures_capture", True):
-            continue
+		if not _session_capture_enabled(market):
+			continue
         if not getattr(market, "enable_open_capture", True):
             continue
         if market.status != "OPEN":

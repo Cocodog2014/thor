@@ -75,10 +75,10 @@ class IntradayMarketSupervisor:
             return
         if not self._tracking_enabled(market):
             logger.info(
-                "Intraday metrics disabled for %s (is_active=%s, enable_futures_capture=%s)",
+                "Intraday metrics disabled for %s (is_active=%s, session_capture=%s)",
                 country,
                 getattr(market, "is_active", True),
-                getattr(market, "enable_futures_capture", True),
+                getattr(market, "enable_session_capture", True),
             )
             return
         with self._lock:
@@ -163,7 +163,7 @@ class IntradayMarketSupervisor:
             open_markets = Market.objects.filter(
                 is_active=True,
                 status='OPEN',
-                enable_futures_capture=True  # Only include markets with intraday tracking enabled
+                enable_session_capture=True  # Only include markets with intraday tracking enabled
             )
         except Exception:
             logger.exception("Intraday step_once failed to load markets")
@@ -255,12 +255,12 @@ class IntradayMarketSupervisor:
             logger.info("Intraday flush 1m bars: country=%s inserted=%s", country, total)
 
     def _tracking_enabled(self, market) -> bool:
-        return getattr(market, "is_active", True) and getattr(market, "enable_futures_capture", True)
+        return getattr(market, "is_active", True) and getattr(market, "enable_session_capture", True)
 
     def _refresh_and_check_tracking(self, market) -> bool:
         """Refresh market flags and determine if intraday tracking should continue."""
         try:
-            market.refresh_from_db(fields=["is_active", "enable_futures_capture"])
+            market.refresh_from_db(fields=["is_active", "enable_session_capture"])
         except Exception:
             logger.info("Market %s no longer exists; stopping intraday worker", self._get_normalized_country(market))
             return False

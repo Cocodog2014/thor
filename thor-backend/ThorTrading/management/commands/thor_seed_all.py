@@ -81,7 +81,7 @@ class Command(BaseCommand):
                     country=canonical,
                     defaults={
                         "timezone_name": m.get("timezone"),
-                        "enable_futures_capture": m.get("enable_futures_capture", True),
+                        "enable_session_capture": m.get("enable_session_capture", True),
                         "enable_open_capture": m.get("enable_open_capture", True),
                     },
                 )

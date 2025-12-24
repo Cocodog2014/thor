@@ -1,11 +1,11 @@
 [
-  {"code":"JP","name":"Japan","timezone":"Asia/Tokyo","open_time":"09:00","close_time":"15:00","weight":10,"is_control_market":true,"enable_futures_capture":true,"enable_open_capture":true},
-  {"code":"CN","name":"China","timezone":"Asia/Shanghai","open_time":"09:30","close_time":"15:00","weight":10,"is_control_market":true,"enable_futures_capture":true,"enable_open_capture":true},
-  {"code":"IN","name":"India","timezone":"Asia/Kolkata","open_time":"09:15","close_time":"15:30","weight":10,"is_control_market":true,"enable_futures_capture":true,"enable_open_capture":true},
-  {"code":"DE","name":"Germany","timezone":"Europe/Berlin","open_time":"09:00","close_time":"17:30","weight":10,"is_control_market":true,"enable_futures_capture":false,"enable_open_capture":false},
-  {"code":"UK","name":"United Kingdom","timezone":"Europe/London","open_time":"08:00","close_time":"16:30","weight":10,"is_control_market":true,"enable_futures_capture":true,"enable_open_capture":true},
-  {"code":"PRE","name":"Pre-USA","timezone":"America/New_York","open_time":"06:00","close_time":"09:30","weight":10,"is_control_market":true,"enable_futures_capture":true,"enable_open_capture":true},
-  {"code":"US","name":"United States","timezone":"America/New_York","open_time":"09:30","close_time":"16:00","weight":20,"is_control_market":true,"enable_futures_capture":true,"enable_open_capture":true},
-  {"code":"CA","name":"Canada","timezone":"America/Toronto","open_time":"09:30","close_time":"16:00","weight":10,"is_control_market":true,"enable_futures_capture":false,"enable_open_capture":false},
-  {"code":"MX","name":"Mexico","timezone":"America/Mexico_City","open_time":"08:30","close_time":"15:00","weight":10,"is_control_market":true,"enable_futures_capture":false,"enable_open_capture":false}
+  {"code":"JP","name":"Japan","timezone":"Asia/Tokyo","open_time":"09:00","close_time":"15:00","weight":10,"is_control_market":true,"enable_session_capture":true,"enable_open_capture":true},
+  {"code":"CN","name":"China","timezone":"Asia/Shanghai","open_time":"09:30","close_time":"15:00","weight":10,"is_control_market":true,"enable_session_capture":true,"enable_open_capture":true},
+  {"code":"IN","name":"India","timezone":"Asia/Kolkata","open_time":"09:15","close_time":"15:30","weight":10,"is_control_market":true,"enable_session_capture":true,"enable_open_capture":true},
+  {"code":"DE","name":"Germany","timezone":"Europe/Berlin","open_time":"09:00","close_time":"17:30","weight":10,"is_control_market":true,"enable_session_capture":false,"enable_open_capture":false},
+  {"code":"UK","name":"United Kingdom","timezone":"Europe/London","open_time":"08:00","close_time":"16:30","weight":10,"is_control_market":true,"enable_session_capture":true,"enable_open_capture":true},
+  {"code":"PRE","name":"Pre-USA","timezone":"America/New_York","open_time":"06:00","close_time":"09:30","weight":10,"is_control_market":true,"enable_session_capture":true,"enable_open_capture":true},
+  {"code":"US","name":"United States","timezone":"America/New_York","open_time":"09:30","close_time":"16:00","weight":20,"is_control_market":true,"enable_session_capture":true,"enable_open_capture":true},
+  {"code":"CA","name":"Canada","timezone":"America/Toronto","open_time":"09:30","close_time":"16:00","weight":10,"is_control_market":true,"enable_session_capture":false,"enable_open_capture":false},
+  {"code":"MX","name":"Mexico","timezone":"America/Mexico_City","open_time":"08:30","close_time":"15:00","weight":10,"is_control_market":true,"enable_session_capture":false,"enable_open_capture":false}
 ]

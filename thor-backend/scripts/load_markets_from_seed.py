@@ -35,7 +35,7 @@ def main() -> int:
             "market_open_time": open_time,
             "market_close_time": close_time,
             "status": "CLOSED",
-            "enable_futures_capture": entry.get("enable_futures_capture", True),
+            "enable_session_capture": entry.get("enable_session_capture", True),
             "enable_open_capture": entry.get("enable_open_capture", True),
             "enable_close_capture": entry.get("enable_close_capture", True),
         }
