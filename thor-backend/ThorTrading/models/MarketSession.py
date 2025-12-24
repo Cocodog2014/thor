@@ -51,13 +51,13 @@ class MarketSession(models.Model):
 
     # Market Info
     country = models.CharField(
-        max_length=50,
+        max_length=32,
         choices=CONTROL_COUNTRY_CHOICES,
         help_text="Market region (canonical control market key)",
     )
 
     symbol = models.CharField(
-        max_length=10,
+        max_length=32,
         null=True,
         blank=True,
         choices=[
