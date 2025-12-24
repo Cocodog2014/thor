@@ -1,70 +1,3 @@
-No — we don’t want it to depend on DB Market.status if your goal is “GlobalMarkets stays minimal and truth comes from the clock logic.”
-
-Here’s the clean standard:
-
-What “Status” should be (in your current architecture)
-Option A (recommended): Status is display-only / legacy
-
-Admin “Status: OPEN/CLOSED” is not the truth.
-
-Truth = market_clock.is_market_open_now(market) (computed).
-
-Therefore the scan loop should NOT use market.status == "OPEN".
-
-This matches what you’ve already said/implemented elsewhere (“don’t trust DB status”).
-
-✅ Recommendation: Use computed open/closed in the scan loop.
-
-Why depending on DB status is a problem
-
-If the scan loop checks:
-
-if market.status != "OPEN":
-    continue
-
-
-then:
-
-You can flip the dropdown in admin and accidentally start/stop capture even if the market is actually closed/open.
-
-If nothing is writing Market.status consistently, the scan becomes unreliable and “randomly quiet.”
-
-That’s likely why you sometimes see “nothing in the logs.”
-
-What we should do instead
-
-Replace the DB status gate with the runtime truth:
-
-from GlobalMarkets.services.market_clock import is_market_open_now
-
-if not is_market_open_now(market):
-    continue
-
-
-Then the actual control becomes your real control panel:
-
-is_active
-
-enable_session_capture
-
-enable_open_capture
-
-…and “open right now” is computed.
-
-That’s exactly what you want.
-
-What to do with the admin Status dropdown
-
-Two paths:
-
-✅ Path 1 (recommended): keep it but ignore it for logic
-
-Leave it in admin for now (so you don’t break anything).
-
-Stop using it in ThorTrading gating.
-
-Later we can hide it from admin if it confuses you."""Market open capture supervisor utilities."""
-
 from __future__ import annotations
 
 import logging
@@ -89,6 +22,7 @@ from ThorTrading.services.sessions.global_market_gate import (
     open_capture_allowed,
     session_tracking_allowed,
 )
+from GlobalMarkets.services.market_clock import is_market_open_now
 from ThorTrading.services.sessions.metrics import MarketOpenMetric
 
 logger = logging.getLogger(__name__)
@@ -483,7 +417,7 @@ def _scan_and_capture_once():
             continue
         if not open_capture_allowed(market):
             continue
-        if market.status != "OPEN":
+        if not is_market_open_now(market):
             continue
 
         market_date = _market_local_date(market)
