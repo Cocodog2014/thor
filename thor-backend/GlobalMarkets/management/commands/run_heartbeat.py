@@ -7,6 +7,14 @@ Management command to run the unified heartbeat scheduler.
 - NO tick selection logic here (no tick_seconds_fn)
 - This command only boots the single realtime heartbeat loop.
 
+Operational notes (why this file matters):
+- Forces THOR_SCHEDULER_MODE="heartbeat" so old schedulers/supervisors never start.
+- Optionally grabs a leader lock to prevent two heartbeat workers from running.
+- Builds the job registry via register_jobs(registry) from the realtime registry.
+- Creates HeartbeatContext and optional channel_layer so jobs can broadcast ticks.
+- Invokes the single realtime loop thor_project.realtime.engine.run_heartbeat(...).
+- This is the Django entrypoint; the continuous loop lives only here.
+
 All scheduling policy lives in thor_project/realtime (engine/runtime).
 """
 import logging
