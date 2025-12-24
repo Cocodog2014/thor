@@ -1,21 +1,28 @@
 import logging
 from django.utils import timezone
 from GlobalMarkets.models.market import Market
-from GlobalMarkets.models.us_status import USMarketStatus
 
 logger = logging.getLogger(__name__)
 
 
 def reconcile_market_statuses(*, ctx=None) -> dict:
     """Heartbeat job: single source of truth for Market.status."""
-    us_open = USMarketStatus.is_us_market_open_today()
     markets = Market.objects.filter(is_active=True)
 
     changed = 0
     checked = 0
     for market in markets:
         checked += 1
-        target = "OPEN" if us_open and market.is_market_open_now() else "CLOSED"
+        status = None
+        try:
+            status = market.get_market_status()
+        except Exception as exc:
+            logger.debug("Market status compute failed for %s: %s", market.country, exc)
+
+        if isinstance(status, dict):
+            target = status.get("status") or ("OPEN" if status.get("is_in_trading_hours") else "CLOSED")
+        else:
+            target = "OPEN" if market.is_market_open_now() else "CLOSED"
 
         if market.status != target:
             previous = market.status
@@ -26,7 +33,6 @@ def reconcile_market_statuses(*, ctx=None) -> dict:
 
     return {
         "ts": timezone.now().isoformat(),
-        "us_open": us_open,
         "checked": checked,
         "changed": changed,
     }

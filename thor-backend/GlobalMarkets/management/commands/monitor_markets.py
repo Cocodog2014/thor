@@ -20,7 +20,6 @@ Usage:
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 from GlobalMarkets.models.market import Market
-from GlobalMarkets.models.us_status import USMarketStatus
 import logging
 
 logger = logging.getLogger(__name__)
@@ -41,26 +40,22 @@ class Command(BaseCommand):
     def reconcile_markets(self):
         """Run a single reconciliation pass for all active control markets"""
 
-        # Check if US markets are open today
-        us_open = USMarketStatus.is_us_market_open_today()
-
-        if not us_open:
-            self.stdout.write(
-                self.style.WARNING(
-                    "US markets are closed today — forcing all markets CLOSED"
-                )
-            )
-
         markets = Market.objects.filter(is_active=True)
 
         for market in markets:
-            self.reconcile_market(market, us_open)
+            self.reconcile_market(market)
 
-    def reconcile_market(self, market, us_open: bool):
+    def reconcile_market(self, market):
         """Reconcile one market's OPEN/CLOSED status"""
 
-        if not us_open:
-            target_status = "CLOSED"
+        status_data = None
+        try:
+            status_data = market.get_market_status()
+        except Exception as exc:
+            logger.debug("Market status compute failed for %s: %s", market.country, exc)
+
+        if isinstance(status_data, dict):
+            target_status = status_data.get("status") or ("OPEN" if status_data.get("is_in_trading_hours") else "CLOSED")
         else:
             target_status = "OPEN" if market.is_market_open_now() else "CLOSED"
 
@@ -83,7 +78,7 @@ class Command(BaseCommand):
             )
         else:
             status_icon = "🟢" if target_status == "OPEN" else "🔴"
-            market_status = market.get_market_status() or {}
+            market_status = status_data if isinstance(status_data, dict) else {}
             next_event = market_status.get("next_event", "n/a")
             seconds = market_status.get("seconds_to_next_event", 0)
 
