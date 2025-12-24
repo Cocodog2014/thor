@@ -26,6 +26,9 @@ class Market(models.Model):
     market_open_time = models.TimeField()
     market_close_time = models.TimeField()
 
+    # Days of week this market is tracked (0=Mon ... 6=Sun). Empty means all days.
+    trading_days = models.JSONField(default=list, blank=True)
+
     # Market status - controls data collection
     status = models.CharField(
         max_length=10,
