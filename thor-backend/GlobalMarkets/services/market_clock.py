@@ -4,6 +4,13 @@ import pytz
 from GlobalMarkets.models.constants import _DEFAULT_MARKET_TZ
 
 
+def _is_trading_day(market, market_time_data) -> bool:
+    days = getattr(market, "trading_days", None) or []
+    if not days:
+        return True  # blank = track all days
+    return market_time_data.get("day_number") in days
+
+
 def _resolve_timezone(market):
     tz_name = (market.timezone_name or "").strip()
     if not tz_name:
@@ -41,6 +48,9 @@ def is_market_open_now(market):
     if not market_time_data or not getattr(market, "is_active", True):
         return False
 
+    if not _is_trading_day(market, market_time_data):
+        return False
+
     current_time = market_time_data['datetime'].time()
 
     # Admin-controlled hours only (no default weekend closure)
@@ -53,6 +63,24 @@ def get_market_status(market):
     market_time = get_market_time(market)
     if not market_time or not market.is_active:
         return None
+
+    if not _is_trading_day(market, market_time):
+        return {
+            'country': market.country,
+            'timezone': market.timezone_name,
+            'current_time': market_time,
+            'market_open': market.market_open_time.strftime('%H:%M'),
+            'market_close': market.market_close_time.strftime('%H:%M'),
+            'is_in_trading_hours': False,
+            'status': 'CLOSED',
+            'should_collect_data': False,
+            'current_state': 'CLOSED',
+            'next_open_at': None,
+            'next_close_at': None,
+            'next_event': 'open',
+            'seconds_to_next_event': 0,
+            'is_holiday_today': False,
+        }
 
     tz = _resolve_timezone(market) or _DEFAULT_MARKET_TZ
     now_local = market_time['datetime']
