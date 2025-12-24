@@ -35,15 +35,14 @@ def markets_overview(request):
 @permission_classes([AllowAny])
 def composite_index(request):
     """
-    Return composite using DB-backed control markets only. If none are flagged,
-    return a simple status message.
+    Return composite using all active markets. If none are active, return a stub.
     """
     if Market.objects.filter(is_active=True).exists():
         data = Market.calculate_global_composite()
         return Response(data)
 
     return Response({
-        'detail': 'No control markets flagged; configure in admin to enable composite.',
+        'detail': 'No active markets configured; add markets in admin to enable composite.',
         'composite_score': 0.0,
         'active_markets': 0,
         'total_control_markets': 0,
