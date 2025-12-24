@@ -38,17 +38,12 @@ def get_market_time(market):
 
 def is_market_open_now(market):
     market_time_data = get_market_time(market)
-    if not market_time_data:
-        return False
-
-    day_num = market_time_data.get('day_number', 0)
-
-    # Skip weekends (Sat=5, Sun=6)
-    if day_num >= 5:
+    if not market_time_data or not getattr(market, "is_active", True):
         return False
 
     current_time = market_time_data['datetime'].time()
 
+    # Admin-controlled hours only (no default weekend closure)
     if market.market_open_time <= market.market_close_time:
         return market.market_open_time <= current_time <= market.market_close_time
     return current_time >= market.market_open_time or current_time <= market.market_close_time
@@ -70,8 +65,8 @@ def get_market_status(market):
             return False
 
     def is_trading_day(d: datetime) -> bool:
-        wd = d.weekday()  # Mon=0 ... Sun=6
-        return wd < 5 and not is_holiday(d)
+        # Admin controls days via holidays; no implicit weekday blocking
+        return not is_holiday(d)
 
     def combine_local(d: datetime, t: time) -> datetime:
         naive = datetime(d.year, d.month, d.day, t.hour, t.minute, t.second)
@@ -117,10 +112,8 @@ def get_market_status(market):
             close_nd = close_nd + timedelta(days=1)
         return close_nd
 
-    day_num = market_time.get('day_number', 0)
-    weekend = day_num >= 5
     holiday_today = is_holiday(now_local)
-    in_hours = False if (weekend or holiday_today) else is_market_open_now(market)
+    in_hours = False if holiday_today else is_market_open_now(market)
 
     PREOPEN_MIN = 60
     PRECLOSE_MIN = 15
@@ -154,7 +147,7 @@ def get_market_status(market):
     if holiday_today:
         effective_status = 'CLOSED'
 
-    should_collect = market.is_active and in_hours and (not weekend) and (not holiday_today)
+    should_collect = market.is_active and in_hours and (not holiday_today)
 
     return {
         'country': market.country,
