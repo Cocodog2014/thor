@@ -389,8 +389,7 @@ def debug_market_times(request):
     all_markets = Market.objects.all()
     active_markets = Market.objects.filter(is_active=True)
 
-    qs = Market.objects.filter(is_active=True)
-    qs = _annotate_control_order(qs)
+    qs = Market.objects.filter(is_active=True).order_by("country")
 
     debug_info = {
         "total_markets_in_db": all_markets.count(),
