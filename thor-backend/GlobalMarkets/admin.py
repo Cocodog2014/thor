@@ -1,9 +1,43 @@
+from django import forms
 from django.contrib import admin
 from .models import Market, USMarketStatus, UserMarketWatchlist, MarketDataSnapshot
 
 
+DAY_CHOICES = [
+    (0, "Monday"),
+    (1, "Tuesday"),
+    (2, "Wednesday"),
+    (3, "Thursday"),
+    (4, "Friday"),
+    (5, "Saturday"),
+    (6, "Sunday"),
+]
+
+
+class MarketAdminForm(forms.ModelForm):
+    trading_days = forms.MultipleChoiceField(
+        choices=DAY_CHOICES,
+        required=False,
+        widget=forms.CheckboxSelectMultiple,
+        help_text="Days to track this market. Leave blank to track all days.",
+    )
+
+    class Meta:
+        model = Market
+        fields = "__all__"
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.initial["trading_days"] = [str(d) for d in (self.instance.trading_days or [])]
+
+    def clean_trading_days(self):
+        vals = self.cleaned_data.get("trading_days") or []
+        return sorted({int(v) for v in vals})
+
+
 @admin.register(Market)
 class MarketAdmin(admin.ModelAdmin):
+    form = MarketAdminForm
     list_display = [
         'country', 'timezone_name', 'market_open_time', 'market_close_time',
         'status', 'is_active', 'currency',
@@ -22,6 +56,10 @@ class MarketAdmin(admin.ModelAdmin):
         }),
         ('Trading Hours', {
             'fields': ('market_open_time', 'market_close_time')
+        }),
+        ('Trading Days', {
+            'fields': ('trading_days',),
+            'description': 'Select days to track this market. Blank = all days.'
         }),
         ('Status', {
             'fields': ('status', 'is_active')
