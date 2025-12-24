@@ -18,7 +18,6 @@ class MarketSerializer(serializers.ModelSerializer):
             "status",
             "is_active",
             "currency",
-            "enable_futures_capture",
             "enable_open_capture",
             "enable_close_capture",
             "sort_order",
@@ -34,10 +33,10 @@ class MarketSerializer(serializers.ModelSerializer):
         return obj.get_sort_order()
 
 
-class USMarketStatusSerializer(serializers.ModelSerializer):
+class TradingCalendarSerializer(serializers.ModelSerializer):
     class Meta:
         model = USMarketStatus
-        fields = ["id", "date", "is_trading_day", "holiday_name", "created_at"]
+        fields = ["id", "exchange_code", "date", "is_trading_day", "holiday_name", "created_at"]
         read_only_fields = ["id", "created_at"]
 
 

@@ -18,7 +18,7 @@ from django_filters.rest_framework import DjangoFilterBackend
 from ..models import Market, USMarketStatus, MarketDataSnapshot, UserMarketWatchlist
 from ..serializers import (
     MarketSerializer,
-    USMarketStatusSerializer,
+    TradingCalendarSerializer,
     MarketDataSnapshotSerializer,
     UserMarketWatchlistSerializer,
 )
@@ -187,12 +187,12 @@ class MarketViewSet(viewsets.ModelViewSet):
         return Response({"source": "computed", "timestamp": time.time(), "markets": results})
 
 
-class USMarketStatusViewSet(viewsets.ModelViewSet):
+class TradingCalendarViewSet(viewsets.ModelViewSet):
     """
-    US market trading days and holidays.
+    Exchange trading calendars (US by default via exchange_code="US").
     """
     queryset = USMarketStatus.objects.all()
-    serializer_class = USMarketStatusSerializer
+    serializer_class = TradingCalendarSerializer
     ordering = ["-date"]
 
     def get_permissions(self):
@@ -204,16 +204,19 @@ class USMarketStatusViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=["get"], permission_classes=[AllowAny])
     def today_status(self, request):
         today = date.today()
-        is_open = USMarketStatus.is_us_market_open_today()
+        exchange = request.query_params.get("exchange_code", "US")
+        is_open = USMarketStatus.is_open_today(exchange)
 
         try:
-            status_obj = USMarketStatus.objects.get(date=today)
+            status_obj = USMarketStatus.objects.get(exchange_code=exchange, date=today)
             serializer = self.get_serializer(status_obj)
-            return Response({"is_open": is_open, "status": serializer.data})
+            return Response({"exchange_code": exchange, "is_open": is_open, "status": serializer.data})
         except USMarketStatus.DoesNotExist:
             return Response({
+                "exchange_code": exchange,
                 "is_open": is_open,
                 "status": {
+                    "exchange_code": exchange,
                     "date": today,
                     "is_trading_day": is_open,
                     "holiday_name": "" if is_open else "Weekend",
@@ -224,12 +227,14 @@ class USMarketStatusViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=["get"], permission_classes=[AllowAny])
     def upcoming_holidays(self, request):
         today = date.today()
+        exchange = request.query_params.get("exchange_code", "US")
         upcoming = USMarketStatus.objects.filter(
+            exchange_code=exchange,
             date__gte=today,
             is_trading_day=False,
         ).order_by("date")[:10]
         serializer = self.get_serializer(upcoming, many=True)
-        return Response(serializer.data)
+        return Response({"exchange_code": exchange, "holidays": serializer.data})
 
 
 class MarketDataSnapshotViewSet(viewsets.ReadOnlyModelViewSet):
@@ -335,7 +340,7 @@ def worldclock_stats(request):
       (does NOT trust DB Market.status).
     """
     stats = {
-        "us_market_open": USMarketStatus.is_us_market_open_today(),
+        "us_market_open": USMarketStatus.is_open_today("US"),
         "total_markets": Market.objects.filter(is_active=True).count(),
         "total_snapshots": MarketDataSnapshot.objects.count(),
         "total_users_with_watchlists": UserMarketWatchlist.objects.values("user").distinct().count(),

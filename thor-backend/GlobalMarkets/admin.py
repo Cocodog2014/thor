@@ -47,11 +47,11 @@ class MarketAdmin(admin.ModelAdmin):
 
 
 @admin.register(USMarketStatus)
-class USMarketStatusAdmin(admin.ModelAdmin):
-    list_display = ['date', 'is_trading_day', 'holiday_name', 'created_at']
-    list_filter = ['is_trading_day', 'date']
-    search_fields = ['holiday_name']
-    ordering = ['-date']
+class TradingCalendarAdmin(admin.ModelAdmin):
+    list_display = ['exchange_code', 'date', 'is_trading_day', 'holiday_name', 'created_at']
+    list_filter = ['exchange_code', 'is_trading_day', 'date']
+    search_fields = ['holiday_name', 'exchange_code']
+    ordering = ['exchange_code', '-date']
     date_hierarchy = 'date'
 
     def get_readonly_fields(self, request, obj=None):

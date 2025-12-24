@@ -3,9 +3,13 @@ from django.db import models
 
 class USMarketStatus(models.Model):
     """
-    Tracks US market status - controls whether we collect ANY data
+    Exchange-specific trading calendar (formerly US-only).
+
+    The legacy US calendar is represented with exchange_code="US".
     """
-    date = models.DateField(unique=True)
+
+    exchange_code = models.CharField(max_length=16, default="US", db_index=True)
+    date = models.DateField()
     is_trading_day = models.BooleanField(default=True)
     holiday_name = models.CharField(max_length=100, blank=True)
 
@@ -13,14 +17,18 @@ class USMarketStatus(models.Model):
 
     class Meta:
         ordering = ['-date']
-        verbose_name = 'US Market Status'
-        verbose_name_plural = 'US Market Status'
+        verbose_name = 'Trading Calendar'
+        verbose_name_plural = 'Trading Calendars'
+        db_table = 'GlobalMarkets_usmarketstatus'
+        constraints = [
+            models.UniqueConstraint(fields=['exchange_code', 'date'], name='uniq_trading_calendar_day'),
+        ]
 
     def __str__(self):
+        label = self.exchange_code or "EXCH"
         if self.is_trading_day:
-            return f"{self.date} - Trading Day"
-        else:
-            return f"{self.date} - Closed ({self.holiday_name or 'Weekend'})"
+            return f"{label} {self.date} - Trading Day"
+        return f"{label} {self.date} - Closed ({self.holiday_name or 'Weekend'})"
 
     @staticmethod
     def _nth_weekday(year: int, month: int, weekday: int, n: int):
@@ -91,17 +99,25 @@ class USMarketStatus(models.Model):
         return holidays
 
     @classmethod
-    def is_us_market_open_today(cls):
+    def is_open_today(cls, exchange_code: str = "US"):
         from datetime import date
         today = date.today()
         try:
-            status = cls.objects.get(date=today)
+            status = cls.objects.get(exchange_code=exchange_code, date=today)
             return status.is_trading_day
         except cls.DoesNotExist:
             pass
-        if today.weekday() >= 5:
-            return False
-        holidays = cls.us_market_holidays(today.year)
-        if today in holidays:
-            return False
+        # Fallback: weekend/holiday logic only for the US default calendar.
+        if exchange_code.upper() == "US":
+            if today.weekday() >= 5:
+                return False
+            holidays = cls.us_market_holidays(today.year)
+            if today in holidays:
+                return False
         return True
+
+    @classmethod
+    def is_us_market_open_today(cls):  # legacy alias
+        return cls.is_open_today("US")
+# New preferred alias
+TradingCalendar = USMarketStatus

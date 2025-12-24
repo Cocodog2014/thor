@@ -2,7 +2,7 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .views import (
     MarketViewSet,
-    USMarketStatusViewSet,
+    TradingCalendarViewSet,
     MarketDataSnapshotViewSet,
     UserMarketWatchlistViewSet,
     worldclock_stats,
@@ -12,7 +12,7 @@ from .views import (
 # Create router for ViewSets
 router = DefaultRouter()
 router.register(r'markets', MarketViewSet)
-router.register(r'us-market-status', USMarketStatusViewSet)
+router.register(r'trading-calendars', TradingCalendarViewSet)
 router.register(r'market-snapshots', MarketDataSnapshotViewSet)
 router.register(r'user-watchlist', UserMarketWatchlistViewSet, basename='userwatchlist')
 
