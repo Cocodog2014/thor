@@ -42,7 +42,7 @@ class MarketTrading24Hour(models.Model):
     finalized = models.BooleanField(default=False, help_text="True when US close is reached")
 
     class Meta:
-        unique_together = (("session_group", "symbol"),)
+        unique_together = (("session_group", "country", "symbol"),)
         indexes = [
             models.Index(fields=["session_date", "country", "symbol"]),
         ]

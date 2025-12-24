@@ -13,7 +13,7 @@ All persistent data models for the trading stack live here. The app is now instr
   1-minute OHLCV bars per `country + symbol` (using `CONTROL_COUNTRY_CHOICES`); uniqueness constraint on timestamp/country/symbol plus supporting indexes; optional link to the 24h roll.
 
 - MarketTrading24Hour  
-  Rolling 24h JP→US session aggregates per `capture_group` and symbol.
+  Rolling 24h JP→US session aggregates per `capture_group + country + symbol` (unique together) with an index on `session_date/country/symbol`.
 
 - VwapMinute  
   Per-minute raw snapshots (last + cumulative volume) for VWAP pipelines.
