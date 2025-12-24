@@ -1,14 +1,18 @@
-"""
+""""
 Rolling 52-Week (and optional All-Time) Extremes
 
-Tracks rolling 52-week highs/lows for any trading symbol (futures, equities, ETFs, bonds, indexes, etc.)
-Admin seeds initial values; system auto-updates on incoming LAST prices.
+Tracks rolling 52-week highs/lows for any trading instrument identified by
+(country, symbol). Admin seeds initial values; the system auto-updates on
+incoming LAST prices.
+
+This model is instrument-neutral and does not assume asset class.
+Interpretation of the symbol is handled elsewhere (TradingInstrument).
 
 Signals:
-- week52_extreme_changed: fired per extreme update event (HIGH_52W, LOW_52W, ALL_TIME_HIGH, ALL_TIME_LOW)
+- week52_extreme_changed: fired per extreme update event
+  (HIGH_52W, LOW_52W, ALL_TIME_HIGH, ALL_TIME_LOW)
 """
 
-from __future__ import annotations
 
 from decimal import Decimal
 from typing import Dict, List, Optional, Tuple, Union

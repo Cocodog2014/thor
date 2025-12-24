@@ -11,8 +11,6 @@ Rows are written by the `capture_vwap_minutes` management command which
 reads Redis every N seconds but only persists on minute boundaries.
 """
 
-from __future__ import annotations
-
 from django.db import models
 from GlobalMarkets.models.constants import CONTROL_COUNTRY_CHOICES
 
