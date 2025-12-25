@@ -16,6 +16,11 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument('--yes-i-am-sure', action='store_true', help='Confirm destructive operation')
         parser.add_argument('--dry-run', action='store_true', help='Show how many rows would be deleted and exit')
+        parser.add_argument(
+            '--confirm',
+            type=str,
+            help="Additional confirmation token. Must be 'DELETE' to proceed.",
+        )
 
     def handle(self, *args, **options):
         dry_run = options.get('dry_run')
@@ -27,6 +32,10 @@ class Command(BaseCommand):
 
         if not options.get('yes_i_am_sure'):
             raise CommandError('Refusing to purge without --yes-i-am-sure')
+
+        confirm_token = options.get('confirm')
+        if confirm_token != 'DELETE':
+            raise CommandError("Refusing to purge without --confirm DELETE")
 
         MarketSession.objects.all().delete()
         self.stdout.write(self.style.SUCCESS(f"Purged {count} MarketSession rows."))
