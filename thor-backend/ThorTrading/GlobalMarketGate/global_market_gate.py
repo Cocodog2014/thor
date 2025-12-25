@@ -198,15 +198,6 @@ def bootstrap_open_markets():
         country = normalize_country_code(getattr(market, "country", None)) or getattr(market, "country", None)
         _register_open(country)
 
-        # Start intraday workers if session tracking is allowed
-        if session_tracking_allowed(market):
-            try:
-                from ThorTrading.services.intraday_supervisor import intraday_market_supervisor
-
-                intraday_market_supervisor.on_market_open(market)
-            except Exception:
-                logger.exception("GlobalMarketGate: intraday bootstrap failed for %s", country)
-
     _start_global_background_services()
 
     if _heartbeat_mode_active():
@@ -242,15 +233,8 @@ def handle_market_opened(sender, instance: Market, **kwargs):
     else:
         _skip(f"open capture disabled for {country}")
 
-    # Intraday/session tracking (only if enabled)
-    if session_tracking_allowed(instance):
-        try:
-            from ThorTrading.services.intraday_supervisor import intraday_market_supervisor
-
-            intraday_market_supervisor.on_market_open(instance)
-        except Exception:
-            logger.exception("GlobalMarketGate: failed to start intraday supervisor for %s", country)
-    else:
+    # Session tracking gate (no side-effects; supervisor self-manages)
+    if not session_tracking_allowed(instance):
         _skip(f"session tracking disabled for {country}")
 
     # Grader start (only if NOT heartbeat mode)
@@ -288,14 +272,6 @@ def handle_market_closed(sender, instance: Market, **kwargs):
             logger.exception("GlobalMarketGate: market-close capture failed for %s", country)
     else:
         _skip(f"close capture disabled for {country}")
-
-    # Stop intraday/session tracking (only if it was running)
-    try:
-        from ThorTrading.services.intraday_supervisor import intraday_market_supervisor
-
-        intraday_market_supervisor.on_market_close(instance)
-    except Exception:
-        logger.exception("GlobalMarketGate: failed to stop intraday supervisor for %s", country)
 
     last_close = _register_close(country)
 

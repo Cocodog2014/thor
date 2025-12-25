@@ -148,6 +148,16 @@ class IntradayMarketSupervisor:
         logger.info("Intraday worker loop started for %s", country)
 
         while not stop_event.is_set():
+            # Stop automatically if session tracking is turned off at runtime
+            if not session_tracking_allowed(country):
+                logger.info("Intraday worker stopping for %s: session tracking disabled", country)
+                with self._lock:
+                    self._workers.pop(market.id, None)
+                    timers = self._timers.pop(market.id, None)
+                if timers:
+                    for timer in timers.values():
+                        timer.cancel()
+                return
             try:
                 self._process_market_tick(market)
             except Exception:
@@ -190,6 +200,10 @@ class IntradayMarketSupervisor:
 
         if self.disabled:
             logger.info("Intraday metrics disabled; skipping tick for %s", country)
+            return
+
+        if not session_tracking_allowed(country):
+            logger.info("Intraday tick skipped; session tracking disabled for %s", country)
             return
 
         enriched, _ = get_enriched_quotes_with_composite()
