@@ -180,9 +180,40 @@ class MarketSession(models.Model):
     range_diff_24h = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True)
     range_pct_24h = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True)
 
+    # 52-week metrics
+    low_52w = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True)
+    low_pct_52w = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True)
+    high_52w = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True)
+    high_pct_52w = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True)
+    range_52w = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True)
+    range_pct_52w = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True)
+
     # Composite stats (unchanged)
     weighted_average = models.DecimalField(max_digits=14, decimal_places=6, null=True, blank=True)
     instrument_count = models.IntegerField(default=11, null=True, blank=True)
+
+    # Outcome counters (per-signal tracking)
+    strong_buy_worked = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True)
+    strong_buy_worked_percentage = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True)
+    strong_buy_didnt_work = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True)
+    strong_buy_didnt_work_percentage = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True)
+
+    buy_worked = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True)
+    buy_worked_percentage = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True)
+    buy_didnt_work = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True)
+    buy_didnt_work_percentage = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True)
+
+    hold = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True)
+
+    strong_sell_worked = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True)
+    strong_sell_worked_percentage = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True)
+    strong_sell_didnt_work = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True)
+    strong_sell_didnt_work_percentage = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True)
+
+    sell_worked = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True)
+    sell_worked_percentage = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True)
+    sell_didnt_work = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True)
+    sell_didnt_work_percentage = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True)
 
     def save(self, *args, **kwargs):
         if self.country:
