@@ -57,6 +57,16 @@ class Command(BaseCommand):
             default=os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "data"),
             help="Directory containing seed JSON files",
         )
+        parser.add_argument(
+            "--include-futures",
+            action="store_true",
+            help="Seed futures from seed_futures.json (requires instruments model wiring).",
+        )
+        parser.add_argument(
+            "--include-weights",
+            action="store_true",
+            help="Seed default weights from seed_default_weights.json (requires model wiring).",
+        )
 
     def handle(self, *args, **options):
         data_dir = options["data_dir"]
@@ -95,27 +105,33 @@ class Command(BaseCommand):
             self.stdout.write(self.style.WARNING("seed_markets.json not found; skipping Markets."))
 
         # Futures universe (optional wiring depending on actual model)
+        include_futures = options.get("include_futures", False)
         futures_path = os.path.join(data_dir, "seed_futures.json")
-        if os.path.exists(futures_path):
-            try:
-                with open(futures_path, "r", encoding="utf-8") as f:
-                    futures = json.load(f)
-                # If you have a dedicated instruments model/table, wire it here.
+        if include_futures:
+            if os.path.exists(futures_path):
                 if instruments is None:
-                    self.stdout.write(self.style.NOTICE("seed_futures.json found; no instruments model wired. Skipping."))
+                    self.stdout.write(self.style.NOTICE("Futures requested but no instruments model wired; skipping."))
                 else:
-                    # Example: instruments.Instrument.update_or_create(...)
-                    self.stdout.write(self.style.NOTICE("Seeding futures to instruments model (implementation TBD)."))
-            except Exception as e:
-                self.stdout.write(self.style.WARNING(f"Failed seeding futures: {e}"))
+                    try:
+                        with open(futures_path, "r", encoding="utf-8") as f:
+                            futures = json.load(f)
+                        self.stdout.write(self.style.NOTICE(f"Loaded {len(futures)} futures rows; implement model wiring before use."))
+                    except Exception as e:
+                        self.stdout.write(self.style.WARNING(f"Failed reading futures fixture: {e}"))
+            else:
+                self.stdout.write(self.style.NOTICE("--include-futures passed but seed_futures.json not found; skipping."))
         else:
-            self.stdout.write(self.style.NOTICE("seed_futures.json not found; skipping futures."))
+            self.stdout.write(self.style.NOTICE("Skipping futures (enable with --include-futures)."))
 
+        include_weights = options.get("include_weights", False)
         weights_path = os.path.join(data_dir, "seed_default_weights.json")
-        if os.path.exists(weights_path):
-            self.stdout.write(self.style.NOTICE("Default weights fixture present (apply when model is confirmed)."))
+        if include_weights:
+            if os.path.exists(weights_path):
+                self.stdout.write(self.style.NOTICE("Weights fixture present; apply once model wiring is available."))
+            else:
+                self.stdout.write(self.style.NOTICE("--include-weights passed but seed_default_weights.json not found; skipping."))
         else:
-            self.stdout.write(self.style.NOTICE("seed_default_weights.json not found; skipping weights."))
+            self.stdout.write(self.style.NOTICE("Skipping weights (enable with --include-weights)."))
 
         self.stdout.write(self.style.SUCCESS("Thor seed complete."))
 
