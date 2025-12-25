@@ -6,28 +6,6 @@ from ThorTrading.models.MarketIntraDay import MarketIntraday
 from ThorTrading.models.Martket24h import MarketTrading24Hour
 from GlobalMarkets.models.market import Market
 
-# Canonical set aligned with GlobalMarkets.ALLOWED_CONTROL_COUNTRIES
-CANONICAL = {
-    "Japan",
-    "China",
-    "India",
-    "Germany",
-    "United Kingdom",
-    "Pre_USA",
-    "USA",
-    "Canada",
-    "Mexico",
-    "Futures",
-}
-
-# Legacy bad labels we have seen
-CLEANUP = {
-    "Shanghai": "China",
-    "SSE": "China",
-    "Great Britain": "United Kingdom",
-    "England": "United Kingdom",
-}
-
 
 def _normalize(value: str | None) -> str | None:
     if not value:
@@ -35,12 +13,7 @@ def _normalize(value: str | None) -> str | None:
     raw = value.strip()
     if not raw:
         return raw
-    if raw in CLEANUP:
-        raw = CLEANUP[raw]
-    normalized = normalize_country_code(raw)
-    if normalized in CLEANUP:
-        normalized = CLEANUP[normalized]
-    return normalized
+    return normalize_country_code(raw)
 
 
 class Command(BaseCommand):
@@ -57,6 +30,8 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         dry_run = options.get("dry_run", False)
         verbose = options.get("verbose", False)
+
+        canonical = set(Market.objects.values_list("country", flat=True).distinct())
 
         def maybe_save(obj, fields):
             if dry_run:
@@ -75,7 +50,7 @@ class Command(BaseCommand):
         for m in Market.objects.all():
             before = m.country
             after = _normalize(before)
-            if not after or after not in CANONICAL:
+            if not after or after not in canonical:
                 continue
             if after != before:
                 m.country = after
@@ -88,7 +63,7 @@ class Command(BaseCommand):
         ).iterator():
             before_country = row.country
             after_country = _normalize(before_country)
-            if not after_country or after_country not in CANONICAL:
+            if not after_country or after_country not in canonical:
                 continue
 
             updated_fields = []
@@ -120,7 +95,7 @@ class Command(BaseCommand):
         for row in MarketTrading24Hour.objects.all():
             before = row.country
             after = _normalize(before)
-            if not after or after not in CANONICAL:
+            if not after or after not in canonical:
                 continue
             if after != before:
                 row.country = after
