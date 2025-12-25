@@ -7,14 +7,58 @@ All broker integrations (Schwab, TOS, IBKR) use this client.
 
 import json
 import logging
-import time
+from datetime import datetime, timezone as dt_timezone
 from typing import Dict, Any, Optional, Tuple, List
 
 import redis
 from django.conf import settings
+from django.utils import timezone as dj_timezone
 from ThorTrading.services.config.country_codes import normalize_country_code
 
 logger = logging.getLogger(__name__)
+
+
+def _to_epoch_seconds_utc(value) -> int:
+    """
+    Accepts:
+      - int/float epoch seconds
+      - ISO string (best-effort)
+      - datetime (aware or naive; naive assumed UTC)
+    Returns epoch seconds (int) in UTC.
+    """
+    if value is None:
+        return int(dj_timezone.now().timestamp())
+
+    if isinstance(value, (int, float)):
+        return int(value)
+
+    if isinstance(value, datetime):
+        dt = value
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=dt_timezone.utc)
+        return int(dt.astimezone(dt_timezone.utc).timestamp())
+
+    if isinstance(value, str):
+        s = value.strip()
+        # Try ISO first
+        try:
+            # handle trailing Z
+            if s.endswith("Z"):
+                s = s[:-1] + "+00:00"
+            dt = datetime.fromisoformat(s)
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=dt_timezone.utc)
+            return int(dt.astimezone(dt_timezone.utc).timestamp())
+        except Exception:
+            pass
+
+        # Last resort: numeric string epoch
+        try:
+            return int(float(s))
+        except Exception:
+            return int(dj_timezone.now().timestamp())
+
+    return int(dj_timezone.now().timestamp())
 
 
 class LiveDataRedis:
@@ -84,46 +128,78 @@ class LiveDataRedis:
         except Exception as e:
             logger.error(f"Failed to set tick {key}: {e}")
 
-    def upsert_current_bar_1m(self, country: str, symbol: str, tick: Dict[str, Any]) -> Tuple[Optional[Dict[str, Any]], Dict[str, Any]]:
+    def upsert_current_bar_1m(
+        self,
+        country: str,
+        symbol: str,
+        tick: Dict[str, Any],
+    ) -> Tuple[Optional[Dict[str, Any]], Dict[str, Any]]:
         """
         Update the in-progress 1m bar for this symbol. Returns (closed_bar, current_bar).
 
-        closed_bar is None unless the minute bucket rolled over.
-        Expected tick keys: price/last and volume (best-effort fallback to 0 volume).
+        Uses the tick's UTC timestamp to determine the minute bucket when available.
+        Falls back to server/Django time (UTC) when not.
+        Expected tick keys: price/last/close and (optional) volume.
+        Optional tick timestamp keys (any one): ts, timestamp, time, datetime
         """
         norm_country = self._norm_country(country)
         key = f"bar:1m:current:{norm_country}:{symbol}".lower()
-        now = int(time.time())
-        bucket = now // 60
 
+        # 1) price + volume
         price = tick.get("price") or tick.get("last") or tick.get("close")
         if price is None:
             raise ValueError("tick missing price/last/close field")
-        try:
-            price = float(price)
-        except Exception as e:
-            raise ValueError(f"invalid price value: {price}") from e
+        price = float(price)
 
-        volume = tick.get("volume") or tick.get("vol") or 0
+        volume = tick.get("volume") or tick.get("v") or 0
         try:
-            volume = float(volume)
+            volume = float(volume) if volume is not None else 0
         except Exception:
-            volume = 0.0
+            volume = 0
 
-        # Load existing bar
-        existing_raw = self.client.get(key)
-        existing = json.loads(existing_raw) if existing_raw else None
+        # 2) timestamp (UTC)
+        ts_raw = (
+            tick.get("ts")
+            or tick.get("timestamp")
+            or tick.get("time")
+            or tick.get("datetime")
+        )
+        ts_epoch = _to_epoch_seconds_utc(ts_raw)
 
+        # 3) minute bucket (UTC)
+        bucket = ts_epoch // 60
+        minute_epoch = bucket * 60
+        timestamp_minute = datetime.fromtimestamp(minute_epoch, tz=dt_timezone.utc).isoformat()
+
+        # 4) load existing bar
         closed_bar = None
+        existing_raw = self.client.get(key)
+        existing = None
+        if existing_raw:
+            try:
+                existing = json.loads(existing_raw)
+            except Exception:
+                existing = None
 
-        if existing and existing.get("bucket") != bucket:
-            closed_bar = existing
-            existing = None
+        # 5) rollover or update
+        if not existing or existing.get("bucket") != bucket:
+            # if we had a previous bucket, that bar is now closed
+            if existing and existing.get("bucket") is not None:
+                # ensure closed bar has a timestamp_minute too
+                if "timestamp_minute" not in existing and "t" in existing:
+                    try:
+                        t_epoch = int(existing["t"])
+                        existing["timestamp_minute"] = datetime.fromtimestamp(
+                            t_epoch, tz=dt_timezone.utc
+                        ).isoformat()
+                    except Exception:
+                        pass
+                closed_bar = existing
 
-        if not existing:
             current_bar = {
                 "bucket": bucket,
-                "t": bucket * 60,
+                "t": minute_epoch,  # epoch minute start (UTC)
+                "timestamp_minute": timestamp_minute,  # ISO UTC minute start
                 "o": price,
                 "h": price,
                 "l": price,
@@ -134,10 +210,13 @@ class LiveDataRedis:
             }
         else:
             current_bar = existing
-            current_bar["h"] = max(current_bar["h"], price)
-            current_bar["l"] = min(current_bar["l"], price)
+            current_bar["h"] = max(float(current_bar["h"]), price)
+            current_bar["l"] = min(float(current_bar["l"]), price)
             current_bar["c"] = price
-            current_bar["v"] = (current_bar.get("v") or 0) + volume
+            current_bar["v"] = float(current_bar.get("v") or 0) + volume
+            # keep timestamp_minute consistent
+            current_bar["timestamp_minute"] = current_bar.get("timestamp_minute") or timestamp_minute
+            current_bar["t"] = current_bar.get("t") or minute_epoch
 
         self.client.set(key, json.dumps(current_bar, default=str))
         return closed_bar, current_bar
