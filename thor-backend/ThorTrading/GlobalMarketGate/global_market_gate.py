@@ -25,7 +25,6 @@ from GlobalMarkets.models.market import Market
 from GlobalMarkets.signals import market_closed, market_opened
 
 from ThorTrading.services.config.country_codes import normalize_country_code
-from ThorTrading.config.markets import CONTROL_COUNTRIES
 
 # Capture implementations live in THIS folder (import lazily inside functions)
 
@@ -39,7 +38,23 @@ GLOBAL_TIMER_ENABLED = os.environ.get("THOR_USE_GLOBAL_MARKET_TIMER", "1").lower
     "0", "false", "no",
 }
 
-CONTROLLED_COUNTRIES = set(CONTROL_COUNTRIES)
+
+def query_active_markets_from_GlobalMarkets() -> Set[str]:
+    """Pull active markets from GlobalMarkets to avoid hardcoded lists or stale memory."""
+    try:
+        qs = Market.objects.filter(is_active=True)
+        countries = set()
+        for market in qs:
+            country = normalize_country_code(getattr(market, "country", None)) or getattr(market, "country", None)
+            if country:
+                countries.add(country)
+        return countries
+    except Exception:
+        logger.exception("GlobalMarketGate: failed to query active markets from GlobalMarkets")
+        return set()
+
+
+CONTROLLED_COUNTRIES = set(query_active_markets_from_GlobalMarkets())
 
 _ACTIVE_COUNTRIES: Set[str] = set()
 _ACTIVE_LOCK = threading.RLock()
@@ -115,7 +130,7 @@ def close_capture_allowed(market: Market) -> bool:
 def _is_controlled_market(market: Market | None) -> bool:
     """
     Controlled markets are the ones we care about for the global session pipeline.
-    This is based on CONTROL_COUNTRIES (ThorTrading/config/markets.py).
+    Sourced from GlobalMarkets active markets to avoid hardcoded lists.
     """
     if market is None or not market_enabled(market):
         return False
