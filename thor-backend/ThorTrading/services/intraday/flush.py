@@ -5,7 +5,7 @@ from typing import List, Tuple
 
 from django.db import transaction
 from LiveData.shared.redis_client import live_data_redis
-from ThorTrading.models.Martket24h import MarketTrading24Hour
+from ThorTrading.models.Market24h import MarketTrading24Hour
 from ThorTrading.models.MarketIntraDay import MarketIntraday
 from ThorTrading.models.MarketSession import MarketSession
 from ThorTrading.services.config.country_codes import normalize_country_code

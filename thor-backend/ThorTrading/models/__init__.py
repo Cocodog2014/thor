@@ -31,7 +31,7 @@ try:
 except Exception:
     pass
 try:
-    from .Martket24h import *  # noqa: F401,F403
+    from .Market24h import *  # noqa: F401,F403
 except Exception:
     pass
 

@@ -10,7 +10,7 @@ from .models.MarketSession import MarketSession
 from .models.extremes import Rolling52WeekStats
 from .models.target_high_low import TargetHighLowConfig
 from .models.vwap import VwapMinute
-from .models.Martket24h import MarketTrading24Hour
+from .models.Market24h import MarketTrading24Hour
 from .models.MarketIntraDay import MarketIntraday
 
 

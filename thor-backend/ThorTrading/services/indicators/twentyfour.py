@@ -7,7 +7,7 @@ from typing import Iterable
 from django.db import transaction
 from django.utils import timezone
 
-from ThorTrading.models.Martket24h import MarketTrading24Hour
+from ThorTrading.models.Market24h import MarketTrading24Hour
 from ThorTrading.models.MarketSession import MarketSession
 from ThorTrading.services.intraday_supervisor.utils import safe_decimal
 

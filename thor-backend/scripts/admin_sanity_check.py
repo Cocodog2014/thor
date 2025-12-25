@@ -12,7 +12,7 @@ if BACKEND_ROOT not in sys.path:
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'thor_project.settings')
 django.setup()
 
-from ThorTrading.models.Martket24h import MarketTrading24Hour
+from ThorTrading.models.Market24h import MarketTrading24Hour
 from ThorTrading.models.MarketIntraDay import MarketIntraday
 
 

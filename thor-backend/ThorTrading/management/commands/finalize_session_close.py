@@ -4,7 +4,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from ThorTrading.models.MarketSession import MarketSession
-from ThorTrading.models.Martket24h import MarketTrading24Hour
+from ThorTrading.models.Market24h import MarketTrading24Hour
 
 
 class Command(BaseCommand):
@@ -17,11 +17,13 @@ class Command(BaseCommand):
         parser.add_argument('--country', required=True, help='Country code, e.g., USA, Japan, London')
         parser.add_argument('--symbol', required=True, help='Instrument code, e.g., ES, NQ, CL')
         parser.add_argument('--capture_group', type=int, help='Numeric capture_group to use; defaults to latest for country')
+        parser.add_argument('--dry-run', action='store_true', help='Report the intended update without writing.')
 
     def handle(self, *args, **options):
         country = options['country']
         symbol = options['symbol']
         capture_group = options.get('capture_group')
+        dry_run: bool = options.get('dry_run', False)
 
         # Resolve the target MarketSession via capture_group identity instead of timestamp heuristics
         if capture_group is not None:
@@ -52,6 +54,14 @@ class Command(BaseCommand):
         close_val = twentyfour.close_24h
         if close_val is None:
             raise CommandError("MarketTrading24Hour.close_24h is None; cannot finalize session close.")
+
+        if dry_run:
+            self.stdout.write(
+                self.style.WARNING(
+                    f"Dry-run: would set MarketSession.close_24h to {close_val} for country={country} group={group} from {symbol}"
+                )
+            )
+            return
 
         with transaction.atomic():
             # Denormalize into MarketSession.close_24h and set a finalized timestamp if available

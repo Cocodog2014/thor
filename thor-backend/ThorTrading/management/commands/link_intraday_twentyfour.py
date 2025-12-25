@@ -6,7 +6,7 @@ from django.core.management.base import BaseCommand
 from django.db import transaction
 
 from ThorTrading.models.MarketIntraDay import MarketIntraday
-from ThorTrading.models.Martket24h import MarketTrading24Hour
+from ThorTrading.models.Market24h import MarketTrading24Hour
 from ThorTrading.models.MarketSession import MarketSession
 from ThorTrading.services.config.country_codes import normalize_country_code
 
