@@ -26,9 +26,9 @@ class Command(BaseCommand):
         )
         parser.add_argument("--dry-run", action="store_true", help="Report actions without writing.")
         parser.add_argument(
-            "--allow-create-twentyfour",
+            "--create-missing",
             action="store_true",
-            help="Allow creating missing MarketTrading24Hour rows; otherwise skip missing parents.",
+            help="Create MarketTrading24Hour rows if missing; otherwise skip linking.",
         )
         parser.add_argument("--verbose", action="store_true", help="Log per-batch progress.")
 
@@ -36,7 +36,7 @@ class Command(BaseCommand):
         batch_size: int = options["batch_size"]
         max_rows = options.get("max_rows")
         dry_run: bool = options.get("dry_run", False)
-        allow_create: bool = options.get("allow_create_twentyfour", False)
+        create_missing: bool = options.get("create_missing", False)
         verbose: bool = options.get("verbose", False)
 
         qs = MarketIntraday.objects.filter(twentyfour__isnull=True).order_by("id")
@@ -79,24 +79,22 @@ class Command(BaseCommand):
             cache_key = (sg, symbol)
             twentyfour = twentyfour_cache.get(cache_key)
             if twentyfour is None:
-                if not allow_create:
+                if create_missing:
+                    if dry_run:
+                        twentyfour_cache[cache_key] = None  # marker to avoid recounting
+                        continue
+                    twentyfour, _ = MarketTrading24Hour.objects.get_or_create(
+                        session_group=sg,
+                        symbol=symbol,
+                        defaults={
+                            "session_date": row.timestamp_minute.date(),
+                            "country": country,
+                        },
+                    )
+                    twentyfour_cache[cache_key] = twentyfour
+                else:
                     skipped_missing_parent += 1
                     continue
-
-                if dry_run:
-                    # In dry-run, do not create; just count potential creations.
-                    twentyfour_cache[cache_key] = None  # marker to avoid recounting
-                    continue
-
-                twentyfour, _ = MarketTrading24Hour.objects.get_or_create(
-                    session_group=sg,
-                    symbol=symbol,
-                    defaults={
-                        "session_date": row.timestamp_minute.date(),
-                        "country": country,
-                    },
-                )
-                twentyfour_cache[cache_key] = twentyfour
 
             row.twentyfour = twentyfour
             buffer.append(row)
