@@ -1,3 +1,4 @@
+from __future__ import annotations
 """"
 Rolling 52-Week (and optional All-Time) Extremes
 

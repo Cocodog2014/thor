@@ -1,3 +1,4 @@
+from __future__ import annotations
 """Market control country ordering and selection."""
 
 from GlobalMarkets.models.constants import ALLOWED_CONTROL_COUNTRIES

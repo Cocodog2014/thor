@@ -1,3 +1,4 @@
+from __future__ import annotations
 from datetime import datetime, timezone as dt_timezone
 
 from django.utils import timezone, dateparse

@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 Target High / Low Configuration Model
 

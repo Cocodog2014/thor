@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 Start the Market Open Grader loop.
 

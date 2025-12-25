@@ -1,3 +1,4 @@
+from __future__ import annotations
 """Configuration package for ThorTrading."""
 
 from ThorTrading.config.tos import (

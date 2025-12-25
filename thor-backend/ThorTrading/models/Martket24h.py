@@ -1,3 +1,4 @@
+from __future__ import annotations
 from django.db import models
 from GlobalMarkets.models.constants import CONTROL_COUNTRY_CHOICES
 

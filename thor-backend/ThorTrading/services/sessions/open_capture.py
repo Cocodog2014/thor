@@ -10,14 +10,14 @@ from django.db import transaction
 from django.db.models import Max
 from django.utils import timezone
 
-from ThorTrading.config.symbols import FUTURES_SYMBOLS
 from ThorTrading.models.MarketSession import MarketSession
+from ThorTrading.models.rtd import TradingInstrument  # <-- adjust import if your path differs
 from ThorTrading.services.analytics.backtest_stats import compute_backtest_stats_for_country_symbol
 from ThorTrading.services.config.country_codes import normalize_country_code
 from ThorTrading.services.indicators import compute_targets_for_symbol
 from ThorTrading.services.quotes import get_enriched_quotes_with_composite
 from ThorTrading.services.sessions.analytics.wndw_totals import CountrySymbolWndwTotalsService
-from ThorTrading.services.sessions.counters import CountryFutureCounter
+from ThorTrading.services.sessions.counters import CountrySymbolCounter
 from ThorTrading.services.sessions.global_market_gate import (
     open_capture_allowed,
     session_tracking_allowed,
@@ -54,12 +54,33 @@ class MarketOpenCaptureService:
             except Exception:  # noqa: BLE001
                 return None
 
-    def create_session_for_future(self, symbol, row, session_number, capture_group, time_info, country, composite_signal):
+    def _allowed_symbols_for_country(self, country_code: str) -> set[str]:
+        """
+        Instrument-neutral allowed list:
+        Uses TradingInstrument admin flags.
+        """
+        qs = TradingInstrument.objects.filter(
+            is_active=True,
+            is_watchlist=True,
+            country=country_code,  # you confirmed this column exists now
+        ).values_list("symbol", flat=True)
+
+        return {s.strip().upper() for s in qs if s}
+
+    def create_session_for_symbol(
+        self,
+        symbol: str,
+        row: dict,
+        session_number: int,
+        capture_group: int,
+        time_info: dict,
+        country: str,
+        composite_signal: str,
+    ):
         """Create one MarketSession row for a single symbol."""
 
         canonical_symbol = symbol.lstrip("/").upper()
-
-        ext = row.get("extended_data", {})
+        ext = row.get("extended_data", {}) or {}
 
         data = {
             "session_number": session_number,
@@ -107,26 +128,27 @@ class MarketOpenCaptureService:
                 data["entry_price"] = data.get("ask_price")
             elif individual_signal in ["SELL", "STRONG_SELL"]:
                 data["entry_price"] = data.get("bid_price")
+
             entry = data["entry_price"]
             if entry:
-                high, low = compute_targets_for_symbol(canonical_symbol, entry)
+                # NEW: pass country into the target logic
+                high, low = compute_targets_for_symbol(country, canonical_symbol, entry)
                 data["target_high"] = high
                 data["target_low"] = low
 
         wlow = data.get("low_52w")
         whigh = data.get("high_52w")
         last_price = data.get("last_price")
-        if wlow is not None:
+
+        if wlow is not None and last_price:
             try:
-                if last_price:
-                    data["low_pct_52w"] = ((last_price - wlow) / last_price) * Decimal("100")
+                data["low_pct_52w"] = ((last_price - wlow) / last_price) * Decimal("100")
             except Exception:  # noqa: BLE001
                 pass
 
-        if whigh is not None:
+        if whigh is not None and last_price:
             try:
-                if last_price:
-                    data["high_pct_52w"] = ((whigh - last_price) / last_price) * Decimal("100")
+                data["high_pct_52w"] = ((whigh - last_price) / last_price) * Decimal("100")
             except Exception:  # noqa: BLE001
                 pass
 
@@ -141,20 +163,20 @@ class MarketOpenCaptureService:
         try:
             stats = compute_backtest_stats_for_country_symbol(
                 country=country,
-                symbol=symbol,
+                symbol=canonical_symbol,
                 as_of=data["captured_at"],
             )
             data.update(stats)
         except Exception as exc:  # noqa: BLE001
-            logger.warning("Backtest stats failed for %s: %s", symbol, exc)
+            logger.warning("Backtest stats failed for %s: %s", canonical_symbol, exc)
 
         try:
             session = MarketSession.objects.create(**data)
-            _country_future_counter.assign_sequence(session)
-            logger.debug("Created %s session: %s", symbol, session.last_price)
+            _country_symbol_counter.assign_sequence(session)
+            logger.debug("Created %s session: %s", canonical_symbol, session.last_price)
             return session
         except Exception as exc:  # noqa: BLE001
-            logger.error("Session creation failed for %s: %s", symbol, exc, exc_info=True)
+            logger.error("Session creation failed for %s: %s", canonical_symbol, exc, exc_info=True)
             return None
 
     def create_session_for_total(self, composite, session_number, capture_group, time_info, country, ym_entry_price=None):
@@ -181,7 +203,8 @@ class MarketOpenCaptureService:
 
         if ym_entry_price is not None and composite_signal not in ["HOLD", ""]:
             data["entry_price"] = ym_entry_price
-            high, low = compute_targets_for_symbol("YM", ym_entry_price)
+            # NEW: country-aware targets
+            high, low = compute_targets_for_symbol(country, "YM", ym_entry_price)
             data["target_high"] = high
             data["target_low"] = low
 
@@ -197,7 +220,7 @@ class MarketOpenCaptureService:
 
         try:
             session = MarketSession.objects.create(**data)
-            _country_future_counter.assign_sequence(session)
+            _country_symbol_counter.assign_sequence(session)
             if data.get("weighted_average"):
                 logger.info("TOTAL session: %.4f -> %s", data["weighted_average"], composite_signal)
             else:
@@ -218,6 +241,7 @@ class MarketOpenCaptureService:
         if not open_capture_allowed(market):
             logger.info("Open capture disabled for %s; skipping.", country_code or display_country or "?")
             return None
+
         try:
             logger.info("Capturing %s market open...", country_code or display_country or "?")
 
@@ -226,19 +250,23 @@ class MarketOpenCaptureService:
                 logger.error("No enriched rows for %s", country_code or display_country or "?")
                 return None
 
-            allowed_symbols = {s.lstrip("/") for s in FUTURES_SYMBOLS}
+            allowed_symbols = self._allowed_symbols_for_country(country_code or display_country)
+            if not allowed_symbols:
+                logger.warning("No allowed symbols configured for country=%s (watchlist+active).", country_code or display_country)
+
             filtered = []
-            dropped_symbols = []
+            dropped_missing_country = []
             for r in enriched:
                 symbol = (r.get("instrument", {}) or {}).get("symbol") or ""
-                base_symbol = symbol.lstrip("/")
-                if base_symbol not in allowed_symbols:
+                base_symbol = symbol.lstrip("/").upper()
+
+                if allowed_symbols and base_symbol not in allowed_symbols:
                     continue
 
                 row_country_raw = r.get("country")
                 row_country = normalize_country_code(row_country_raw) if row_country_raw else None
                 if not row_country:
-                    dropped_symbols.append(base_symbol)
+                    dropped_missing_country.append(base_symbol)
                     continue
 
                 if row_country != (country_code or display_country):
@@ -251,32 +279,13 @@ class MarketOpenCaptureService:
                 logger.error(
                     "No enriched rows for %s after country/symbol filter%s",
                     country_code or display_country or "?",
-                    f"; dropped_missing_country={dropped_symbols}" if dropped_symbols else "",
+                    f"; dropped_missing_country={dropped_missing_country}" if dropped_missing_country else "",
                 )
                 return None
-            composite_signal = (composite.get("composite_signal") or "HOLD").upper()
 
+            composite_signal = (composite.get("composite_signal") or "HOLD").upper()
             time_info = market.get_current_market_time()
-            try:
-                sym_list = [r.get("instrument", {}).get("symbol") for r in enriched]
-                logger.info(
-                    "MarketOpenCapture %s %04d-%02d-%02d - enriched count=%s, symbols=%s",
-                    country_code or display_country or "?",
-                    time_info["year"],
-                    time_info["month"],
-                    time_info["date"],
-                    len(enriched),
-                    sym_list,
-                )
-            except Exception:  # noqa: BLE001
-                logger.info(
-                    "MarketOpenCapture %s %04d-%02d-%02d - enriched count=%s",
-                    country_code or display_country or "?",
-                    time_info["year"],
-                    time_info["month"],
-                    time_info["date"],
-                    len(enriched),
-                )
+
             session_number = self.get_next_session_number()
             with transaction.atomic():
                 last_group_val = (
@@ -289,9 +298,11 @@ class MarketOpenCaptureService:
             sessions_created = []
             failures = []
             ym_entry_price = None
+
             for row in enriched:
                 symbol = row["instrument"]["symbol"]
-                session = self.create_session_for_future(
+
+                session = self.create_session_for_symbol(
                     symbol,
                     row,
                     session_number,
@@ -304,6 +315,7 @@ class MarketOpenCaptureService:
                     sessions_created.append(session)
                 else:
                     failures.append(symbol)
+
                 base_symbol = symbol.lstrip("/").upper()
                 if base_symbol == "YM" and composite_signal not in ["HOLD", ""]:
                     if composite_signal in ["BUY", "STRONG_BUY"]:
@@ -325,15 +337,10 @@ class MarketOpenCaptureService:
             try:
                 MarketOpenMetric.update_for_capture_group(capture_group)
             except Exception as metrics_error:  # noqa: BLE001
-                logger.warning(
-                    "market_open refresh failed for session %s: %s",
-                    session_number,
-                    metrics_error,
-                    exc_info=True,
-                )
+                logger.warning("market_open refresh failed for session %s: %s", session_number, metrics_error, exc_info=True)
 
             try:
-                _country_future_wndw_service.update_for_capture_group(
+                _country_symbol_wndw_service.update_for_capture_group(
                     capture_group=capture_group,
                     country=country_code or display_country,
                 )
@@ -360,23 +367,31 @@ class MarketOpenCaptureService:
 
 
 _service = MarketOpenCaptureService()
-_country_future_counter = CountryFutureCounter()
-_country_future_wndw_service = CountrySymbolWndwTotalsService()
+
+# Renamed variables (instrument-neutral)
+_country_symbol_counter = CountrySymbolCounter()
+_country_symbol_wndw_service = CountrySymbolWndwTotalsService()
 
 
 def _get_capture_interval() -> float:
-    setting = getattr(settings, "FUTURETRADING_MARKET_OPEN_CAPTURE_INTERVAL", None)
+    # Prefer new setting/env name but keep backward compatibility
+    setting = getattr(settings, "THORTRADING_MARKET_OPEN_CAPTURE_INTERVAL", None)
+    if setting is None:
+        setting = getattr(settings, "TRADING_MARKET_OPEN_CAPTURE_INTERVAL", None)
+
     if setting is not None:
         try:
             return max(1.0, float(setting))
         except (TypeError, ValueError):
-            logger.warning("Invalid FUTURETRADING_MARKET_OPEN_CAPTURE_INTERVAL setting %r", setting)
-    env = os.getenv("FUTURETRADING_MARKET_OPEN_CAPTURE_INTERVAL")
+            logger.warning("Invalid market open capture interval setting %r", setting)
+
+    env = os.getenv("THORTRADING_MARKET_OPEN_CAPTURE_INTERVAL") or os.getenv("TRADING_MARKET_OPEN_CAPTURE_INTERVAL")
     if env:
         try:
             return max(1.0, float(env))
         except (TypeError, ValueError):
-            logger.warning("Invalid FUTURETRADING_MARKET_OPEN_CAPTURE_INTERVAL env %r", env)
+            logger.warning("Invalid market open capture interval env %r", env)
+
     return 1.0
 
 
@@ -392,8 +407,6 @@ def _market_local_date(market) -> date_cls:
 
 
 def _has_capture_for_date(market, capture_date: date_cls) -> bool:
-    from ThorTrading.models.MarketSession import MarketSession
-
     country_code = normalize_country_code(getattr(market, "country", None)) or getattr(market, "country", None)
     latest = (
         MarketSession.objects.filter(country=country_code)
@@ -444,7 +457,6 @@ def _scan_and_capture_once():
 
 def check_for_market_opens_and_capture() -> float:
     """Execute one capture scan and return the sleep interval."""
-
     interval = _get_capture_interval()
     if not getattr(check_for_market_opens_and_capture, "_logged_start", False):
         logger.info("🌎 Market Open Capture loop ready (interval=%.1fs)", interval)

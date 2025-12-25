@@ -1,3 +1,4 @@
+from __future__ import annotations
 """Serializers for MarketSession with renamed 24h fields."""
 
 from rest_framework import serializers

@@ -1,3 +1,4 @@
+from __future__ import annotations
 """Runtime guard helpers to prevent legacy schedulers from running."""
 import os
 

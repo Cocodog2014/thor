@@ -1,3 +1,4 @@
+from __future__ import annotations
 """ThorTrading realtime job provider for the single heartbeat scheduler.
 
 Registers all ThorTrading heartbeat jobs explicitly so the only timer in use is

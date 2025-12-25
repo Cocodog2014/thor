@@ -1,3 +1,4 @@
+from __future__ import annotations
 """Market Open Grading API wrappers.
 
 Delegates grading logic to services.sessions.grading.

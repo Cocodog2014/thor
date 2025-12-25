@@ -1,3 +1,4 @@
+from __future__ import annotations
 """Heartbeat job wrapper for 52-week extremes tracking."""
 import logging
 

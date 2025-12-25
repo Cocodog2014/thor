@@ -1,3 +1,4 @@
+from __future__ import annotations
 """TOS Excel RTD data source configuration."""
 
 # Excel file with TOS RTD feed - using simpler RTD_TOS.xlsm to avoid conflicts

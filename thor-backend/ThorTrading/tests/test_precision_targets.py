@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 Test precision-agnostic target computation.
 

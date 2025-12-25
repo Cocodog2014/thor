@@ -1,3 +1,4 @@
+from __future__ import annotations
 """
 Delete all MarketSession rows. Use with caution.
 

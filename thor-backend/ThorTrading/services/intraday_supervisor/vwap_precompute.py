@@ -1,3 +1,4 @@
+from __future__ import annotations
 import os
 from django.utils import timezone
 from LiveData.shared.redis_client import live_data_redis

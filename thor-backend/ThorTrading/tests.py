@@ -1,3 +1,4 @@
+from __future__ import annotations
 from django.test import TestCase
 
 from ThorTrading.services.quotes.row_metrics import compute_row_metrics

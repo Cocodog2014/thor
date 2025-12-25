@@ -1,3 +1,4 @@
+from __future__ import annotations
 """Thin wrapper for LiveData Redis client access."""
 from LiveData.shared.redis_client import live_data_redis
 

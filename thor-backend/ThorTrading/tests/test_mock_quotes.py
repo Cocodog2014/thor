@@ -1,3 +1,4 @@
+from __future__ import annotations
 """Tests for mock quote generator."""
 
 from decimal import Decimal

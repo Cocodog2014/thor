@@ -1,3 +1,4 @@
+from __future__ import annotations
 """Compatibility shim for legacy imports.
 
 The flush logic now lives in ThorTrading.services.intraday.flush. Prefer importing

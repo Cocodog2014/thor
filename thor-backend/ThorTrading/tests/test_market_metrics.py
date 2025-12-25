@@ -1,3 +1,4 @@
+from __future__ import annotations
 from decimal import Decimal
 from django.test import TestCase
 from ThorTrading.models.MarketSession import MarketSession

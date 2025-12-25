@@ -1,3 +1,4 @@
+from __future__ import annotations
 from django.contrib import admin
 from ThorTrading.config.markets import CONTROL_COUNTRIES
 from ThorTrading.services.config.country_codes import normalize_country_code

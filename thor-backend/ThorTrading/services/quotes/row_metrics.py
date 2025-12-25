@@ -1,3 +1,4 @@
+from __future__ import annotations
 """Per-quote derived metrics used by quote enrichment."""
 
 from typing import Optional, Dict, Any

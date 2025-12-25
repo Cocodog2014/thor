@@ -1,3 +1,4 @@
+from __future__ import annotations
 """API views mapped into the ThorTrading.api namespace."""
 
 from .market_close import MarketCloseCaptureView

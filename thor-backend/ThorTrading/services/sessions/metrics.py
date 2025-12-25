@@ -1,3 +1,4 @@
+from __future__ import annotations
 """MarketSession metrics (open/high/low/close/range)."""
 
 import logging

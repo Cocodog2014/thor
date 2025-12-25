@@ -1,3 +1,4 @@
+from __future__ import annotations
 """Manual market open capture endpoint."""
 from rest_framework.views import APIView
 from rest_framework.response import Response

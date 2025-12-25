@@ -1,3 +1,4 @@
+from __future__ import annotations
 import logging
 from datetime import datetime, timezone as dt_timezone
 from typing import List, Tuple

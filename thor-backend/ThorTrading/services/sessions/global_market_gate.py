@@ -1,3 +1,4 @@
+from __future__ import annotations
 # ThorTrading/services/sessions/global_market_gate.py
 
 def market_enabled(market) -> bool:

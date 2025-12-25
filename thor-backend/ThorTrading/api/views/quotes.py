@@ -1,3 +1,4 @@
+from __future__ import annotations
 """Real-Time Data (RTD) views."""
 
 import logging

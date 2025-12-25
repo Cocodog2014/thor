@@ -1,1 +1,2 @@
+from __future__ import annotations
 from .supervisor import intraday_market_supervisor, IntradayMarketSupervisor

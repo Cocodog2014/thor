@@ -1,3 +1,4 @@
+from __future__ import annotations
 """Mock quote generator for testing market metrics without live data.
 
 Provides realistic enriched quote structures matching the format returned by

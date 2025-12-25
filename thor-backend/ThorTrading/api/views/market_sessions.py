@@ -1,3 +1,4 @@
+from __future__ import annotations
 """Market open session API views."""
 
 from datetime import datetime, timedelta

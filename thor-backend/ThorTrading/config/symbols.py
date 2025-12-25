@@ -1,3 +1,4 @@
+from __future__ import annotations
 """Futures symbol configuration and mappings."""
 
 FUTURES_SYMBOLS = [

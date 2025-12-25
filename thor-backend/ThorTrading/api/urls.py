@@ -1,3 +1,4 @@
+from __future__ import annotations
 """ThorTrading API URL patterns."""
 from django.urls import path
 
