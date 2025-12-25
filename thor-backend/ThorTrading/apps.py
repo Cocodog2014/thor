@@ -87,14 +87,14 @@ class ThorTradingConfig(AppConfig):
 
         try:
             # ✅ ONE DOOR: GlobalMarkets -> ThorTrading orchestration lives here now
-            from ThorTrading.GlobalMarketGate import global_market_gate  # noqa: F401
+            from ThorTrading.GlobalMarketGate import global_market_gate as gm_gate
 
             logger.info("📡 ThorTrading GlobalMarketGate registered.")
 
             def _bootstrap_gate():
                 time.sleep(1.0)
                 try:
-                    global_market_gate.bootstrap_open_markets()
+                    gm_gate.bootstrap_open_markets()
                 except Exception:
                     logger.exception("❌ Failed to bootstrap ThorTrading workers for open markets")
 
