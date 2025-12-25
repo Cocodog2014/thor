@@ -1,3 +1,9 @@
-"""Compatibility shim; use ThorTrading.integrations.globalmarkets_hooks instead."""
+"""Legacy shim removed.
 
-from ThorTrading.integrations.globalmarkets_hooks import *  # noqa: F401,F403
+This module was a compatibility wrapper. It is intentionally disabled to avoid
+dual import paths. Import from ThorTrading.GlobalMarketGate instead.
+"""
+
+raise ImportError(
+	"Legacy globalmarkets_hooks has been removed. Import from ThorTrading.GlobalMarketGate.* instead."
+)

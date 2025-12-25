@@ -2,7 +2,7 @@ from __future__ import annotations
 import logging
 import os
 import threading
-from ThorTrading.services.sessions.global_market_gate import session_tracking_allowed
+from ThorTrading.GlobalMarketGate.global_market_gate import session_tracking_allowed
 from datetime import timedelta
 from typing import Optional
 

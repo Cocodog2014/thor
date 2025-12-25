@@ -4,7 +4,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 
-from ThorTrading.services.sessions.open_capture import capture_market_open
+from ThorTrading.GlobalMarketGate.open_capture import capture_market_open
 
 
 class MarketOpenCaptureView(APIView):

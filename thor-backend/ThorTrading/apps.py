@@ -84,27 +84,27 @@ class ThorTradingConfig(AppConfig):
                 " ".join(argv),
             )
             return
+    try:
+            # ✅ ONE DOOR: GlobalMarkets -> ThorTrading orchestration lives here now
+            from ThorTrading.GlobalMarketGate import global_market_gate  # noqa: F401
 
-        try:
-            from ThorTrading.integrations import globalmarkets_hooks  # noqa: F401
-            logger.info("📡 ThorTrading GlobalMarkets hooks registered.")
+            logger.info("📡 ThorTrading GlobalMarketGate registered.")
 
-            def _bootstrap_hooks():
+            def _bootstrap_gate():
                 time.sleep(1.0)
                 try:
-                    globalmarkets_hooks.bootstrap_open_markets()
+                    global_market_gate.bootstrap_open_markets()
                 except Exception:
-                    logger.exception(
-                        "❌ Failed to bootstrap ThorTrading workers for open markets"
-                    )
+                    logger.exception("❌ Failed to bootstrap ThorTrading workers for open markets")
 
             threading.Thread(
-                target=_bootstrap_hooks,
-                name="ThorGlobalTimerBootstrap",
+                target=_bootstrap_gate,
+                name="ThorGlobalMarketGateBootstrap",
                 daemon=True,
             ).start()
+
         except Exception:
-            logger.exception("❌ Failed to import ThorTrading GlobalMarkets hooks")
+            logger.exception("❌ Failed to import ThorTrading GlobalMarketGate")
 
         # Realtime heartbeat now starts from thor_project.apps.ThorProjectConfig
         logger.info("ℹ️ Realtime stack startup handled by thor_project.apps.ThorProjectConfig")

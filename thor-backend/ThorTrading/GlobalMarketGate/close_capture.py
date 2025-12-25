@@ -9,7 +9,7 @@ from GlobalMarkets.models.market import Market
 from ThorTrading.models.MarketSession import MarketSession
 from ThorTrading.services.config.country_codes import normalize_country_code
 from ThorTrading.services.quotes import get_enriched_quotes_with_composite
-from ThorTrading.services.sessions.global_market_gate import close_capture_allowed
+from ThorTrading.GlobalMarketGate.global_market_gate import close_capture_allowed
 from ThorTrading.services.sessions.metrics import (
     MarketCloseMetric,
     MarketRangeMetric,

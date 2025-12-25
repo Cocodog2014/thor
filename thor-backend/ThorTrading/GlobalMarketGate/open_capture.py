@@ -18,7 +18,7 @@ from ThorTrading.services.indicators import compute_targets_for_symbol
 from ThorTrading.services.quotes import get_enriched_quotes_with_composite
 from ThorTrading.services.sessions.analytics.wndw_totals import CountrySymbolWndwTotalsService
 from ThorTrading.services.sessions.counters import CountrySymbolCounter
-from ThorTrading.services.sessions.global_market_gate import (
+from ThorTrading.GlobalMarketGate.global_market_gate import (
     open_capture_allowed,
     session_tracking_allowed,
 )
