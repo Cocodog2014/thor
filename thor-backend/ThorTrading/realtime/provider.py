@@ -59,8 +59,13 @@ def _run_closed_bars(ctx: Any) -> None:
 
 
 def _run_market_metrics(ctx: Any) -> None:
+    from GlobalMarkets.services.active_markets import get_active_control_countries
     from ThorTrading.services.quotes import get_enriched_quotes_with_composite
     from ThorTrading.services.sessions.metrics import MarketHighMetric
+
+    active = set(get_active_control_countries() or [])
+    if not active:
+        return
 
     try:
         enriched, _ = get_enriched_quotes_with_composite()
@@ -71,18 +76,15 @@ def _run_market_metrics(ctx: Any) -> None:
     if not enriched:
         return
 
-    missing = sum(1 for r in enriched if not r.get("country"))
-    if missing:
-        logger.warning("market_metrics: dropping %s quotes missing country", missing)
-
-    enriched = [r for r in enriched if r.get("country")]
+    # Only operate on quotes whose country is open/controlled right now.
+    enriched = [r for r in enriched if r.get("country") in active]
     if not enriched:
         return
 
-    countries = {r.get("country") for r in enriched if r.get("country")}
+    countries = {r["country"] for r in enriched}
     for country in countries:
         try:
-            country_rows = [r for r in enriched if r.get("country") == country]
+            country_rows = [r for r in enriched if r["country"] == country]
             MarketHighMetric.update_from_quotes(country, country_rows)
         except Exception:
             logger.exception("market_metrics: update failed for %s", country)
@@ -106,8 +108,13 @@ def _run_vwap_minute(ctx: Any) -> None:
 
 
 def _run_twentyfour(ctx: Any) -> None:
+    from GlobalMarkets.services.active_markets import get_active_control_countries
     from ThorTrading.services.quotes import get_enriched_quotes_with_composite
     from ThorTrading.services.indicators.twentyfour import update_24h_for_country
+
+    active = set(get_active_control_countries() or [])
+    if not active:
+        return
 
     try:
         enriched, _ = get_enriched_quotes_with_composite()
@@ -118,18 +125,14 @@ def _run_twentyfour(ctx: Any) -> None:
     if not enriched:
         return
 
-    missing = sum(1 for r in enriched if not r.get("country"))
-    if missing:
-        logger.warning("24h: dropping %s quotes missing country", missing)
-
-    enriched = [r for r in enriched if r.get("country")]
+    enriched = [r for r in enriched if r.get("country") in active]
     if not enriched:
         return
 
-    countries = {r.get("country") for r in enriched if r.get("country")}
+    countries = {r["country"] for r in enriched}
     for country in countries:
         try:
-            country_rows = [r for r in enriched if r.get("country") == country]
+            country_rows = [r for r in enriched if r["country"] == country]
             update_24h_for_country(country, country_rows)
         except Exception:
             logger.exception("24h: update failed for %s", country)

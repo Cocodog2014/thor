@@ -12,7 +12,7 @@ from __future__ import annotations
 import logging
 from decimal import Decimal
 from functools import lru_cache
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Dict, List
 
 from ThorTrading.models import SignalStatValue, ContractWeight, SignalWeight
 
