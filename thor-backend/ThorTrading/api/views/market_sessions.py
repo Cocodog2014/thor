@@ -9,7 +9,7 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from ThorTrading.config.markets import CONTROL_COUNTRIES
+from ThorTrading.config.markets import get_control_countries
 from ThorTrading.models.MarketSession import MarketSession
 from ThorTrading.serializers.MarketSession import (
 	MarketOpenSessionDetailSerializer,
@@ -202,23 +202,25 @@ class LatestPerMarketSessionsView(APIView):
 	show something for each market.
 	"""
 
-	CONTROL_COUNTRIES = CONTROL_COUNTRIES
-
 	def get(self, request):
+		control_countries = get_control_countries(require_session_capture=True)
+
 		full_sessions = []
-		for country in self.CONTROL_COUNTRIES:
+		for country in control_countries:
 			latest = (
-				MarketSession.objects.filter(country=country, capture_group__isnull=False)
+				MarketSession.objects
+				.filter(country=country, capture_group__isnull=False)
 				.order_by("-capture_group", "-captured_at")
 				.first()
 			)
 			if not latest:
 				continue
 
-			session_rows = MarketSession.objects.filter(
-				country=country,
-				capture_group=latest.capture_group,
-			).order_by("future")
+			session_rows = (
+				MarketSession.objects
+				.filter(country=country, capture_group=latest.capture_group)
+				.order_by("symbol")
+			)
 			full_sessions.extend(session_rows)
 
 		serializer = MarketSessionDetailSerializer(full_sessions, many=True)

@@ -17,6 +17,7 @@ from __future__ import annotations
 import logging
 import os
 import threading
+import time
 from typing import Set
 
 from django.dispatch import receiver
@@ -24,6 +25,7 @@ from django.dispatch import receiver
 from GlobalMarkets.models.market import Market
 from GlobalMarkets.signals import market_closed, market_opened
 
+from ThorTrading.config.markets import get_control_countries
 from ThorTrading.services.config.country_codes import normalize_country_code
 
 # Capture implementations live in THIS folder (import lazily inside functions)
@@ -38,23 +40,41 @@ GLOBAL_TIMER_ENABLED = os.environ.get("THOR_USE_GLOBAL_MARKET_TIMER", "1").lower
     "0", "false", "no",
 }
 
+_CONTROL_REFRESH_SECONDS = int(os.environ.get("THOR_CONTROL_COUNTRIES_REFRESH_SECONDS", "60"))
+# Only track markets that are session-enabled; no override knob to avoid accidental widening.
+_CONTROL_REQUIRE_SESSION_CAPTURE = True
+_CONTROLLED_COUNTRIES: Set[str] = set()
+CONTROLLED_COUNTRIES = _CONTROLLED_COUNTRIES  # exported alias; keep object stable
+_CONTROL_LOCK = threading.RLock()
+_CONTROL_LAST_REFRESH = 0.0
 
-def query_active_markets_from_GlobalMarkets() -> Set[str]:
-    """Pull active markets from GlobalMarkets to avoid hardcoded lists or stale memory."""
+
+def _refresh_controlled_countries(force: bool = False) -> Set[str]:
+    """Load controlled countries from GlobalMarkets (via ThorTrading.config.markets) with simple TTL caching."""
+    global _CONTROL_LAST_REFRESH
+
+    now = time.time()
+    if not force and (now - _CONTROL_LAST_REFRESH) < _CONTROL_REFRESH_SECONDS:
+        return _CONTROLLED_COUNTRIES
+
     try:
-        qs = Market.objects.filter(is_active=True)
-        countries = set()
-        for market in qs:
-            country = normalize_country_code(getattr(market, "country", None)) or getattr(market, "country", None)
-            if country:
-                countries.add(country)
-        return countries
+        countries = set(
+            get_control_countries(
+                require_session_capture=_CONTROL_REQUIRE_SESSION_CAPTURE,
+            )
+        )
+        with _CONTROL_LOCK:
+            _CONTROLLED_COUNTRIES.clear()
+            _CONTROLLED_COUNTRIES.update(countries)
+            _CONTROL_LAST_REFRESH = now
+        return _CONTROLLED_COUNTRIES
     except Exception:
-        logger.exception("GlobalMarketGate: failed to query active markets from GlobalMarkets")
-        return set()
+        logger.exception("GlobalMarketGate: failed to refresh control countries from GlobalMarkets")
+        return _CONTROLLED_COUNTRIES
 
 
-CONTROLLED_COUNTRIES = set(query_active_markets_from_GlobalMarkets())
+# Seed initial snapshot at import time
+_refresh_controlled_countries(force=True)
 
 _ACTIVE_COUNTRIES: Set[str] = set()
 _ACTIVE_LOCK = threading.RLock()
@@ -130,17 +150,19 @@ def close_capture_allowed(market: Market) -> bool:
 def _is_controlled_market(market: Market | None) -> bool:
     """
     Controlled markets are the ones we care about for the global session pipeline.
-    Sourced from GlobalMarkets active markets to avoid hardcoded lists.
+    Sourced from GlobalMarkets active markets (via config.get_control_countries) with periodic refresh.
     """
     if market is None or not market_enabled(market):
         return False
 
     normalized = normalize_country_code(getattr(market, "country", None))
-    if normalized and normalized in CONTROLLED_COUNTRIES:
+    current_controlled = _refresh_controlled_countries()
+
+    if normalized and normalized in current_controlled:
         return True
 
     country = getattr(market, "country", None)
-    return country in CONTROLLED_COUNTRIES if country else False
+    return country in current_controlled if country else False
 
 
 def _skip(reason: str):
