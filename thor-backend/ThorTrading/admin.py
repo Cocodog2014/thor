@@ -317,7 +317,8 @@ class MarketSessionAdmin(admin.ModelAdmin):
         ),
     }
 
-    DEFAULT_COLUMN_SET = "basic"
+    # Default to the full column set so admin loads all fields by default.
+    DEFAULT_COLUMN_SET = "full"
     list_display = COLUMN_SETS[DEFAULT_COLUMN_SET]
 
     def get_list_display(self, request):
