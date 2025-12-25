@@ -1,7 +1,7 @@
-"""Single location for job registration.
+"""Compatibility wrapper for job registration.
 
-All jobs are imported and registered here. The heartbeat command and
-AppConfig both call register_all_jobs() to populate the registry.
+Delegates to thor_project.realtime.registry so callers relying on the old
+register_all_jobs() entrypoint keep working after the job provider cleanup.
 """
 from __future__ import annotations
 
@@ -15,36 +15,20 @@ logger = logging.getLogger(__name__)
 
 
 def register_all_jobs(registry: JobRegistry) -> int:
-    """Register all jobs with the provided registry.
-    
+    """Register jobs using the configured realtime providers.
+
     Args:
         registry: JobRegistry instance to populate.
-        
+
     Returns:
-        Number of jobs registered.
+        Number of jobs registered by this call.
     """
-    # Import all job classes (lazy to avoid circular imports)
-    from ThorTrading.realtime.jobs.intraday_tick import IntradayJob
-    from ThorTrading.realtime.jobs.twentyfour_hour import TwentyFourHourJob
-    from ThorTrading.realtime.jobs.market_metrics import MarketMetricsJob
-    from ThorTrading.realtime.jobs.closed_bars_flush import ClosedBarsFlushJob
-    from ThorTrading.services.week52_extremes_job import Week52ExtremesJob
-    from ThorTrading.realtime.jobs.preopen_backtest import PreOpenBacktestJob
-    from ThorTrading.realtime.jobs.market_grader import MarketGraderJob
-    from ThorTrading.realtime.jobs.vwap_minute_capture import VwapMinuteCaptureJob
+    from thor_project.realtime.registry import register_jobs as _register_jobs
 
-    # Register all jobs with their intervals (in execution order for clarity)
-    registry.register(IntradayJob(interval_seconds=1.0))
-    registry.register(Week52ExtremesJob(interval_seconds=2.0))
-    registry.register(MarketGraderJob(interval_seconds=1.0))
-    registry.register(MarketMetricsJob(interval_seconds=10.0))
-    registry.register(TwentyFourHourJob(interval_seconds=30.0))
-    registry.register(PreOpenBacktestJob(interval_seconds=30.0))
-    registry.register(ClosedBarsFlushJob(interval_seconds=60.0))
-    registry.register(VwapMinuteCaptureJob(interval_seconds=60.0))
-
-    count = len(registry.jobs)
-    logger.info("Registered %d jobs", count)
+    before = len(registry.jobs)
+    job_names = _register_jobs(registry) or []
+    count = len(registry.jobs) - before
+    logger.info("Registered %d jobs via realtime providers: %s", count, job_names)
     return count
 
 
