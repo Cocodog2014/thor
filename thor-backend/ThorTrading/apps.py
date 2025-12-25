@@ -84,7 +84,8 @@ class ThorTradingConfig(AppConfig):
                 " ".join(argv),
             )
             return
-    try:
+
+        try:
             # ✅ ONE DOOR: GlobalMarkets -> ThorTrading orchestration lives here now
             from ThorTrading.GlobalMarketGate import global_market_gate  # noqa: F401
 

@@ -1,35 +1,15 @@
 """
-Global Market Gate (ONE DOOR)
+ThorTrading Global Market Gate (ONE DOOR)
 
-Purpose
--------
-This module is the single "door" between the GlobalMarkets app and ThorTrading.
+This module is the single integration point between:
+- GlobalMarkets app (market_opened / market_closed signals)
+and
+- ThorTrading session/intraday capture services
 
-GlobalMarkets owns:
-- Market status (OPEN/CLOSED)
-- Signals: market_opened / market_closed
-
-ThorTrading owns:
-- Market-open capture (session snapshot rows)
-- Market-close capture (close snapshots / 24h finalization hooks)
-- Intraday supervisors (1m bars)
-- Optional grading service (if NOT using heartbeat scheduler)
-
-How it works
-------------
-1) GlobalMarkets fires market_opened / market_closed.
-2) This module receives those signals and decides whether to run ThorTrading services.
-3) We keep all gating logic + receivers in ONE file for consistency.
-
-Enable/Disable
---------------
-- THOR_USE_GLOBAL_MARKET_TIMER=1   (default on)  -> this gate runs on GlobalMarkets signals
-- THOR_USE_GLOBAL_MARKET_TIMER=0                 -> gate does nothing
-
-Scheduler mode
---------------
-- THOR_SCHEDULER_MODE=heartbeat  -> grading start/stop is skipped (heartbeat owns jobs)
-- THOR_SCHEDULER_MODE=legacy     -> this gate starts/stops grading service on first open / last close
+Design goals:
+- One file to understand the integration.
+- No shims / no duplicate hook modules.
+- Clear gating (feature flags live on Market model: enable_* fields).
 """
 
 from __future__ import annotations
@@ -47,63 +27,95 @@ from GlobalMarkets.signals import market_closed, market_opened
 from ThorTrading.services.config.country_codes import normalize_country_code
 from ThorTrading.config.markets import CONTROL_COUNTRIES
 
-# ✅ These functions were moved into ThorTrading/GlobalMarketGate/
+# Capture implementations live in THIS folder
 from ThorTrading.GlobalMarketGate.open_capture import capture_market_open
 from ThorTrading.GlobalMarketGate.close_capture import capture_market_close
 
+# Intraday supervisor (spawns/stops workers)
 from ThorTrading.services.intraday_supervisor import intraday_market_supervisor
+
+# Optional grading service (only if NOT using heartbeat mode)
 from ThorTrading.services.sessions.grading import start_grading_service, stop_grading_service
 
 logger = logging.getLogger(__name__)
 
-# ---------------------------------------------------------------------
-# Feature flags / configuration
-# ---------------------------------------------------------------------
-
+# Master switch: allow GlobalMarkets -> ThorTrading orchestration at all
 GLOBAL_TIMER_ENABLED = os.environ.get("THOR_USE_GLOBAL_MARKET_TIMER", "1").lower() not in {
-    "0",
-    "false",
-    "no",
+    "0", "false", "no",
 }
 
 CONTROLLED_COUNTRIES = set(CONTROL_COUNTRIES)
 
-# Track currently open controlled markets (so we can start/stop “global” services once)
 _ACTIVE_COUNTRIES: Set[str] = set()
 _ACTIVE_LOCK = threading.RLock()
 
 
+# -----------------------------------------------------------------------------
+# Scheduler mode
+# -----------------------------------------------------------------------------
 def _heartbeat_mode_active() -> bool:
-    """True when heartbeat scheduler is the source of truth for background jobs."""
+    """
+    When heartbeat scheduler is active, we should NOT manually start/stop
+    grading services here (heartbeat owns job scheduling).
+    """
     return os.environ.get("THOR_SCHEDULER_MODE", "heartbeat").lower() == "heartbeat"
 
 
-# ---------------------------------------------------------------------
-# Gate logic: decide if ThorTrading should act on this market event
-# ---------------------------------------------------------------------
+# -----------------------------------------------------------------------------
+# Gate helpers (ONE source of truth)
+# -----------------------------------------------------------------------------
+def market_enabled(market: Market) -> bool:
+    return bool(getattr(market, "is_active", False))
+
+
+def session_tracking_allowed(market: Market) -> bool:
+    """
+    Controls whether ThorTrading should run intraday/session workers
+    and write MarketSession rows for this market.
+    """
+    return market_enabled(market) and bool(getattr(market, "enable_session_capture", True))
+
+
+def open_capture_allowed(market: Market) -> bool:
+    """
+    Controls whether ThorTrading should capture market OPEN events for this market.
+    """
+    return market_enabled(market) and bool(getattr(market, "enable_open_capture", True))
+
+
+def close_capture_allowed(market: Market) -> bool:
+    """
+    Controls whether ThorTrading should capture market CLOSE events for this market.
+    """
+    return market_enabled(market) and bool(getattr(market, "enable_close_capture", True))
+
 
 def _is_controlled_market(market: Market | None) -> bool:
-    """Only act on active markets that are in our CONTROLLED_COUNTRIES set."""
-    if market is None or not getattr(market, "is_active", False):
+    """
+    Controlled markets are the ones we care about for the global session pipeline.
+    This is based on CONTROL_COUNTRIES (ThorTrading/config/markets.py).
+    """
+    if market is None or not market_enabled(market):
         return False
 
     normalized = normalize_country_code(getattr(market, "country", None))
     if normalized and normalized in CONTROLLED_COUNTRIES:
         return True
 
-    # Fallback: raw value
-    raw = getattr(market, "country", None)
-    return raw in CONTROLLED_COUNTRIES if raw else False
+    country = getattr(market, "country", None)
+    return country in CONTROLLED_COUNTRIES if country else False
 
 
-def _skip_reason(reason: str) -> None:
+def _skip(reason: str):
     logger.debug("GlobalMarketGate skipped: %s", reason)
 
 
+# -----------------------------------------------------------------------------
+# Active market tracking (used only for “first open” / “last close” behavior)
+# -----------------------------------------------------------------------------
 def _register_open(country: str) -> bool:
     """
-    Track an open country.
-    Returns True if this was the FIRST open country (transition empty -> non-empty).
+    Returns True if this open makes the active-set go from empty->non-empty.
     """
     with _ACTIVE_LOCK:
         was_empty = not _ACTIVE_COUNTRIES
@@ -113,8 +125,7 @@ def _register_open(country: str) -> bool:
 
 def _register_close(country: str) -> bool:
     """
-    Track a close country.
-    Returns True if this was the LAST open country (transition non-empty -> empty).
+    Returns True if this close makes the active-set go from non-empty->empty.
     """
     with _ACTIVE_LOCK:
         was_member = country in _ACTIVE_COUNTRIES
@@ -123,31 +134,28 @@ def _register_close(country: str) -> bool:
         return was_member and not _ACTIVE_COUNTRIES
 
 
-# ---------------------------------------------------------------------
-# Optional global services (placeholders; heartbeat owns most of these now)
-# ---------------------------------------------------------------------
-
-def _start_global_background_services() -> None:
+def _start_global_background_services():
     """
-    Any “global once-per-day” or “global while-any-market-open” services can start here.
-    NOTE: 52-week and VWAP are handled as heartbeat jobs now, so we keep this minimal.
+    If you ever need “global once-per-any-market-open” services, do them here.
+    Currently heartbeat jobs own most background work.
     """
-    logger.debug("GlobalMarketGate: global background services start (currently none)")
+    logger.debug("GlobalMarketGate: no legacy global background services to start.")
 
 
-def _stop_global_background_services() -> None:
-    """Stop anything started in _start_global_background_services()."""
-    logger.debug("GlobalMarketGate: global background services stop (currently none)")
-
-
-# ---------------------------------------------------------------------
-# Bootstrap: if process starts and some markets are already open
-# ---------------------------------------------------------------------
-
-def bootstrap_open_markets() -> None:
+def _stop_global_background_services():
     """
-    Call this once at app startup to ensure ThorTrading is “caught up”
-    if the server restarts while a market is already OPEN.
+    Stop anything started in _start_global_background_services.
+    """
+    logger.debug("GlobalMarketGate: no legacy global background services to stop.")
+
+
+# -----------------------------------------------------------------------------
+# Bootstrap (process startup)
+# -----------------------------------------------------------------------------
+def bootstrap_open_markets():
+    """
+    On server start, GlobalMarkets may already have markets in OPEN status.
+    Bootstrap workers so ThorTrading is consistent after restart.
     """
     if not GLOBAL_TIMER_ENABLED:
         return
@@ -155,7 +163,7 @@ def bootstrap_open_markets() -> None:
     try:
         open_markets = Market.objects.filter(is_active=True, status="OPEN")
     except Exception:
-        logger.exception("GlobalMarketGate: failed to bootstrap open markets")
+        logger.exception("GlobalMarketGate: failed to query open markets")
         return
 
     controlled = [m for m in open_markets if _is_controlled_market(m)]
@@ -166,102 +174,92 @@ def bootstrap_open_markets() -> None:
 
     for market in controlled:
         country = normalize_country_code(getattr(market, "country", None)) or getattr(market, "country", None)
-
         _register_open(country)
 
-        # Start intraday supervisor (bars)
-        try:
-            intraday_market_supervisor.on_market_open(market)
-        except Exception:
-            logger.exception("GlobalMarketGate: intraday bootstrap failed for %s", country)
+        # Start intraday workers if session tracking is allowed
+        if session_tracking_allowed(market):
+            try:
+                intraday_market_supervisor.on_market_open(market)
+            except Exception:
+                logger.exception("GlobalMarketGate: intraday bootstrap failed for %s", country)
 
     _start_global_background_services()
 
-    # Only start grader if NOT using heartbeat scheduler
     if _heartbeat_mode_active():
-        logger.info("GlobalMarketGate: skipping MarketGrader start (heartbeat scheduler active)")
+        logger.info("GlobalMarketGate: heartbeat mode active — skipping MarketGrader start")
     else:
-        try:
-            start_grading_service()
-        except Exception:
-            logger.exception("GlobalMarketGate: failed to start MarketGrader during bootstrap")
+        start_grading_service()
 
 
-# ---------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Signal receivers (GlobalMarkets -> ThorTrading)
-# ---------------------------------------------------------------------
-
+# -----------------------------------------------------------------------------
 @receiver(market_opened)
-def handle_market_opened(sender, instance: Market, **kwargs) -> None:
-    """
-    On market open:
-      - capture_market_open(instance)
-      - start intraday supervisor
-      - start grader if legacy mode and first open
-    """
+def handle_market_opened(sender, instance: Market, **kwargs):
     if not GLOBAL_TIMER_ENABLED:
         return
-
     if not _is_controlled_market(instance):
-        _skip_reason(f"market {getattr(instance, 'country', '?')} not controlled or inactive")
+        _skip(f"{getattr(instance, 'country', '?')} not controlled")
         return
 
     country = normalize_country_code(getattr(instance, "country", None)) or instance.country
-    logger.info("GlobalMarketGate: detected %s market OPEN", country)
+    logger.info("GlobalMarketGate: %s market OPEN", country)
 
     first_open = _register_open(country)
 
-    # 1) Capture market-open snapshot rows
-    try:
-        capture_market_open(instance)
-    except Exception:
-        logger.exception("GlobalMarketGate: market-open capture failed for %s", country)
+    # OPEN capture (only if enabled)
+    if open_capture_allowed(instance):
+        try:
+            capture_market_open(instance)
+        except Exception:
+            logger.exception("GlobalMarketGate: market-open capture failed for %s", country)
+    else:
+        _skip(f"open capture disabled for {country}")
 
-    # 2) Start intraday bar supervisor for this market
-    try:
-        intraday_market_supervisor.on_market_open(instance)
-    except Exception:
-        logger.exception("GlobalMarketGate: failed to start intraday supervisor for %s", country)
+    # Intraday/session tracking (only if enabled)
+    if session_tracking_allowed(instance):
+        try:
+            intraday_market_supervisor.on_market_open(instance)
+        except Exception:
+            logger.exception("GlobalMarketGate: failed to start intraday supervisor for %s", country)
+    else:
+        _skip(f"session tracking disabled for {country}")
 
-    # 3) Start optional services
-    if first_open:
-        _start_global_background_services()
-
+    # Grader start (only if NOT heartbeat mode)
     if _heartbeat_mode_active():
-        logger.info("GlobalMarketGate: skipping MarketGrader start (heartbeat scheduler active)")
+        logger.info("GlobalMarketGate: heartbeat mode active — skipping MarketGrader start")
     else:
         try:
             start_grading_service()
         except Exception:
             logger.exception("GlobalMarketGate: failed to start MarketGrader after %s open", country)
 
+    if first_open:
+        _start_global_background_services()
+
 
 @receiver(market_closed)
-def handle_market_closed(sender, instance: Market, **kwargs) -> None:
-    """
-    On market close:
-      - capture_market_close(country)
-      - stop intraday supervisor
-      - stop grader if legacy mode and last close
-    """
+def handle_market_closed(sender, instance: Market, **kwargs):
     if not GLOBAL_TIMER_ENABLED:
         return
-
     if not _is_controlled_market(instance):
-        _skip_reason(f"market {getattr(instance, 'country', '?')} not controlled or inactive")
+        _skip(f"{getattr(instance, 'country', '?')} not controlled")
         return
 
     country = normalize_country_code(getattr(instance, "country", None)) or instance.country
-    logger.info("GlobalMarketGate: detected %s market CLOSE", country)
+    logger.info("GlobalMarketGate: %s market CLOSE", country)
 
-    # 1) Capture close snapshot / finalize logic
-    try:
-        result = capture_market_close(country)
-        logger.info("GlobalMarketGate: market-close capture result for %s: %s", country, result.get("status"))
-    except Exception:
-        logger.exception("GlobalMarketGate: market-close capture failed for %s", country)
+    # CLOSE capture (only if enabled)
+    if close_capture_allowed(instance):
+        try:
+            result = capture_market_close(country)
+            logger.info("GlobalMarketGate: close capture result %s => %s", country, result.get("status"))
+        except Exception:
+            logger.exception("GlobalMarketGate: market-close capture failed for %s", country)
+    else:
+        _skip(f"close capture disabled for {country}")
 
-    # 2) Stop intraday bar supervisor for this market
+    # Stop intraday/session tracking (only if it was running)
     try:
         intraday_market_supervisor.on_market_close(instance)
     except Exception:
@@ -269,12 +267,11 @@ def handle_market_closed(sender, instance: Market, **kwargs) -> None:
 
     last_close = _register_close(country)
 
-    # 3) Stop optional services if last controlled market closed
     if last_close:
         _stop_global_background_services()
 
         if _heartbeat_mode_active():
-            logger.info("GlobalMarketGate: skipping MarketGrader stop (heartbeat scheduler active)")
+            logger.info("GlobalMarketGate: heartbeat mode active — skipping MarketGrader stop")
         else:
             try:
                 stop_grading_service()
@@ -285,6 +282,10 @@ def handle_market_closed(sender, instance: Market, **kwargs) -> None:
 __all__ = [
     "GLOBAL_TIMER_ENABLED",
     "CONTROLLED_COUNTRIES",
+    "market_enabled",
+    "session_tracking_allowed",
+    "open_capture_allowed",
+    "close_capture_allowed",
     "bootstrap_open_markets",
     "handle_market_opened",
     "handle_market_closed",
