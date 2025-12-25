@@ -143,7 +143,93 @@ def enrich_quote_row(row: dict) -> dict:
     return row
 
 
+@lru_cache(maxsize=8)
+def _load_signal_weights() -> Dict[str, int]:
+    """
+    DB is the source of truth.
+    Returns {signal_name: weight_int}
+    """
+    weights: Dict[str, int] = {}
+    for row in SignalWeight.objects.all():
+        try:
+            weights[str(row.signal)] = int(row.weight)
+        except Exception:
+            continue
+    if not weights:
+        logger.warning("No SignalWeight rows found; composite will be empty/neutral.")
+    return weights
+
+
+def compute_composite(rows: List[dict]) -> dict:
+    """
+    Composite built ONLY from admin-configured values:
+      - each row must have extended_data: signal, contract_weight, signal_weight
+      - signal weights come from DB (SignalWeight)
+      - instrument inversion can be done by setting ContractWeight negative in admin
+
+    Returns a dict that your UI/services can consume.
+    """
+    if not rows:
+        return {}
+
+    # Make sure rows are enriched (adds extended_data)
+    enriched = [enrich_quote_row(r) for r in rows]
+
+    num = Decimal("0")
+    den = Decimal("0")
+
+    contributions: Dict[str, dict] = {}
+
+    for r in enriched:
+        instrument = (r.get("instrument") or {})
+        symbol = (instrument.get("symbol") or r.get("symbol") or "").strip()
+
+        ext = r.get("extended_data") or {}
+
+        try:
+            cw = Decimal(str(ext.get("contract_weight", "0")))
+        except Exception:
+            cw = Decimal("0")
+
+        try:
+            sw = Decimal(str(ext.get("signal_weight", "0")))
+        except Exception:
+            sw = Decimal("0")
+
+        if cw == 0:
+            continue
+
+        # weighted contribution
+        num += cw * sw
+        den += abs(cw)
+
+        contributions[symbol] = {
+            "contract_weight": str(cw),
+            "signal_weight": str(sw),
+            "signal": ext.get("signal"),
+        }
+
+    score = (num / den) if den != 0 else Decimal("0")
+
+    # Pick composite signal by closest SignalWeight — zero hardcoding.
+    sw_map = _load_signal_weights()
+    composite_signal = None
+    if sw_map:
+        composite_signal = min(
+            sw_map.items(),
+            key=lambda kv: abs(Decimal(kv[1]) - score)
+        )[0]
+
+    return {
+        "score": float(score),
+        "signal": composite_signal,
+        "denominator": float(den),
+        "contributions": contributions,
+    }
+
+
 __all__ = [
     "classify",
     "enrich_quote_row",
+    "compute_composite",
 ]
