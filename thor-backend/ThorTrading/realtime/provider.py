@@ -4,23 +4,11 @@ from __future__ import annotations
 Single file that registers all ThorTrading jobs. Keeps registration visible and avoids
 scattering near-identical wrapper modules.
 """
-from __future__ import annotations
 
 import logging
 from typing import Any, Callable
 
 from core.infra.jobs import Job
-from GlobalMarkets.services.active_markets import get_active_control_countries, get_control_markets
-from ThorTrading.config.symbols import FUTURES_SYMBOLS
-from ThorTrading.services.indicators.twentyfour import update_24h_for_country
-from ThorTrading.services.indicators.vwap_minute import capture_vwap_minute
-from ThorTrading.services.intraday.flush import flush_closed_bars
-from ThorTrading.services.intraday_supervisor.supervisor import intraday_market_supervisor
-from ThorTrading.services.quotes import get_enriched_quotes_with_composite
-from ThorTrading.services.sessions.grading import grade_pending_once
-from ThorTrading.services.sessions.metrics import MarketHighMetric
-from ThorTrading.services.week52_extremes_job import Week52ExtremesJob
-from ThorTrading.services.analytics.backtest_stats import compute_backtest_stats_for_country_symbol
 
 logger = logging.getLogger(__name__)
 
@@ -42,10 +30,15 @@ class InlineJob(Job):
 
 
 def _run_intraday(ctx: Any) -> None:
+    from ThorTrading.services.intraday_supervisor.supervisor import intraday_market_supervisor
+
     intraday_market_supervisor.step_once()
 
 
 def _run_closed_bars(ctx: Any) -> None:
+    from GlobalMarkets.services.active_markets import get_active_control_countries
+    from ThorTrading.services.intraday.flush import flush_closed_bars
+
     countries = get_active_control_countries()
     if not countries:
         return
@@ -66,6 +59,9 @@ def _run_closed_bars(ctx: Any) -> None:
 
 
 def _run_market_metrics(ctx: Any) -> None:
+    from ThorTrading.services.quotes import get_enriched_quotes_with_composite
+    from ThorTrading.services.sessions.metrics import MarketHighMetric
+
     try:
         enriched, _ = get_enriched_quotes_with_composite()
     except Exception:
@@ -74,6 +70,10 @@ def _run_market_metrics(ctx: Any) -> None:
 
     if not enriched:
         return
+
+    missing = sum(1 for r in enriched if not r.get("country"))
+    if missing:
+        logger.warning("market_metrics: dropping %s quotes missing country", missing)
 
     enriched = [r for r in enriched if r.get("country")]
     if not enriched:
@@ -89,6 +89,8 @@ def _run_market_metrics(ctx: Any) -> None:
 
 
 def _run_market_grader(ctx: Any) -> None:
+    from ThorTrading.services.sessions.grading import grade_pending_once
+
     try:
         grade_pending_once()
     except Exception:
@@ -96,12 +98,17 @@ def _run_market_grader(ctx: Any) -> None:
 
 
 def _run_vwap_minute(ctx: Any) -> None:
+    from ThorTrading.services.indicators.vwap_minute import capture_vwap_minute
+
     samples, rows_created = capture_vwap_minute(ctx.shared_state)
     if samples or rows_created:
         logger.debug("VWAP capture: samples=%s rows=%s", samples, rows_created)
 
 
 def _run_twentyfour(ctx: Any) -> None:
+    from ThorTrading.services.quotes import get_enriched_quotes_with_composite
+    from ThorTrading.services.indicators.twentyfour import update_24h_for_country
+
     try:
         enriched, _ = get_enriched_quotes_with_composite()
     except Exception:
@@ -110,6 +117,10 @@ def _run_twentyfour(ctx: Any) -> None:
 
     if not enriched:
         return
+
+    missing = sum(1 for r in enriched if not r.get("country"))
+    if missing:
+        logger.warning("24h: dropping %s quotes missing country", missing)
 
     enriched = [r for r in enriched if r.get("country")]
     if not enriched:
@@ -125,6 +136,10 @@ def _run_twentyfour(ctx: Any) -> None:
 
 
 def _run_preopen(ctx: Any) -> None:
+    from GlobalMarkets.services.active_markets import get_control_markets
+    from ThorTrading.config.symbols import FUTURES_SYMBOLS
+    from ThorTrading.services.analytics.backtest_stats import compute_backtest_stats_for_country_symbol
+
     markets = get_control_markets()
     if not markets:
         return
@@ -176,6 +191,8 @@ def register(registry):
 
     # Week52 is already a Job subclass with its own interval
     try:
+        from ThorTrading.services.week52_extremes_job import Week52ExtremesJob
+
         week52_job = Week52ExtremesJob()
         registry.register(week52_job, interval_seconds=week52_job.interval_seconds)
         job_names.append(week52_job.name)
