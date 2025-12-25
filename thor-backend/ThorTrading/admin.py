@@ -1,6 +1,6 @@
 from __future__ import annotations
 from django.contrib import admin
-from ThorTrading.config.markets import CONTROL_COUNTRIES
+from ThorTrading.config.markets import get_control_countries
 from ThorTrading.services.config.country_codes import normalize_country_code
 from .models import (
     InstrumentCategory, TradingInstrument,
@@ -63,7 +63,7 @@ class MarketSessionCountryFilter(admin.SimpleListFilter):
             seen.add(canonical)
             options.append((canonical, self._label(canonical)))
 
-        for country in CONTROL_COUNTRIES:
+        for country in get_control_countries(require_session_capture=True):
             add_option(country)
 
         dynamic_countries = queryset.order_by().values_list('country', flat=True).distinct()

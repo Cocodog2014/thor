@@ -13,7 +13,7 @@ from ThorTrading.config.symbols import (
 	REDIS_SYMBOL_MAP,
 	SYMBOL_NORMALIZE_MAP,
 )
-from ThorTrading.config.markets import CONTROL_COUNTRIES
+from ThorTrading.config.markets import get_control_countries
 
 __all__ = [
 	"TOS_EXCEL_FILE",
@@ -24,5 +24,5 @@ __all__ = [
 	"FUTURES_SYMBOLS",
 	"REDIS_SYMBOL_MAP",
 	"SYMBOL_NORMALIZE_MAP",
-	"CONTROL_COUNTRIES",
+	"get_control_countries",
 ]

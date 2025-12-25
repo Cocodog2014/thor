@@ -17,22 +17,21 @@ from typing import List, Dict, Tuple
 import logging
 
 from LiveData.shared.redis_client import live_data_redis
-from ThorTrading.config.markets import CONTROL_COUNTRIES
+from ThorTrading.config.markets import get_control_countries
 from ThorTrading.config.symbols import FUTURES_SYMBOLS, REDIS_SYMBOL_MAP, SYMBOL_NORMALIZE_MAP
 from ThorTrading.models.extremes import Rolling52WeekStats
 from ThorTrading.models import TradingInstrument
 from ThorTrading.services.quotes.classification import enrich_quote_row, compute_composite
-from ThorTrading.config.markets import CONTROL_COUNTRIES
 from ThorTrading.services.config.country_codes import normalize_country_code, is_known_country
 from ThorTrading.services.quotes.row_metrics import compute_row_metrics
 
 logger = logging.getLogger(__name__)
 
 
-def _fallback_country_from_clock() -> str | None:
+def _fallback_country_from_clock(control_countries: list[str]) -> str | None:
     """Best-effort country assignment when quotes lack country.
 
-    Uses the currently open control market (if any), ordered by CONTROL_COUNTRIES
+    Uses the currently open control market (if any), ordered by control_countries
     to provide a deterministic fallback.
     """
     try:
@@ -60,7 +59,7 @@ def _fallback_country_from_clock() -> str | None:
     open_markets = [m for m in markets if _is_open(m)]
     candidates = open_markets or markets
 
-    order = {normalize_country_code(c) or c: idx for idx, c in enumerate(CONTROL_COUNTRIES)}
+    order = {normalize_country_code(c) or c: idx for idx, c in enumerate(control_countries)}
 
     def _rank(market):
         key = normalize_country_code(getattr(market, "country", None)) or getattr(market, "country", None)
@@ -91,6 +90,7 @@ def _to_str(v):
 
 def build_enriched_rows(raw_quotes: Dict[str, Dict]) -> List[Dict]:
     """Return enriched row dicts (one per future)."""
+    control_countries = get_control_countries(require_session_capture=True)
     stats_52w = {s.symbol: s for s in Rolling52WeekStats.objects.all()}
     # Prefetch display precision for all tracked symbols in one query
     norm_symbols = [SYMBOL_NORMALIZE_MAP.get(sym, sym) for sym in FUTURES_SYMBOLS]
@@ -108,7 +108,7 @@ def build_enriched_rows(raw_quotes: Dict[str, Dict]) -> List[Dict]:
             'margin_requirement': _to_str(inst.margin_requirement),
         }
     rows: List[Dict] = []
-    fallback_country = _fallback_country_from_clock()
+    fallback_country = _fallback_country_from_clock(control_countries)
 
     for idx, sym in enumerate(FUTURES_SYMBOLS):
         quote = raw_quotes.get(sym)
@@ -122,7 +122,7 @@ def build_enriched_rows(raw_quotes: Dict[str, Dict]) -> List[Dict]:
         if not row_country:
             logger.error("Dropping quote for %s missing country: %s", sym, quote)
             continue
-        if not is_known_country(row_country, controlled=set(CONTROL_COUNTRIES)):
+        if not is_known_country(row_country, controlled=set(control_countries)):
             logger.error("Dropping quote for %s with unknown country '%s': %s", sym, row_country, quote)
             continue
         quote['country'] = row_country

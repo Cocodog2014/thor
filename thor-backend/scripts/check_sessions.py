@@ -27,8 +27,9 @@ for s in MarketSession.objects.order_by('-captured_at')[:3]:
     print(f"  {s.country} - {s.future} - {s.year}/{s.month}/{s.date} - {s.bhs}")
 
 print("\nLatest per country (for API /latest/):")
-from ThorTrading.config.markets import CONTROL_COUNTRIES
-for country in CONTROL_COUNTRIES:
+from ThorTrading.config.markets import get_control_countries
+
+for country in get_control_countries(require_session_capture=True):
     latest = MarketSession.objects.filter(country=country).order_by('-captured_at').first()
     if latest:
         print(f"  {country}: {latest.year}-{latest.month:02d}-{latest.date:02d} @ {latest.captured_at.strftime('%H:%M:%S')}")

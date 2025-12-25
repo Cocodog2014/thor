@@ -1,44 +1,25 @@
+# ThorTrading/config/symbols.py
 from __future__ import annotations
-"""Futures symbol configuration and mappings."""
+from functools import lru_cache
+from typing import List, Optional
 
-FUTURES_SYMBOLS = [
-	"YM",
-	"ES",
-	"NQ",
-	"RTY",
-	"CL",
-	"SI",
-	"HG",
-	"GC",
-	"VX",
-	"DX",
-	"ZB",
-]
+@lru_cache(maxsize=256)
+def get_active_symbols(country: Optional[str] = None) -> List[str]:
+    from ThorTrading.models import TradingInstrument
 
-# Mapping from canonical symbol to Redis key (or other external feed key)
-REDIS_SYMBOL_MAP = {
-	"DX": "$DXY",  # Dollar Index in Redis/Excel
-}
+    qs = TradingInstrument.objects.filter(is_active=True)
+    if country:
+        qs = qs.filter(country=country)
 
-# Comprehensive normalization: any alias/external variant → canonical symbol
-SYMBOL_NORMALIZE_MAP = {
-	# Russell
-	"RT": "RTY",
-	"RTY": "RTY",
-	# Bond
-	"30YrBond": "ZB",
-	"30Yr T-BOND": "ZB",
-	"T-BOND": "ZB",
-	"ZB": "ZB",
-	# Dollar index variants
-	"$DXY": "DX",
-	"DXY": "DX",
-	"USDX": "DX",
-	"DX": "DX",
-}
+    return list(qs.values_list("symbol", flat=True))
 
-__all__ = [
-	"FUTURES_SYMBOLS",
-	"REDIS_SYMBOL_MAP",
-	"SYMBOL_NORMALIZE_MAP",
-]
+
+@lru_cache(maxsize=256)
+def get_ribbon_symbols(country: Optional[str] = None) -> List[str]:
+    from ThorTrading.models import TradingInstrument
+
+    qs = TradingInstrument.objects.filter(is_active=True, is_watchlist=True)
+    if country:
+        qs = qs.filter(country=country)
+
+    return list(qs.values_list("symbol", flat=True))
