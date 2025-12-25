@@ -1,6 +1,5 @@
 from __future__ import annotations
 from django.core.management.base import BaseCommand
-from django.db import transaction
 
 from ThorTrading.services.config.country_codes import normalize_country_code
 from ThorTrading.models.MarketIntraDay import MarketIntraday
@@ -53,10 +52,11 @@ class Command(BaseCommand):
             action="store_true",
             help="Report changes without writing them.",
         )
+        parser.add_argument("--verbose", action="store_true", help="Log counts as they accrue.")
 
-    @transaction.atomic
     def handle(self, *args, **options):
         dry_run = options.get("dry_run", False)
+        verbose = options.get("verbose", False)
 
         def maybe_save(obj, fields):
             if dry_run:
@@ -137,3 +137,8 @@ class Command(BaseCommand):
 
         if dry_run:
             self.stdout.write("No changes written (dry-run).")
+        if verbose:
+            self.stdout.write(
+                f"Updated: markets={updated['markets']} intraday={updated['intraday']} "
+                f"deleted={updated['intraday_deleted']} market24h={updated['market24h']}"
+            )

@@ -24,10 +24,20 @@ class Command(BaseCommand):
             default=None,
             help="Optional cap on rows to process (for testing).",
         )
+        parser.add_argument("--dry-run", action="store_true", help="Report actions without writing.")
+        parser.add_argument(
+            "--allow-create-twentyfour",
+            action="store_true",
+            help="Allow creating missing MarketTrading24Hour rows; otherwise skip missing parents.",
+        )
+        parser.add_argument("--verbose", action="store_true", help="Log per-batch progress.")
 
     def handle(self, *args, **options):
         batch_size: int = options["batch_size"]
         max_rows = options.get("max_rows")
+        dry_run: bool = options.get("dry_run", False)
+        allow_create: bool = options.get("allow_create_twentyfour", False)
+        verbose: bool = options.get("verbose", False)
 
         qs = MarketIntraday.objects.filter(twentyfour__isnull=True).order_by("id")
         if max_rows:
@@ -35,6 +45,7 @@ class Command(BaseCommand):
 
         processed = 0
         linked = 0
+        skipped_missing_parent = 0
         session_group_cache: Dict[str, int | None] = {}
         twentyfour_cache: Dict[Tuple[int, str], MarketTrading24Hour] = {}
 
@@ -68,6 +79,15 @@ class Command(BaseCommand):
             cache_key = (sg, symbol)
             twentyfour = twentyfour_cache.get(cache_key)
             if twentyfour is None:
+                if not allow_create:
+                    skipped_missing_parent += 1
+                    continue
+
+                if dry_run:
+                    # In dry-run, do not create; just count potential creations.
+                    twentyfour_cache[cache_key] = None  # marker to avoid recounting
+                    continue
+
                 twentyfour, _ = MarketTrading24Hour.objects.get_or_create(
                     session_group=sg,
                     symbol=symbol,
@@ -90,7 +110,24 @@ class Command(BaseCommand):
             self._flush_buffer(buffer)
             linked += len(buffer)
 
-        self.stdout.write(self.style.SUCCESS(f"Processed={processed} linked={linked} pending={max(processed - linked, 0)}"))
+        if dry_run:
+            self.stdout.write(
+                self.style.WARNING(
+                    f"Dry-run: processed={processed} linkable={linked} skipped_missing_parent={skipped_missing_parent}"
+                )
+            )
+            return
+
+        if verbose:
+            self.stdout.write(
+                f"Processed={processed} linked={linked} skipped_missing_parent={skipped_missing_parent}"
+            )
+
+        self.stdout.write(
+            self.style.SUCCESS(
+                f"Processed={processed} linked={linked} skipped_missing_parent={skipped_missing_parent} pending={max(processed - linked, 0)}"
+            )
+        )
 
     def _flush_buffer(self, rows):
         if not rows:
