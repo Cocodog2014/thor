@@ -403,6 +403,23 @@ class LiveDataRedis:
         self.set_latest_quote(symbol, payload)
         return result
 
+    def publish_raw_quote(self, symbol: str, data: Dict[str, Any]) -> int:
+        """Publish a raw quote without requiring country. Stores snapshot and publishes a raw channel."""
+        symbol_upper = symbol.upper()
+        payload = {"symbol": symbol_upper, **data}
+
+        try:
+            # snapshot under raw namespace
+            key = f"raw:quote:{symbol_upper}"
+            self.set_json(key, payload)
+
+            # optional pubsub for listeners
+            channel = "raw:quotes"
+            return self.publish(channel, payload)
+        except Exception:
+            logger.exception("Failed to publish raw quote for %s", symbol_upper)
+            return 0
+
     def set_json(self, key: str, value: Dict[str, Any], ex: int | None = None) -> None:
         """Store JSON payload at a Redis key (helper for background workers)."""
         try:
