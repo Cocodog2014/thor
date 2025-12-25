@@ -58,10 +58,24 @@ def _compute_from_config(
     return None
 
 
-def compute_targets_for_symbol(
-    symbol: str,
-    entry_price: Optional[Decimal],
-) -> Tuple[Optional[Decimal], Optional[Decimal]]:
+def compute_targets_for_symbol(*args, **kwargs) -> Tuple[Optional[Decimal], Optional[Decimal]]:
+    """Compute target high/low with flexible calling conventions.
+
+    Backward compatible:
+    - compute_targets_for_symbol(symbol, entry_price)
+    - compute_targets_for_symbol(country, symbol, entry_price)  # country ignored
+    - compute_targets_for_symbol(symbol, entry_price, country=...)
+    """
+
+    country = kwargs.get("country")  # currently unused but accepted for compatibility
+
+    if len(args) == 2:
+        symbol, entry_price = args
+    elif len(args) == 3:
+        country, symbol, entry_price = args  # country positional ignored
+    else:
+        raise TypeError("compute_targets_for_symbol expected 2 or 3 positional arguments")
+
     if entry_price is None:
         return None, None
 

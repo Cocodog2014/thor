@@ -28,6 +28,63 @@ from ThorTrading.services.sessions.metrics import MarketOpenMetric
 logger = logging.getLogger(__name__)
 
 
+# Only allow fields that exist on MarketSession to avoid runtime errors
+ALLOWED_SESSION_FIELDS = {
+    "session_number",
+    "capture_group",
+    "capture_kind",
+    "year",
+    "month",
+    "date",
+    "day",
+    "country",
+    "symbol",
+    "captured_at",
+    "last_price",
+    "ask_price",
+    "ask_size",
+    "bid_price",
+    "bid_size",
+    "volume",
+    "spread",
+    "open_price_24h",
+    "prev_close_24h",
+    "open_prev_diff_24h",
+    "open_prev_pct_24h",
+    "low_24h",
+    "high_24h",
+    "range_diff_24h",
+    "range_pct_24h",
+    "bhs",
+    "weight",
+    "entry_price",
+    "target_high",
+    "target_low",
+    "weighted_average",
+    "instrument_count",
+    "change",
+    "change_percent",
+    "vwap",
+    "market_open",
+    "market_high_open",
+    "market_high_pct_open",
+    "market_low_open",
+    "market_low_pct_open",
+    "market_close",
+    "market_high_pct_close",
+    "market_low_pct_close",
+    "market_close_vs_open_pct",
+    "market_range",
+    "market_range_pct",
+    "session_volume",
+    "country_symbol",
+    "country_symbol_wndw_total",
+    "target_hit_price",
+    "target_hit_type",
+    "target_hit_at",
+}
+
+
 class MarketOpenCaptureService:
     """Captures symbol data at market open - matches RTD endpoint logic."""
 
@@ -171,7 +228,8 @@ class MarketOpenCaptureService:
             logger.warning("Backtest stats failed for %s: %s", canonical_symbol, exc)
 
         try:
-            session = MarketSession.objects.create(**data)
+            filtered = {k: v for k, v in data.items() if k in ALLOWED_SESSION_FIELDS}
+            session = MarketSession.objects.create(**filtered)
             _country_symbol_counter.assign_sequence(session)
             logger.debug("Created %s session: %s", canonical_symbol, session.last_price)
             return session
@@ -219,7 +277,8 @@ class MarketOpenCaptureService:
             logger.warning("Backtest stats failed for TOTAL: %s", exc)
 
         try:
-            session = MarketSession.objects.create(**data)
+            filtered = {k: v for k, v in data.items() if k in ALLOWED_SESSION_FIELDS}
+            session = MarketSession.objects.create(**filtered)
             _country_symbol_counter.assign_sequence(session)
             if data.get("weighted_average"):
                 logger.info("TOTAL session: %.4f -> %s", data["weighted_average"], composite_signal)
