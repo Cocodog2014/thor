@@ -271,6 +271,7 @@ EXCEL_SHEET_NAME = config('EXCEL_SHEET_NAME', default='LiveData')
 EXCEL_LIVE_RANGE = config('EXCEL_LIVE_RANGE', default='A1:N13')
 EXCEL_LIVE_POLL_MS = config('EXCEL_LIVE_POLL_MS', default=200, cast=int)
 THOR_ENABLE_EXCEL_POLLER = config('THOR_ENABLE_EXCEL_POLLER', default=0, cast=int)
+EXCEL_DEFAULT_COUNTRY = config('EXCEL_DEFAULT_COUNTRY', default='')
 
 # ============================================================================
 # Django Channels Configuration (WebSocket support)

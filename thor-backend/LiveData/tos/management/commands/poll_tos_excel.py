@@ -15,6 +15,7 @@ import time
 import logging
 from django.core.management.base import BaseCommand
 from django.conf import settings
+from ThorTrading.services.config.country_codes import normalize_country_code
 from LiveData.tos.excel_reader import get_tos_excel_reader
 from LiveData.shared.redis_client import live_data_redis
 
@@ -55,6 +56,7 @@ class Command(BaseCommand):
         file_path = options['file']
         sheet_name = options['sheet']
         data_range = options['range']
+        default_country = normalize_country_code(getattr(settings, 'EXCEL_DEFAULT_COUNTRY', None)) or getattr(settings, 'EXCEL_DEFAULT_COUNTRY', None)
 
         self.stdout.write(self.style.SUCCESS(f'Starting TOS Excel poller...'))
         self.stdout.write(f'  File: {file_path}')
@@ -100,6 +102,8 @@ class Command(BaseCommand):
                             symbol = q.get('symbol')
                             if not symbol:
                                 continue
+                            if not q.get('country') and default_country:
+                                q['country'] = default_country
                             live_data_redis.publish_quote(symbol, q)
 
                         self.stdout.write(self.style.SUCCESS(
