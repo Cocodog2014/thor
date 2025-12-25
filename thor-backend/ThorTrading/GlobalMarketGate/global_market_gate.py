@@ -29,9 +29,6 @@ from ThorTrading.config.markets import CONTROL_COUNTRIES
 
 # Capture implementations live in THIS folder (import lazily inside functions)
 
-# Intraday supervisor (spawns/stops workers)
-from ThorTrading.services.intraday_supervisor import intraday_market_supervisor
-
 # Optional grading service (only if NOT using heartbeat mode)
 from ThorTrading.services.sessions.grading import start_grading_service, stop_grading_service
 
@@ -177,6 +174,8 @@ def bootstrap_open_markets():
         # Start intraday workers if session tracking is allowed
         if session_tracking_allowed(market):
             try:
+                    from ThorTrading.services.intraday_supervisor import intraday_market_supervisor
+
                 intraday_market_supervisor.on_market_open(market)
             except Exception:
                 logger.exception("GlobalMarketGate: intraday bootstrap failed for %s", country)
@@ -219,6 +218,8 @@ def handle_market_opened(sender, instance: Market, **kwargs):
     # Intraday/session tracking (only if enabled)
     if session_tracking_allowed(instance):
         try:
+            from ThorTrading.services.intraday_supervisor import intraday_market_supervisor
+
             intraday_market_supervisor.on_market_open(instance)
         except Exception:
             logger.exception("GlobalMarketGate: failed to start intraday supervisor for %s", country)
@@ -263,6 +264,8 @@ def handle_market_closed(sender, instance: Market, **kwargs):
 
     # Stop intraday/session tracking (only if it was running)
     try:
+        from ThorTrading.services.intraday_supervisor import intraday_market_supervisor
+
         intraday_market_supervisor.on_market_close(instance)
     except Exception:
         logger.exception("GlobalMarketGate: failed to stop intraday supervisor for %s", country)
