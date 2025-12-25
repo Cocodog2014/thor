@@ -23,3 +23,9 @@ def get_ribbon_symbols(country: Optional[str] = None) -> List[str]:
         qs = qs.filter(country=country)
 
     return list(qs.values_list("symbol", flat=True))
+
+
+def clear_symbol_caches() -> None:
+    """Clear cached symbol lists so admin edits take effect without restart."""
+    get_active_symbols.cache_clear()
+    get_ribbon_symbols.cache_clear()

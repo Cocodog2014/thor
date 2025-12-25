@@ -14,6 +14,7 @@ Usage:
 import time
 import logging
 from django.core.management.base import BaseCommand
+from django.conf import settings
 from LiveData.tos.excel_reader import get_tos_excel_reader
 from LiveData.shared.redis_client import live_data_redis
 
@@ -27,26 +28,26 @@ class Command(BaseCommand):
         parser.add_argument(
             '--interval',
             type=int,
-            default=1,
-            help='Polling interval in seconds (default: 1)'
+            default=max(1, getattr(settings, 'EXCEL_LIVE_POLL_MS', 200) // 1000) or 1,
+            help='Polling interval in seconds (default from settings.EXCEL_LIVE_POLL_MS)'
         )
         parser.add_argument(
             '--file',
             type=str,
-            default=r'A:\Thor\RTD_TOS.xlsm',
+            default=getattr(settings, 'EXCEL_DATA_FILE', r'A:\Thor\RTD_TOS.xlsm'),
             help='Path to Excel file'
         )
         parser.add_argument(
             '--sheet',
             type=str,
-            default='LiveData',
+            default=getattr(settings, 'EXCEL_SHEET_NAME', 'LiveData'),
             help='Sheet name'
         )
         parser.add_argument(
             '--range',
             type=str,
-            default='A1:N13',
-            help='Data range (default: A1:N13)'
+            default=getattr(settings, 'EXCEL_LIVE_RANGE', 'A1:N13'),
+            help='Data range (default from settings)'
         )
 
     def handle(self, *args, **options):

@@ -265,6 +265,13 @@ REDIS_HOST = config('REDIS_HOST', default='redis')
 REDIS_PORT = config('REDIS_PORT', default=6379, cast=int)
 REDIS_DB = config('REDIS_DB', default=0, cast=int)
 
+# LiveData Excel Provider (TOS / Excel) pulled from .env
+EXCEL_DATA_FILE = config('EXCEL_DATA_FILE', default=r'A:\Thor\RTD_TOS.xlsm')
+EXCEL_SHEET_NAME = config('EXCEL_SHEET_NAME', default='LiveData')
+EXCEL_LIVE_RANGE = config('EXCEL_LIVE_RANGE', default='A1:N13')
+EXCEL_LIVE_POLL_MS = config('EXCEL_LIVE_POLL_MS', default=200, cast=int)
+THOR_ENABLE_EXCEL_POLLER = config('THOR_ENABLE_EXCEL_POLLER', default=0, cast=int)
+
 # ============================================================================
 # Django Channels Configuration (WebSocket support)
 # ============================================================================
