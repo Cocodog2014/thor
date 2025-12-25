@@ -8,7 +8,7 @@ from typing import Iterable, Optional
 from ThorTrading.models.MarketSession import MarketSession
 
 
-class CountryFutureCounter:
+class CountrySymbolCounter:
     """Assigns ``country_symbol`` counters per (country, symbol) pair.
 
     Append-only sequence; set on row creation, optionally repair with overwrite.
@@ -67,4 +67,4 @@ class CountryFutureCounter:
         return last_value + Decimal('1')
 
 
-__all__ = ["CountryFutureCounter"]
+__all__ = ["CountrySymbolCounter"]

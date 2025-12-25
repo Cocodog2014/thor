@@ -27,9 +27,7 @@ from GlobalMarkets.signals import market_closed, market_opened
 from ThorTrading.services.config.country_codes import normalize_country_code
 from ThorTrading.config.markets import CONTROL_COUNTRIES
 
-# Capture implementations live in THIS folder
-from ThorTrading.GlobalMarketGate.open_capture import capture_market_open
-from ThorTrading.GlobalMarketGate.close_capture import capture_market_close
+# Capture implementations live in THIS folder (import lazily inside functions)
 
 # Intraday supervisor (spawns/stops workers)
 from ThorTrading.services.intraday_supervisor import intraday_market_supervisor
@@ -210,6 +208,8 @@ def handle_market_opened(sender, instance: Market, **kwargs):
     # OPEN capture (only if enabled)
     if open_capture_allowed(instance):
         try:
+            from ThorTrading.GlobalMarketGate.open_capture import capture_market_open
+
             capture_market_open(instance)
         except Exception:
             logger.exception("GlobalMarketGate: market-open capture failed for %s", country)
@@ -252,6 +252,8 @@ def handle_market_closed(sender, instance: Market, **kwargs):
     # CLOSE capture (only if enabled)
     if close_capture_allowed(instance):
         try:
+            from ThorTrading.GlobalMarketGate.close_capture import capture_market_close
+
             result = capture_market_close(country)
             logger.info("GlobalMarketGate: close capture result %s => %s", country, result.get("status"))
         except Exception:
