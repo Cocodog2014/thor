@@ -63,12 +63,39 @@ def market_enabled(market: Market) -> bool:
     return bool(getattr(market, "is_active", False))
 
 
-def session_tracking_allowed(market: Market) -> bool:
+def session_tracking_allowed(market_or_country: Market | str | None) -> bool:
     """
-    Controls whether ThorTrading should run intraday/session workers
-    and write MarketSession rows for this market.
+    Pure helper: look up the current session-capture flag for a country.
+
+    Accepts either a Market instance or a country code/string to avoid
+    relying on potentially stale in-memory flags. Queries are limited to
+    the enable_session_capture + is_active columns to keep the lookup light.
     """
-    return market_enabled(market) and bool(getattr(market, "enable_session_capture", True))
+    if market_or_country is None:
+        return False
+
+    # Accept both Market instances and plain country strings for flexibility
+    country = (
+        market_or_country if isinstance(market_or_country, str)
+        else getattr(market_or_country, "country", None)
+    )
+
+    country_code = normalize_country_code(country) or country
+    if not country_code:
+        return False
+
+    try:
+        market = (
+            Market.objects
+            .filter(country=country_code)
+            .only("enable_session_capture", "is_active")
+            .first()
+        )
+    except Exception:
+        logger.exception("GlobalMarketGate: session_tracking_allowed lookup failed for %s", country_code)
+        return False
+
+    return bool(market and getattr(market, "is_active", False) and getattr(market, "enable_session_capture", False))
 
 
 def open_capture_allowed(market: Market) -> bool:
@@ -174,7 +201,7 @@ def bootstrap_open_markets():
         # Start intraday workers if session tracking is allowed
         if session_tracking_allowed(market):
             try:
-                    from ThorTrading.services.intraday_supervisor import intraday_market_supervisor
+                from ThorTrading.services.intraday_supervisor import intraday_market_supervisor
 
                 intraday_market_supervisor.on_market_open(market)
             except Exception:
