@@ -1,5 +1,5 @@
 from __future__ import annotations
-"""Heartbeat job wrappers live here.
+"""Heartbeat job wrappers now live centrally in ThorTrading.realtime.provider.
 
-Each module exposes register(registry) to attach its job to the scheduler.
+This package remains to reserve the namespace; no per-job modules are needed.
 """
