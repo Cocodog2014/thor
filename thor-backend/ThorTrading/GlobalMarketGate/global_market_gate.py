@@ -100,11 +100,12 @@ def market_enabled(market: Market) -> bool:
 
 def session_tracking_allowed(market_or_country: Market | str | None) -> bool:
     """
-    Pure helper: look up the current session-capture flag for a country.
+    Gate session/intraday/metrics work by the DB-backed market status.
 
-    Accepts either a Market instance or a country code/string to avoid
-    relying on potentially stale in-memory flags. Queries are limited to
-    the enable_session_capture + is_active columns to keep the lookup light.
+    Allows only markets that are:
+    - is_active=True
+    - enable_session_capture=True
+    - status="OPEN"
     """
     if market_or_country is None:
         return False
@@ -122,15 +123,20 @@ def session_tracking_allowed(market_or_country: Market | str | None) -> bool:
     try:
         market = (
             Market.objects
-            .filter(country=country_code)
-            .only("enable_session_capture", "is_active")
+            .filter(
+                country=country_code,
+                is_active=True,
+                enable_session_capture=True,
+                status="OPEN",
+            )
+            .only("enable_session_capture", "is_active", "status")
             .first()
         )
     except Exception:
         logger.exception("GlobalMarketGate: session_tracking_allowed lookup failed for %s", country_code)
         return False
 
-    return bool(market and getattr(market, "is_active", False) and getattr(market, "enable_session_capture", False))
+    return bool(market)
 
 
 def open_capture_allowed(market: Market) -> bool:
