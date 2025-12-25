@@ -1,1 +1,0 @@
-SELECT * FROM "FutureTrading_marketintraday" LIMIT 1000;

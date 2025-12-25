@@ -1,3 +1,7 @@
+Local dev server: http://localhost:8000/admin/ (from Quick start.md:46-60).
+Docker/nginx stack: http://localhost:8001/admin/ (see Quick start.md:104-134).
+Via Cloudflare tunnels: https://dev-thor.360edu.org/admin/ (dev) or https://thor.360edu.org/admin/ (prod) per CloudFlare.md:186-204.
+
 schwab+++++++++++++++++++++++++++++++++++++++++++++++++
 
 https://dev-thor.360edu.org/api/schwab/oauth/start/
