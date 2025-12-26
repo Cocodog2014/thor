@@ -287,6 +287,48 @@ class MarketCloseMetric:
     """Copy last_price → market_close and compute close metrics."""
 
     @staticmethod
+    def _neutralize_unhit_sessions(country: str, session_group: int) -> int:
+        """Set wndw=NEUTRAL when no target/stop was hit during the session."""
+        pending = (
+            MarketSession.objects
+            .filter(country=country, capture_group=session_group, wndw="PENDING")
+        )
+
+        updated = 0
+        for session in pending:
+            signal = (session.bhs or "").upper()
+            th = session.target_high
+            tl = session.target_low
+            high = session.market_high_open
+            low = session.market_low_open
+
+            hit_target = False
+            hit_stop = False
+
+            if signal in ["BUY", "STRONG_BUY"]:
+                hit_target = bool(high is not None and th is not None and high >= th)
+                hit_stop = bool(low is not None and tl is not None and low <= tl)
+            elif signal in ["SELL", "STRONG_SELL"]:
+                hit_target = bool(low is not None and tl is not None and low <= tl)
+                hit_stop = bool(high is not None and th is not None and high >= th)
+
+            if hit_target or hit_stop:
+                continue  # Let the grader or prior logic mark hits; don't override
+
+            session.wndw = "NEUTRAL"
+            session.save(update_fields=["wndw"])
+            updated += 1
+
+        if updated:
+            logger.info(
+                "MarketCloseMetric → Neutralized %s pending sessions for %s (session_group %s)",
+                updated,
+                country,
+                session_group,
+            )
+        return updated
+
+    @staticmethod
     @transaction.atomic
     def update_for_country_on_close(country: str, enriched_rows) -> int:
         if not enriched_rows:
@@ -374,6 +416,16 @@ class MarketCloseMetric:
             "MarketCloseMetric complete → %s rows updated for %s (session_group %s)",
             updated_count, country, session_group,
         )
+
+        # Close out any still-pending sessions where neither target nor stop hit.
+        try:
+            self._neutralize_unhit_sessions(country, session_group)
+        except Exception:
+            logger.exception(
+                "MarketCloseMetric → pending neutralization failed for %s (session_group %s)",
+                country,
+                session_group,
+            )
         return updated_count
 
 
