@@ -5,6 +5,8 @@ Provides a unified interface for publishing market data to Redis channels.
 All broker integrations (Schwab, TOS, IBKR) use this client.
 """
 
+from __future__ import annotations
+
 import json
 import logging
 from datetime import datetime, timezone as dt_timezone
@@ -13,6 +15,7 @@ from typing import Dict, Any, Optional, Tuple, List
 import redis
 from django.conf import settings
 from django.utils import timezone as dj_timezone
+
 from ThorTrading.services.config.country_codes import normalize_country_code
 
 logger = logging.getLogger(__name__)
@@ -64,20 +67,30 @@ def _to_epoch_seconds_utc(value) -> int:
 class LiveDataRedis:
     """
     Shared Redis client for publishing live market data.
-    
+
     All broker feeds publish through this client to ensure consistent
     channel naming and data formatting.
     """
-    
+
+    # --- Snapshot (latest) helpers ---
+    LATEST_QUOTES_HASH = "live_data:latest:quotes"
+
+    # --- Single-flight lock for Excel reads ---
+    EXCEL_LOCK_KEY = "live_data:excel_lock"
+    EXCEL_LOCK_TTL = 10  # seconds
+
     def __init__(self):
         """Initialize Redis connection from Django settings."""
         self.client = redis.Redis(
-            host=getattr(settings, 'REDIS_HOST', 'localhost'),
-            port=getattr(settings, 'REDIS_PORT', 6379),
-            db=getattr(settings, 'REDIS_DB', 0),
-            decode_responses=True
+            host=getattr(settings, "REDIS_HOST", "localhost"),
+            port=getattr(settings, "REDIS_PORT", 6379),
+            db=getattr(settings, "REDIS_DB", 0),
+            decode_responses=True,
         )
 
+    # -------------------------
+    # Country normalization
+    # -------------------------
     def _norm_country(self, country: str) -> str:
         normalized = normalize_country_code(country) if country is not None else None
         return normalized or country
@@ -93,29 +106,29 @@ class LiveDataRedis:
         if normalized != raw:
             data["country"] = normalized
         return normalized
-    
+
+    # -------------------------
+    # Pub/Sub base
+    # -------------------------
     def publish(self, channel: str, data: Dict[str, Any]) -> int:
         """
         Publish JSON data to a Redis channel.
-        
-        Args:
-            channel: Redis channel name
-            data: Dictionary to publish (will be JSON-serialized)
-            
+
         Returns:
             Number of subscribers that received the message
         """
         try:
-            # Use default=str to handle Decimal and datetime objects
             message = json.dumps(data, default=str)
             result = self.client.publish(channel, message)
-            logger.debug(f"Published to {channel}: {len(message)} bytes to {result} subscribers")
+            logger.debug("Published to %s: %s bytes to %s subscribers", channel, len(message), result)
             return result
         except Exception as e:
-            logger.error(f"Failed to publish to {channel}: {e}")
+            logger.error("Failed to publish to %s: %s", channel, e)
             return 0
 
-    # --- Tick + bar capture primitives ---
+    # -------------------------
+    # Tick + bar capture primitives
+    # -------------------------
     def set_tick(self, country: str, symbol: str, payload: Dict[str, Any], ttl: int = 10) -> None:
         """
         Cache latest tick for a symbol (per country) with a short TTL.
@@ -126,7 +139,7 @@ class LiveDataRedis:
         try:
             self.client.set(key, json.dumps(payload, default=str), ex=ttl)
         except Exception as e:
-            logger.error(f"Failed to set tick {key}: {e}")
+            logger.error("Failed to set tick %s: %s", key, e)
 
     def upsert_current_bar_1m(
         self,
@@ -139,6 +152,7 @@ class LiveDataRedis:
 
         Uses the tick's UTC timestamp to determine the minute bucket when available.
         Falls back to server/Django time (UTC) when not.
+
         Expected tick keys: price/last/close and (optional) volume.
         Optional tick timestamp keys (any one): ts, timestamp, time, datetime
         """
@@ -158,12 +172,7 @@ class LiveDataRedis:
             volume = 0
 
         # 2) timestamp (UTC)
-        ts_raw = (
-            tick.get("ts")
-            or tick.get("timestamp")
-            or tick.get("time")
-            or tick.get("datetime")
-        )
+        ts_raw = tick.get("ts") or tick.get("timestamp") or tick.get("time") or tick.get("datetime")
         ts_epoch = _to_epoch_seconds_utc(ts_raw)
 
         # 3) minute bucket (UTC)
@@ -185,13 +194,10 @@ class LiveDataRedis:
         if not existing or existing.get("bucket") != bucket:
             # if we had a previous bucket, that bar is now closed
             if existing and existing.get("bucket") is not None:
-                # ensure closed bar has a timestamp_minute too
                 if "timestamp_minute" not in existing and "t" in existing:
                     try:
                         t_epoch = int(existing["t"])
-                        existing["timestamp_minute"] = datetime.fromtimestamp(
-                            t_epoch, tz=dt_timezone.utc
-                        ).isoformat()
+                        existing["timestamp_minute"] = datetime.fromtimestamp(t_epoch, tz=dt_timezone.utc).isoformat()
                     except Exception:
                         pass
                 closed_bar = existing
@@ -214,7 +220,6 @@ class LiveDataRedis:
             current_bar["l"] = min(float(current_bar["l"]), price)
             current_bar["c"] = price
             current_bar["v"] = float(current_bar.get("v") or 0) + volume
-            # keep timestamp_minute consistent
             current_bar["timestamp_minute"] = current_bar.get("timestamp_minute") or timestamp_minute
             current_bar["t"] = current_bar.get("t") or minute_epoch
 
@@ -232,7 +237,7 @@ class LiveDataRedis:
         try:
             self.client.rpush(key, json.dumps(bar, default=str))
         except Exception as e:
-            logger.error(f"Failed to enqueue closed bar for {country}: {e}")
+            logger.error("Failed to enqueue closed bar for %s: %s", country, e)
 
     def requeue_processing_closed_bars(self, country: str, limit: int = 10000) -> int:
         """Move any bars stuck in the processing queue back to the main queue (crash recovery)."""
@@ -247,9 +252,10 @@ class LiveDataRedis:
                     break
                 moved += 1
         except Exception as e:
-            logger.error(f"Failed to requeue processing bars for {country}: {e}")
+            logger.error("Failed to requeue processing bars for %s: %s", country, e)
         return moved
 
+    # ✅ FIXED: decode ALL items and return after loop
     def checkout_closed_bars(self, country: str, count: int = 500) -> Tuple[List[dict], List[str], int]:
         """
         Atomically move up to `count` bars from the main queue to a processing queue.
@@ -260,6 +266,7 @@ class LiveDataRedis:
         source = f"q:bars:1m:{norm_country}".lower()
         processing = f"q:bars:1m:{norm_country}:processing".lower()
         items: List[str] = []
+
         try:
             pipe = self.client.pipeline()
             for _ in range(count):
@@ -269,7 +276,7 @@ class LiveDataRedis:
             *moved_items, queue_left = results
             items = [i for i in moved_items if i]
         except Exception as e:
-            logger.error(f"Failed to checkout closed bars for {norm_country}: {e}")
+            logger.error("Failed to checkout closed bars for %s: %s", norm_country, e)
             return [], [], 0
 
         if not items:
@@ -281,7 +288,8 @@ class LiveDataRedis:
                 decoded.append(json.loads(item))
             except Exception:
                 logger.warning("Failed to decode closed bar payload for %s: %s", norm_country, item)
-            return decoded, items, int(queue_left or 0)
+
+        return decoded, items, int(queue_left or 0)
 
     def acknowledge_closed_bars(self, country: str, items: List[str]) -> None:
         """Remove successfully processed items from the processing queue."""
@@ -295,27 +303,30 @@ class LiveDataRedis:
                 pipe.lrem(key, 1, item)
             pipe.execute()
         except Exception as e:
-            logger.error(f"Failed to acknowledge closed bars for {norm_country}: {e}")
+            logger.error("Failed to acknowledge closed bars for %s: %s", norm_country, e)
 
+    # ✅ FIXED: remove from processing before requeueing (prevents duplicates)
     def return_closed_bars(self, country: str, items: List[str]) -> None:
-        """Return items to the main queue if processing failed."""
+        """Return items to the main queue if processing failed (and remove from processing queue)."""
         if not items:
             return
         norm_country = self._norm_country(country)
-        key = f"q:bars:1m:{norm_country}".lower()
+        main_key = f"q:bars:1m:{norm_country}".lower()
+        processing_key = f"q:bars:1m:{norm_country}:processing".lower()
         try:
-            self.client.rpush(key, *items)
+            pipe = self.client.pipeline()
+            for item in items:
+                pipe.lrem(processing_key, 1, item)
+            pipe.rpush(main_key, *items)
+            pipe.execute()
         except Exception as e:
-            logger.error(f"Failed to return closed bars for {norm_country}: {e}")
+            logger.error("Failed to return closed bars for %s: %s", norm_country, e)
 
-    # --- Snapshot (latest) helpers ---
-    LATEST_QUOTES_HASH = "live_data:latest:quotes"
-
+    # -------------------------
+    # Latest quote snapshot helpers
+    # -------------------------
     def set_latest_quote(self, symbol: str, data: Dict[str, Any]) -> None:
-        """Cache the latest quote for a symbol in a Redis hash.
-
-        Stored as JSON string to preserve types; use default=str for Decimals.
-        """
+        """Cache the latest quote for a symbol in a Redis hash."""
         norm_country = self._require_country(data, symbol=symbol)
         if not norm_country:
             return
@@ -323,7 +334,7 @@ class LiveDataRedis:
             payload = json.dumps({"symbol": symbol.upper(), **data, "country": norm_country}, default=str)
             self.client.hset(self.LATEST_QUOTES_HASH, symbol.upper(), payload)
         except Exception as e:
-            logger.error(f"Failed to cache latest quote for {symbol}: {e}")
+            logger.error("Failed to cache latest quote for %s: %s", symbol, e)
 
     def get_latest_quote(self, symbol: str) -> Dict[str, Any] | None:
         try:
@@ -332,41 +343,27 @@ class LiveDataRedis:
                 return None
             return json.loads(raw)
         except Exception as e:
-            logger.error(f"Failed to read latest quote for {symbol}: {e}")
+            logger.error("Failed to read latest quote for %s: %s", symbol, e)
             return None
 
     def get_latest_quotes(self, symbols: list[str]) -> list[Dict[str, Any]]:
-        out = []
+        out: list[Dict[str, Any]] = []
         for s in symbols:
             q = self.get_latest_quote(s)
             if q:
                 out.append(q)
         return out
-    
-    # --- Single-flight lock for Excel reads ---
-    EXCEL_LOCK_KEY = "live_data:excel_lock"
-    EXCEL_LOCK_TTL = 10  # seconds - prevents stale locks if a read crashes
 
+    # -------------------------
+    # Excel lock
+    # -------------------------
     def acquire_excel_lock(self, timeout: int = 10) -> bool:
-        """
-        Try to acquire exclusive Excel read lock (SET NX with TTL).
-        
-        Args:
-            timeout: Lock TTL in seconds (auto-expires if holder crashes)
-        
-        Returns:
-            True if lock acquired, False if another reader holds it
-        """
+        """Try to acquire exclusive Excel read lock (SET NX with TTL)."""
         try:
-            result = self.client.set(
-                self.EXCEL_LOCK_KEY,
-                "locked",
-                nx=True,  # Only set if key doesn't exist
-                ex=timeout  # Auto-expire after timeout seconds
-            )
+            result = self.client.set(self.EXCEL_LOCK_KEY, "locked", nx=True, ex=timeout)
             return bool(result)
         except Exception as e:
-            logger.error(f"Failed to acquire Excel lock: {e}")
+            logger.error("Failed to acquire Excel lock: %s", e)
             return False
 
     def release_excel_lock(self) -> None:
@@ -374,19 +371,19 @@ class LiveDataRedis:
         try:
             self.client.delete(self.EXCEL_LOCK_KEY)
         except Exception as e:
-            logger.error(f"Failed to release Excel lock: {e}")
-    
+            logger.error("Failed to release Excel lock: %s", e)
+
+    # -------------------------
+    # Publish helpers (quotes/positions/balances/orders/transactions)
+    # -------------------------
     def publish_quote(self, symbol: str, data: Dict[str, Any]) -> int:
         """
         Publish quote data for a symbol (used by TOS and other streaming feeds).
-        
-        Args:
-            symbol: Stock/futures symbol
-            data: Quote data (bid, ask, last, volume, etc.)
+        Requires country (drops if missing).
         """
         from .channels import get_quotes_channel
-        channel = get_quotes_channel(symbol)
 
+        channel = get_quotes_channel(symbol)
         norm_country = self._require_country(data, symbol=symbol)
         if not norm_country:
             return 0
@@ -397,9 +394,7 @@ class LiveDataRedis:
             **data,
             "country": norm_country,
         }
-        # Publish to subscribers
         result = self.publish(channel, payload)
-        # Cache snapshot
         self.set_latest_quote(symbol, payload)
         return result
 
@@ -407,13 +402,9 @@ class LiveDataRedis:
         """Publish a raw quote without requiring country. Stores snapshot and publishes a raw channel."""
         symbol_upper = symbol.upper()
         payload = {"symbol": symbol_upper, **data}
-
         try:
-            # snapshot under raw namespace
             key = f"raw:quote:{symbol_upper}"
             self.set_json(key, payload)
-
-            # optional pubsub for listeners
             channel = "raw:quotes"
             return self.publish(channel, payload)
         except Exception:
@@ -426,78 +417,38 @@ class LiveDataRedis:
             payload = json.dumps(value, default=str)
             self.client.set(name=key, value=payload, ex=ex)
         except Exception as e:
-            logger.error(f"Failed to set Redis key {key}: {e}")
-    
+            logger.error("Failed to set Redis key %s: %s", key, e)
+
     def publish_position(self, account_id: str, data: Dict[str, Any]) -> int:
-        """
-        Publish position update (used by Schwab API and other account feeds).
-        
-        Args:
-            account_id: Account identifier
-            data: Position data (symbol, quantity, market_value, etc.)
-        """
+        """Publish position update."""
         from .channels import get_positions_channel
+
         channel = get_positions_channel(account_id)
-        
-        payload = {
-            "type": "position",
-            "account_id": account_id,
-            **data
-        }
+        payload = {"type": "position", "account_id": account_id, **data}
         return self.publish(channel, payload)
-    
+
     def publish_balance(self, account_id: str, data: Dict[str, Any]) -> int:
-        """
-        Publish balance update (used by Schwab API and other account feeds).
-        
-        Args:
-            account_id: Account identifier
-            data: Balance data (cash, buying_power, account_value, etc.)
-        """
+        """Publish balance update."""
         from .channels import get_balances_channel
+
         channel = get_balances_channel(account_id)
-        
-        payload = {
-            "type": "balance",
-            "account_id": account_id,
-            **data
-        }
+        payload = {"type": "balance", "account_id": account_id, **data}
         return self.publish(channel, payload)
-    
+
     def publish_order(self, account_id: str, data: Dict[str, Any]) -> int:
-        """
-        Publish order update (used by Schwab API for order fills/status).
-        
-        Args:
-            account_id: Account identifier
-            data: Order data (order_id, symbol, status, etc.)
-        """
+        """Publish order update."""
         from .channels import get_orders_channel
+
         channel = get_orders_channel(account_id)
-        
-        payload = {
-            "type": "order",
-            "account_id": account_id,
-            **data
-        }
+        payload = {"type": "order", "account_id": account_id, **data}
         return self.publish(channel, payload)
-    
+
     def publish_transaction(self, account_id: str, data: Dict[str, Any]) -> int:
-        """
-        Publish transaction (buy/sell history).
-        
-        Args:
-            account_id: Account identifier
-            data: Transaction data (transaction_id, symbol, price, etc.)
-        """
+        """Publish transaction update."""
         from .channels import get_transactions_channel
+
         channel = get_transactions_channel(account_id)
-        
-        payload = {
-            "type": "transaction",
-            "account_id": account_id,
-            **data
-        }
+        payload = {"type": "transaction", "account_id": account_id, **data}
         return self.publish(channel, payload)
 
 
