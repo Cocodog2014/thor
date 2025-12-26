@@ -416,8 +416,12 @@ class MarketOpenCaptureService:
                 return None
 
             allowed_symbols, used_fallback = self._allowed_symbols_for_country(country_code or display_country)
-            fallback_symbols = used_fallback
-            if fallback_symbols:
+            logger.info(
+                "OpenCapture %s: allowed_symbols=%d",
+                country_code or display_country,
+                len(allowed_symbols),
+            )
+            if used_fallback:
                 logger.warning(
                     "No instruments configured for country=%s; using global symbol set and filtering to feed country=%s",
                     country_code or display_country,
@@ -446,6 +450,12 @@ class MarketOpenCaptureService:
                 filtered.append(r)
 
             enriched = filtered
+            logger.info(
+                "OpenCapture %s: enriched_rows=%d after filtering (dropped_missing_country=%d)",
+                country_code or display_country,
+                len(enriched),
+                len(dropped_missing_country),
+            )
             if not enriched:
                 logger.error(
                     "No enriched rows for %s after country/symbol filter%s",
