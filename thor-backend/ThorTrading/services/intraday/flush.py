@@ -192,7 +192,9 @@ def _update_52w_from_closed_bars(instr_rows: List[InstrumentIntraday]) -> None:
             bucket["lo"] = r.low_1m if bucket["lo"] is None else min(bucket["lo"], r.low_1m)
 
     for sym, mm in by_symbol.items():
-        stats, _ = Rolling52WeekStats.objects.get_or_create(symbol=sym)
+        stats = Rolling52WeekStats.objects.filter(symbol=sym).first()
+        if not stats:
+            continue  # Require seed to avoid creating incomplete rows
 
         minute_high = mm.get("hi")
         minute_low = mm.get("lo")
