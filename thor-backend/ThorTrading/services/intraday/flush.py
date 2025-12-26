@@ -178,6 +178,15 @@ def flush_closed_bars(country: str, batch_size: int = 500, max_batches: int = 20
             with transaction.atomic():
                 MarketIntraday.objects.bulk_create(rows, ignore_conflicts=True)
 
+            # Cache the latest flushed bar timestamp in Redis to avoid per-second DB hits in lag checks
+            try:
+                latest_ts = max((r.timestamp_minute for r in rows if r.timestamp_minute), default=None)
+                if latest_ts:
+                    cache_key = f"thor:last_bar_ts:{norm_country.lower()}"
+                    live_data_redis.client.set(cache_key, latest_ts.isoformat(), ex=3600)
+            except Exception:
+                logger.debug("Failed to cache last_bar_ts for %s", norm_country, exc_info=True)
+
             total_inserted += len(rows)
             live_data_redis.acknowledge_closed_bars(norm_country, raw_items)
 

@@ -3,7 +3,7 @@ import logging
 import os
 import threading
 from ThorTrading.GlobalMarketGate.global_market_gate import session_tracking_allowed
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import Optional
 
 from django.utils import timezone
@@ -346,13 +346,29 @@ class IntradayMarketSupervisor:
         """
         now = timezone.now()
         try:
-            last_ts = (
-                MarketIntraday.objects
-                .filter(country=country)
-                .order_by('-timestamp_minute')
-                .values_list('timestamp_minute', flat=True)
-                .first()
-            )
+            cache_key = f"thor:last_bar_ts:{country.lower()}"
+            cached = None
+            try:
+                cached_raw = live_data_redis.client.get(cache_key)
+                if cached_raw:
+                    cached = datetime.fromisoformat(cached_raw.decode() if hasattr(cached_raw, 'decode') else cached_raw)
+            except Exception:
+                cached = None
+
+            last_ts = cached
+            if last_ts is None:
+                last_ts = (
+                    MarketIntraday.objects
+                    .filter(country=country)
+                    .order_by('-timestamp_minute')
+                    .values_list('timestamp_minute', flat=True)
+                    .first()
+                )
+                if last_ts:
+                    try:
+                        live_data_redis.client.set(cache_key, last_ts.isoformat(), ex=3600)
+                    except Exception:
+                        pass
         except Exception:
             logger.exception("Lag check failed for %s", country)
             return
