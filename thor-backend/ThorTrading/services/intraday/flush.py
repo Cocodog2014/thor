@@ -237,7 +237,7 @@ def _update_52w_from_closed_bars(instr_rows: List[InstrumentIntraday]) -> None:
                 "low_52w",
                 "low_52w_date",
                 "last_price_checked",
-                "updated_at",
+                "last_updated",
             ])
 
 
