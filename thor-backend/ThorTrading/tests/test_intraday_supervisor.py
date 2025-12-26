@@ -3,9 +3,11 @@ import time
 from decimal import Decimal
 from unittest.mock import patch
 from django.test import TestCase
+from django.utils import timezone
 
 from ThorTrading.models.MarketSession import MarketSession
 from ThorTrading.services.intraday_supervisor import IntradayMarketSupervisor
+from ThorTrading.services.sessions.finalize_close import finalize_pending_sessions_at_close
 
 
 class DummyMarket:
@@ -107,4 +109,48 @@ class IntradayMarketSupervisorTests(TestCase):
         self.assertEqual(es.market_range_pct, (Decimal("210") - Decimal("201")) / Decimal("200") * Decimal("100"))
         # TOTAL range % with tolerance for rounding: (155-151)/150*100 = 2.666...
         self.assertTrue(Decimal("2.66") < total.market_range_pct < Decimal("2.67"))
+
+class FinalizeCloseTests(TestCase):
+    def _make_session(self, *, country="USA", symbol="ES", capture_group=10, wndw="PENDING", target_hit_at=None):
+        return MarketSession.objects.create(
+            session_number=capture_group,
+            capture_group=capture_group,
+            year=2025,
+            month=12,
+            date=26,
+            day="Fri",
+            country=country,
+            symbol=symbol,
+            bhs="BUY",
+            wndw=wndw,
+            entry_price=Decimal("100"),
+            target_high=Decimal("110"),
+            target_low=Decimal("90"),
+            market_open=Decimal("100"),
+            last_price=Decimal("100"),
+            target_hit_at=target_hit_at,
+        )
+
+    def test_finalize_uses_latest_capture_group(self):
+        older = self._make_session(capture_group=5)
+        newer = self._make_session(capture_group=6)
+
+        updated = finalize_pending_sessions_at_close("USA")
+
+        older.refresh_from_db(); newer.refresh_from_db()
+        self.assertEqual(updated, 1)
+        self.assertEqual(older.wndw, "PENDING")  # untouched (not latest group)
+        self.assertEqual(newer.wndw, "NEUTRAL")
+
+    def test_finalize_skips_frozen_rows(self):
+        hit_time = timezone.now()
+        frozen = self._make_session(capture_group=7, symbol="ES", target_hit_at=hit_time, wndw="WORKED")
+        pending = self._make_session(capture_group=7, symbol="NQ", target_hit_at=None, wndw="PENDING")
+
+        updated = finalize_pending_sessions_at_close("USA", capture_group=7)
+
+        frozen.refresh_from_db(); pending.refresh_from_db()
+        self.assertEqual(updated, 1)
+        self.assertEqual(frozen.wndw, "WORKED")  # not touched because already frozen
+        self.assertEqual(pending.wndw, "NEUTRAL")
 

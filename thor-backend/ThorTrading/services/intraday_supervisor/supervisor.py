@@ -13,6 +13,7 @@ from ThorTrading.services.quotes import get_enriched_quotes_with_composite
 from ThorTrading.integrations.accounts.snapshots import trigger_daily_account_snapshots
 from ThorTrading.services.config.country_codes import normalize_country_code
 from ThorTrading.services.sessions.first_touch import maybe_freeze_first_touch, _safe_decimal
+from ThorTrading.services.sessions.finalize_close import finalize_pending_sessions_at_close
 from ThorTrading.services.intraday.flush import flush_closed_bars
 from ThorTrading.services.intraday_supervisor.session_volume import update_session_volume_for_country
 from ThorTrading.services.sessions.metrics import MarketCloseMetric, MarketRangeMetric
@@ -135,6 +136,11 @@ class IntradayMarketSupervisor:
             MarketRangeMetric.update_for_country_on_close(country)
         except Exception:
             logger.exception("MarketRangeMetric failed for %s", country)
+
+        try:
+            finalize_pending_sessions_at_close(country)
+        except Exception:
+            logger.exception("Finalize close failed for %s", country)
 
         self._run_account_snapshot_once_per_day(country)
 
