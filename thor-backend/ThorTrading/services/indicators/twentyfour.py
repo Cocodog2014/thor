@@ -14,7 +14,7 @@ from ThorTrading.services.intraday_supervisor.utils import safe_decimal
 
 logger = logging.getLogger(__name__)
 
-LAST_SEEN_TTL_SECONDS = 60 * 60 * 24 * 3  # keep a few days to survive restarts
+LAST_SEEN_TTL_SECONDS = 60 * 60 * 24 * 7  # keep a week to survive restarts and cleanup older sessions
 
 
 def _last_seen_key(country: str, session_group: int, symbol: str) -> str:
