@@ -206,7 +206,7 @@ def flush_closed_bars(country: str, batch_size: int = 500, max_batches: int = 20
             continue
 
         rows = _to_intraday_models(norm_country, bars, session_group=session_group)
-        instrument_rows = _to_instrument_intraday_models(bars)
+        instr_rows = _to_instrument_intraday_models(bars)
 
         if not rows:
             # If nothing to insert (e.g. missing symbols), ACK so we don't loop forever
@@ -219,22 +219,8 @@ def flush_closed_bars(country: str, batch_size: int = 500, max_batches: int = 20
         try:
             with transaction.atomic():
                 MarketIntraday.objects.bulk_create(rows, ignore_conflicts=True)
-                if instrument_rows:
-                    InstrumentIntraday.objects.bulk_create(
-                        instrument_rows,
-                        update_conflicts=True,
-                        update_fields=[
-                            "open_1m",
-                            "high_1m",
-                            "low_1m",
-                            "close_1m",
-                            "volume_1m",
-                            "bid_last",
-                            "ask_last",
-                            "spread_last",
-                        ],
-                        unique_fields=["timestamp_minute", "symbol"],
-                    )
+                if instr_rows:
+                    InstrumentIntraday.objects.bulk_create(instr_rows, ignore_conflicts=True)
 
             # Cache the latest flushed bar timestamp in Redis to avoid per-second DB hits in lag checks
             try:
