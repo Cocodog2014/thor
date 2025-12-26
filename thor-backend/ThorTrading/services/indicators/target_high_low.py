@@ -7,7 +7,11 @@ from functools import lru_cache
 from decimal import Decimal
 from typing import Optional, Tuple
 
-from ThorTrading.config.symbols import SYMBOL_NORMALIZE_MAP
+try:
+    # Optional normalization map; tolerate missing config module.
+    from ThorTrading.config.symbols import SYMBOL_NORMALIZE_MAP  # type: ignore
+except Exception:  # pragma: no cover - defensive for missing file
+    SYMBOL_NORMALIZE_MAP: dict[str, str] = {}
 from ThorTrading.models.target_high_low import TargetHighLowConfig
 from ThorTrading.models import TradingInstrument
 

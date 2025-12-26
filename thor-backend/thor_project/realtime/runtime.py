@@ -107,12 +107,15 @@ def start_realtime(force: bool = False) -> None:
         def _handler(signum, frame):  # type: ignore[override]
             _request_shutdown(f"signal {signum}")
 
-            prev = prev_sigint if signum == signal.SIGINT else prev_sigterm
+            if signum == signal.SIGINT:
+                if callable(prev_sigint):
+                    return prev_sigint(signum, frame)
+                # Exit cleanly without KeyboardInterrupt traceback.
+                sys.exit(0)
+
+            prev = prev_sigterm if signum == signal.SIGTERM else None
             if callable(prev):
                 return prev(signum, frame)
-
-            if signum == signal.SIGINT:
-                raise KeyboardInterrupt
 
         try:
             signal.signal(signal.SIGINT, _handler)

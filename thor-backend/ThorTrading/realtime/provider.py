@@ -182,7 +182,8 @@ def register(registry):
         InlineJob("market_grader", 1.0, _run_market_grader),
         InlineJob("vwap_minute_capture", 60.0, _run_vwap_minute),
         InlineJob("twentyfour_hour", 30.0, _run_twentyfour),
-        InlineJob("preopen_backtest", 30.0, _run_preopen),
+        # Preopen disabled until symbol source restored
+        # InlineJob("preopen_backtest", 30.0, _run_preopen),
     ]
 
     job_names = []
