@@ -135,26 +135,98 @@ class MarketOpenCaptureService:
             except Exception:  # noqa: BLE001
                 return None
 
+    def _persist_fallback_instruments(self, canonical_country: str, fallback_qs):
+        """Clone fallback instruments into the target country so future runs are country-scoped."""
+        created_symbols = []
+        with transaction.atomic():
+            for inst in fallback_qs:
+                defaults = {
+                    "name": inst.name,
+                    "description": inst.description,
+                    "category": inst.category,
+                    "exchange": inst.exchange,
+                    "currency": inst.currency,
+                    "is_active": inst.is_active,
+                    "is_watchlist": inst.is_watchlist,
+                    "show_in_ribbon": getattr(inst, "show_in_ribbon", False),
+                    "sort_order": inst.sort_order,
+                    "display_precision": inst.display_precision,
+                    "tick_size": inst.tick_size,
+                    "contract_size": inst.contract_size,
+                    "api_provider": inst.api_provider,
+                    "api_symbol": inst.api_symbol,
+                    "feed_symbol": inst.feed_symbol,
+                    "update_frequency": inst.update_frequency,
+                    "is_market_open": False,
+                    "margin_requirement": getattr(inst, "margin_requirement", None),
+                    "tick_value": getattr(inst, "tick_value", None),
+                }
+
+                obj, created = TradingInstrument.objects.get_or_create(
+                    country=canonical_country,
+                    symbol=inst.symbol,
+                    defaults=defaults,
+                )
+                if created:
+                    created_symbols.append(obj.symbol.strip().upper())
+
+        if created_symbols:
+            logger.warning(
+                "Persisted %s fallback instruments into %s: %s",
+                len(created_symbols),
+                canonical_country,
+                created_symbols,
+            )
+
     def _allowed_symbols_for_country(self, country_code: str) -> tuple[set[str], bool]:
         """
-        Instrument-neutral allowed list:
-        Uses TradingInstrument admin flags.
+        Instrument-neutral allowed list from admin-managed TradingInstrument rows.
+
+        Order of truth:
+        1) Country-scoped instruments (is_active + is_watchlist)
+        2) If none exist, fall back to all active+watchlist instruments (global list),
+           then persist that set into the country so future runs stay country-specific.
         """
+
+        canonical_country = normalize_country_code(country_code) or country_code
+
         qs = TradingInstrument.objects.filter(
             is_active=True,
             is_watchlist=True,
-            country=country_code,
+            country=canonical_country,
         ).values_list("symbol", flat=True)
 
         symbols = {s.strip().upper() for s in qs if s}
         used_fallback = False
 
-        # No fallback: markets without country-scoped instruments should produce no captures
         if not symbols:
-            logger.error(
-                "No country-scoped instruments for %s; capture will be skipped",
-                country_code,
-            )
+            fallback_qs = TradingInstrument.objects.filter(is_active=True, is_watchlist=True)
+            symbols = {s.symbol.strip().upper() for s in fallback_qs if s.symbol}
+            used_fallback = True
+
+            if symbols:
+                logger.warning(
+                    "No instruments configured for %s; falling back to global Trading Instruments (%s symbols) and persisting to country",
+                    canonical_country,
+                    len(symbols),
+                )
+                self._persist_fallback_instruments(canonical_country, fallback_qs)
+
+                # Re-read the country-scoped symbols after persistence to keep captures country-specific going forward
+                symbols = {
+                    s.strip().upper()
+                    for s in TradingInstrument.objects.filter(
+                        is_active=True,
+                        is_watchlist=True,
+                        country=canonical_country,
+                    ).values_list("symbol", flat=True)
+                    if s
+                }
+            else:
+                logger.error(
+                    "No Trading Instruments available for %s; capture will be skipped",
+                    canonical_country,
+                )
 
         return symbols, used_fallback
 
