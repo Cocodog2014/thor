@@ -15,6 +15,7 @@ from __future__ import annotations
 
 from typing import List, Dict, Tuple
 import logging
+import json
 
 from LiveData.shared.redis_client import live_data_redis
 from ThorTrading.config.markets import get_control_countries
@@ -25,6 +26,26 @@ from ThorTrading.services.config.country_codes import normalize_country_code, is
 from ThorTrading.services.quotes.row_metrics import compute_row_metrics
 
 logger = logging.getLogger(__name__)
+
+
+def _load_raw_quote(symbol: str) -> dict | None:
+    key = f"raw:quote:{symbol.upper()}"
+    raw = live_data_redis.client.get(key)
+    if not raw:
+        return None
+    try:
+        return json.loads(raw)
+    except Exception:
+        return None
+
+
+def _as_float(x):
+    try:
+        if x is None or x == "":
+            return None
+        return float(x)
+    except Exception:
+        return None
 
 
 def _fallback_country_from_clock(control_countries: list[str]) -> str | None:
@@ -164,7 +185,28 @@ def build_enriched_rows(raw_quotes: Dict[str, Dict]) -> List[Dict]:
                 'high_52w': str(stat.high_52w) if (stat and stat.high_52w) else None,
                 'low_52w': str(stat.low_52w) if (stat and stat.low_52w) else None,
             },
+            'source': 'OTHER',
         }
+
+        # Prefer raw Excel quote for price fields when available
+        rawq = _load_raw_quote(sym)
+        if rawq:
+            raw_last = _as_float(rawq.get('last'))
+            raw_bid = _as_float(rawq.get('bid'))
+            raw_ask = _as_float(rawq.get('ask'))
+
+            if raw_last is not None:
+                row['last'] = raw_last
+                row['price'] = raw_last
+                if raw_bid is not None:
+                    row['bid'] = raw_bid
+                if raw_ask is not None:
+                    row['ask'] = raw_ask
+                if rawq.get('volume') is not None:
+                    row['volume'] = rawq.get('volume')
+                if not row.get('timestamp') and rawq.get('timestamp') is not None:
+                    row['timestamp'] = rawq.get('timestamp')
+                row['source'] = 'TOS_EXCEL'
 
         enrich_quote_row(row)
         try:
