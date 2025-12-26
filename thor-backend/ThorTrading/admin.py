@@ -451,9 +451,8 @@ class Rolling52WeekStatsAdmin(admin.ModelAdmin):
         super().save_model(request, obj, form, change)
 
     def get_readonly_fields(self, request, obj=None):
-        # After initial creation, lock extreme fields to enforce data integrity
-        ro = list(super().get_readonly_fields(request, obj))
-        if obj:  # editing existing
+        ro = ['last_price_checked', 'last_updated', 'created_at']
+        if obj and not request.user.is_superuser:
             ro.extend([
                 'high_52w', 'high_52w_date', 'low_52w', 'low_52w_date',
                 'all_time_high', 'all_time_high_date', 'all_time_low', 'all_time_low_date'
