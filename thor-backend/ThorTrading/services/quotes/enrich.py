@@ -116,8 +116,12 @@ def build_enriched_rows(raw_quotes: Dict[str, Dict]) -> List[Dict]:
 
         stat = stats_52w.get(sym)
 
-        raw_country = quote.get('country') or quote.get('market') or getattr(inst, 'country', None)
-        row_country = normalize_country_code(raw_country) or fallback_country
+        inst_country = normalize_country_code(getattr(inst, 'country', None))
+        raw_country = quote.get('country') or quote.get('market')
+
+        # Prefer instrument-level country tagging so cloned instruments remain scoped to their market,
+        # falling back to provider country or the control-country clock when missing.
+        row_country = inst_country or normalize_country_code(raw_country) or fallback_country
         if not row_country:
             logger.error("Dropping quote for %s missing country: %s", sym, quote)
             continue

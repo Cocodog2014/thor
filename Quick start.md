@@ -238,7 +238,7 @@ Open three terminals (or PowerShell windows).
 python -m daphne -b 127.0.0.1 -p 8000 thor_project.asgi:application
 
 2. cd A:\Thor\thor-backend
-   python manage.py poll_tos_excel --interval 1
+python manage.py poll_tos_excel --interval 1
 
 3. cd A:\Thor\thor-frontend
    npm run dev:local
