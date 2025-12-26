@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import os
 from datetime import date as date_cls
+from zoneinfo import ZoneInfo
 from decimal import Decimal
 
 from django.conf import settings
@@ -366,7 +367,7 @@ class MarketOpenCaptureService:
                 return None
 
             composite_signal = (composite.get("composite_signal") or "HOLD").upper()
-            time_info = market.get_current_market_time()
+            time_info = _market_time_info(market)
 
             session_number = self.get_next_session_number()
             with transaction.atomic():
@@ -477,15 +478,40 @@ def _get_capture_interval() -> float:
     return 1.0
 
 
-def _market_local_date(market) -> date_cls:
-    info = None
+def _market_timezone(market) -> ZoneInfo:
+    """Resolve the market timezone with a defensive fallback."""
+    tz_name = getattr(market, "timezone_name", None) or getattr(market, "timezone", None)
+    if tz_name:
+        try:
+            return ZoneInfo(tz_name)
+        except Exception:
+            logger.warning("Unknown timezone %s for %s; using default timezone instead", tz_name, getattr(market, "country", "?"))
+
     try:
-        info = market.get_current_market_time()
+        default_tz = timezone.get_default_timezone()
+        key = getattr(default_tz, "key", None) or getattr(default_tz, "zone", None) or str(default_tz)
+        return ZoneInfo(key)
     except Exception:
-        info = None
-    if info:
-        return date_cls(info["year"], info["month"], info["date"])
-    return timezone.now().date()
+        return timezone.utc
+
+
+def _market_time_info(market) -> dict:
+    """Build a date/time info dict using the market's local timezone."""
+    market_now = timezone.now().astimezone(_market_timezone(market))
+    return {
+        "year": market_now.year,
+        "month": market_now.month,
+        "date": market_now.day,
+        "day": market_now.strftime("%a"),
+        "date_obj": market_now.date(),
+    }
+
+
+def _market_local_date(market) -> date_cls:
+    try:
+        return _market_time_info(market)["date_obj"]
+    except Exception:
+        return timezone.now().date()
 
 
 def _has_capture_for_date(market, capture_date: date_cls) -> bool:
