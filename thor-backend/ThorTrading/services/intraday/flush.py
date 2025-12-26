@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from decimal import Decimal
 from datetime import datetime, timedelta, timezone as dt_timezone
 from typing import List, Tuple
 
