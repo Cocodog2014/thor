@@ -419,7 +419,8 @@ class MarketOpenCaptureService:
             fallback_symbols = used_fallback
             if fallback_symbols:
                 logger.warning(
-                    "No allowed symbols configured for country=%s (watchlist+active); using all enriched rows",
+                    "No instruments configured for country=%s; using global symbol set and filtering to feed country=%s",
+                    country_code or display_country,
                     country_code or display_country,
                 )
 
@@ -435,13 +436,12 @@ class MarketOpenCaptureService:
                 row_country_raw = r.get("country")
                 row_country = normalize_country_code(row_country_raw) if row_country_raw else None
 
-                # If we have country-tagged instruments, enforce country match; otherwise allow all rows.
-                if not fallback_symbols:
-                    if not row_country:
-                        dropped_missing_country.append(base_symbol)
-                        continue
-                    if row_country != (country_code or display_country):
-                        continue
+                # Always enforce country match to avoid cross-market borrowing, even during fallback
+                if not row_country:
+                    dropped_missing_country.append(base_symbol)
+                    continue
+                if row_country != (country_code or display_country):
+                    continue
 
                 filtered.append(r)
 
