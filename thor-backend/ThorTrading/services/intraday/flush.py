@@ -35,10 +35,7 @@ def _pop_closed_bars(country: str, batch_size: int = 500) -> Tuple[List[dict], L
 def _resolve_session_group(country: str) -> int | None:
     """
     Resolve the most recent capture_group for this country.
-    If absent, intraday flush can either:
-      - defer until capture_group exists (strict), OR
-      - insert with twentyfour=None (lenient) and backfill later.
-    This file uses STRICT mode by default.
+    Behavior: MarketIntraday requires a session_group; InstrumentIntraday is always written.
     """
     return (
         MarketSession.objects
@@ -249,9 +246,10 @@ def _update_52w_from_closed_bars(instr_rows: List[InstrumentIntraday]) -> None:
 def flush_closed_bars(country: str, batch_size: int = 500, max_batches: int = 20) -> int:
     """
     Drain Redis closed-bar queue for a country and bulk insert into MarketIntraday.
+    Strict for MarketIntraday; always-write InstrumentIntraday.
 
-    STRICT MODE:
-      - If capture_group/session_group is missing, we requeue and stop.
+    If capture_group/session_group is missing, we defer MarketIntraday (projection) but
+    still persist InstrumentIntraday (truth) so 52w stats and downstream readers stay current.
 
     Safety:
       - Requeues bars stuck in processing (crash recovery)
@@ -270,7 +268,7 @@ def flush_closed_bars(country: str, batch_size: int = 500, max_batches: int = 20
     session_group_available = session_group is not None
     if not session_group_available:
         logger.warning(
-            "Strict mode: session_group missing for %s; will skip MarketIntraday but still fill InstrumentIntraday.",
+            "Market projection deferred: session_group missing for %s; Instrument truth will still be written.",
             norm_country,
         )
 
@@ -331,10 +329,11 @@ def flush_closed_bars(country: str, batch_size: int = 500, max_batches: int = 20
                     logger.exception("Failed to update 52w stats from closed bars")
 
             logger.info(
-                "minute close flush: country=%s decoded=%s inserted=%s queue_left=%s",
+                "minute close flush: country=%s decoded=%s market_inserted=%s instrument_inserted=%s queue_left=%s",
                 norm_country,
                 len(bars),
                 len(rows),
+                len(instr_rows),
                 queue_left,
             )
 
