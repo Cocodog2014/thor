@@ -301,11 +301,17 @@ def flush_closed_bars(country: str, batch_size: int = 500, max_batches: int = 20
                 if rows:
                     MarketIntraday.objects.bulk_create(rows, ignore_conflicts=True)
                 if instr_rows:
-                        InstrumentIntraday.objects.bulk_create(instr_rows, ignore_conflicts=True)
+                    InstrumentIntraday.objects.bulk_create(instr_rows, ignore_conflicts=True)
 
             # Cache the latest flushed bar timestamp in Redis to avoid per-second DB hits in lag checks
             try:
-                latest_ts = max((r.timestamp_minute for r in rows if r.timestamp_minute), default=None)
+                latest_ts = max(
+                    [
+                        *(r.timestamp_minute for r in rows if r.timestamp_minute),
+                        *(r.timestamp_minute for r in instr_rows if r.timestamp_minute),
+                    ],
+                    default=None,
+                )
                 if latest_ts:
                     cache_key = f"thor:last_bar_ts:{norm_country.lower()}"
                     live_data_redis.client.set(cache_key, latest_ts.isoformat(), ex=3600)
