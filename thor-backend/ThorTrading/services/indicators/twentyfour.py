@@ -18,7 +18,8 @@ LAST_SEEN_TTL_SECONDS = 60 * 60 * 24 * 3  # keep a few days to survive restarts
 
 
 def _last_seen_key(country: str, session_group: int, symbol: str) -> str:
-    return f"thor:last_seen_vol:{(country or '').lower()}:{session_group}:{symbol}"
+    # Scoped to 24h updates to avoid cross-talk with session volume tracking.
+    return f"thor:last_seen_vol24h:{(country or '').lower()}:{session_group}:{symbol}"
 
 
 def _get_last_seen(country: str, session_group: int, symbol: str) -> int | None:
