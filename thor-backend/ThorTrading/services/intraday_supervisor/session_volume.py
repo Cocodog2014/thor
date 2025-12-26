@@ -9,7 +9,7 @@ from ThorTrading.models.MarketSession import MarketSession
 
 logger = logging.getLogger(__name__)
 
-# Cache last seen cumulative volume per (capture_group, symbol) to prevent
+# Cache last seen cumulative volume per (session_group, symbol) to prevent
 # re-adding the same cumulative feed volume on each tick.
 _LAST_SEEN: Dict[tuple[int, str], int] = {}
 
@@ -20,14 +20,14 @@ def update_session_volume_for_country(country: str, enriched_rows: Iterable[dict
 
     Mirrors the VWAP delta approach: uses cumulative feed volume and stores
     only the positive delta since the last seen cumulative for a given
-    capture_group + symbol pair.
+    session_group + symbol pair.
     """
     # Fast exit when no quotes
     enriched_rows = list(enriched_rows or [])
     if not enriched_rows:
         return {"session_volume_updates": 0}
 
-    latest_group = (
+    session_group = (
         MarketSession.objects
         .filter(country=country)
         .exclude(capture_group__isnull=True)
@@ -35,13 +35,13 @@ def update_session_volume_for_country(country: str, enriched_rows: Iterable[dict
         .values_list('capture_group', flat=True)
         .first()
     )
-    if latest_group is None:
+    if session_group is None:
         return {"session_volume_updates": 0}
 
-    # Build a cache of sessions for this capture_group keyed by symbol.
+    # Build a cache of sessions for this session_group keyed by symbol.
     sessions = {
         row.symbol: row
-        for row in MarketSession.objects.filter(country=country, capture_group=latest_group)
+        for row in MarketSession.objects.filter(country=country, capture_group=session_group)
     }
 
     updates = 0
@@ -63,7 +63,7 @@ def update_session_volume_for_country(country: str, enriched_rows: Iterable[dict
         if not session:
             continue
 
-        key = (latest_group, symbol)
+        key = (session_group, symbol)
         prior_seen = _LAST_SEEN.get(key)
         if prior_seen is None:
             prior_seen = int(session.session_volume or 0)
@@ -79,7 +79,7 @@ def update_session_volume_for_country(country: str, enriched_rows: Iterable[dict
         updates += 1
 
     if updates and logger.isEnabledFor(logging.DEBUG):
-        logger.debug("Session volume updated: country=%s capture_group=%s rows=%s", country, latest_group, updates)
+        logger.debug("Session volume updated: country=%s session_group=%s rows=%s", country, session_group, updates)
 
     return {"session_volume_updates": updates}
 

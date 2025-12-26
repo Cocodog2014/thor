@@ -34,7 +34,7 @@ def _pop_closed_bars(country: str, batch_size: int = 500) -> Tuple[List[dict], L
 
 def _resolve_session_group(country: str) -> int | None:
     """
-    Resolve the most recent capture_group for this country.
+    Resolve the most recent session_group (DB column capture_group) for this country.
     Behavior: MarketIntraday requires a session_group; InstrumentIntraday is always written.
     """
     return (
@@ -263,7 +263,7 @@ def flush_closed_bars(country: str, batch_size: int = 500, max_batches: int = 20
     if recovered:
         logger.warning("Recovered %s bars from processing queue for %s", recovered, norm_country)
 
-    # 2) Resolve capture_group/session_group (strict)
+    # 2) Resolve session_group (DB capture_group) for MarketIntraday
     session_group = _resolve_session_group(norm_country)
     session_group_available = session_group is not None
     if not session_group_available:

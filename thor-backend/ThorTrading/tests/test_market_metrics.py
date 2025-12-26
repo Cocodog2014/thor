@@ -34,7 +34,7 @@ class MarketOpenMetricTests(TestCase):
         ym = make_session("USA", "YM", 1, last_price=Decimal("100"))
         total = make_session("USA", "TOTAL", 1, last_price=Decimal("250"))
 
-        updated = MarketOpenMetric.update_for_capture_group(1)
+        updated = MarketOpenMetric.update_for_session_group(1)
         self.assertEqual(updated, 2)
         ym.refresh_from_db(); total.refresh_from_db()
         self.assertEqual(ym.market_open, Decimal("100"))
@@ -44,7 +44,7 @@ class MarketOpenMetricTests(TestCase):
         """Verify TOTAL row gets market_open just like individual futures."""
         for future in ["YM", "ES", "NQ", "TOTAL"]:
             make_session("USA", future, 2, last_price=Decimal("100"))
-        updated = MarketOpenMetric.update_for_capture_group(2)
+        updated = MarketOpenMetric.update_for_session_group(2)
         self.assertEqual(updated, 4)
         total = MarketSession.objects.get(country="USA", symbol="TOTAL", session_number=2)
         self.assertEqual(total.market_open, Decimal("100"))
