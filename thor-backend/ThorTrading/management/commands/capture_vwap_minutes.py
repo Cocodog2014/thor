@@ -19,7 +19,7 @@ from django.core.management.base import BaseCommand
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 from LiveData.shared.redis_client import live_data_redis
-from ThorTrading.config.symbols import FUTURES_SYMBOLS, REDIS_SYMBOL_MAP
+from ThorTrading.models import TradingInstrument
 from ThorTrading.models.vwap import VwapMinute
 
 
@@ -48,6 +48,19 @@ def resolve_sample_time(now, quote):
 class Command(BaseCommand):
     help = "Capture per-minute VWAP source rows (raw Redis snapshots)"
 
+    def _tracked_symbols(self):
+        try:
+            qs = TradingInstrument.objects.filter(is_active=True, is_watchlist=True)
+            symbols = []
+            for sym in qs.values_list("symbol", flat=True):
+                if not sym:
+                    continue
+                symbols.append((sym.lstrip("/").upper(), sym))
+            return symbols
+        except Exception:
+            self.stdout.write(self.style.ERROR("Failed to load tracked instruments"))
+            return []
+
     def add_arguments(self, parser):
         parser.add_argument(
             "--interval",
@@ -69,21 +82,20 @@ class Command(BaseCommand):
             while True:
                 sample_count += 1
                 now = timezone.now()
-                for sym in FUTURES_SYMBOLS:
-                    redis_key = REDIS_SYMBOL_MAP.get(sym, sym)
+                for norm_sym, redis_key in self._tracked_symbols():
                     quote = live_data_redis.get_latest_quote(redis_key)
                     if not quote:
                         continue
                     sample_ts = resolve_sample_time(now, quote)
                     current_minute = floor_to_minute(sample_ts)
                     # Skip if already captured this minute for symbol
-                    if last_minute_per_symbol.get(sym) == current_minute:
+                    if last_minute_per_symbol.get(norm_sym) == current_minute:
                         continue
                     # Persist row (idempotent per symbol+minute)
                     last_price = _dec(quote.get("last"))
                     cum_vol = _int(quote.get("volume"))
                     obj, created = VwapMinute.objects.get_or_create(
-                        symbol=sym,
+                        symbol=norm_sym,
                         timestamp_minute=current_minute,
                         defaults={
                             "last_price": last_price,
@@ -103,7 +115,7 @@ class Command(BaseCommand):
                             update_fields.append("cumulative_volume")
                         if update_fields:
                             obj.save(update_fields=update_fields)
-                    last_minute_per_symbol[sym] = current_minute
+                    last_minute_per_symbol[norm_sym] = current_minute
                 if sample_count % 10 == 0:  # periodic progress
                     self.stdout.write(f"Samples={sample_count} rows_created={created_rows}")
                 time.sleep(interval)

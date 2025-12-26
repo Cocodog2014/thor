@@ -140,7 +140,7 @@ def _run_twentyfour(ctx: Any) -> None:
 
 def _run_preopen(ctx: Any) -> None:
     from GlobalMarkets.services.active_markets import get_control_markets
-    from ThorTrading.config.symbols import FUTURES_SYMBOLS
+    from ThorTrading.config.symbols import get_ribbon_symbols
     from ThorTrading.services.analytics.backtest_stats import compute_backtest_stats_for_country_symbol
 
     markets = get_control_markets()
@@ -160,7 +160,8 @@ def _run_preopen(ctx: Any) -> None:
             if seconds <= 0 or seconds > 60:
                 continue
 
-            for future in FUTURES_SYMBOLS:
+            symbols = get_ribbon_symbols(country=m.country)
+            for future in symbols:
                 try:
                     compute_backtest_stats_for_country_symbol(country=m.country, symbol=future)
                 except Exception:

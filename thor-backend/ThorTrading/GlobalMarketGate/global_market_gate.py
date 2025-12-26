@@ -74,7 +74,7 @@ def _refresh_controlled_countries(force: bool = False) -> Set[str]:
 
 
 # Seed initial snapshot at import time
-_refresh_controlled_countries(force=True)
+# Initial population deferred until first call to avoid DB hits during app import
 
 _ACTIVE_COUNTRIES: Set[str] = set()
 _ACTIVE_LOCK = threading.RLock()

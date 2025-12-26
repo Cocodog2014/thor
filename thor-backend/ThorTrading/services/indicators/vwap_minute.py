@@ -9,7 +9,7 @@ from typing import Any, Dict, Tuple
 from django.utils import timezone
 
 from LiveData.shared.redis_client import live_data_redis
-from ThorTrading.config.symbols import FUTURES_SYMBOLS, REDIS_SYMBOL_MAP
+from ThorTrading.models import TradingInstrument
 from ThorTrading.models.vwap import VwapMinute
 
 logger = logging.getLogger(__name__)
@@ -40,6 +40,22 @@ def _int(val):
             return None
 
 
+def _tracked_symbols() -> list[tuple[str, str]]:
+    """Return list of (normalized_symbol, redis_key) for active watchlist instruments."""
+    try:
+        qs = TradingInstrument.objects.filter(is_active=True, is_watchlist=True)
+        symbols = []
+        for sym in qs.values_list("symbol", flat=True):
+            if not sym:
+                continue
+            norm = sym.lstrip("/").upper()
+            symbols.append((norm, sym))
+        return symbols
+    except Exception:
+        logger.exception("VWAP: failed to load tracked instruments")
+        return []
+
+
 def capture_vwap_minute(shared_state: Dict[str, Any]) -> Tuple[int, int]:
     """Capture one VWAP row per symbol per minute.
 
@@ -53,16 +69,15 @@ def capture_vwap_minute(shared_state: Dict[str, Any]) -> Tuple[int, int]:
     samples = 0
     rows_created = 0
 
-    for sym in FUTURES_SYMBOLS:
+    for norm_sym, redis_key in _tracked_symbols():
         try:
-            redis_key = REDIS_SYMBOL_MAP.get(sym, sym)
             quote = live_data_redis.get_latest_quote(redis_key)
             if not quote:
                 continue
 
             samples += 1
 
-            if last_minute_per_symbol.get(sym) == current_minute:
+            if last_minute_per_symbol.get(norm_sym) == current_minute:
                 continue
 
             defaults = {
@@ -70,15 +85,15 @@ def capture_vwap_minute(shared_state: Dict[str, Any]) -> Tuple[int, int]:
                 "cumulative_volume": _int(quote.get("volume")),
             }
             _, created = VwapMinute.objects.update_or_create(
-                symbol=sym,
+                symbol=norm_sym,
                 timestamp_minute=current_minute,
                 defaults=defaults,
             )
-            last_minute_per_symbol[sym] = current_minute
+            last_minute_per_symbol[norm_sym] = current_minute
             if created:
                 rows_created += 1
         except Exception:
-            logger.exception("VWAP row creation failed for %s", sym)
+            logger.exception("VWAP row creation failed for %s", norm_sym)
 
     return samples, rows_created
 

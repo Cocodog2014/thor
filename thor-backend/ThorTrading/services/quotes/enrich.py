@@ -18,7 +18,6 @@ import logging
 
 from LiveData.shared.redis_client import live_data_redis
 from ThorTrading.config.markets import get_control_countries
-from ThorTrading.config.symbols import FUTURES_SYMBOLS, REDIS_SYMBOL_MAP, SYMBOL_NORMALIZE_MAP
 from ThorTrading.models.extremes import Rolling52WeekStats
 from ThorTrading.models import TradingInstrument
 from ThorTrading.services.quotes.classification import enrich_quote_row, compute_composite
@@ -70,17 +69,29 @@ def _fallback_country_from_clock(control_countries: list[str]) -> str | None:
     return normalize_country_code(getattr(chosen, "country", None)) or getattr(chosen, "country", None)
 
 
+def _tracked_instruments() -> List[TradingInstrument]:
+    """Return active/watchlist instruments in a stable order."""
+    try:
+        qs = TradingInstrument.objects.filter(is_active=True, is_watchlist=True)
+        instruments = list(qs.order_by("sort_order", "symbol")) if qs.model._meta.get_field("symbol") else list(qs)
+        return instruments
+    except Exception:
+        logger.exception("Failed to load tracked instruments")
+        return []
+
+
 def fetch_raw_quotes() -> Dict[str, Dict]:
-    """Fetch latest raw quotes from Redis for all tracked futures symbols."""
+    """Fetch latest raw quotes from Redis for all tracked instruments."""
     out: Dict[str, Dict] = {}
-    for sym in FUTURES_SYMBOLS:
-        key = REDIS_SYMBOL_MAP.get(sym, sym)
+    for inst in _tracked_instruments():
+        sym = inst.symbol.lstrip("/").upper()
+        key = inst.symbol  # use stored symbol as redis key
         try:
             data = live_data_redis.get_latest_quote(key)
             if data:
                 out[sym] = data
         except Exception as e:
-            logger.error(f"Redis fetch failed for {sym}: {e}")
+            logger.error(f"Redis fetch failed for %s: %s", sym, e)
     return out
 
 
@@ -89,35 +100,23 @@ def _to_str(v):
 
 
 def build_enriched_rows(raw_quotes: Dict[str, Dict]) -> List[Dict]:
-    """Return enriched row dicts (one per future)."""
+    """Return enriched row dicts (one per tracked instrument)."""
     control_countries = get_control_countries(require_session_capture=True)
     stats_52w = {s.symbol: s for s in Rolling52WeekStats.objects.all()}
-    # Prefetch display precision for all tracked symbols in one query
-    norm_symbols = [SYMBOL_NORMALIZE_MAP.get(sym, sym) for sym in FUTURES_SYMBOLS]
-    query_symbols = norm_symbols + [f'/{s}' for s in norm_symbols]
-    precision_map: Dict[str, int] = {}
-    instrument_meta: Dict[str, Dict[str, str]] = {}
-    for inst in TradingInstrument.objects.filter(symbol__in=query_symbols):
-        key = inst.symbol.lstrip('/').upper()
-        # Prefer first occurrence (avoid overwriting with alt symbol formatting)
-        if key not in precision_map:
-            precision_map[key] = inst.display_precision
-        # Capture tick_value and margin_requirement (convert to str for JSON)
-        instrument_meta[key] = {
-            'tick_value': _to_str(inst.tick_value),
-            'margin_requirement': _to_str(inst.margin_requirement),
-        }
+
+    instruments = _tracked_instruments()
     rows: List[Dict] = []
     fallback_country = _fallback_country_from_clock(control_countries)
 
-    for idx, sym in enumerate(FUTURES_SYMBOLS):
+    for idx, inst in enumerate(instruments):
+        sym = inst.symbol.lstrip('/').upper()
         quote = raw_quotes.get(sym)
         if not quote:
             continue
-        norm = SYMBOL_NORMALIZE_MAP.get(sym, sym)
-        stat = stats_52w.get(norm)
 
-        raw_country = quote.get('country') or quote.get('market')
+        stat = stats_52w.get(sym)
+
+        raw_country = quote.get('country') or quote.get('market') or getattr(inst, 'country', None)
         row_country = normalize_country_code(raw_country) or fallback_country
         if not row_country:
             logger.error("Dropping quote for %s missing country: %s", sym, quote)
@@ -127,23 +126,21 @@ def build_enriched_rows(raw_quotes: Dict[str, Dict]) -> List[Dict]:
             continue
         quote['country'] = row_country
 
-        meta = instrument_meta.get(norm, {})
         row = {
             'instrument': {
                 'id': idx + 1,
-                'symbol': norm,
-                'name': norm,
-                'exchange': 'TOS',
-                'currency': 'USD',
-                'display_precision': precision_map.get(norm, 2),
-                'is_active': True,
-                'sort_order': idx,
-                'tick_value': meta.get('tick_value'),
-                'margin_requirement': meta.get('margin_requirement'),
+                'symbol': sym,
+                'name': inst.name or sym,
+                'exchange': getattr(inst, 'exchange', 'TOS'),
+                'currency': getattr(inst, 'currency', 'USD'),
+                'display_precision': getattr(inst, 'display_precision', 2),
+                'is_active': getattr(inst, 'is_active', True),
+                'sort_order': getattr(inst, 'sort_order', idx),
+                'tick_value': _to_str(getattr(inst, 'tick_value', None)),
+                'margin_requirement': _to_str(getattr(inst, 'margin_requirement', None)),
                 'country': row_country,
             },
             'country': row_country,
-            # Ensure downstream composite has a timestamp
             'timestamp': quote.get('timestamp'),
             'price': _to_str(quote.get('last')),
             'last': _to_str(quote.get('last')),
@@ -172,7 +169,7 @@ def build_enriched_rows(raw_quotes: Dict[str, Dict]) -> List[Dict]:
             if row.get('change_percent') in (None, '', ''):
                 row['change_percent'] = metrics.get('last_prev_pct')
         except Exception as e:
-            logger.warning(f"Metrics failed for {norm}: {e}")
+            logger.warning(f"Metrics failed for {sym}: {e}")
 
         rows.append(row)
     return rows
