@@ -216,10 +216,12 @@ class IntradayMarketSupervisor:
         filtered_rows = []
 
         for row in enriched or []:
-            row_country = normalize_country_code(
-                row.get('country') or row.get('instrument', {}).get('country')
-            )
-            if row_country and row_country != country:
+            row_country_raw = row.get('country')
+            row_country = normalize_country_code(row_country_raw)
+            if not row_country:
+                logger.warning("Intraday %s: dropping row missing country (symbol=%s)", country, row.get('instrument', {}).get('symbol'))
+                continue
+            if row_country != country:
                 continue
             sym = row.get('instrument', {}).get('symbol')
             if not sym:
