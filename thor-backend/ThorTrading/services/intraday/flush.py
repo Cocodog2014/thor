@@ -124,7 +124,10 @@ def _to_intraday_models(country: str, bars: List[dict], session_group: int) -> L
 
 
 def _to_instrument_intraday_models(bars: List[dict]) -> List[InstrumentIntraday]:
-    """Convert decoded bar dicts -> InstrumentIntraday ORM objects (global scope)."""
+    """
+    Convert decoded bar dicts -> InstrumentIntraday ORM objects (neutral truth).
+    No country, no session_group required.
+    """
     rows: List[InstrumentIntraday] = []
 
     for b in bars:
@@ -149,13 +152,13 @@ def _to_instrument_intraday_models(bars: List[dict]) -> List[InstrumentIntraday]
                     low_1m=b.get("l"),
                     close_1m=b.get("c"),
                     volume_1m=int(b.get("v") or 0),
-                    bid_last=b.get("bid") or b.get("bid_last"),
-                    ask_last=b.get("ask") or b.get("ask_last"),
-                    spread_last=b.get("spread") or b.get("spread_last"),
+                    bid_last=None,
+                    ask_last=None,
+                    spread_last=None,
                 )
             )
         except Exception:
-            logger.exception("Failed to convert bar payload (global) %s", b)
+            logger.exception("Failed to convert instrument bar payload: %s", b)
 
     return rows
 
