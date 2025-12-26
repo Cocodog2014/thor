@@ -58,6 +58,31 @@ def _run_closed_bars(ctx: Any) -> None:
             logger.warning("Closed bar flush failed for %s", country, exc_info=True)
 
 
+def _run_intraday_flush(ctx: Any) -> None:
+    """More frequent closed-bar flush for open markets (heartbeat-driven)."""
+
+    from GlobalMarkets.services.active_markets import get_active_control_countries
+    from ThorTrading.services.intraday.flush import flush_closed_bars
+
+    countries = get_active_control_countries()
+    if not countries:
+        return
+
+    for country in countries:
+        try:
+            total = 0
+            batch_size = 500
+            while True:
+                inserted = flush_closed_bars(country, batch_size=batch_size)
+                if not inserted:
+                    break
+                total += inserted
+            if total:
+                logger.info("Intraday flush inserted %s rows for %s", total, country)
+        except Exception:
+            logger.warning("Intraday flush failed for %s", country, exc_info=True)
+
+
 def _run_market_metrics(ctx: Any) -> None:
     from GlobalMarkets.services.active_markets import get_active_control_countries
     from ThorTrading.services.quotes import get_enriched_quotes_with_composite
@@ -177,6 +202,7 @@ def _run_preopen(ctx: Any) -> None:
 def register(registry):
     jobs = [
         InlineJob("intraday_tick", 1.0, _run_intraday),
+        InlineJob("intraday_flush", 5.0, _run_intraday_flush),
         InlineJob("closed_bars_flush", 60.0, _run_closed_bars),
         InlineJob("market_metrics", 10.0, _run_market_metrics),
         InlineJob("market_grader", 1.0, _run_market_grader),

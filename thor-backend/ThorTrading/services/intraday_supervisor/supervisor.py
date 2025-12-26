@@ -271,7 +271,11 @@ class IntradayMarketSupervisor:
             logger.info("Intraday flush 1m bars: country=%s inserted=%s", country, total)
 
     def _tracking_enabled(self, market) -> bool:
-           return session_tracking_allowed(market)
+        if not getattr(market, "is_active", True):
+            return False
+        if not getattr(market, "enable_session_capture", True):
+            return False
+        return session_tracking_allowed(self._get_normalized_country(market))
 
     def _refresh_and_check_tracking(self, market) -> bool:
         """Refresh market flags and determine if intraday tracking should continue."""
