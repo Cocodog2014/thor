@@ -135,7 +135,7 @@ class MarketOpenCaptureService:
             except Exception:  # noqa: BLE001
                 return None
 
-    def _allowed_symbols_for_country(self, country_code: str) -> set[str]:
+    def _allowed_symbols_for_country(self, country_code: str) -> tuple[set[str], bool]:
         """
         Instrument-neutral allowed list:
         Uses TradingInstrument admin flags.
@@ -143,10 +143,28 @@ class MarketOpenCaptureService:
         qs = TradingInstrument.objects.filter(
             is_active=True,
             is_watchlist=True,
-            country=country_code,  # you confirmed this column exists now
+            country=country_code,
         ).values_list("symbol", flat=True)
 
-        return {s.strip().upper() for s in qs if s}
+        symbols = {s.strip().upper() for s in qs if s}
+        used_fallback = False
+
+        # Fallback: if no instruments are tagged to this country, allow any active/watchlist symbol
+        # so open capture still runs. This avoids silent skips when instrument countries aren’t set.
+        if not symbols:
+            fallback_qs = TradingInstrument.objects.filter(
+                is_active=True,
+                is_watchlist=True,
+            ).values_list("symbol", flat=True)
+            symbols = {s.strip().upper() for s in fallback_qs if s}
+            if symbols:
+                used_fallback = True
+                logger.warning(
+                    "No country-scoped instruments for %s; falling back to all active/watchlist symbols",
+                    country_code,
+                )
+
+        return symbols, used_fallback
 
     def create_session_for_symbol(
         self,
@@ -333,9 +351,13 @@ class MarketOpenCaptureService:
                 logger.error("No enriched rows for %s", country_code or display_country or "?")
                 return None
 
-            allowed_symbols = self._allowed_symbols_for_country(country_code or display_country)
-            if not allowed_symbols:
-                logger.warning("No allowed symbols configured for country=%s (watchlist+active).", country_code or display_country)
+            allowed_symbols, used_fallback = self._allowed_symbols_for_country(country_code or display_country)
+            fallback_symbols = used_fallback
+            if fallback_symbols:
+                logger.warning(
+                    "No allowed symbols configured for country=%s (watchlist+active); using all enriched rows",
+                    country_code or display_country,
+                )
 
             filtered = []
             dropped_missing_country = []
@@ -348,12 +370,14 @@ class MarketOpenCaptureService:
 
                 row_country_raw = r.get("country")
                 row_country = normalize_country_code(row_country_raw) if row_country_raw else None
-                if not row_country:
-                    dropped_missing_country.append(base_symbol)
-                    continue
 
-                if row_country != (country_code or display_country):
-                    continue
+                # If we have country-tagged instruments, enforce country match; otherwise allow all rows.
+                if not fallback_symbols:
+                    if not row_country:
+                        dropped_missing_country.append(base_symbol)
+                        continue
+                    if row_country != (country_code or display_country):
+                        continue
 
                 filtered.append(r)
 

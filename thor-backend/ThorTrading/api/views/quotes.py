@@ -8,7 +8,6 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from ThorTrading.config.symbols import SYMBOL_NORMALIZE_MAP
 from ThorTrading.models import TradingInstrument
 from ThorTrading.models.extremes import Rolling52WeekStats
 from ThorTrading.services.quotes import get_enriched_quotes_with_composite
