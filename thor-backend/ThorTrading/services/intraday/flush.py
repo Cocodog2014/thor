@@ -184,12 +184,12 @@ def flush_closed_bars(country: str, batch_size: int = 500, max_batches: int = 20
 
     # 2) Resolve capture_group/session_group (strict)
     session_group = _resolve_session_group(norm_country)
-    if session_group is None:
+    session_group_available = session_group is not None
+    if not session_group_available:
         logger.warning(
-            "Skipped flush for %s: capture_group missing (MarketSession.capture_group is null).",
+            "Strict mode: session_group missing for %s; will skip MarketIntraday but still fill InstrumentIntraday.",
             norm_country,
         )
-        return 0
 
     # 3) Drain in batches
     for _ in range(max_batches):
@@ -205,10 +205,10 @@ def flush_closed_bars(country: str, batch_size: int = 500, max_batches: int = 20
                 break
             continue
 
-        rows = _to_intraday_models(norm_country, bars, session_group=session_group)
         instr_rows = _to_instrument_intraday_models(bars)
+        rows = _to_intraday_models(norm_country, bars, session_group=session_group) if session_group_available else []
 
-        if not rows:
+        if not rows and not instr_rows:
             # If nothing to insert (e.g. missing symbols), ACK so we don't loop forever
             live_data_redis.acknowledge_closed_bars(norm_country, raw_items)
             logger.info("minute close flush: country=%s decoded=%s rows=0 queue_left=%s", norm_country, len(bars), queue_left)
@@ -218,7 +218,8 @@ def flush_closed_bars(country: str, batch_size: int = 500, max_batches: int = 20
 
         try:
             with transaction.atomic():
-                MarketIntraday.objects.bulk_create(rows, ignore_conflicts=True)
+                if rows:
+                    MarketIntraday.objects.bulk_create(rows, ignore_conflicts=True)
                 if instr_rows:
                     InstrumentIntraday.objects.bulk_create(instr_rows, ignore_conflicts=True)
 
