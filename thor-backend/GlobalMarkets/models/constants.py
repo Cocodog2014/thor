@@ -1,4 +1,5 @@
 import pytz
+from zoneinfo import ZoneInfo
 from django.conf import settings
 
 # Control Markets Configuration - The 9 markets that drive global sentiment
@@ -34,6 +35,6 @@ CONTROL_COUNTRY_CHOICES = [(c, c) for c in sorted(ALLOWED_CONTROL_COUNTRIES)]
 TIMEZONE_CHOICES = [(tz, tz) for tz in pytz.common_timezones]
 
 try:
-    _DEFAULT_MARKET_TZ = pytz.timezone(getattr(settings, "TIME_ZONE", "UTC"))
+    _DEFAULT_MARKET_TZ = ZoneInfo(getattr(settings, "TIME_ZONE", "UTC"))
 except Exception:
-    _DEFAULT_MARKET_TZ = pytz.UTC
+    _DEFAULT_MARKET_TZ = ZoneInfo("UTC")

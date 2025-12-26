@@ -1,5 +1,6 @@
 from datetime import datetime, time, timedelta
-import pytz
+from zoneinfo import ZoneInfo
+from django.utils import timezone
 
 from GlobalMarkets.models.constants import _DEFAULT_MARKET_TZ
 
@@ -16,7 +17,7 @@ def _resolve_timezone(market):
     if not tz_name:
         return None
     try:
-        return pytz.timezone(tz_name)
+        return ZoneInfo(tz_name)
     except Exception:
         return None
 
@@ -24,7 +25,8 @@ def _resolve_timezone(market):
 def get_market_time(market):
     tz = _resolve_timezone(market) or _DEFAULT_MARKET_TZ
     try:
-        now = datetime.now(tz)
+        now_utc = timezone.now()
+        now = now_utc.astimezone(tz)
         return {
             'datetime': now,
             'year': now.year,
@@ -97,15 +99,7 @@ def get_market_status(market):
         return not is_holiday(d)
 
     def combine_local(d: datetime, t: time) -> datetime:
-        naive = datetime(d.year, d.month, d.day, t.hour, t.minute, t.second)
-        try:
-            return tz.localize(naive, is_dst=None)
-        except (pytz.NonExistentTimeError, pytz.AmbiguousTimeError):
-            # Fallback: try both offsets and pick the earliest future time
-            try:
-                return tz.localize(naive, is_dst=True)
-            except Exception:
-                return tz.localize(naive, is_dst=False)
+        return datetime(d.year, d.month, d.day, t.hour, t.minute, t.second, tzinfo=tz)
 
     open_today = combine_local(now_local, market.market_open_time)
     close_today = combine_local(now_local, market.market_close_time)
