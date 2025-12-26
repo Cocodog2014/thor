@@ -410,11 +410,6 @@ class MarketOpenCaptureService:
         try:
             logger.info("Capturing %s market open...", country_code or display_country or "?")
 
-            enriched, composite = get_enriched_quotes_with_composite()
-            if not enriched:
-                logger.error("No enriched rows for %s", country_code or display_country or "?")
-                return None
-
             allowed_symbols, used_fallback = self._allowed_symbols_for_country(country_code or display_country)
             logger.info(
                 "OpenCapture %s: allowed_symbols=%d",
@@ -427,6 +422,11 @@ class MarketOpenCaptureService:
                     country_code or display_country,
                     country_code or display_country,
                 )
+
+            enriched, composite = get_enriched_quotes_with_composite()
+            if not enriched:
+                logger.error("No enriched rows for %s", country_code or display_country or "?")
+                return None
 
             filtered = []
             dropped_missing_country = []
