@@ -181,19 +181,21 @@ def _update_52w_from_closed_bars(instr_rows: List[InstrumentIntraday]) -> None:
     today = timezone.localdate()
     window_start = timezone.now() - timedelta(days=LOOKBACK_DAYS)
 
-    symbols = sorted({r.symbol for r in instr_rows if r.symbol})
+    by_symbol: dict[str, dict[str, object]] = {}
+    for r in instr_rows:
+        if not r.symbol:
+            continue
+        bucket = by_symbol.setdefault(r.symbol, {"hi": None, "lo": None})
+        if r.high_1m is not None:
+            bucket["hi"] = r.high_1m if bucket["hi"] is None else max(bucket["hi"], r.high_1m)
+        if r.low_1m is not None:
+            bucket["lo"] = r.low_1m if bucket["lo"] is None else min(bucket["lo"], r.low_1m)
 
-    for sym in symbols:
+    for sym, mm in by_symbol.items():
         stats, _ = Rolling52WeekStats.objects.get_or_create(symbol=sym)
 
-        minute_high = max(
-            (r.high_1m for r in instr_rows if r.symbol == sym and r.high_1m is not None),
-            default=None,
-        )
-        minute_low = min(
-            (r.low_1m for r in instr_rows if r.symbol == sym and r.low_1m is not None),
-            default=None,
-        )
+        minute_high = mm.get("hi")
+        minute_low = mm.get("lo")
 
         changed = False
 
