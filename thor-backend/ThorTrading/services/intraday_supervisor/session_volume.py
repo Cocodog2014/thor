@@ -1,17 +1,38 @@
 from __future__ import annotations
 
 import logging
-from typing import Dict, Iterable
+from typing import Iterable
 
 from django.db import transaction
 
+from LiveData.shared.redis_client import live_data_redis
 from ThorTrading.models.MarketSession import MarketSession
 
 logger = logging.getLogger(__name__)
 
-# Cache last seen cumulative volume per (session_group, symbol) to prevent
-# re-adding the same cumulative feed volume on each tick.
-_LAST_SEEN: Dict[tuple[int, str], int] = {}
+LAST_SEEN_TTL_SECONDS = 60 * 60 * 24 * 3  # keep a few days to survive restarts
+
+
+def _last_seen_key(country: str, session_group: int, symbol: str) -> str:
+    return f"thor:last_seen_vol:{(country or '').lower()}:{session_group}:{symbol}"
+
+
+def _get_last_seen(country: str, session_group: int, symbol: str) -> int | None:
+    try:
+        raw = live_data_redis.client.get(_last_seen_key(country, session_group, symbol))
+        if raw is None:
+            return None
+        return int(raw)
+    except Exception:
+        logger.debug("session_volume last_seen redis get failed for %s/%s", country, symbol, exc_info=True)
+        return None
+
+
+def _set_last_seen(country: str, session_group: int, symbol: str, vol: int) -> None:
+    try:
+        live_data_redis.client.set(_last_seen_key(country, session_group, symbol), int(vol), ex=LAST_SEEN_TTL_SECONDS)
+    except Exception:
+        logger.debug("session_volume last_seen redis set failed for %s/%s", country, symbol, exc_info=True)
 
 
 @transaction.atomic
@@ -64,18 +85,18 @@ def update_session_volume_for_country(country: str, enriched_rows: Iterable[dict
             continue
 
         key = (session_group, symbol)
-        prior_seen = _LAST_SEEN.get(key)
+        prior_seen = _get_last_seen(country, session_group, symbol)
         if prior_seen is None:
             prior_seen = int(session.session_volume or 0)
 
         delta = vol_int - prior_seen
         if delta <= 0:
-            _LAST_SEEN[key] = vol_int
+            _set_last_seen(country, session_group, symbol, vol_int)
             continue
 
         session.session_volume = (session.session_volume or 0) + delta
         session.save(update_fields=["session_volume"])
-        _LAST_SEEN[key] = vol_int
+        _set_last_seen(country, session_group, symbol, vol_int)
         updates += 1
 
     if updates and logger.isEnabledFor(logging.DEBUG):

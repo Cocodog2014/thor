@@ -7,15 +7,36 @@ from typing import Iterable
 from django.db import transaction
 from django.utils import timezone
 
+from LiveData.shared.redis_client import live_data_redis
 from ThorTrading.models.Market24h import MarketTrading24Hour
 from ThorTrading.models.MarketSession import MarketSession
 from ThorTrading.services.intraday_supervisor.utils import safe_decimal
 
 logger = logging.getLogger(__name__)
 
-# Track last seen cumulative volumes per (session_group, symbol) to prevent
-# re-adding the same cumulative feed volume on each heartbeat.
-_LAST_SEEN_VOLUME: dict[tuple[int, str], int] = {}
+LAST_SEEN_TTL_SECONDS = 60 * 60 * 24 * 3  # keep a few days to survive restarts
+
+
+def _last_seen_key(country: str, session_group: int, symbol: str) -> str:
+    return f"thor:last_seen_vol:{(country or '').lower()}:{session_group}:{symbol}"
+
+
+def _get_last_seen(country: str, session_group: int, symbol: str) -> int | None:
+    try:
+        raw = live_data_redis.client.get(_last_seen_key(country, session_group, symbol))
+        if raw is None:
+            return None
+        return int(raw)
+    except Exception:
+        logger.debug("24h last_seen redis get failed for %s/%s", country, symbol, exc_info=True)
+        return None
+
+
+def _set_last_seen(country: str, session_group: int, symbol: str, vol: int) -> None:
+    try:
+        live_data_redis.client.set(_last_seen_key(country, session_group, symbol), int(vol), ex=LAST_SEEN_TTL_SECONDS)
+    except Exception:
+        logger.debug("24h last_seen redis set failed for %s/%s", country, symbol, exc_info=True)
 
 
 @transaction.atomic
@@ -102,8 +123,7 @@ def update_24h_for_country(country: str, enriched_rows: Iterable[dict]):
 
         # Delta volume accumulation to avoid double-counting
         vol_updates = []
-        key = (latest_group, symbol)
-        prior_seen = _LAST_SEEN_VOLUME.get(key)
+        prior_seen = _get_last_seen(country, latest_group, symbol)
         if prior_seen is None:
             prior_seen = int(twentyfour.volume_24h or 0)
         if vol > 0:
@@ -111,7 +131,7 @@ def update_24h_for_country(country: str, enriched_rows: Iterable[dict]):
             if delta > 0:
                 twentyfour.volume_24h = (twentyfour.volume_24h or 0) + delta
                 vol_updates.append('volume_24h')
-            _LAST_SEEN_VOLUME[key] = vol
+            _set_last_seen(country, latest_group, symbol, vol)
 
         fields_to_update = []
         if updated:
