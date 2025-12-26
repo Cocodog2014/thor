@@ -12,6 +12,7 @@ from ThorTrading.models.MarketIntraDay import MarketIntraday
 from ThorTrading.services.quotes import get_enriched_quotes_with_composite
 from ThorTrading.integrations.accounts.snapshots import trigger_daily_account_snapshots
 from ThorTrading.services.config.country_codes import normalize_country_code
+from ThorTrading.services.sessions.first_touch import maybe_freeze_first_touch, _safe_decimal
 from ThorTrading.services.intraday.flush import flush_closed_bars
 from ThorTrading.services.intraday_supervisor.session_volume import update_session_volume_for_country
 from ThorTrading.services.sessions.metrics import MarketCloseMetric, MarketRangeMetric
@@ -237,6 +238,17 @@ class IntradayMarketSupervisor:
                 "ask": row.get('ask'),
                 "timestamp": row.get('timestamp'),
             }
+
+            try:
+                maybe_freeze_first_touch(
+                    country=country,
+                    symbol=sym,
+                    bid=_safe_decimal(row.get("bid")),
+                    ask=_safe_decimal(row.get("ask")),
+                    tick_ts=row.get("timestamp"),
+                )
+            except Exception:
+                logger.debug("First-touch freeze failed for %s/%s", country, sym, exc_info=True)
             try:
                 live_data_redis.set_tick(country, sym, tick, ttl=10)
                 closed_bar, current_bar = live_data_redis.upsert_current_bar_1m(country, sym, tick)
