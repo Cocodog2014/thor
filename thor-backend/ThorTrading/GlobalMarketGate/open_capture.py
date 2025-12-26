@@ -149,20 +149,12 @@ class MarketOpenCaptureService:
         symbols = {s.strip().upper() for s in qs if s}
         used_fallback = False
 
-        # Fallback: if no instruments are tagged to this country, allow any active/watchlist symbol
-        # so open capture still runs. This avoids silent skips when instrument countries aren’t set.
+        # No fallback: markets without country-scoped instruments should produce no captures
         if not symbols:
-            fallback_qs = TradingInstrument.objects.filter(
-                is_active=True,
-                is_watchlist=True,
-            ).values_list("symbol", flat=True)
-            symbols = {s.strip().upper() for s in fallback_qs if s}
-            if symbols:
-                used_fallback = True
-                logger.warning(
-                    "No country-scoped instruments for %s; falling back to all active/watchlist symbols",
-                    country_code,
-                )
+            logger.error(
+                "No country-scoped instruments for %s; capture will be skipped",
+                country_code,
+            )
 
         return symbols, used_fallback
 
