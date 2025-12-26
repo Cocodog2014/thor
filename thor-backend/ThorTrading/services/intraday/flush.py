@@ -1,19 +1,25 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone as dt_timezone
+from datetime import datetime, timedelta, timezone as dt_timezone
 from typing import List, Tuple
 
 from django.db import transaction
+from django.db.models import Max, Min
+from django.utils import timezone
 
 from LiveData.shared.redis_client import live_data_redis
 from ThorTrading.models.Market24h import MarketTrading24Hour
 from ThorTrading.models.MarketIntraDay import MarketIntraday
 from ThorTrading.models.MarketSession import MarketSession
 from ThorTrading.models.Instrument_Intraday import InstrumentIntraday
+from ThorTrading.models.extremes import Rolling52WeekStats
 from ThorTrading.services.config.country_codes import normalize_country_code
 
 logger = logging.getLogger(__name__)
+
+
+LOOKBACK_DAYS = 365
 
 
 def _pop_closed_bars(country: str, batch_size: int = 500) -> Tuple[List[dict], List[str], int]:
@@ -163,6 +169,78 @@ def _to_instrument_intraday_models(bars: List[dict]) -> List[InstrumentIntraday]
     return rows
 
 
+def _update_52w_from_closed_bars(instr_rows: List[InstrumentIntraday]) -> None:
+    """
+    Incrementally maintain Rolling52WeekStats from freshly flushed InstrumentIntraday rows.
+    - Update on new highs/lows within the batch.
+    - Recompute a side if the stored extreme is older than LOOKBACK_DAYS.
+    """
+    if not instr_rows:
+        return
+
+    today = timezone.localdate()
+    window_start = timezone.now() - timedelta(days=LOOKBACK_DAYS)
+
+    symbols = sorted({r.symbol for r in instr_rows if r.symbol})
+
+    for sym in symbols:
+        stats, _ = Rolling52WeekStats.objects.get_or_create(symbol=sym)
+
+        minute_high = max(
+            (r.high_1m for r in instr_rows if r.symbol == sym and r.high_1m is not None),
+            default=None,
+        )
+        minute_low = min(
+            (r.low_1m for r in instr_rows if r.symbol == sym and r.low_1m is not None),
+            default=None,
+        )
+
+        changed = False
+
+        if minute_high is not None and (stats.high_52w is None or minute_high > stats.high_52w):
+            stats.high_52w = minute_high
+            stats.high_52w_date = today
+            changed = True
+
+        if minute_low is not None and (stats.low_52w is None or minute_low < stats.low_52w):
+            stats.low_52w = minute_low
+            stats.low_52w_date = today
+            changed = True
+
+        if stats.high_52w_date and stats.high_52w_date < (today - timedelta(days=LOOKBACK_DAYS)):
+            agg = (
+                InstrumentIntraday.objects
+                .filter(symbol=sym, timestamp_minute__gte=window_start)
+                .aggregate(h=Max("high_1m"))
+            )
+            if agg["h"] is not None:
+                stats.high_52w = agg["h"]
+                stats.high_52w_date = today
+                changed = True
+
+        if stats.low_52w_date and stats.low_52w_date < (today - timedelta(days=LOOKBACK_DAYS)):
+            agg = (
+                InstrumentIntraday.objects
+                .filter(symbol=sym, timestamp_minute__gte=window_start)
+                .aggregate(l=Min("low_1m"))
+            )
+            if agg["l"] is not None:
+                stats.low_52w = agg["l"]
+                stats.low_52w_date = today
+                changed = True
+
+        if changed:
+            stats.last_price_checked = None
+            stats.save(update_fields=[
+                "high_52w",
+                "high_52w_date",
+                "low_52w",
+                "low_52w_date",
+                "last_price_checked",
+                "updated_at",
+            ])
+
+
 def flush_closed_bars(country: str, batch_size: int = 500, max_batches: int = 20) -> int:
     """
     Drain Redis closed-bar queue for a country and bulk insert into MarketIntraday.
@@ -222,6 +300,7 @@ def flush_closed_bars(country: str, batch_size: int = 500, max_batches: int = 20
                     MarketIntraday.objects.bulk_create(rows, ignore_conflicts=True)
                 if instr_rows:
                     InstrumentIntraday.objects.bulk_create(instr_rows, ignore_conflicts=True)
+                    _update_52w_from_closed_bars(instr_rows)
 
             # Cache the latest flushed bar timestamp in Redis to avoid per-second DB hits in lag checks
             try:
