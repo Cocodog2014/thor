@@ -10,6 +10,7 @@ from LiveData.shared.redis_client import live_data_redis
 from ThorTrading.models.Market24h import MarketTrading24Hour
 from ThorTrading.models.MarketIntraDay import MarketIntraday
 from ThorTrading.models.MarketSession import MarketSession
+from ThorTrading.models.Instrument_Intraday import InstrumentIntraday
 from ThorTrading.services.config.country_codes import normalize_country_code
 
 logger = logging.getLogger(__name__)
@@ -122,6 +123,43 @@ def _to_intraday_models(country: str, bars: List[dict], session_group: int) -> L
     return rows
 
 
+def _to_instrument_intraday_models(bars: List[dict]) -> List[InstrumentIntraday]:
+    """Convert decoded bar dicts -> InstrumentIntraday ORM objects (global scope)."""
+    rows: List[InstrumentIntraday] = []
+
+    for b in bars:
+        try:
+            raw_ts = b.get("t")
+            if raw_ts is None:
+                continue
+
+            ts = datetime.fromtimestamp(int(raw_ts), tz=dt_timezone.utc)
+
+            symbol = (b.get("symbol") or b.get("future") or "").strip()
+            if not symbol:
+                continue
+            symbol = symbol.upper()
+
+            rows.append(
+                InstrumentIntraday(
+                    timestamp_minute=ts,
+                    symbol=symbol,
+                    open_1m=b.get("o"),
+                    high_1m=b.get("h"),
+                    low_1m=b.get("l"),
+                    close_1m=b.get("c"),
+                    volume_1m=int(b.get("v") or 0),
+                    bid_last=b.get("bid") or b.get("bid_last"),
+                    ask_last=b.get("ask") or b.get("ask_last"),
+                    spread_last=b.get("spread") or b.get("spread_last"),
+                )
+            )
+        except Exception:
+            logger.exception("Failed to convert bar payload (global) %s", b)
+
+    return rows
+
+
 def flush_closed_bars(country: str, batch_size: int = 500, max_batches: int = 20) -> int:
     """
     Drain Redis closed-bar queue for a country and bulk insert into MarketIntraday.
@@ -165,6 +203,7 @@ def flush_closed_bars(country: str, batch_size: int = 500, max_batches: int = 20
             continue
 
         rows = _to_intraday_models(norm_country, bars, session_group=session_group)
+        instrument_rows = _to_instrument_intraday_models(bars)
 
         if not rows:
             # If nothing to insert (e.g. missing symbols), ACK so we don't loop forever
@@ -177,6 +216,22 @@ def flush_closed_bars(country: str, batch_size: int = 500, max_batches: int = 20
         try:
             with transaction.atomic():
                 MarketIntraday.objects.bulk_create(rows, ignore_conflicts=True)
+                if instrument_rows:
+                    InstrumentIntraday.objects.bulk_create(
+                        instrument_rows,
+                        update_conflicts=True,
+                        update_fields=[
+                            "open_1m",
+                            "high_1m",
+                            "low_1m",
+                            "close_1m",
+                            "volume_1m",
+                            "bid_last",
+                            "ask_last",
+                            "spread_last",
+                        ],
+                        unique_fields=["timestamp_minute", "symbol"],
+                    )
 
             # Cache the latest flushed bar timestamp in Redis to avoid per-second DB hits in lag checks
             try:

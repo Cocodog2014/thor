@@ -12,6 +12,7 @@ from .models.target_high_low import TargetHighLowConfig
 from .models.vwap import VwapMinute
 from .models.Market24h import MarketTrading24Hour
 from .models.MarketIntraDay import MarketIntraday
+from .models.Instrument_Intraday import InstrumentIntraday
 
 
 class ColumnSetFilter(admin.SimpleListFilter):
@@ -536,6 +537,20 @@ class MarketIntradayAdmin(admin.ModelAdmin):
     search_fields = (
         "symbol", "country",
     )
+    ordering = ("-timestamp_minute", "symbol")
+    date_hierarchy = "timestamp_minute"
+    readonly_fields = ("timestamp_minute",)
+
+
+@admin.register(InstrumentIntraday)
+class InstrumentIntradayAdmin(admin.ModelAdmin):
+    list_display = (
+        "timestamp_minute", "symbol",
+        "open_1m", "high_1m", "low_1m", "close_1m", "volume_1m",
+        "bid_last", "ask_last", "spread_last",
+    )
+    list_filter = ("symbol",)
+    search_fields = ("symbol",)
     ordering = ("-timestamp_minute", "symbol")
     date_hierarchy = "timestamp_minute"
     readonly_fields = ("timestamp_minute",)
