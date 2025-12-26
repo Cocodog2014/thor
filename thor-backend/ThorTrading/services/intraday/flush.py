@@ -299,8 +299,7 @@ def flush_closed_bars(country: str, batch_size: int = 500, max_batches: int = 20
                 if rows:
                     MarketIntraday.objects.bulk_create(rows, ignore_conflicts=True)
                 if instr_rows:
-                    InstrumentIntraday.objects.bulk_create(instr_rows, ignore_conflicts=True)
-                    _update_52w_from_closed_bars(instr_rows)
+                        InstrumentIntraday.objects.bulk_create(instr_rows, ignore_conflicts=True)
 
             # Cache the latest flushed bar timestamp in Redis to avoid per-second DB hits in lag checks
             try:
@@ -313,6 +312,12 @@ def flush_closed_bars(country: str, batch_size: int = 500, max_batches: int = 20
 
             total_inserted += len(rows)
             live_data_redis.acknowledge_closed_bars(norm_country, raw_items)
+
+            if instr_rows:
+                try:
+                    _update_52w_from_closed_bars(instr_rows)
+                except Exception:
+                    logger.exception("Failed to update 52w stats from closed bars")
 
             logger.info(
                 "minute close flush: country=%s decoded=%s inserted=%s queue_left=%s",
