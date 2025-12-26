@@ -181,7 +181,7 @@ def _update_52w_from_closed_bars(instr_rows: List[InstrumentIntraday]) -> None:
     today = timezone.localdate()
     window_start = timezone.now() - timedelta(days=LOOKBACK_DAYS)
 
-    by_symbol: dict[str, dict[str, object]] = {}
+    by_symbol: dict[str, dict[str, Decimal | None]] = {}
     for r in instr_rows:
         if not r.symbol:
             continue
