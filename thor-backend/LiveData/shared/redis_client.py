@@ -72,6 +72,8 @@ class LiveDataRedis:
     channel naming and data formatting.
     """
 
+    DEFAULT_COUNTRY = "GLOBAL"
+
     # --- Snapshot (latest) helpers ---
     LATEST_QUOTES_HASH = "live_data:latest:quotes"
 
@@ -326,13 +328,15 @@ class LiveDataRedis:
     # Latest quote snapshot helpers
     # -------------------------
     def set_latest_quote(self, symbol: str, data: Dict[str, Any]) -> None:
-        """Cache the latest quote for a symbol in a Redis hash."""
-        norm_country = self._require_country(data, symbol=symbol)
-        if not norm_country:
-            return
+        """Cache the latest quote for a symbol in a Redis hash (GLOBAL-safe)."""
         try:
-            payload = json.dumps({"symbol": symbol.upper(), **data, "country": norm_country}, default=str)
-            self.client.hset(self.LATEST_QUOTES_HASH, symbol.upper(), payload)
+            sym = symbol.upper()
+            # Prefer existing country/market if provided, else GLOBAL
+            raw = data.get("country") or data.get("market") or self.DEFAULT_COUNTRY
+            norm = self._norm_country(raw) or raw or self.DEFAULT_COUNTRY
+
+            payload = json.dumps({"symbol": sym, **data, "country": norm}, default=str)
+            self.client.hset(self.LATEST_QUOTES_HASH, sym, payload)
         except Exception as e:
             logger.error("Failed to cache latest quote for %s: %s", symbol, e)
 
@@ -378,24 +382,25 @@ class LiveDataRedis:
     # -------------------------
     def publish_quote(self, symbol: str, data: Dict[str, Any]) -> int:
         """
-        Publish quote data for a symbol (used by TOS and other streaming feeds).
-        Requires country (drops if missing).
+        Publish quote data for a symbol.
+        GLOBAL-safe: does not require country.
         """
         from .channels import get_quotes_channel
 
-        channel = get_quotes_channel(symbol)
-        norm_country = self._require_country(data, symbol=symbol)
-        if not norm_country:
-            return 0
+        sym = symbol.upper()
+        channel = get_quotes_channel(sym)
+
+        raw = data.get("country") or data.get("market") or self.DEFAULT_COUNTRY
+        norm = self._norm_country(raw) or raw or self.DEFAULT_COUNTRY
 
         payload = {
             "type": "quote",
-            "symbol": symbol.upper(),
+            "symbol": sym,
             **data,
-            "country": norm_country,
+            "country": norm,
         }
         result = self.publish(channel, payload)
-        self.set_latest_quote(symbol, payload)
+        self.set_latest_quote(sym, payload)
         return result
 
     def publish_raw_quote(self, symbol: str, data: Dict[str, Any]) -> int:
