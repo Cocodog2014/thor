@@ -11,7 +11,7 @@ from django.core.management.base import BaseCommand, CommandError
 
 from LiveData.schwab.models import BrokerConnection
 from LiveData.schwab.streaming import SchwabStreamingProducer
-from LiveData.schwab.tokens import ensure_valid_access_token
+
 
 logger = logging.getLogger(__name__)
 
@@ -48,9 +48,6 @@ class Command(BaseCommand):
         )
         if not connection:
             raise CommandError(f"No Schwab BrokerConnection found for user_id={user_id}")
-
-        # refresh tokens in DB if needed
-        connection = ensure_valid_access_token(connection)
 
         api_key = getattr(settings, "SCHWAB_CLIENT_ID", None) or getattr(settings, "SCHWAB_API_KEY", None)
         app_secret = getattr(settings, "SCHWAB_CLIENT_SECRET", None)
