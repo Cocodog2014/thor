@@ -97,18 +97,6 @@ class LiveDataRedis:
         normalized = normalize_country_code(country) if country is not None else None
         return normalized or country
 
-    def _require_country(self, data: Dict[str, Any], *, symbol: Optional[str] = None) -> Optional[str]:
-        """Extract and normalize country/market, logging if absent."""
-        raw = data.get("country") or data.get("market")
-        normalized = self._norm_country(raw)
-        if not normalized:
-            sym_txt = f" for symbol {symbol}" if symbol else ""
-            logger.error("Dropping quote missing country%s", sym_txt)
-            return None
-        if normalized != raw:
-            data["country"] = normalized
-        return normalized
-
     # -------------------------
     # Pub/Sub base
     # -------------------------
