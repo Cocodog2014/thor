@@ -59,6 +59,35 @@ class Command(BaseCommand):
         if not api_key or not app_secret:
             raise CommandError("SCHWAB_CLIENT_ID and SCHWAB_CLIENT_SECRET must be set in settings/.env")
         if not account_id:
+            # Auto-resolve broker_account_id (hashValue) from Schwab if missing
+            from LiveData.schwab.services import SchwabTraderAPI
+
+            try:
+                api = SchwabTraderAPI(connection.user)
+                accounts = api.fetch_accounts() or []
+                acct_hash_map = api.fetch_account_numbers_map()
+
+                if not accounts:
+                    raise CommandError("No Schwab accounts returned; cannot resolve broker_account_id")
+
+                sec = (accounts[0] or {}).get("securitiesAccount", {}) or {}
+                account_number = sec.get("accountNumber") or (accounts[0] or {}).get("accountNumber")
+
+                if not account_number:
+                    raise CommandError("Unable to find Schwab accountNumber to resolve hashValue")
+
+                account_id = acct_hash_map.get(str(account_number))
+                if not account_id:
+                    account_id = api.resolve_account_hash(str(account_number))
+
+                connection.broker_account_id = str(account_id)
+                connection.save(update_fields=["broker_account_id", "updated_at"])
+
+            except Exception as exc:
+                raise CommandError(
+                    f"Schwab connection missing broker_account_id and auto-resolve failed: {exc}"
+                )
+        if not account_id:
             raise CommandError("Schwab connection missing broker_account_id; cannot start stream")
 
         # Token functions (schwab-py advanced auth helper)
