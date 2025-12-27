@@ -92,17 +92,30 @@ class Command(BaseCommand):
 
         # Token functions (schwab-py advanced auth helper)
         def _read_token():
+            # schwab-py 1.5.x expects a metadata wrapper with creation_timestamp
+            creation_ts = int(connection.created_at.timestamp()) if getattr(connection, "created_at", None) else 0
             return {
-                "access_token": connection.access_token,
-                "refresh_token": connection.refresh_token,
-                "expires_at": int(connection.access_expires_at or 0),
-                "token_type": "Bearer",
+                "creation_timestamp": creation_ts,
+                "token": {
+                    "access_token": connection.access_token,
+                    "refresh_token": connection.refresh_token,
+                    "expires_at": int(connection.access_expires_at or 0),
+                    "token_type": "Bearer",
+                },
             }
 
-        def _write_token(token: dict):
-            connection.access_token = token.get("access_token", connection.access_token)
-            connection.refresh_token = token.get("refresh_token", connection.refresh_token)
-            connection.access_expires_at = int(token.get("expires_at", connection.access_expires_at or 0))
+        def _write_token(token_obj):
+            # token_obj may be wrapped or flat; handle both
+            inner = token_obj.get("token") if isinstance(token_obj, dict) else None
+            if not isinstance(inner, dict):
+                inner = token_obj if isinstance(token_obj, dict) else {}
+
+            connection.access_token = inner.get("access_token", connection.access_token)
+            connection.refresh_token = inner.get("refresh_token", connection.refresh_token)
+
+            if "expires_at" in inner:
+                connection.access_expires_at = int(inner.get("expires_at") or 0)
+
             connection.save(update_fields=["access_token", "refresh_token", "access_expires_at", "updated_at"])
 
         try:
