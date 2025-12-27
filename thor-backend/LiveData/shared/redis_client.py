@@ -136,7 +136,7 @@ class LiveDataRedis:
         Cache latest tick for a symbol (per country) with a short TTL.
         Key: tick:{country}:{symbol}
         """
-        norm_country = self._norm_country(country)
+        norm_country = self._norm_country(country) or country or self.DEFAULT_COUNTRY
         key = f"tick:{norm_country}:{symbol}".lower()
         try:
             self.client.set(key, json.dumps(payload, default=str), ex=ttl)
@@ -158,7 +158,7 @@ class LiveDataRedis:
         Expected tick keys: price/last/close and (optional) volume.
         Optional tick timestamp keys (any one): ts, timestamp, time, datetime
         """
-        norm_country = self._norm_country(country)
+        norm_country = self._norm_country(country) or country or self.DEFAULT_COUNTRY
         key = f"bar:1m:current:{norm_country}:{symbol}".lower()
 
         # 1) price + volume
@@ -233,7 +233,7 @@ class LiveDataRedis:
         Push a finalized 1m bar onto the per-country queue for later DB flush.
         Key: q:bars:1m:{country}
         """
-        norm_country = self._norm_country(country)
+        norm_country = self._norm_country(country) or country or self.DEFAULT_COUNTRY
         key = f"q:bars:1m:{norm_country}".lower()
         bar = {**bar, "country": norm_country}
         try:
@@ -243,7 +243,7 @@ class LiveDataRedis:
 
     def requeue_processing_closed_bars(self, country: str, limit: int = 10000) -> int:
         """Move any bars stuck in the processing queue back to the main queue (crash recovery)."""
-        norm_country = self._norm_country(country)
+        norm_country = self._norm_country(country) or country or self.DEFAULT_COUNTRY
         source = f"q:bars:1m:{norm_country}:processing".lower()
         target = f"q:bars:1m:{norm_country}".lower()
         moved = 0
@@ -264,7 +264,7 @@ class LiveDataRedis:
 
         Returns: (decoded_bars, raw_items, queue_left)
         """
-        norm_country = self._norm_country(country)
+        norm_country = self._norm_country(country) or country or self.DEFAULT_COUNTRY
         source = f"q:bars:1m:{norm_country}".lower()
         processing = f"q:bars:1m:{norm_country}:processing".lower()
         items: List[str] = []
@@ -297,7 +297,7 @@ class LiveDataRedis:
         """Remove successfully processed items from the processing queue."""
         if not items:
             return
-        norm_country = self._norm_country(country)
+        norm_country = self._norm_country(country) or country or self.DEFAULT_COUNTRY
         key = f"q:bars:1m:{norm_country}:processing".lower()
         try:
             pipe = self.client.pipeline()
@@ -312,7 +312,7 @@ class LiveDataRedis:
         """Return items to the main queue if processing failed (and remove from processing queue)."""
         if not items:
             return
-        norm_country = self._norm_country(country)
+        norm_country = self._norm_country(country) or country or self.DEFAULT_COUNTRY
         main_key = f"q:bars:1m:{norm_country}".lower()
         processing_key = f"q:bars:1m:{norm_country}:processing".lower()
         try:

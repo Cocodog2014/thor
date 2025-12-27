@@ -223,11 +223,8 @@ class IntradayMarketSupervisor:
         filtered_rows = []
 
         for row in enriched or []:
-            row_country_raw = row.get('country')
-            row_country = normalize_country_code(row_country_raw)
-            if not row_country:
-                logger.warning("Intraday %s: dropping row missing country (symbol=%s)", country, row.get('instrument', {}).get('symbol'))
-                continue
+            row_country_raw = row.get('country') or country
+            row_country = normalize_country_code(row_country_raw) or row_country_raw or live_data_redis.DEFAULT_COUNTRY
             if row_country != country:
                 continue
             sym = row.get('instrument', {}).get('symbol')
@@ -237,7 +234,7 @@ class IntradayMarketSupervisor:
             filtered_rows.append(row)
             tick = {
                 "symbol": sym,
-                "country": country,
+                "country": row_country,
                 "price": row.get('last'),
                 "volume": row.get('volume'),
                 "bid": row.get('bid'),
@@ -256,11 +253,12 @@ class IntradayMarketSupervisor:
             except Exception:
                 logger.debug("First-touch freeze failed for %s/%s", country, sym, exc_info=True)
             try:
-                live_data_redis.set_tick(country, sym, tick, ttl=10)
-                closed_bar, current_bar = live_data_redis.upsert_current_bar_1m(country, sym, tick)
+                tick_country = tick.get("country") or live_data_redis.DEFAULT_COUNTRY
+                live_data_redis.set_tick(tick_country, sym, tick, ttl=10)
+                closed_bar, current_bar = live_data_redis.upsert_current_bar_1m(tick_country, sym, tick)
                 updated_count += 1
                 if closed_bar:
-                    live_data_redis.enqueue_closed_bar(country, closed_bar)
+                    live_data_redis.enqueue_closed_bar(tick_country, closed_bar)
                     closed_count += 1
             except Exception:
                 if logger.isEnabledFor(logging.DEBUG):
