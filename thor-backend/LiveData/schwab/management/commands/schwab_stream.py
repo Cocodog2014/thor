@@ -84,7 +84,8 @@ class Command(BaseCommand):
                 token_write_func=_write_token,
                 asyncio=True,
             )
-            stream_client = StreamClient(api_client, account_id=int(account_id))
+            # Pass as string to preserve any leading zeros or non-numeric chars stored in broker_account_id
+            stream_client = StreamClient(api_client, account_id=str(account_id))
         except Exception as exc:
             raise CommandError(f"Failed to initialize Schwab StreamClient: {exc}") from exc
 
