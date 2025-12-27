@@ -126,13 +126,13 @@ class Command(BaseCommand):
 
         async def _run():
             await streamer.login()
-            # Level one quotes for equities/futures
+            # Register handlers BEFORE subscribing to avoid dropped messages
             if equities:
-                await streamer.level_one_equity_subs(equities)
                 await streamer.add_level_one_equity_handler(producer.process_message)
+                await streamer.level_one_equity_subs(equities)
             if futures:
-                await streamer.level_one_futures_subs(futures)
                 await streamer.add_level_one_futures_handler(producer.process_message)
+                await streamer.level_one_futures_subs(futures)
             # Main loop
             while True:
                 msg = await streamer.handle_message()
