@@ -250,6 +250,7 @@ class LiveDataRedis:
 
         Returns: (decoded_bars, raw_items, queue_left)
         """
+        norm_country = self._norm_country(country) or country or self.DEFAULT_COUNTRY
         source = "q:bars:1m"
         processing = "q:bars:1m:processing"
         items: List[str] = []
@@ -282,6 +283,7 @@ class LiveDataRedis:
         """Remove successfully processed items from the processing queue."""
         if not items:
             return
+        norm_country = self._norm_country(country) or country or self.DEFAULT_COUNTRY
         key = "q:bars:1m:processing"
         try:
             pipe = self.client.pipeline()
@@ -296,6 +298,7 @@ class LiveDataRedis:
         """Return items to the main queue if processing failed (and remove from processing queue)."""
         if not items:
             return
+        norm_country = self._norm_country(country) or country or self.DEFAULT_COUNTRY
         main_key = "q:bars:1m"
         processing_key = "q:bars:1m:processing"
         try:
