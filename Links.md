@@ -19,7 +19,18 @@ A) Check Redis has live data
 
 In another terminal:
 
+1. python manage.py shell -c "from LiveData.shared.redis_client import live_data_redis; print(live_data_redis.get_latest_quote('VFF'))"
+
+Verify Redis is receiving ticks (new terminal)
+
+2. cd A:\Thor\thor-backend
 python manage.py shell -c "from LiveData.shared.redis_client import live_data_redis; print(live_data_redis.get_latest_quote('VFF'))"
+
+cd A:\Thor\thor-backend
+python manage.py shell -c "from LiveData.shared.redis_client import live_data_redis; print(live_data_redis.get_latest_quote('MSFT'))"
+
+3. python manage.py shell -c "from LiveData.shared.redis_client import live_data_redis; print(live_data_redis.get_latest_quote('YM'))"
+
 
 
 If you see a dict (price, symbol, country=GLOBAL), Schwab → Redis is live ✅
