@@ -143,7 +143,9 @@ class SchwabStreamingProducer:
             bar_tick = self._build_bar_tick(payload)
             if bar_tick:
                 country = bar_tick.get("country") or live_data_redis.DEFAULT_COUNTRY
-                live_data_redis.upsert_current_bar_1m(country, payload["symbol"], bar_tick)
+                closed_bar, _current_bar = live_data_redis.upsert_current_bar_1m(country, payload["symbol"], bar_tick)
+                if closed_bar:
+                    live_data_redis.enqueue_closed_bar(country, closed_bar)
 
             # Broadcast to WebSocket
             message = {"type": "quote_tick", "data": payload}
