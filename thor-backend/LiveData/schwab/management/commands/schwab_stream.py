@@ -16,8 +16,9 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Iterable, List, Optional
+from typing import List, Optional
 
+from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 
 from LiveData.schwab.models import BrokerConnection
@@ -59,7 +60,7 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         try:
             from schwab import auth as schwab_auth  # type: ignore
-            from schwab import streamer as schwab_streamer  # type: ignore
+            from schwab.streaming import StreamClient  # type: ignore
         except Exception as exc:  # pragma: no cover - dependency check
             raise CommandError(
                 "schwab-py is not installed. Install with `pip install schwab-py`"
@@ -81,24 +82,62 @@ class Command(BaseCommand):
         if not connection:
             raise CommandError(f"No Schwab BrokerConnection found for user_id={user_id}")
 
-        # Ensure token freshness
+        # Ensure token freshness in DB
         connection = ensure_valid_access_token(connection)
 
-        # Build Schwab client + streamer via schwab-py
+        api_key = getattr(settings, "SCHWAB_CLIENT_ID", None) or getattr(settings, "SCHWAB_API_KEY", None)
+        app_secret = getattr(settings, "SCHWAB_CLIENT_SECRET", None)
+        callback_url = getattr(settings, "SCHWAB_REDIRECT_URI", None)
+        account_id = connection.broker_account_id or None
+
+        if not api_key or not app_secret or not callback_url:
+            raise CommandError("SCHWAB_CLIENT_ID/SECRET/REDIRECT_URI must be set in settings/.env")
+        if not account_id:
+            raise CommandError("Schwab connection is missing broker_account_id; cannot start stream")
+
+        # Wire schwab-py client using access_functions so tokens live in DB
+        def _read_token():
+            return {
+                "access_token": connection.access_token,
+                "refresh_token": connection.refresh_token,
+                "expires_at": int(connection.access_expires_at or 0),
+                "token_type": "Bearer",
+            }
+
+        def _write_token(token):
+            connection.access_token = token.get("access_token", connection.access_token)
+            connection.refresh_token = token.get("refresh_token", connection.refresh_token)
+            connection.access_expires_at = int(token.get("expires_at", connection.access_expires_at or 0))
+            connection.save(update_fields=["access_token", "refresh_token", "access_expires_at", "updated_at"])
+
         try:
-            client = schwab_auth.client_from_access_token(
-                connection.access_token,
-                connection.refresh_token,
-                int(connection.access_expires_at or 0),
+            api_client = schwab_auth.client_from_access_functions(
+                api_key,
+                app_secret,
+                token_read_func=_read_token,
+                token_write_func=_write_token,
+                asyncio=True,
             )
-            streamer = schwab_streamer.Streamer(client)
+            streamer = StreamClient(api_client, account_id=str(account_id))
         except Exception as exc:
-            raise CommandError(f"Failed to initialize Schwab streamer: {exc}") from exc
+            raise CommandError(f"Failed to initialize Schwab StreamClient: {exc}") from exc
 
         producer = SchwabStreamingProducer()
 
         async def _run():
-            await producer.run(streamer, equities=equities, futures=futures)
+            await streamer.login()
+            # Level one quotes for equities/futures
+            if equities:
+                await streamer.level_one_equity_subs(equities)
+                await streamer.add_level_one_equity_handler(producer.process_message)
+            if futures:
+                await streamer.level_one_futures_subs(futures)
+                await streamer.add_level_one_futures_handler(producer.process_message)
+            # Main loop
+            while True:
+                msg = await streamer.handle_message()
+                if msg is not None:
+                    producer.process_message(msg)
 
         self.stdout.write(
             self.style.SUCCESS(
