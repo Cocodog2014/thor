@@ -122,10 +122,12 @@ class Command(BaseCommand):
         producer = SchwabStreamingProducer()
 
         async def _run():
-            backoff = 5
+            backoff = 2
+            max_backoff = 60
             while True:
                 try:
-                    # Preflight before (re)connecting so we never start with a near-expiry token
+                    # Refresh DB copy and preflight before (re)connecting so we never start with a near-expiry token
+                    connection.refresh_from_db()
                     ensure_valid_access_token(connection, buffer_seconds=120)
 
                     api_client = schwab_auth.client_from_access_functions(
@@ -160,9 +162,9 @@ class Command(BaseCommand):
                         "Schwab stream loop error; reconnecting in %ss: %s", backoff, exc, exc_info=True
                     )
                     await asyncio.sleep(backoff)
-                    backoff = min(backoff * 2, 60)
+                    backoff = min(backoff * 2, max_backoff)
                 else:
-                    backoff = 5
+                    backoff = 2
 
         self.stdout.write(self.style.SUCCESS(
             f"Starting Schwab stream user_id={user_id} equities={equities or '-'} futures={futures or '-'}"
