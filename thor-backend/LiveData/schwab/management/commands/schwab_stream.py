@@ -13,8 +13,8 @@ from django.core.management.base import BaseCommand, CommandError
 from asgiref.sync import sync_to_async
 
 from LiveData.schwab.models import BrokerConnection
-from LiveData.schwab.streaming import SchwabStreamingProducer
-from LiveData.schwab.tokens import ensure_valid_access_token
+from LiveData.schwab.client.streaming import SchwabStreamingProducer
+from LiveData.schwab.client.tokens import ensure_valid_access_token
 
 
 logger = logging.getLogger(__name__)
@@ -67,7 +67,7 @@ class Command(BaseCommand):
             raise CommandError("SCHWAB_CLIENT_ID and SCHWAB_CLIENT_SECRET must be set in settings/.env")
         if not account_id:
             # Auto-resolve broker_account_id (hashValue) from Schwab if missing
-            from LiveData.schwab.services import SchwabTraderAPI
+            from LiveData.schwab.client.trader import SchwabTraderAPI
 
             try:
                 api = SchwabTraderAPI(connection.user)

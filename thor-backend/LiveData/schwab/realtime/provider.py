@@ -15,7 +15,7 @@ from django.conf import settings
 from api.websocket.broadcast import broadcast_to_websocket_sync
 from core.infra.jobs import Job
 from LiveData.schwab.models import BrokerConnection
-from LiveData.schwab.tokens import ensure_valid_access_token
+from LiveData.schwab.client.tokens import ensure_valid_access_token
 from LiveData.shared.redis_client import live_data_redis
 
 logger = logging.getLogger(__name__)

@@ -8,7 +8,7 @@ Handles OAuth flow endpoints:
 """
 
 from django.urls import path
-from .views import (
+from .api import (
     schwab_health,
     oauth_start,
     oauth_callback,
@@ -17,8 +17,8 @@ from .views import (
     account_positions,
     get_positions,
     get_balances,
+    refresh_access_token,
 )
-from .views.refresh import refresh_access_token
 
 app_name = 'schwab'
 

@@ -8,7 +8,7 @@ from django.utils import timezone
 
 from ActAndPos.models import Account
 from LiveData.shared.redis_client import live_data_redis
-from .services import SchwabTraderAPI
+from .trader import SchwabTraderAPI
 
 logger = logging.getLogger(__name__)
 

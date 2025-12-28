@@ -14,7 +14,7 @@ from ActAndPos.models import Account
 from ActAndPos.models.snapshots import AccountDailySnapshot
 
 try:
-    from LiveData.schwab.services import SchwabTraderAPI
+    from LiveData.schwab.client.trader import SchwabTraderAPI
 except Exception:  # pragma: no cover - Schwab optional in some environments
     SchwabTraderAPI = None  # type: ignore
 

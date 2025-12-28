@@ -1,4 +1,4 @@
-﻿"""
+"""
 Schwab Trading API client.
 """
 
