@@ -142,8 +142,9 @@ class Command(BaseCommand):
                         app_secret,
                         token_read_func=_read_token,
                         token_write_func=_write_token,
-                        asyncio=True,
-                    )
+                                    conn = connection  # local reference to avoid scope issues
+                                    await refresh_from_db_async(conn)
+                                    conn = await ensure_token_async(conn, buffer_seconds=120)
                     # Pass as string to preserve any leading zeros or non-numeric chars stored in broker_account_id
                     stream_client = StreamClient(api_client, account_id=str(account_id))
 
