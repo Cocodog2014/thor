@@ -10,6 +10,8 @@ import logging
 import time
 from typing import Any
 
+from django.conf import settings
+
 from api.websocket.broadcast import broadcast_to_websocket_sync
 from core.infra.jobs import Job
 from LiveData.schwab.models import BrokerConnection
@@ -22,9 +24,11 @@ logger = logging.getLogger(__name__)
 class SchwabHealthJob(Job):
     name = "schwab_health"
 
-    def __init__(self, interval_seconds: float = 15.0, refresh_buffer_seconds: int = 180):
+    def __init__(self, interval_seconds: float = 15.0, refresh_buffer_seconds: int | None = None):
+        # Default to 120s buffer; allow override via settings/env
+        default_buffer = getattr(settings, "SCHWAB_HEARTBEAT_BUFFER_SECONDS", 120)
         self.interval_seconds = float(interval_seconds)
-        self.refresh_buffer_seconds = int(refresh_buffer_seconds)
+        self.refresh_buffer_seconds = int(refresh_buffer_seconds or default_buffer)
 
     def should_run(self, now: float, state: dict[str, Any]) -> bool:
         last = state.get("last_run", {}).get(self.name)
