@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.contrib import messages
 
 from .models import BrokerConnection
-from .tokens import ensure_valid_access_token
+from LiveData.schwab.client.tokens import ensure_valid_access_token
 
 
 @admin.register(BrokerConnection)

@@ -10,7 +10,7 @@ Streaming:
 - schwab_streaming_producer: normalize Schwab streaming ticks → Redis + WebSocket
 """
 
-from .streaming import SchwabStreamingProducer, schwab_streaming_producer
+from LiveData.schwab.client.streaming import SchwabStreamingProducer, schwab_streaming_producer
 
 __all__ = [
 	"SchwabStreamingProducer",
