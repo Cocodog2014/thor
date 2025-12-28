@@ -1,4 +1,5 @@
 import logging
+import time
 
 from django.http import JsonResponse
 from rest_framework.decorators import api_view, permission_classes
@@ -19,10 +20,13 @@ def refresh_access_token(request):
             return JsonResponse({"success": False, "error": "No Schwab account connected"}, status=404)
 
         refreshed = ensure_valid_access_token(connection, force_refresh=True)
+        expires_at = int(refreshed.access_expires_at or 0)
+        expires_in = max(0, expires_at - int(time.time()))
         return JsonResponse({
             "success": True,
             "ok": True,
-            "expires_at": int(refreshed.access_expires_at or 0),
+            "expires_at": expires_at,
+            "expires_in": expires_in,
         })
     except Exception as exc:
         logger.error("Manual Schwab refresh failed: %s", exc, exc_info=True)

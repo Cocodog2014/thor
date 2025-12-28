@@ -119,36 +119,50 @@ class Command(BaseCommand):
 
             connection.save(update_fields=["access_token", "refresh_token", "access_expires_at", "updated_at"])
 
-        try:
-            api_client = schwab_auth.client_from_access_functions(
-                api_key,
-                app_secret,
-                token_read_func=_read_token,
-                token_write_func=_write_token,
-                asyncio=True,
-            )
-            # Pass as string to preserve any leading zeros or non-numeric chars stored in broker_account_id
-            stream_client = StreamClient(api_client, account_id=str(account_id))
-        except Exception as exc:
-            raise CommandError(f"Failed to initialize Schwab StreamClient: {exc}") from exc
-
         producer = SchwabStreamingProducer()
 
         async def _run():
-            await stream_client.login()
-
-            # ✅ IMPORTANT: handlers must be added BEFORE subscribing (docs warn about dropped messages)
-            if equities:
-                stream_client.add_level_one_equity_handler(producer.process_message)
-                await stream_client.level_one_equity_subs(equities)
-
-            if futures:
-                stream_client.add_level_one_futures_handler(producer.process_message)
-                await stream_client.level_one_futures_subs(futures)
-
-            # ✅ handle_message dispatches to handlers internally
+            backoff = 5
             while True:
-                await stream_client.handle_message()
+                try:
+                    # Preflight before (re)connecting so we never start with a near-expiry token
+                    ensure_valid_access_token(connection, buffer_seconds=120)
+
+                    api_client = schwab_auth.client_from_access_functions(
+                        api_key,
+                        app_secret,
+                        token_read_func=_read_token,
+                        token_write_func=_write_token,
+                        asyncio=True,
+                    )
+                    # Pass as string to preserve any leading zeros or non-numeric chars stored in broker_account_id
+                    stream_client = StreamClient(api_client, account_id=str(account_id))
+
+                    await stream_client.login()
+
+                    # Handlers must be added BEFORE subscribing (docs warn about dropped messages)
+                    if equities:
+                        stream_client.add_level_one_equity_handler(producer.process_message)
+                        await stream_client.level_one_equity_subs(equities)
+
+                    if futures:
+                        stream_client.add_level_one_futures_handler(producer.process_message)
+                        await stream_client.level_one_futures_subs(futures)
+
+                    # handle_message dispatches to handlers internally
+                    while True:
+                        await stream_client.handle_message()
+
+                except asyncio.CancelledError:
+                    raise
+                except Exception as exc:
+                    logger.warning(
+                        "Schwab stream loop error; reconnecting in %ss: %s", backoff, exc, exc_info=True
+                    )
+                    await asyncio.sleep(backoff)
+                    backoff = min(backoff * 2, 60)
+                else:
+                    backoff = 5
 
         self.stdout.write(self.style.SUCCESS(
             f"Starting Schwab stream user_id={user_id} equities={equities or '-'} futures={futures or '-'}"
