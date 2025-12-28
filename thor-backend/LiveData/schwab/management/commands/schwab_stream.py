@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
+from copy import deepcopy
 from typing import List, Optional
 
 from django.conf import settings
@@ -96,35 +97,48 @@ class Command(BaseCommand):
         if not account_id:
             raise CommandError("Schwab connection missing broker_account_id; cannot start stream")
 
-        # Token functions (schwab-py advanced auth helper)
-        def _read_token():
-            # schwab-py expects sync callbacks
-            connection.refresh_from_db()
-            token = {
+        # Token cache kept in-memory so schwab-py sync callbacks avoid ORM in async loop
+        token_state = {
+            "creation_timestamp": int(connection.updated_at.timestamp()) if getattr(connection, "updated_at", None) else int(time.time()),
+            "token": {
                 "access_token": connection.access_token,
                 "refresh_token": connection.refresh_token,
                 "expires_at": int(connection.access_expires_at or 0),
                 "token_type": "Bearer",
-            }
-            creation_ts = int(connection.updated_at.timestamp()) if getattr(connection, "updated_at", None) else int(time.time())
-            return {"creation_timestamp": creation_ts, "token": token}
+            },
+        }
+
+        async def _persist_tokens(payload: dict) -> None:
+            # Run DB writes off the event loop thread
+            await refresh_from_db_async(connection)
+            connection.access_token = payload.get("access_token") or connection.access_token
+            connection.refresh_token = payload.get("refresh_token") or connection.refresh_token
+            if payload.get("expires_at") is not None:
+                connection.access_expires_at = int(payload.get("expires_at") or 0)
+            await sync_to_async(connection.save, thread_sensitive=True)(
+                update_fields=["access_token", "refresh_token", "access_expires_at", "updated_at"],
+            )
+
+        # Token functions (schwab-py advanced auth helper). Keep them sync, but make
+        # them rely on in-memory state and dispatch persistence to background tasks
+        def _read_token():
+            return deepcopy(token_state)
 
         def _write_token(token_obj):
-            # schwab-py expects sync callbacks
-            connection.refresh_from_db()
             payload = token_obj.get("token") if isinstance(token_obj, dict) and "token" in token_obj else token_obj
             if not isinstance(payload, dict):
                 payload = {}
 
-            connection.access_token = payload.get("access_token") or connection.access_token
-            connection.refresh_token = payload.get("refresh_token") or connection.refresh_token
+            token_state["token"].update({
+                "access_token": payload.get("access_token") or token_state["token"].get("access_token"),
+                "refresh_token": payload.get("refresh_token") or token_state["token"].get("refresh_token"),
+                "expires_at": int(payload.get("expires_at") or token_state["token"].get("expires_at") or 0),
+                "token_type": "Bearer",
+            })
+            token_state["creation_timestamp"] = int(time.time())
 
-            if payload.get("expires_at") is not None:
-                connection.access_expires_at = int(payload.get("expires_at") or 0)
-
-            connection.save(
-                update_fields=["access_token", "refresh_token", "access_expires_at", "updated_at"],
-            )
+            loop = asyncio.get_running_loop()
+            loop.create_task(_persist_tokens(token_state["token"].copy()))
 
         producer = SchwabStreamingProducer()
 
@@ -138,6 +152,17 @@ class Command(BaseCommand):
                     conn = connection
                     await refresh_from_db_async(conn)
                     conn = await ensure_token_async(conn, buffer_seconds=120)
+
+                    # Keep in-memory token cache aligned with the refreshed connection
+                    token_state["token"] = {
+                        "access_token": conn.access_token,
+                        "refresh_token": conn.refresh_token,
+                        "expires_at": int(conn.access_expires_at or 0),
+                        "token_type": "Bearer",
+                    }
+                    token_state["creation_timestamp"] = int(
+                        conn.updated_at.timestamp()
+                    ) if getattr(conn, "updated_at", None) else int(time.time())
 
                     api_client = schwab_auth.client_from_access_functions(
                         api_key,
