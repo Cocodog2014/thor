@@ -4,11 +4,12 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 from typing import List, Optional
 
 from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
-from asgiref.sync import sync_to_async
+from asgiref.sync import async_to_sync, sync_to_async
 
 from LiveData.schwab.models import BrokerConnection
 from LiveData.schwab.streaming import SchwabStreamingProducer
@@ -55,8 +56,16 @@ class Command(BaseCommand):
         connection = ensure_valid_access_token(connection, buffer_seconds=120)
 
         refresh_from_db_async = sync_to_async(lambda obj: obj.refresh_from_db(), thread_sensitive=True)
-        save_async = sync_to_async(lambda obj, **kw: obj.save(**kw), thread_sensitive=True)
         ensure_token_async = sync_to_async(ensure_valid_access_token, thread_sensitive=True)
+
+        def _db_refresh(obj):
+            obj.refresh_from_db()
+
+        def _db_save(obj, **kwargs):
+            obj.save(**kwargs)
+
+        refresh_db_sync = async_to_sync(sync_to_async(_db_refresh, thread_sensitive=True))
+        save_sync = async_to_sync(sync_to_async(_db_save, thread_sensitive=True))
 
         api_key = getattr(settings, "SCHWAB_CLIENT_ID", None) or getattr(settings, "SCHWAB_API_KEY", None)
         app_secret = getattr(settings, "SCHWAB_CLIENT_SECRET", None)
@@ -97,34 +106,35 @@ class Command(BaseCommand):
             raise CommandError("Schwab connection missing broker_account_id; cannot start stream")
 
         # Token functions (schwab-py advanced auth helper)
-        async def _read_token():
-            # schwab-py 1.5.x expects a metadata wrapper with creation_timestamp
-            await refresh_from_db_async(connection)
-            creation_ts = int(connection.created_at.timestamp()) if getattr(connection, "created_at", None) else 0
-            return {
-                "creation_timestamp": creation_ts,
-                "token": {
-                    "access_token": connection.access_token,
-                    "refresh_token": connection.refresh_token,
-                    "expires_at": int(connection.access_expires_at or 0),
-                    "token_type": "Bearer",
-                },
+        def _read_token():
+            # schwab-py expects sync callbacks; wrap DB work safely
+            refresh_db_sync(connection)
+            token = {
+                "access_token": connection.access_token,
+                "refresh_token": connection.refresh_token,
+                "expires_at": int(connection.access_expires_at or 0),
+                "token_type": "Bearer",
             }
+            creation_ts = int(connection.updated_at.timestamp()) if getattr(connection, "updated_at", None) else int(time.time())
+            return {"creation_timestamp": creation_ts, "token": token}
 
-        async def _write_token(token_obj):
-            # token_obj may be wrapped or flat; handle both
-            await refresh_from_db_async(connection)
-            inner = token_obj.get("token") if isinstance(token_obj, dict) else None
-            if not isinstance(inner, dict):
-                inner = token_obj if isinstance(token_obj, dict) else {}
+        def _write_token(token_obj):
+            # schwab-py expects sync callbacks; wrap DB work safely
+            refresh_db_sync(connection)
+            payload = token_obj.get("token") if isinstance(token_obj, dict) and "token" in token_obj else token_obj
+            if not isinstance(payload, dict):
+                payload = {}
 
-            connection.access_token = inner.get("access_token", connection.access_token)
-            connection.refresh_token = inner.get("refresh_token", connection.refresh_token)
+            connection.access_token = payload.get("access_token") or connection.access_token
+            connection.refresh_token = payload.get("refresh_token") or connection.refresh_token
 
-            if "expires_at" in inner:
-                connection.access_expires_at = int(inner.get("expires_at") or 0)
+            if payload.get("expires_at") is not None:
+                connection.access_expires_at = int(payload.get("expires_at") or 0)
 
-            await save_async(connection, update_fields=["access_token", "refresh_token", "access_expires_at", "updated_at"])
+            save_sync(
+                connection,
+                update_fields=["access_token", "refresh_token", "access_expires_at", "updated_at"],
+            )
 
         producer = SchwabStreamingProducer()
 
