@@ -5,13 +5,14 @@ Consumes streaming ticks, normalizes them into Thor quote payloads,
 publishes to Redis, updates 1m bars, and broadcasts WebSocket events.
 
 IMPORTANT:
-- No country logic here.
-- Session routing is done via session_key.
-- session_key will later be provided by GlobalMarkets.
+- No country logic.
+- Routing is via session_key.
+- session_key MUST be provided by GlobalMarkets via Redis.
 """
 
 from __future__ import annotations
 
+import json
 import logging
 import time
 from typing import Any, Dict, Iterable, Optional
@@ -23,8 +24,8 @@ from LiveData.shared.redis_client import live_data_redis
 
 logger = logging.getLogger(__name__)
 
-# Temporary fallback until GlobalMarkets injects real sessions
-FALLBACK_SESSION_KEY = "GLOBAL"
+# GlobalMarkets must write this key to Redis
+ACTIVE_SESSION_KEY_REDIS = "live_data:active_session"
 
 
 def _to_float(value: Any) -> Optional[float]:
@@ -55,27 +56,89 @@ def _extract_timestamp(tick: Dict[str, Any]) -> float:
     return time.time()
 
 
+def _safe_json_loads(raw: Any) -> Optional[dict]:
+    if raw is None:
+        return None
+    try:
+        if isinstance(raw, (bytes, bytearray)):
+            raw = raw.decode("utf-8")
+        if isinstance(raw, str):
+            return json.loads(raw)
+        if isinstance(raw, dict):
+            return raw
+    except Exception:
+        return None
+    return None
+
+
 class SchwabStreamingProducer:
-    """Normalize Schwab streaming ticks into Thor quote + bar updates."""
+    """
+    Normalize Schwab streaming ticks into Thor quote + bar updates.
+
+    Session routing:
+      - We do NOT use country.
+      - We route bars/ticks using session_key.
+      - session_key is fetched from Redis (written by GlobalMarkets heartbeat).
+    """
 
     def __init__(self, channel_layer: Any | None = None):
         self.channel_layer = channel_layer or get_channel_layer()
+        self._session_cache: Optional[dict] = None
+        self._session_cache_until: float = 0.0  # unix time
 
     # ------------------------------------------------------------------
-    # Session routing (THIS is where session numbers will live)
+    # Session routing (THIS is where session numbers belong)
     # ------------------------------------------------------------------
-    def _resolve_session_key(self, payload: Dict[str, Any]) -> str:
+    def _get_active_session_snapshot(self) -> Optional[dict]:
         """
-        TEMPORARY:
-        Return GLOBAL until GlobalMarkets injects:
-          - session_group
-          - session_date
-          - session_number
+        Reads active session routing from Redis.
 
-        Final form:
-          f"{group}:{YYYYMMDD}:{session_number}"
+        Expected Redis JSON structure (example):
+        {
+          "default": "USA:20251228:44",
+          "equities": "USA:20251228:44",
+          "futures": "USA:20251228:44",
+          "updated_at": 1735412345
+        }
         """
-        return FALLBACK_SESSION_KEY
+        now = time.time()
+        if self._session_cache and now < self._session_cache_until:
+            return self._session_cache
+
+        raw = None
+        try:
+            raw = live_data_redis.client.get(ACTIVE_SESSION_KEY_REDIS)
+        except Exception:
+            logger.exception("Failed reading %s from Redis", ACTIVE_SESSION_KEY_REDIS)
+
+        data = _safe_json_loads(raw)
+
+        # Cache for a short time to avoid Redis GET per tick
+        self._session_cache = data
+        self._session_cache_until = now + 2.0  # 2s cache
+        return data
+
+    def _resolve_session_key(self, payload: Dict[str, Any]) -> Optional[str]:
+        """
+        Returns a session_key like:
+          "USA:20251228:44"
+
+        No GLOBAL fallback. If routing is missing, return None and we skip bar writes.
+        """
+        snap = self._get_active_session_snapshot()
+        if not snap:
+            return None
+
+        # Try to route by asset type if provided
+        main = (payload.get("assetMainType") or payload.get("assetType") or "").upper()
+
+        if "FUTURE" in main:
+            return snap.get("futures") or snap.get("default")
+        if "EQUITY" in main or "STOCK" in main:
+            return snap.get("equities") or snap.get("default")
+
+        # Unknown asset type -> default routing
+        return snap.get("default")
 
     # ------------------------------------------------------------------
     # Payload normalization
@@ -86,8 +149,8 @@ class SchwabStreamingProducer:
             return None
         symbol = str(symbol_raw).lstrip("/").upper()
 
-        bid = _to_float(tick.get("bid") or tick.get("bidPrice"))
-        ask = _to_float(tick.get("ask") or tick.get("askPrice"))
+        bid = _to_float(tick.get("bid") or tick.get("bidPrice") or tick.get("BID"))
+        ask = _to_float(tick.get("ask") or tick.get("askPrice") or tick.get("ASK"))
         last = _to_float(
             tick.get("last")
             or tick.get("lastPrice")
@@ -97,7 +160,9 @@ class SchwabStreamingProducer:
         volume = _to_float(
             tick.get("volume")
             or tick.get("totalVolume")
+            or tick.get("TOTAL_VOLUME")
             or tick.get("lastSize")
+            or tick.get("LAST_SIZE")
         )
         ts = _extract_timestamp(tick)
 
@@ -146,33 +211,31 @@ class SchwabStreamingProducer:
         try:
             session_key = self._resolve_session_key(payload)
 
-            # Publish quote (session-agnostic)
+            # Always publish quotes (session-agnostic)
             live_data_redis.publish_quote(payload["symbol"], payload)
 
-            # Short TTL tick cache (session-based)
-            live_data_redis.set_tick(
-                session_key,
-                payload["symbol"],
-                payload,
-                ttl=10,
-            )
-
-            # Update 1m bar (SESSION BASED)
-            bar_tick = self._build_bar_tick(payload)
-            if bar_tick:
-                closed_bar, _current_bar = live_data_redis.upsert_current_bar_1m(
-                    session_key,
-                    payload["symbol"],
-                    bar_tick,
+            # If we don't know the session, skip bar writes (no GLOBAL fallback)
+            if not session_key:
+                logger.warning(
+                    "No active session routing in Redis (%s). Skipping bar/tick cache for %s",
+                    ACTIVE_SESSION_KEY_REDIS,
+                    payload.get("symbol"),
                 )
-                if closed_bar:
-                    live_data_redis.enqueue_closed_bar(session_key, closed_bar)
+            else:
+                # Short TTL tick cache (keyed by session)
+                live_data_redis.set_tick(session_key, payload["symbol"], payload, ttl=10)
+
+                # Update 1m bar (keyed by session)
+                bar_tick = self._build_bar_tick(payload)
+                if bar_tick:
+                    closed_bar, _cur = live_data_redis.upsert_current_bar_1m(
+                        session_key, payload["symbol"], bar_tick
+                    )
+                    if closed_bar:
+                        live_data_redis.enqueue_closed_bar(session_key, closed_bar)
 
             # Broadcast to WebSocket
-            broadcast_to_websocket_sync(
-                self.channel_layer,
-                {"type": "quote_tick", "data": payload},
-            )
+            broadcast_to_websocket_sync(self.channel_layer, {"type": "quote_tick", "data": payload})
 
         except Exception:
             logger.exception(
@@ -186,10 +249,11 @@ class SchwabStreamingProducer:
     def process_message(self, message: Any) -> None:
         try:
             if isinstance(message, dict) and isinstance(message.get("content"), list):
-                for tick in message["content"]:
+                for tick in message.get("content", []):
                     if isinstance(tick, dict):
                         self.process_tick(tick)
-            elif isinstance(message, dict):
+                return
+            if isinstance(message, dict):
                 self.process_tick(message)
         except Exception:
             logger.exception("Failed to process Schwab streaming message")
