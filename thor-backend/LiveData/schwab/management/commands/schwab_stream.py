@@ -131,35 +131,37 @@ class Command(BaseCommand):
         async def _run():
             backoff = 2
             max_backoff = 60
+
             while True:
                 try:
-                    # Refresh DB copy and preflight before (re)connecting so we never start with a near-expiry token
-                    await refresh_from_db_async(connection)
-                    connection = await ensure_token_async(connection, buffer_seconds=120)
+                    # Use a local variable (avoid scope issues) + keep DB ops async-safe
+                    conn = connection
+                    await refresh_from_db_async(conn)
+                    conn = await ensure_token_async(conn, buffer_seconds=120)
 
                     api_client = schwab_auth.client_from_access_functions(
                         api_key,
                         app_secret,
                         token_read_func=_read_token,
                         token_write_func=_write_token,
-                                    conn = connection  # local reference to avoid scope issues
-                                    await refresh_from_db_async(conn)
-                                    conn = await ensure_token_async(conn, buffer_seconds=120)
-                    # Pass as string to preserve any leading zeros or non-numeric chars stored in broker_account_id
-                    stream_client = StreamClient(api_client, account_id=str(account_id))
+                        asyncio=True,
+                    )
 
+                    stream_client = StreamClient(api_client, account_id=str(account_id))
                     await stream_client.login()
+
+                    # Reset backoff after a successful connect/login
+                    backoff = 2
 
                     # Handlers must be added BEFORE subscribing (docs warn about dropped messages)
                     if equities:
                         stream_client.add_level_one_equity_handler(producer.process_message)
-                        await stream_client.level_one_equity_subs(equities)
+                        await stream_client.level_one_equity_subs([s.upper() for s in equities])
 
                     if futures:
                         stream_client.add_level_one_futures_handler(producer.process_message)
-                        await stream_client.level_one_futures_subs(futures)
+                        await stream_client.level_one_futures_subs([s.upper() for s in futures])
 
-                    # handle_message dispatches to handlers internally
                     while True:
                         await stream_client.handle_message()
 
@@ -171,8 +173,6 @@ class Command(BaseCommand):
                     )
                     await asyncio.sleep(backoff)
                     backoff = min(backoff * 2, max_backoff)
-                else:
-                    backoff = 2
 
         self.stdout.write(self.style.SUCCESS(
             f"Starting Schwab stream user_id={user_id} equities={equities or '-'} futures={futures or '-'}"
