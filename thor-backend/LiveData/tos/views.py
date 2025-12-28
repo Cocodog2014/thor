@@ -152,8 +152,9 @@ def get_latest_quotes(request):
                 symbol = q.get('symbol')
                 if not symbol:
                     continue
+                q['source'] = q.get('source') or 'TOS'
                 # Publish as-is; redis client handles Decimal via default=str
-                live_data_redis.publish_quote(symbol, q)
+                live_data_redis.publish_quote(symbol, q, broadcast_ws=True)
             
             logger.debug(f"Serving {len(quotes)} quotes to {consumer} from {data_range}")
             

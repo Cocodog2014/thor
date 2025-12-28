@@ -96,13 +96,18 @@ class TOSStreamer:
         logger.debug(f"Quote received for {symbol}: {quote_data}")
         
         # Publish to Redis
-        live_data_redis.publish_quote(symbol, {
-            "bid": quote_data.get("bid"),
-            "ask": quote_data.get("ask"),
-            "last": quote_data.get("last"),
-            "volume": quote_data.get("volume"),
-            "timestamp": time.time()
-        })
+        live_data_redis.publish_quote(
+            symbol,
+            {
+                "bid": quote_data.get("bid"),
+                "ask": quote_data.get("ask"),
+                "last": quote_data.get("last"),
+                "volume": quote_data.get("volume"),
+                "timestamp": time.time(),
+                "source": "TOS",
+            },
+            broadcast_ws=True,
+        )
     
     def run(self):
         """

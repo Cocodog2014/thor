@@ -366,10 +366,14 @@ class LiveDataRedis:
     # -------------------------
     # Publish helpers (quotes/positions/balances/orders/transactions)
     # -------------------------
-    def publish_quote(self, symbol: str, data: Dict[str, Any]) -> int:
+    def publish_quote(self, symbol: str, data: Dict[str, Any], *, broadcast_ws: bool = False) -> int:
         """
-        Publish quote data for a symbol.
-        GLOBAL-safe: does not require country.
+        Publish quote data for a symbol and optionally fan out to WebSocket.
+
+        Args:
+            symbol: Ticker/contract symbol
+            data: Quote payload (bid/ask/last/volume/etc.)
+            broadcast_ws: If True, also emit a `quote_tick` over Channels
         """
         from .channels import get_quotes_channel
 
@@ -387,6 +391,19 @@ class LiveDataRedis:
         }
         result = self.publish(channel, payload)
         self.set_latest_quote(sym, payload)
+
+        if broadcast_ws:
+            try:
+                # Lazy import to avoid circulars and to keep Redis-only callers lightweight
+                from api.websocket.broadcast import broadcast_to_websocket_sync
+
+                broadcast_to_websocket_sync(
+                    channel_layer=None,
+                    message={"type": "quote_tick", "data": payload},
+                )
+            except Exception:
+                logger.exception("Failed to broadcast quote to WebSocket for %s", sym)
+
         return result
 
     def publish_raw_quote(self, symbol: str, data: Dict[str, Any]) -> int:
