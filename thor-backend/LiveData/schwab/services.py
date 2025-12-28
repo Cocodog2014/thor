@@ -48,6 +48,9 @@ class SchwabTraderAPI:
         request_kwargs = dict(kwargs)
         request_kwargs.setdefault("timeout", 10)
 
+        # ✅ proactive refresh before any request
+        self.token = ensure_valid_access_token(self.user.schwab_token)
+
         response = requests.request(method, url, headers=self._get_headers(), **request_kwargs)
 
         if response.status_code == 401 and retry_on_unauthorized:
