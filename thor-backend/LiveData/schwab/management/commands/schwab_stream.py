@@ -9,7 +9,7 @@ from typing import List, Optional
 
 from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
-from asgiref.sync import async_to_sync, sync_to_async
+from asgiref.sync import sync_to_async
 
 from LiveData.schwab.models import BrokerConnection
 from LiveData.schwab.streaming import SchwabStreamingProducer
@@ -58,15 +58,6 @@ class Command(BaseCommand):
         refresh_from_db_async = sync_to_async(lambda obj: obj.refresh_from_db(), thread_sensitive=True)
         ensure_token_async = sync_to_async(ensure_valid_access_token, thread_sensitive=True)
 
-        def _db_refresh(obj):
-            obj.refresh_from_db()
-
-        def _db_save(obj, **kwargs):
-            obj.save(**kwargs)
-
-        refresh_db_sync = async_to_sync(sync_to_async(_db_refresh, thread_sensitive=True))
-        save_sync = async_to_sync(sync_to_async(_db_save, thread_sensitive=True))
-
         api_key = getattr(settings, "SCHWAB_CLIENT_ID", None) or getattr(settings, "SCHWAB_API_KEY", None)
         app_secret = getattr(settings, "SCHWAB_CLIENT_SECRET", None)
         account_id = connection.broker_account_id or None
@@ -107,8 +98,8 @@ class Command(BaseCommand):
 
         # Token functions (schwab-py advanced auth helper)
         def _read_token():
-            # schwab-py expects sync callbacks; wrap DB work safely
-            refresh_db_sync(connection)
+            # schwab-py expects sync callbacks
+            connection.refresh_from_db()
             token = {
                 "access_token": connection.access_token,
                 "refresh_token": connection.refresh_token,
@@ -119,8 +110,8 @@ class Command(BaseCommand):
             return {"creation_timestamp": creation_ts, "token": token}
 
         def _write_token(token_obj):
-            # schwab-py expects sync callbacks; wrap DB work safely
-            refresh_db_sync(connection)
+            # schwab-py expects sync callbacks
+            connection.refresh_from_db()
             payload = token_obj.get("token") if isinstance(token_obj, dict) and "token" in token_obj else token_obj
             if not isinstance(payload, dict):
                 payload = {}
@@ -131,8 +122,7 @@ class Command(BaseCommand):
             if payload.get("expires_at") is not None:
                 connection.access_expires_at = int(payload.get("expires_at") or 0)
 
-            save_sync(
-                connection,
+            connection.save(
                 update_fields=["access_token", "refresh_token", "access_expires_at", "updated_at"],
             )
 
