@@ -18,7 +18,7 @@ from .views import (
     get_positions,
     get_balances,
 )
-from .refresh import refresh_access_token
+from .views.refresh import refresh_access_token
 
 app_name = 'schwab'
 
