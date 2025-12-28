@@ -107,6 +107,7 @@ class Command(BaseCommand):
 
         def _write_token(token_obj):
             # token_obj may be wrapped or flat; handle both
+            connection.refresh_from_db()
             inner = token_obj.get("token") if isinstance(token_obj, dict) else None
             if not isinstance(inner, dict):
                 inner = token_obj if isinstance(token_obj, dict) else {}
