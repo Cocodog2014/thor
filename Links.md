@@ -12,7 +12,7 @@ PS A:\Thor\thor-backend> python manage.py schwab_stream --user-id 1 --equities V
 >
 cd A:\Thor\thor-backend
 python manage.py schwab_stream --user-id 1 --equities VFF --futures ""
-python manage.py schwab_stream --user-id 1 --equities VFF
+python manage.py schwab_stream --user-id 1 --equities goog
 
 
 A) Check Redis has live data
@@ -30,6 +30,9 @@ cd A:\Thor\thor-backend
 python manage.py shell -c "from LiveData.shared.redis_client import live_data_redis; print(live_data_redis.get_latest_quote('MSFT'))"
 
 3. python manage.py shell -c "from LiveData.shared.redis_client import live_data_redis; print(live_data_redis.get_latest_quote('YM'))"
+
+4. cd A:\Thor\thor-backend
+python manage.py shell -c "from LiveData.shared.redis_client import live_data_redis; print(live_data_redis.get_latest_quote('goog'))"
 
 
 

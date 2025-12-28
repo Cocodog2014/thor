@@ -8,6 +8,7 @@ from typing import List, Optional
 
 from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
+from asgiref.sync import sync_to_async
 
 from LiveData.schwab.models import BrokerConnection
 from LiveData.schwab.streaming import SchwabStreamingProducer
@@ -53,6 +54,10 @@ class Command(BaseCommand):
         # Preflight refresh so we do not start streaming with an about-to-expire token
         connection = ensure_valid_access_token(connection, buffer_seconds=120)
 
+        refresh_from_db_async = sync_to_async(lambda obj: obj.refresh_from_db(), thread_sensitive=True)
+        save_async = sync_to_async(lambda obj, **kw: obj.save(**kw), thread_sensitive=True)
+        ensure_token_async = sync_to_async(ensure_valid_access_token, thread_sensitive=True)
+
         api_key = getattr(settings, "SCHWAB_CLIENT_ID", None) or getattr(settings, "SCHWAB_API_KEY", None)
         app_secret = getattr(settings, "SCHWAB_CLIENT_SECRET", None)
         account_id = connection.broker_account_id or None
@@ -92,8 +97,9 @@ class Command(BaseCommand):
             raise CommandError("Schwab connection missing broker_account_id; cannot start stream")
 
         # Token functions (schwab-py advanced auth helper)
-        def _read_token():
+        async def _read_token():
             # schwab-py 1.5.x expects a metadata wrapper with creation_timestamp
+            await refresh_from_db_async(connection)
             creation_ts = int(connection.created_at.timestamp()) if getattr(connection, "created_at", None) else 0
             return {
                 "creation_timestamp": creation_ts,
@@ -105,9 +111,9 @@ class Command(BaseCommand):
                 },
             }
 
-        def _write_token(token_obj):
+        async def _write_token(token_obj):
             # token_obj may be wrapped or flat; handle both
-            connection.refresh_from_db()
+            await refresh_from_db_async(connection)
             inner = token_obj.get("token") if isinstance(token_obj, dict) else None
             if not isinstance(inner, dict):
                 inner = token_obj if isinstance(token_obj, dict) else {}
@@ -118,7 +124,7 @@ class Command(BaseCommand):
             if "expires_at" in inner:
                 connection.access_expires_at = int(inner.get("expires_at") or 0)
 
-            connection.save(update_fields=["access_token", "refresh_token", "access_expires_at", "updated_at"])
+            await save_async(connection, update_fields=["access_token", "refresh_token", "access_expires_at", "updated_at"])
 
         producer = SchwabStreamingProducer()
 
@@ -128,8 +134,8 @@ class Command(BaseCommand):
             while True:
                 try:
                     # Refresh DB copy and preflight before (re)connecting so we never start with a near-expiry token
-                    connection.refresh_from_db()
-                    ensure_valid_access_token(connection, buffer_seconds=120)
+                    await refresh_from_db_async(connection)
+                    connection = await ensure_token_async(connection, buffer_seconds=120)
 
                     api_client = schwab_auth.client_from_access_functions(
                         api_key,
