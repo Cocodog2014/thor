@@ -159,7 +159,8 @@ def get_token_expiry(expires_in: int, buffer_seconds: Optional[int] = None) -> i
     Returns:
         Unix timestamp of expiration time
     """
-    return int(time.time()) + int(expires_in or 0)
+    buffer = _EXPIRY_BUFFER_SECONDS if buffer_seconds is None else max(0, int(buffer_seconds))
+    return int(time.time()) + max(0, int(expires_in or 0) - buffer)
 
 
 def ensure_valid_access_token(
