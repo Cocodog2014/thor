@@ -294,6 +294,7 @@ CHANNEL_LAYERS = {
 REALTIME_JOB_PROVIDERS = [
     "GlobalMarkets.realtime.provider",
     "ThorTrading.realtime.provider",
+    "LiveData.schwab.realtime.provider",
 ]
 
 
