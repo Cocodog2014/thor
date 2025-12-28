@@ -11,6 +11,7 @@ import SchwabHealthCard from './SchwabHealthCard';
 import { useAuth } from '../../context/AuthContext';
 import { useSelectedAccount } from '../../context/SelectedAccountContext';
 import { useAccountBalance } from '../../hooks/useAccountBalance';
+import { useWsMessage } from '../../realtime';
 
 type UserProfile = {
   is_staff?: boolean;
@@ -101,6 +102,13 @@ const GlobalBanner: React.FC = () => {
       isMounted = false;
     };
   }, []);
+
+  // Live Schwab health updates via WebSocket
+  useWsMessage<SchwabHealth>('schwab_health', (msg) => {
+    if (msg?.data) {
+      setSchwabHealth(msg.data);
+    }
+  });
 
   useEffect(() => {
     let active = true;

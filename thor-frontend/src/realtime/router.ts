@@ -9,7 +9,7 @@ export function subscribe<T = unknown>(messageType: string, handler: MessageHand
   subscribers.get(messageType)!.add(handler as MessageHandler);
 
   return () => {
-    subscribers.get(messageType)?.delete(handler);
+    subscribers.get(messageType)?.delete(handler as MessageHandler);
   };
 }
 

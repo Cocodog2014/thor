@@ -4,7 +4,7 @@ import { connectSocket, onConnectionChange, isConnected } from './socket';
 import type { MessageHandler, WsEnvelope } from './types';
 
 export function useWsMessage<T = unknown>(messageType: string, handler: MessageHandler<T>, enabled = true): void {
-  const handlerRef = useRef(handler as MessageHandler);
+  const handlerRef = useRef<MessageHandler<T>>(handler);
 
   useEffect(() => {
     handlerRef.current = handler;
