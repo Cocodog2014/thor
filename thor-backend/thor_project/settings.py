@@ -312,6 +312,10 @@ SCHWAB_ENABLED = SCHWAB_ENV in {"dev", "development", "prod", "production"}
 SCHWAB_CLIENT_ID = config('SCHWAB_CLIENT_ID', default='')
 SCHWAB_CLIENT_SECRET = config('SCHWAB_CLIENT_SECRET', default='')
 
+# Heartbeat refresh/broadcast tuning
+SCHWAB_HEARTBEAT_BUFFER_SECONDS = config('SCHWAB_HEARTBEAT_BUFFER_SECONDS', default=120, cast=int)
+SCHWAB_HEALTH_INTERVAL = config('SCHWAB_HEALTH_INTERVAL', default=15, cast=int)
+
 # Cloudflare Tunnel URL (for HTTPS OAuth callback in dev)
 CLOUDFLARE_TUNNEL_URL = config('CLOUDFLARE_TUNNEL_URL', default='')
 

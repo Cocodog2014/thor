@@ -24,10 +24,12 @@ logger = logging.getLogger(__name__)
 class SchwabHealthJob(Job):
     name = "schwab_health"
 
-    def __init__(self, interval_seconds: float = 15.0, refresh_buffer_seconds: int | None = None):
-        # Default to 120s buffer; allow override via settings/env
+    def __init__(self, interval_seconds: float | None = None, refresh_buffer_seconds: int | None = None):
+        # Defaults read from settings with sensible fallbacks
         default_buffer = getattr(settings, "SCHWAB_HEARTBEAT_BUFFER_SECONDS", 120)
-        self.interval_seconds = float(interval_seconds)
+        default_interval = getattr(settings, "SCHWAB_HEALTH_INTERVAL", 15)
+
+        self.interval_seconds = float(interval_seconds or default_interval)
         self.refresh_buffer_seconds = int(refresh_buffer_seconds or default_buffer)
 
     def should_run(self, now: float, state: dict[str, Any]) -> bool:
@@ -63,6 +65,11 @@ class SchwabHealthJob(Job):
         for conn in connections:
             refreshed = False
             error = None
+
+            # Skip unusable records early to avoid noisy refresh attempts
+            if not conn.refresh_token:
+                rows.append(self._snapshot(conn, refreshed=False, error="missing refresh_token"))
+                continue
             try:
                 expires_at = int(conn.access_expires_at or 0)
                 seconds_left = max(0, expires_at - now_ts)
@@ -71,8 +78,9 @@ class SchwabHealthJob(Job):
                     conn = ensure_valid_access_token(
                         conn,
                         buffer_seconds=self.refresh_buffer_seconds,
-                        force_refresh=seconds_left <= self.refresh_buffer_seconds,
+                        force_refresh=False,
                     )
+                    # If a refresh actually occurred, ensure_valid_access_token would have saved/updated
                     refreshed = True
                     refreshed_count += 1
             except Exception as exc:  # noqa: BLE001
