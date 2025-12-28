@@ -1,6 +1,8 @@
 from django.contrib import admin
+from django.contrib import messages
 
 from .models import BrokerConnection
+from .tokens import ensure_valid_access_token
 
 
 @admin.register(BrokerConnection)
@@ -44,3 +46,27 @@ class BrokerConnectionAdmin(admin.ModelAdmin):
             {"fields": ("created_at", "updated_at")},
         ),
     )
+
+    actions = ["refresh_access_tokens"]
+
+    def refresh_access_tokens(self, request, queryset):
+        """Admin action to force-refresh selected Schwab access tokens."""
+        refreshed = 0
+        errors = 0
+        for connection in queryset:
+            try:
+                ensure_valid_access_token(connection, force_refresh=True)
+                refreshed += 1
+            except Exception as exc:  # pragma: no cover - admin utility
+                errors += 1
+                self.message_user(
+                    request,
+                    f"Failed to refresh Schwab token for user {connection.user_id}: {exc}",
+                    level=messages.ERROR,
+                )
+        if refreshed:
+            self.message_user(request, f"Refreshed Schwab tokens for {refreshed} connection(s)", level=messages.SUCCESS)
+        if not refreshed and not errors:
+            self.message_user(request, "No connections selected for refresh", level=messages.INFO)
+
+    refresh_access_tokens.short_description = "Force refresh Schwab token"
