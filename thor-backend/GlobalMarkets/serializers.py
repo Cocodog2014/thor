@@ -30,7 +30,7 @@ class MarketSerializer(serializers.ModelSerializer):
         return obj.get_display_name()
 
     def get_sort_order(self, obj):
-        return obj.get_sort_order()
+        return obj.sort_order
 
 
 class TradingCalendarSerializer(serializers.ModelSerializer):

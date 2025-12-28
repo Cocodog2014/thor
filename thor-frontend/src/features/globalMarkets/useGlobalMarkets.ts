@@ -21,18 +21,9 @@ export function useGlobalMarkets() {
   const [error, setError] = useState<string | null>(null);
   const wsConnected = useWsConnection();
 
-  const preferredOrder = [
-    'Tokyo',
-    'Shanghai',
-    'Bombay',
-    'London',
-    'Pre_USA',
-    'USA',
-  ];
-
   const fetchMarkets = useCallback(async () => {
     const data = await marketsService.getAll();
-    return data.results.sort((a, b) => a.sort_order - b.sort_order);
+    return data.results;
   }, []);
 
   const marketsQuery = useQuery({
@@ -103,16 +94,7 @@ export function useGlobalMarkets() {
   });
 
   return {
-    markets: (marketsQuery.data ?? []).slice().sort((a, b) => {
-      const ai = preferredOrder.indexOf(a.display_name || a.country || '');
-      const bi = preferredOrder.indexOf(b.display_name || b.country || '');
-
-      const aRank = ai >= 0 ? ai : preferredOrder.length + (a.sort_order ?? 0);
-      const bRank = bi >= 0 ? bi : preferredOrder.length + (b.sort_order ?? 0);
-
-      if (aRank !== bRank) return aRank - bRank;
-      return (a.sort_order ?? 0) - (b.sort_order ?? 0);
-    }),
+    markets: marketsQuery.data ?? [],
     loading: marketsQuery.isLoading || marketsQuery.isFetching,
     error: marketsQuery.isError ? 'Lost connection to global markets' : error,
     lastUpdate,

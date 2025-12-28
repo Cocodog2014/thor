@@ -67,8 +67,8 @@ class MarketViewSet(viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ["status", "is_active", "currency"]
     search_fields = ["country", "timezone_name"]
-    ordering_fields = ["country", "market_open_time", "created_at"]
-    ordering = ["country"]
+    ordering_fields = ["sort_order", "country", "market_open_time", "created_at"]
+    ordering = ["sort_order", "country"]
 
     def get_permissions(self):
         """

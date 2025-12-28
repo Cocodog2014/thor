@@ -19,6 +19,9 @@ class Market(models.Model):
     # Basic market information
     country = models.CharField(max_length=50)
 
+    # Display / ordering
+    sort_order = models.IntegerField(default=0, help_text="Admin-controlled display order (lower first)")
+
     # Timezone information
     timezone_name = models.CharField(max_length=50, choices=TIMEZONE_CHOICES)
 
@@ -52,7 +55,7 @@ class Market(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ['country']
+        ordering = ['sort_order', 'country']
         verbose_name = 'Market'
         verbose_name_plural = 'Markets'
 
@@ -63,7 +66,7 @@ class Market(models.Model):
         return self.country
 
     def get_sort_order(self):
-        return self.country.lower()
+        return self.sort_order
 
     def session_capture_enabled(self) -> bool:
         """Return capture toggle using the session capture flag."""
