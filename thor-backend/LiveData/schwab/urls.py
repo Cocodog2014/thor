@@ -17,6 +17,7 @@ from .views import (
     account_positions,
     get_positions,
     get_balances,
+    refresh_access_token,
 )
 
 app_name = 'schwab'
@@ -30,4 +31,5 @@ urlpatterns = [
     path('accounts/<str:account_id>/balances/', get_balances, name='get_balances'),
     path('account/positions/', account_positions, name='account_positions'),
     path('account/summary/', account_summary, name='account_summary'),
+    path('refresh/', refresh_access_token, name='refresh_access_token'),
 ]
