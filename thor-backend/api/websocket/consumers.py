@@ -128,6 +128,13 @@ class MarketDataConsumer(AsyncWebsocketConsumer):
             "data": event.get("data")
         }))
 
+    async def schwab_health(self, event):
+        """Broadcast Schwab health snapshot to client."""
+        await self.send(text_data=json.dumps({
+            "type": "schwab_health",
+            "data": event.get("data", event),
+        }))
+
     async def global_markets_tick(self, event):
         """Broadcast consolidated per-market clock tick to client."""
         await self.send(text_data=json.dumps({
