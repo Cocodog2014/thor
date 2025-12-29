@@ -12,7 +12,7 @@ from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 from asgiref.sync import sync_to_async
 
-from LiveData.schwab.models import BrokerConnection
+from LiveData.schwab.models import BrokerConnection, SchwabSubscription
 from LiveData.schwab.client.streaming import SchwabStreamingProducer
 from LiveData.schwab.client.tokens import ensure_valid_access_token
 
@@ -34,6 +34,31 @@ class Command(BaseCommand):
         parser.add_argument("--equities", type=str, default="")
         parser.add_argument("--futures", type=str, default="")
 
+    def _load_subscriptions(self, user_id: int) -> tuple[list[str], list[str]]:
+        """Load enabled Schwab subscriptions for the user, grouped by asset type.
+
+        Returns: (equities_and_indexes, futures)
+        """
+        subs = SchwabSubscription.objects.filter(user_id=user_id, enabled=True).values("symbol", "asset_type")
+
+        equities: set[str] = set()
+        futures: set[str] = set()
+
+        for sub in subs:
+            sym = (sub.get("symbol") or "").lstrip("/").upper()
+            if not sym:
+                continue
+
+            asset = (sub.get("asset_type") or "").upper()
+            if asset in {SchwabSubscription.ASSET_EQUITY, SchwabSubscription.ASSET_INDEX}:
+                equities.add(sym)
+            elif asset == SchwabSubscription.ASSET_FUTURE:
+                futures.add(sym)
+            else:
+                logger.warning("Ignoring Schwab subscription with unknown asset_type=%s symbol=%s", asset, sym)
+
+        return sorted(equities), sorted(futures)
+
     def handle(self, *args, **options):
         try:
             from schwab import auth as schwab_auth  # type: ignore
@@ -44,6 +69,13 @@ class Command(BaseCommand):
         user_id: int = options["user_id"]
         equities: List[str] = _parse_csv(options.get("equities"))
         futures: List[str] = _parse_csv(options.get("futures"))
+
+        loaded_from_subs = False
+        if not equities and not futures:
+            equities, futures = self._load_subscriptions(user_id)
+            loaded_from_subs = True
+            if not equities and not futures:
+                raise CommandError("No Schwab subscriptions found for this user; pass --equities/--futures or create subscriptions")
 
         connection = (
             BrokerConnection.objects.select_related("user")
@@ -199,8 +231,9 @@ class Command(BaseCommand):
                     await asyncio.sleep(backoff)
                     backoff = min(backoff * 2, max_backoff)
 
+        source_label = "subscriptions" if loaded_from_subs else "cli"
         self.stdout.write(self.style.SUCCESS(
-            f"Starting Schwab stream user_id={user_id} equities={equities or '-'} futures={futures or '-'}"
+            f"Starting Schwab stream user_id={user_id} equities={equities or '-'} futures={futures or '-'} source={source_label}"
         ))
         try:
             asyncio.run(_run())

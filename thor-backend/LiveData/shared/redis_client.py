@@ -319,10 +319,9 @@ class LiveDataRedis:
                     break
                 moved += 1
         except Exception as e:
-            logger.error("Failed to requeue processing bars for %s: %s", country, e)
+            logger.error("Failed to requeue processing bars for %s: %s", prefix, e)
         return moved
 
-    # ✅ FIXED: decode ALL items and return after loop
     def checkout_closed_bars(self, routing_key: str, count: int = 500) -> Tuple[List[dict], List[str], int]:
         """
         Atomically move up to `count` bars from the main queue to a processing queue.
@@ -372,7 +371,6 @@ class LiveDataRedis:
         except Exception as e:
             logger.error("Failed to acknowledge closed bars for %s: %s", prefix, e)
 
-    # ✅ FIXED: remove from processing before requeueing (prevents duplicates)
     def return_closed_bars(self, routing_key: str, items: List[str]) -> None:
         """Return items to the main queue if processing failed (and remove from processing queue)."""
         if not items:
@@ -396,7 +394,6 @@ class LiveDataRedis:
         """Cache the latest quote for a symbol in a Redis hash (GLOBAL-safe)."""
         try:
             sym = symbol.upper()
-            # Prefer existing country/market if provided, else GLOBAL
             raw = data.get("country") or data.get("market") or self.DEFAULT_COUNTRY
             norm = self._norm_country(raw) or raw or self.DEFAULT_COUNTRY
 
@@ -445,13 +442,25 @@ class LiveDataRedis:
     # -------------------------
     # Publish helpers (quotes/positions/balances/orders/transactions)
     # -------------------------
-    def publish_quote(self, symbol: str, data: Dict[str, Any], *, broadcast_ws: bool = False) -> int:
+    def publish_quote(
+        self,
+        symbol: str,
+        data: Dict[str, Any],
+        *,
+        provider: str | None = None,
+        asset_type: str | None = None,
+        ts: int | float | str | datetime | None = None,
+        broadcast_ws: bool = False,
+    ) -> int:
         """
         Publish quote data for a symbol and optionally fan out to WebSocket.
 
         Args:
             symbol: Ticker/contract symbol
             data: Quote payload (bid/ask/last/volume/etc.)
+            provider: Source feed identifier (e.g., "schwab")
+            asset_type: Asset category (e.g., "EQUITY", "FUTURE", "INDEX")
+            ts: Optional timestamp for this quote. If omitted, best-effort from data or now.
             broadcast_ws: If True, also emit a `quote_tick` over Channels
         """
         from .channels import get_quotes_channel
@@ -462,18 +471,26 @@ class LiveDataRedis:
         raw = data.get("country") or data.get("market") or self.DEFAULT_COUNTRY
         norm = self._norm_country(raw) or raw or self.DEFAULT_COUNTRY
 
-        payload = {
+        ts_raw = ts or data.get("ts") or data.get("timestamp") or data.get("time") or data.get("datetime")
+        ts_epoch = _to_epoch_seconds_utc(ts_raw)
+
+        payload: Dict[str, Any] = {
             "type": "quote",
             "symbol": sym,
             **data,
             "country": norm,
+            "ts": ts_epoch,
         }
+        if provider:
+            payload["provider"] = provider
+        if asset_type:
+            payload["asset_type"] = asset_type
+
         result = self.publish(channel, payload)
         self.set_latest_quote(sym, payload)
 
         if broadcast_ws:
             try:
-                # Lazy import to avoid circulars and to keep Redis-only callers lightweight
                 from api.websocket.broadcast import broadcast_to_websocket_sync
 
                 broadcast_to_websocket_sync(
