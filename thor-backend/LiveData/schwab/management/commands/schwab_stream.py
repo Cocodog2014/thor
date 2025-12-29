@@ -256,6 +256,8 @@ class Command(BaseCommand):
                         stream_client.add_level_one_futures_handler(producer.process_message)
                         await stream_client.level_one_futures_subs([s.upper() for s in futures])
 
+                    logger.info("Listening for subscription events on live_data:subscriptions:schwab")
+
                     while True:
                         await stream_client.handle_message()
 

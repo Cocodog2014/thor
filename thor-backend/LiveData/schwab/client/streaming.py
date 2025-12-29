@@ -253,6 +253,7 @@ class SchwabStreamingProducer:
     # ------------------------------------------------------------------
     def process_message(self, message: Any) -> None:
         try:
+            logger.info("SCHWAB MESSAGE RECEIVED")
             if isinstance(message, dict) and isinstance(message.get("content"), list):
                 for tick in message.get("content", []):
                     if isinstance(tick, dict):
