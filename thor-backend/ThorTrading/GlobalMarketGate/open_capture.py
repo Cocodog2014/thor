@@ -637,7 +637,7 @@ def _scan_and_capture_once() -> int:
     """
     captures = 0
 
-    markets = list(get_control_markets(require_session_capture=True))
+    markets = list(get_control_markets())
     if not markets:
         return 0
 
