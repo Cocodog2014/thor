@@ -212,8 +212,7 @@ def register(registry: Any) -> list[str]:
 
     for job in jobs:
         try:
-            # InlineJob carries its own interval via should_run; no need to pass separately.
-            registry.register(job)
+            registry.register(job, interval_seconds=job.interval_seconds)
             job_names.append(job.name)
         except Exception:
             logger.exception("Failed to register job %s", job.name)
