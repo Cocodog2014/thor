@@ -635,7 +635,7 @@ def _scan_and_capture_once() -> int:
     captures = 0
 
     # Only markets we care about controlling/capturing
-    markets = list(get_control_markets(require_open_capture=True))
+    markets = list(get_control_markets(require_session_capture=True))
     if not markets:
         return 0
 
