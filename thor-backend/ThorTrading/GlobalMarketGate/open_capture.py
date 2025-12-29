@@ -474,9 +474,21 @@ class MarketOpenCaptureService:
             if session_number is None:
                 session_number = self.get_next_session_number()
 
-            # Idempotence: if this session_number already captured, skip
-            if MarketSession.objects.filter(session_number=session_number, capture_kind="OPEN").exists():
-                logger.info("Open capture skipped: session_number %s already exists", session_number)
+            # Idempotence: country + market-local date (avoid blocking other markets sharing a session number)
+            if MarketSession.objects.filter(
+                country=country_code or display_country,
+                capture_kind="OPEN",
+                year=time_info["year"],
+                month=time_info["month"],
+                date=time_info["date"],
+            ).exists():
+                logger.info(
+                    "Open capture skipped: %s already captured for %04d-%02d-%02d",
+                    country_code or display_country,
+                    time_info["year"],
+                    time_info["month"],
+                    time_info["date"],
+                )
                 return None
 
             with transaction.atomic():
