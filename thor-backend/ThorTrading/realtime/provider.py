@@ -149,7 +149,7 @@ def _run_market_metrics(ctx: Any) -> None:
 
 
 def _run_market_grader(ctx: Any) -> None:
-    from ThorTrading.services.market_grader import grade_pending_once
+    from ThorTrading.services.sessions.grading import grade_pending_once
 
     try:
         grade_pending_once()
