@@ -6,6 +6,10 @@ python manage.py market_open_capture --country USA --force
 
 python manage.py shell -c "from LiveData.shared.redis_client import live_data_redis; print(live_data_redis.get_latest_quote('AAPL'))"
 
+Quick proof: does Redis have TSLA?
+
+python manage.py shell -c "import time; from LiveData.shared.redis_client import live_data_redis; q=live_data_redis.get_latest_quote('TSLA'); print(q); now=time.time(); ts=float((q or {}).get('timestamp') or 0); print('age_seconds=', None if not q else round(now-ts,1)); print('age_abs_seconds=', None if not q else round(abs(now-ts),1))"
+
 cd A:\Thor\thor-backend
 python manage.py schwab_stream --user-id <your_user_id> --equities VFF --futures ""
 PS A:\Thor\thor-backend> python manage.py schwab_stream --user-id 1 --equities VFF --futures ""
@@ -44,6 +48,10 @@ python manage.py shell -c "from LiveData.shared.redis_client import live_data_re
 
 
 If you see a dict (price, symbol, country=GLOBAL), Schwab → Redis is live ✅
+
+Notes
+- A small negative `age_seconds` can happen (clock skew); use `age_abs_seconds`.
+- Adding symbols in Django admin does not auto-update a running `schwab_stream` (restart it to pick up subscription changes).
 
 clean tokens cd A:\Thor\thor-backend
 python manage.py shell -c "from LiveData.schwab.models import BrokerConnection; bc=BrokerConnection.objects.filter(user_id=1, broker='SCHWAB').first(); 

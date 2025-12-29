@@ -6,7 +6,7 @@ import asyncio
 import logging
 import time
 from copy import deepcopy
-from typing import List, Optional, Dict, Tuple
+from typing import List, Optional, Dict, Tuple, Any
 
 from asgiref.sync import sync_to_async
 from django.conf import settings
@@ -91,6 +91,7 @@ class Command(BaseCommand):
 
         user_id: int = options["user_id"]
         exit_after_first: bool = bool(options.get("exit_after_first"))
+        echo_ticks: bool = int(options.get("verbosity", 1) or 0) >= 1
 
         # CLI overrides (still supported)
         equities: List[str] = _parse_csv(options.get("equities"))
@@ -221,6 +222,39 @@ class Command(BaseCommand):
 
         producer = SchwabStreamingProducer()
 
+        def _echo_message(msg: object) -> None:
+            """Best-effort terminal echo of all ticks in a message.
+
+            Uses the same normalizer as the Redis publisher so you see exactly
+            what the app is ingesting.
+            """
+
+            if not echo_ticks:
+                return
+            if not isinstance(msg, dict):
+                return
+
+            ticks = msg.get("content") if isinstance(msg.get("content"), list) else [msg]
+            if not ticks:
+                return
+
+            now = time.time()
+            for tick in ticks:
+                if not isinstance(tick, dict):
+                    continue
+                try:
+                    payload = producer._normalize_payload(tick)
+                    if not payload:
+                        continue
+                    age = round(max(0.0, now - float(payload.get("timestamp") or now)), 1)
+                    self.stdout.write(
+                        f"{payload.get('symbol')} bid={payload.get('bid')} ask={payload.get('ask')} "
+                        f"last={payload.get('last')} vol={payload.get('volume')} age_s={age}"
+                    )
+                except Exception:
+                    # Never let terminal output break streaming.
+                    continue
+
         async def _run():
             backoff = 2
             max_backoff = 60
@@ -228,9 +262,11 @@ class Command(BaseCommand):
             while True:
                 try:
                     first_message_seen = asyncio.Event()
+                    stream_client: Any | None = None
 
                     def _handler(msg: object) -> None:
                         producer.process_message(msg)
+                        _echo_message(msg)
                         try:
                             first_message_seen.set()
                         except Exception:
@@ -296,54 +332,72 @@ class Command(BaseCommand):
                     # Reset backoff after a successful connect/login
                     backoff = 2
 
-                    # IMPORTANT: Handlers must be added BEFORE subscribing
-                    if equities:
-                        stream_client.add_level_one_equity_handler(_handler)
-                        resp = await stream_client.level_one_equity_subs(
-                            [s.upper() for s in equities],
-                            fields=equity_fields,
-                        )
-                        logger.warning("Schwab equity_subs sent symbols=%s resp=%s", equities, resp)
-
-                    if futures:
-                        stream_client.add_level_one_futures_handler(_handler)
-                        resp = await stream_client.level_one_futures_subs(
-                            [s.upper() for s in futures],
-                            fields=futures_fields,
-                        )
-                        logger.warning("Schwab futures_subs sent symbols=%s resp=%s", futures, resp)
-
                     try:
-                        sock = getattr(stream_client, "_socket", None)
-                        logger.warning(
-                            "Schwab websocket state before loop: open=%s closed=%s close_code=%s close_reason=%r",
-                            getattr(sock, "open", None),
-                            getattr(sock, "closed", None),
-                            getattr(sock, "close_code", None),
-                            getattr(sock, "close_reason", None),
-                        )
-                    except Exception:
-                        pass
+                        # IMPORTANT: Handlers must be added BEFORE subscribing
+                        if equities:
+                            stream_client.add_level_one_equity_handler(_handler)
+                            resp = await stream_client.level_one_equity_subs(
+                                [s.upper() for s in equities],
+                                fields=equity_fields,
+                            )
+                            logger.warning("Schwab equity_subs sent symbols=%s resp=%s", equities, resp)
 
-                    logger.info("Listening for subscription events on live_data:subscriptions:schwab")
+                        if futures:
+                            stream_client.add_level_one_futures_handler(_handler)
+                            resp = await stream_client.level_one_futures_subs(
+                                [s.upper() for s in futures],
+                                fields=futures_fields,
+                            )
+                            logger.warning("Schwab futures_subs sent symbols=%s resp=%s", futures, resp)
 
-                    while True:
-                        await stream_client.handle_message()
+                        try:
+                            sock = getattr(stream_client, "_socket", None)
+                            logger.warning(
+                                "Schwab websocket state before loop: open=%s closed=%s close_code=%s close_reason=%r",
+                                getattr(sock, "open", None),
+                                getattr(sock, "closed", None),
+                                getattr(sock, "close_code", None),
+                                getattr(sock, "close_reason", None),
+                            )
+                        except Exception:
+                            pass
 
-                        if exit_after_first and first_message_seen.is_set():
-                            logger.warning("Exiting Schwab stream after first message (--exit-after-first)")
-                            return
+                        logger.info("Listening for Schwab streaming messages")
+                        while True:
+                            await stream_client.handle_message()
+
+                            if exit_after_first and first_message_seen.is_set():
+                                logger.warning("Exiting Schwab stream after first message (--exit-after-first)")
+                                return
+                    finally:
+                        # Best-effort clean shutdown so Ctrl-C doesn't leave
+                        # websocket close tasks pending.
+                        try:
+                            await stream_client.logout()
+                        except Exception:
+                            pass
 
                 except asyncio.CancelledError:
                     raise
                 except ConnectionClosed as exc:
-                    logger.warning(
-                        "Schwab websocket closed; reconnecting in %ss: code=%s reason=%r",
-                        backoff,
-                        getattr(exc, "code", None),
-                        getattr(exc, "reason", None),
-                        exc_info=True,
-                    )
+                    code = getattr(exc, "code", None)
+                    reason = getattr(exc, "reason", None)
+                    # Code=1000 is a normal close; don't spam scary tracebacks.
+                    if code in (1000, 1001):
+                        logger.warning(
+                            "Schwab websocket closed cleanly; reconnecting in %ss: code=%s reason=%r",
+                            backoff,
+                            code,
+                            reason,
+                        )
+                    else:
+                        logger.warning(
+                            "Schwab websocket closed; reconnecting in %ss: code=%s reason=%r",
+                            backoff,
+                            code,
+                            reason,
+                            exc_info=True,
+                        )
                     await asyncio.sleep(backoff)
                     backoff = min(backoff * 2, max_backoff)
                 except Exception as exc:

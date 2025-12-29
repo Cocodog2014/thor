@@ -44,6 +44,7 @@ def _to_float(value: Any) -> Optional[float]:
 
 
 def _extract_timestamp(tick: Dict[str, Any]) -> float:
+    now = time.time()
     candidates = [
         tick.get("timestamp"),
         tick.get("ts"),
@@ -62,10 +63,16 @@ def _extract_timestamp(tick: Dict[str, Any]) -> float:
             # Many Schwab fields are epoch-millis. Normalize to seconds.
             if ts > 1e12:
                 ts = ts / 1000.0
+
+            # Guard against minor clock skew: if provider timestamp is ahead of
+            # local clock by more than a small tolerance, clamp to now.
+            # This prevents negative "age_seconds" and stale-quote logic issues.
+            if ts > now + 2.0:
+                ts = now
             return ts
         except Exception:
             continue
-    return time.time()
+    return now
 
 
 def _safe_json_loads(raw: Any) -> Optional[dict]:
@@ -395,7 +402,8 @@ class SchwabStreamingProducer:
                     if isinstance(message, dict):
                         keys = sorted([str(k) for k in message.keys()])
                         if isinstance(message.get("content"), list) and message.get("content"):
-                            first = message.get("content")[0]
+                            content = message.get("content") or []
+                            first = content[0]
                             first_keys = sorted([str(k) for k in first.keys()]) if isinstance(first, dict) else []
                             sample = None
                             if isinstance(first, dict):
@@ -421,10 +429,17 @@ class SchwabStreamingProducer:
                                     "TRADE_TIME_MILLIS",
                                 )
                                 sample = {k: first.get(k) for k in want if k in first}
+
+                            batch_keys = None
+                            try:
+                                batch_keys = [c.get("key") for c in content if isinstance(c, dict) and c.get("key") is not None]
+                            except Exception:
+                                batch_keys = None
                             logger.warning(
-                                "Schwab first message keys=%s content_len=%s first_tick_keys=%s first_tick_sample=%s",
+                                "Schwab first message keys=%s content_len=%s batch_keys=%s first_tick_keys=%s first_tick_sample=%s",
                                 keys,
-                                len(message.get("content")),
+                                len(content),
+                                batch_keys,
                                 first_keys,
                                 sample,
                             )
