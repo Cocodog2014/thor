@@ -3,33 +3,32 @@ from __future__ import annotations
 import logging
 import os
 from datetime import date as date_cls
-from zoneinfo import ZoneInfo
 from decimal import Decimal
+from zoneinfo import ZoneInfo
 
 from django.conf import settings
 from django.db import transaction
 from django.db.models import Max
 from django.utils import timezone
 
+from GlobalMarkets.services.active_markets import get_control_markets
+from GlobalMarkets.services.market_clock import is_market_open_now
+from LiveData.shared.redis_client import live_data_redis
+from ThorTrading.GlobalMarketGate.global_market_gate import (
+    open_capture_allowed,
+    session_tracking_allowed,
+)
 from ThorTrading.models.MarketSession import MarketSession
-from ThorTrading.models.rtd import TradingInstrument  # <-- adjust import if your path differs
+from ThorTrading.models.rtd import TradingInstrument  # adjust path if needed
 from ThorTrading.services.analytics.backtest_stats import compute_backtest_stats_for_country_symbol
 from ThorTrading.services.config.country_codes import normalize_country_code
 from ThorTrading.services.indicators import compute_targets_for_symbol
 from ThorTrading.services.quotes import get_enriched_quotes_with_composite
 from ThorTrading.services.sessions.analytics.wndw_totals import CountrySymbolWndwTotalsService
 from ThorTrading.services.sessions.counters import CountrySymbolCounter
-from ThorTrading.GlobalMarketGate.global_market_gate import (
-    open_capture_allowed,
-    session_tracking_allowed,
-)
-from GlobalMarkets.services.market_clock import is_market_open_now
-from GlobalMarkets.services.active_markets import get_control_markets
 from ThorTrading.services.sessions.metrics import MarketOpenMetric
-from LiveData.shared.redis_client import live_data_redis
 
 logger = logging.getLogger(__name__)
-
 
 # Only allow fields that exist on MarketSession to avoid runtime errors
 ALLOWED_SESSION_FIELDS = {
@@ -114,7 +113,7 @@ ALLOWED_SESSION_FIELDS = {
 class MarketOpenCaptureService:
     """Captures symbol data at market open - matches RTD endpoint logic."""
 
-    def get_next_session_number(self):
+    def get_next_session_number(self) -> int:
         last = MarketSession.objects.order_by("-session_number").first()
         return (last.session_number + 1) if last else 1
 
@@ -182,14 +181,13 @@ class MarketOpenCaptureService:
 
     def _allowed_symbols_for_country(self, country_code: str) -> tuple[set[str], bool]:
         """
-        Instrument-neutral allowed list from admin-managed TradingInstrument rows.
+        Allowed list from admin-managed TradingInstrument rows.
 
         Order of truth:
         1) Country-scoped instruments (is_active + is_watchlist)
         2) If none exist, fall back to all active+watchlist instruments (global list),
            then persist that set into the country so future runs stay country-specific.
         """
-
         canonical_country = normalize_country_code(country_code) or country_code
 
         qs = TradingInstrument.objects.filter(
@@ -214,7 +212,7 @@ class MarketOpenCaptureService:
                 )
                 self._persist_fallback_instruments(canonical_country, fallback_qs)
 
-                # Re-read the country-scoped symbols after persistence to keep captures country-specific going forward
+                # Re-read after persistence
                 symbols = {
                     s.strip().upper()
                     for s in TradingInstrument.objects.filter(
@@ -242,8 +240,6 @@ class MarketOpenCaptureService:
         country: str,
         composite_signal: str,
     ):
-        """Create one MarketSession row for a single symbol."""
-
         canonical_symbol = symbol.lstrip("/").upper()
         ext = row.get("extended_data", {}) or {}
 
@@ -281,11 +277,10 @@ class MarketOpenCaptureService:
             "high_pct_52w": self.safe_decimal(ext.get("high_pct_52w") or ext.get("high_pct_52")),
             "bhs": (ext.get("signal") or "").upper() if ext.get("signal") else "",
             "weight": self.safe_int(ext.get("signal_weight")),
+            "entry_price": None,
+            "target_high": None,
+            "target_low": None,
         }
-
-        data["entry_price"] = None
-        data["target_high"] = None
-        data["target_low"] = None
 
         individual_signal = data["bhs"]
         if individual_signal and individual_signal not in ["HOLD", ""]:
@@ -296,7 +291,6 @@ class MarketOpenCaptureService:
 
             entry = data["entry_price"]
             if entry:
-                # NEW: pass country into the target logic
                 high, low = compute_targets_for_symbol(country, canonical_symbol, entry)
                 data["target_high"] = high
                 data["target_low"] = low
@@ -346,8 +340,6 @@ class MarketOpenCaptureService:
             return None
 
     def create_session_for_total(self, composite, session_number, capture_group, time_info, country, ym_entry_price=None):
-        """Create one MarketSession row for TOTAL composite."""
-
         composite_signal = (composite.get("composite_signal") or "HOLD").upper()
 
         data = {
@@ -369,7 +361,6 @@ class MarketOpenCaptureService:
 
         if ym_entry_price is not None and composite_signal not in ["HOLD", ""]:
             data["entry_price"] = ym_entry_price
-            # NEW: country-aware targets
             high, low = compute_targets_for_symbol(country, "YM", ym_entry_price)
             data["target_high"] = high
             data["target_low"] = low
@@ -413,15 +404,10 @@ class MarketOpenCaptureService:
             logger.info("Capturing %s market open...", country_code or display_country or "?")
 
             allowed_symbols, used_fallback = self._allowed_symbols_for_country(country_code or display_country)
-            logger.info(
-                "OpenCapture %s: allowed_symbols=%d",
-                country_code or display_country,
-                len(allowed_symbols),
-            )
+            logger.info("OpenCapture %s: allowed_symbols=%d", country_code or display_country, len(allowed_symbols))
             if used_fallback:
                 logger.warning(
-                    "No instruments configured for country=%s; using global symbol set and filtering to feed country=%s",
-                    country_code or display_country,
+                    "No instruments configured for %s; fallback instruments were persisted to country",
                     country_code or display_country,
                 )
 
@@ -431,38 +417,44 @@ class MarketOpenCaptureService:
                 return None
 
             filtered = []
-            dropped_missing_country = []
+            missing_country = []
+            market_code = (country_code or display_country)
+
             for r in enriched:
                 symbol = (r.get("instrument", {}) or {}).get("symbol") or ""
                 base_symbol = symbol.lstrip("/").upper()
+                if not base_symbol:
+                    continue
 
+                # Gate by configured instruments for this market
                 if allowed_symbols and base_symbol not in allowed_symbols:
                     continue
 
+                # If the feed provides a country, enforce it.
                 row_country_raw = r.get("country")
                 row_country = normalize_country_code(row_country_raw) if row_country_raw else None
+                if row_country and row_country != market_code:
+                    continue
 
-                # Always enforce country match to avoid cross-market borrowing, even during fallback
+                # If country missing, allow it (it already passed allowed_symbols)
                 if not row_country:
-                    dropped_missing_country.append(base_symbol)
-                    continue
-                if row_country != (country_code or display_country):
-                    continue
+                    missing_country.append(base_symbol)
 
                 filtered.append(r)
 
             enriched = filtered
             logger.info(
-                "OpenCapture %s: enriched_rows=%d after filtering (dropped_missing_country=%d)",
-                country_code or display_country,
+                "OpenCapture %s: enriched_rows=%d after filtering (missing_country=%d)",
+                market_code,
                 len(enriched),
-                len(dropped_missing_country),
+                len(missing_country),
             )
+
             if not enriched:
                 logger.error(
-                    "No enriched rows for %s after country/symbol filter%s",
+                    "No enriched rows for %s after symbol filter (missing_country=%d)",
                     country_code or display_country or "?",
-                    f"; dropped_missing_country={dropped_missing_country}" if dropped_missing_country else "",
+                    len(missing_country),
                 )
                 return None
 
@@ -474,7 +466,7 @@ class MarketOpenCaptureService:
             if session_number is None:
                 session_number = self.get_next_session_number()
 
-            # Idempotence: country + market-local date (avoid blocking other markets sharing a session number)
+            # Idempotence: country + market-local date
             if MarketSession.objects.filter(
                 country=country_code or display_country,
                 capture_kind="OPEN",
@@ -491,20 +483,17 @@ class MarketOpenCaptureService:
                 )
                 return None
 
-            with transaction.atomic():
-                last_group_val = (
-                    MarketSession.objects.exclude(capture_group__isnull=True)
-                    .aggregate(max_group=Max("capture_group"))
-                    .get("max_group")
-                ) or 0
-                capture_group = session_number or int(last_group_val) + 1
+            # Capture group strategy: use session_number as group id (explicit + stable)
+            capture_group = int(session_number)
 
             sessions_created = []
             failures = []
             ym_entry_price = None
 
             for row in enriched:
-                symbol = row["instrument"]["symbol"]
+                symbol = row.get("instrument", {}).get("symbol")
+                if not symbol:
+                    continue
 
                 session = self.create_session_for_symbol(
                     symbol,
@@ -541,7 +530,12 @@ class MarketOpenCaptureService:
             try:
                 MarketOpenMetric.update_for_session_group(capture_group)
             except Exception as metrics_error:  # noqa: BLE001
-                logger.warning("market_open refresh failed for session %s: %s", session_number, metrics_error, exc_info=True)
+                logger.warning(
+                    "market_open refresh failed for session %s: %s",
+                    session_number,
+                    metrics_error,
+                    exc_info=True,
+                )
 
             try:
                 _country_symbol_wndw_service.update_for_session_group(
@@ -578,7 +572,6 @@ _country_symbol_wndw_service = CountrySymbolWndwTotalsService()
 
 
 def _get_capture_interval() -> float:
-    # Prefer new setting/env name but keep backward compatibility
     setting = getattr(settings, "THORTRADING_MARKET_OPEN_CAPTURE_INTERVAL", None)
     if setting is None:
         setting = getattr(settings, "TRADING_MARKET_OPEN_CAPTURE_INTERVAL", None)
@@ -600,13 +593,16 @@ def _get_capture_interval() -> float:
 
 
 def _market_timezone(market) -> ZoneInfo:
-    """Resolve the market timezone with a defensive fallback."""
     tz_name = getattr(market, "timezone_name", None) or getattr(market, "timezone", None)
     if tz_name:
         try:
             return ZoneInfo(tz_name)
         except Exception:
-            logger.warning("Unknown timezone %s for %s; using default timezone instead", tz_name, getattr(market, "country", "?"))
+            logger.warning(
+                "Unknown timezone %s for %s; using default timezone instead",
+                tz_name,
+                getattr(market, "country", "?"),
+            )
 
     try:
         default_tz = timezone.get_default_timezone()
@@ -617,7 +613,6 @@ def _market_timezone(market) -> ZoneInfo:
 
 
 def _market_time_info(market) -> dict:
-    """Build a date/time info dict using the market's local timezone."""
     market_now = timezone.now().astimezone(_market_timezone(market))
     return {
         "year": market_now.year,
@@ -639,15 +634,9 @@ def _scan_and_capture_once() -> int:
     """
     Scan all control markets and capture OPEN for any market that is OPEN now
     and not yet captured for its market-local date.
-
-    Returns number of captures performed.
     """
-    from datetime import datetime
-    from django.utils import timezone
-
     captures = 0
 
-    # Only markets we care about controlling/capturing
     markets = list(get_control_markets(require_session_capture=True))
     if not markets:
         return 0
@@ -657,7 +646,6 @@ def _scan_and_capture_once() -> int:
         if not country_code:
             continue
 
-        # Is this market open right now?
         try:
             if not is_market_open_now(market):
                 continue
@@ -665,16 +653,12 @@ def _scan_and_capture_once() -> int:
             logger.exception("OpenCapture scan: failed open check for %s", country_code)
             continue
 
-        # Market-local date determines the "session day"
         try:
-            market_date = _market_local_date(market)  # expected date or datetime.date
-            if hasattr(market_date, "date"):
-                market_date = market_date.date()
+            market_date = _market_local_date(market)
         except Exception:
             logger.exception("OpenCapture scan: failed market-local date for %s", country_code)
             continue
 
-        # ✅ Idempotence: country + market-local date (+ capture kind)
         already = MarketSession.objects.filter(
             country=country_code,
             capture_kind="OPEN",
@@ -682,11 +666,9 @@ def _scan_and_capture_once() -> int:
             month=market_date.month,
             date=market_date.day,
         ).exists()
-
         if already:
             continue
 
-        # Optional: include active session number if available (NOT used for idempotence)
         session_number = None
         try:
             session_number = live_data_redis.get_active_session_number()
