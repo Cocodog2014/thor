@@ -37,7 +37,7 @@ def _set_last_seen(country: str, session_group: int, symbol: str, vol: int) -> N
 
 
 @transaction.atomic
-def update_session_volume_for_country(country: str, enriched_rows: Iterable[dict]):
+def update_session_volume_for_country(country: str, enriched_rows: Iterable[dict], *, session_number: int | None = None):
     """Delta-accumulate session_volume from cumulative quote volumes.
 
     Mirrors the VWAP delta approach: uses cumulative feed volume and stores
@@ -49,14 +49,16 @@ def update_session_volume_for_country(country: str, enriched_rows: Iterable[dict
     if not enriched_rows:
         return {"session_volume_updates": 0}
 
-    session_group = (
-        MarketSession.objects
-        .filter(country=country)
-        .exclude(capture_group__isnull=True)
-        .order_by('-capture_group')
-        .values_list('capture_group', flat=True)
-        .first()
-    )
+    session_group = session_number
+    if session_group is None:
+        session_group = (
+            MarketSession.objects
+            .filter(country=country)
+            .exclude(capture_group__isnull=True)
+            .order_by('-capture_group')
+            .values_list('capture_group', flat=True)
+            .first()
+        )
     if session_group is None:
         return {"session_volume_updates": 0}
 

@@ -25,6 +25,7 @@ from ThorTrading.GlobalMarketGate.global_market_gate import (
 )
 from GlobalMarkets.services.market_clock import is_market_open_now
 from ThorTrading.services.sessions.metrics import MarketOpenMetric
+from LiveData.shared.redis_client import live_data_redis
 
 logger = logging.getLogger(__name__)
 
@@ -396,7 +397,7 @@ class MarketOpenCaptureService:
             return None
 
     @transaction.atomic
-    def capture_market_open(self, market):
+    def capture_market_open(self, market, *, session_number: int | None = None):
         display_country = getattr(market, "country", None)
         country_code = normalize_country_code(display_country) or display_country
 
@@ -467,14 +468,23 @@ class MarketOpenCaptureService:
             composite_signal = (composite.get("composite_signal") or "HOLD").upper()
             time_info = _market_time_info(market)
 
-            session_number = self.get_next_session_number()
+            if session_number is None:
+                session_number = live_data_redis.get_active_session_number()
+            if session_number is None:
+                session_number = self.get_next_session_number()
+
+            # Idempotence: if this session_number already captured, skip
+            if MarketSession.objects.filter(session_number=session_number, capture_kind="OPEN").exists():
+                logger.info("Open capture skipped: session_number %s already exists", session_number)
+                return None
+
             with transaction.atomic():
                 last_group_val = (
                     MarketSession.objects.exclude(capture_group__isnull=True)
                     .aggregate(max_group=Max("capture_group"))
                     .get("max_group")
                 ) or 0
-                capture_group = int(last_group_val) + 1
+                capture_group = session_number or int(last_group_val) + 1
 
             sessions_created = []
             failures = []
@@ -612,27 +622,11 @@ def _market_local_date(market) -> date_cls:
         return timezone.now().date()
 
 
-def _has_capture_for_date(market, capture_date: date_cls) -> bool:
-    country_code = normalize_country_code(getattr(market, "country", None)) or getattr(market, "country", None)
-    latest = (
-        MarketSession.objects.filter(country=country_code)
-        .filter(capture_kind="OPEN")
-        .exclude(capture_group__isnull=True)
-        .order_by("-capture_group")
-        .first()
-    )
-    if not latest:
-        return False
-    return (
-        latest.year == capture_date.year
-        and latest.month == capture_date.month
-        and latest.date == capture_date.day
-    )
-
-
 def _scan_and_capture_once():
     from GlobalMarkets.models.market import Market
     markets = Market.objects.filter(is_active=True)
+
+    active_session_number = live_data_redis.get_active_session_number()
 
     for market in markets:
         if not session_tracking_allowed(market):
@@ -642,19 +636,17 @@ def _scan_and_capture_once():
         if not is_market_open_now(market):
             continue
 
-        market_date = _market_local_date(market)
-        try:
-            already_captured = _has_capture_for_date(market, market_date)
-        except Exception:
-            logger.exception("Failed checking capture history for %s", market.country)
+        country_code = normalize_country_code(getattr(market, "country", None)) or getattr(market, "country", None)
+
+        if active_session_number is not None and MarketSession.objects.filter(
+            session_number=active_session_number,
+            capture_kind="OPEN",
+        ).exists():
             continue
 
-        if already_captured:
-            continue
-
-        logger.info("🌅 Market %s opened with no capture for %s — running capture", market.country, market_date)
+        logger.info("🌅 Market %s open — capturing session_number=%s", market.country, active_session_number)
         try:
-            capture_market_open(market)
+            capture_market_open(market, session_number=active_session_number)
         except Exception:
             logger.exception("Market open capture failed for %s", market.country)
         else:
@@ -672,9 +664,9 @@ def check_for_market_opens_and_capture() -> float:
     return interval
 
 
-def capture_market_open(market):
+def capture_market_open(market, *, session_number: int | None = None):
     """Main entry point for market open capture."""
-    return _service.capture_market_open(market)
+    return _service.capture_market_open(market, session_number=session_number)
 
 
 __all__ = [

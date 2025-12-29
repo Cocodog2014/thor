@@ -14,6 +14,7 @@ from ThorTrading.services.sessions.metrics import (
     MarketCloseMetric,
     MarketRangeMetric,
 )
+from LiveData.shared.redis_client import live_data_redis
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +30,12 @@ def _latest_capture_group(country: str | None):
         .values_list('capture_group', flat=True)
         .first()
     )
+
+
+def _resolve_capture_group(country: str, session_number: int | None) -> int | None:
+    if session_number is not None:
+        return session_number
+    return _latest_capture_group(country)
 
 
 def _base_payload(country: str | None) -> Dict[str, Any]:
@@ -70,7 +77,8 @@ def capture_market_close(country: str | None, force: bool = False) -> Dict[str, 
         )
         return payload
 
-    latest_group = _latest_capture_group(country)
+    active_session_number = live_data_redis.get_active_session_number()
+    latest_group = _resolve_capture_group(country, active_session_number)
 
     if latest_group is None:
         payload.update(
@@ -82,6 +90,7 @@ def capture_market_close(country: str | None, force: bool = False) -> Dict[str, 
         return payload
 
     payload["capture_group"] = latest_group
+    payload["session_number"] = active_session_number
 
     already_closed = MarketSession.objects.filter(
         country=country,
@@ -117,7 +126,7 @@ def capture_market_close(country: str | None, force: bool = False) -> Dict[str, 
     ]
 
     try:
-        close_updated = MarketCloseMetric.update_for_country_on_close(country, country_rows)
+        close_updated = MarketCloseMetric.update_for_country_on_close(country, country_rows, session_group=latest_group)
     except Exception as exc:
         logger.exception("MarketCloseMetric update failed for %s", country)
         payload.update(
@@ -129,7 +138,7 @@ def capture_market_close(country: str | None, force: bool = False) -> Dict[str, 
         return payload
 
     try:
-        range_updated = MarketRangeMetric.update_for_country_on_close(country)
+        range_updated = MarketRangeMetric.update_for_country_on_close(country, session_group=latest_group)
     except Exception as exc:
         logger.exception("MarketRangeMetric update failed for %s", country)
         payload.update(

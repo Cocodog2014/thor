@@ -21,7 +21,9 @@ def _safe_decimal(x) -> Optional[Decimal]:
         return None
 
 
-def _latest_capture_group(country: str) -> Optional[int]:
+def _resolve_capture_group(country: str, session_number: int | None) -> Optional[int]:
+    if session_number is not None:
+        return session_number
     return (
         MarketSession.objects
         .filter(country=country)
@@ -40,6 +42,7 @@ def maybe_freeze_first_touch(
     bid: Optional[Decimal],
     ask: Optional[Decimal],
     tick_ts=None,
+    session_number: int | None = None,
 ) -> bool:
     """
     First-touch wins (1-second resolution):
@@ -52,7 +55,7 @@ def maybe_freeze_first_touch(
     """
     symbol = symbol.lstrip("/").upper()
 
-    group = _latest_capture_group(country)
+    group = _resolve_capture_group(country, session_number)
     if group is None:
         return False
 

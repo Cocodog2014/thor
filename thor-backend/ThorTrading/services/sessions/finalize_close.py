@@ -9,7 +9,9 @@ from ThorTrading.models.MarketSession import MarketSession
 logger = logging.getLogger(__name__)
 
 
-def _latest_capture_group(country: str) -> int | None:
+def _resolve_capture_group(country: str, session_number: int | None) -> int | None:
+    if session_number is not None:
+        return session_number
     return (
         MarketSession.objects
         .filter(country=country)
@@ -21,13 +23,13 @@ def _latest_capture_group(country: str) -> int | None:
 
 
 @transaction.atomic
-def finalize_pending_sessions_at_close(country: str, *, capture_group: int | None = None) -> int:
+def finalize_pending_sessions_at_close(country: str, *, capture_group: int | None = None, session_number: int | None = None) -> int:
     """
     End-of-session rule:
       - If still PENDING and NOT frozen (target_hit_at is null) -> mark NEUTRAL.
       - Never override a frozen outcome.
     """
-    group = capture_group or _latest_capture_group(country)
+    group = capture_group or _resolve_capture_group(country, session_number)
     if group is None:
         return 0
 

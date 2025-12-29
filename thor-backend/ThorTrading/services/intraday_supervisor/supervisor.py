@@ -64,6 +64,14 @@ class IntradayMarketSupervisor:
         self._lag_alert_last = {}
         self._timers = {}
 
+    def _active_session_route(self) -> tuple[str | None, int | None]:
+        """Resolve the current routing key (session) and session_number from GlobalMarkets heartbeat."""
+        key = live_data_redis.get_active_session_key(asset_type="futures")
+        num = live_data_redis.get_active_session_number()
+        if not key:
+            logger.warning("Intraday: no active session routing key available; skipping tick capture")
+        return key, num
+
     # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------
@@ -129,16 +137,19 @@ class IntradayMarketSupervisor:
             logger.exception("Failed to fetch quotes for close metrics (%s)", country)
             return
         try:
-            MarketCloseMetric.update_for_country_on_close(country, enriched)
+            _, session_number = self._active_session_route()
+            MarketCloseMetric.update_for_country_on_close(country, enriched, session_group=session_number)
         except Exception:
             logger.exception("MarketCloseMetric failed for %s", country)
         try:
-            MarketRangeMetric.update_for_country_on_close(country)
+            _, session_number = self._active_session_route()
+            MarketRangeMetric.update_for_country_on_close(country, session_group=session_number)
         except Exception:
             logger.exception("MarketRangeMetric failed for %s", country)
 
         try:
-            finalize_pending_sessions_at_close(country)
+            _, session_number = self._active_session_route()
+            finalize_pending_sessions_at_close(country, session_number=session_number)
         except Exception:
             logger.exception("Finalize close failed for %s", country)
 
@@ -213,6 +224,10 @@ class IntradayMarketSupervisor:
             logger.info("Intraday tick skipped; session tracking disabled for %s", country)
             return
 
+        routing_key, session_number = self._active_session_route()
+        if not routing_key:
+            return
+
         enriched, _ = get_enriched_quotes_with_composite()
         quote_count = len(enriched) if enriched else 0
         if quote_count == 0:
@@ -249,16 +264,20 @@ class IntradayMarketSupervisor:
                     bid=_safe_decimal(row.get("bid")),
                     ask=_safe_decimal(row.get("ask")),
                     tick_ts=row.get("timestamp"),
+                    session_number=session_number,
                 )
             except Exception:
                 logger.debug("First-touch freeze failed for %s/%s", country, sym, exc_info=True)
             try:
                 tick_country = tick.get("country") or live_data_redis.DEFAULT_COUNTRY
-                live_data_redis.set_tick(tick_country, sym, tick, ttl=10)
-                closed_bar, current_bar = live_data_redis.upsert_current_bar_1m(tick_country, sym, tick)
+                tick["session_key"] = routing_key
+                if session_number is not None:
+                    tick["session_number"] = session_number
+                live_data_redis.set_tick(routing_key, sym, tick, ttl=10)
+                closed_bar, current_bar = live_data_redis.upsert_current_bar_1m(routing_key, sym, tick)
                 updated_count += 1
                 if closed_bar:
-                    live_data_redis.enqueue_closed_bar(tick_country, closed_bar)
+                    live_data_redis.enqueue_closed_bar(routing_key, closed_bar)
                     closed_count += 1
             except Exception:
                 if logger.isEnabledFor(logging.DEBUG):
@@ -268,7 +287,7 @@ class IntradayMarketSupervisor:
 
         if filtered_rows:
             try:
-                update_session_volume_for_country(country, filtered_rows)
+                update_session_volume_for_country(country, filtered_rows, session_number=session_number)
             except Exception:
                 logger.exception("Intraday %s: session volume update failed", country)
 
@@ -278,7 +297,11 @@ class IntradayMarketSupervisor:
         batch_size = 500
         try:
             while True:
-                inserted = flush_closed_bars(country, batch_size=batch_size)
+                routing_key, _ = self._active_session_route()
+                if not routing_key:
+                    logger.warning("Intraday flush skipped: no routing key for %s", country)
+                    break
+                inserted = flush_closed_bars(routing_key, batch_size=batch_size)
                 if not inserted:
                     break
                 total += inserted
@@ -364,7 +387,9 @@ class IntradayMarketSupervisor:
         """
         now = timezone.now()
         try:
-            cache_key = f"thor:last_bar_ts:{country.lower()}"
+            routing_key = live_data_redis.get_active_session_key(asset_type="futures")
+            key_suffix = (routing_key or country.lower())
+            cache_key = f"thor:last_bar_ts:{key_suffix}"
             cached = None
             try:
                 cached_raw = live_data_redis.client.get(cache_key)

@@ -70,6 +70,9 @@ class LiveDataRedis:
 
     All broker feeds publish through this client to ensure consistent
     channel naming and data formatting.
+
+    Updated to route by `routing_key` (session-based). The caller must
+    supply the active session key; there is no GLOBAL fallback for bars.
     """
 
     DEFAULT_COUNTRY = "GLOBAL"
@@ -81,6 +84,9 @@ class LiveDataRedis:
     EXCEL_LOCK_KEY = "live_data:excel_lock"
     EXCEL_LOCK_TTL = 10  # seconds
 
+    # --- Active session routing snapshot (written by GlobalMarkets heartbeat) ---
+    ACTIVE_SESSION_KEY_REDIS = "live_data:active_session"
+
     def __init__(self):
         """Initialize Redis connection from Django settings."""
         self.client = redis.Redis(
@@ -89,6 +95,68 @@ class LiveDataRedis:
             db=getattr(settings, "REDIS_DB", 0),
             decode_responses=True,
         )
+
+    # -------------------------
+    # Routing helpers
+    # -------------------------
+    def _routing_prefix(self, routing_key: str | None) -> str:
+        """Normalize routing key for Redis keys (session-first)."""
+        if routing_key is None:
+            return "global"
+        return str(routing_key).strip().lower() or "global"
+
+    @staticmethod
+    def _parse_session_number(routing_key: str | None) -> int | None:
+        if not routing_key:
+            return None
+        raw = str(routing_key).lower()
+        if raw.startswith("session:"):
+            raw = raw.split(":", 1)[1]
+        try:
+            return int(raw)
+        except Exception:
+            return None
+
+    def _get_active_session_snapshot(self) -> dict | None:
+        """Return the cached active session routing payload from Redis."""
+        try:
+            raw = self.client.get(self.ACTIVE_SESSION_KEY_REDIS)
+        except Exception:
+            logger.debug("Failed to read %s", self.ACTIVE_SESSION_KEY_REDIS, exc_info=True)
+            return None
+        if not raw:
+            return None
+        try:
+            return json.loads(raw)
+        except Exception:
+            logger.debug("Failed to parse %s payload", self.ACTIVE_SESSION_KEY_REDIS, exc_info=True)
+            return None
+
+    def get_active_session_key(self, asset_type: str | None = None) -> str | None:
+        """Fetch session routing key from GlobalMarkets heartbeat snapshot."""
+        snap = self._get_active_session_snapshot() or {}
+        if not snap:
+            return None
+
+        asset = (asset_type or "").upper()
+        if asset in {"FUTURE", "FUTURES"}:
+            return snap.get("futures") or snap.get("default")
+        if asset in {"EQUITY", "EQUITIES", "STOCK"}:
+            return snap.get("equities") or snap.get("default")
+        return snap.get("default")
+
+    def get_active_session_number(self) -> int | None:
+        """Return session_number from the active session snapshot when available."""
+        snap = self._get_active_session_snapshot() or {}
+        num = snap.get("session_number") if isinstance(snap, dict) else None
+        if num is not None:
+            try:
+                return int(num)
+            except Exception:
+                return None
+
+        key = self.get_active_session_key()
+        return self._parse_session_number(key)
 
     # -------------------------
     # Country normalization
@@ -119,12 +187,12 @@ class LiveDataRedis:
     # -------------------------
     # Tick + bar capture primitives
     # -------------------------
-    def set_tick(self, country: str, symbol: str, payload: Dict[str, Any], ttl: int = 10) -> None:
+    def set_tick(self, routing_key: str, symbol: str, payload: Dict[str, Any], ttl: int = 10) -> None:
         """
-        Cache latest tick for a symbol with a short TTL.
-        Key: tick:{symbol}
+        Cache latest tick for a symbol scoped by routing_key (session).
+        Key: tick:{routing_key}:{symbol}
         """
-        key = f"tick:{symbol}".lower()
+        key = f"tick:{self._routing_prefix(routing_key)}:{symbol}".lower()
         try:
             self.client.set(key, json.dumps(payload, default=str), ex=ttl)
         except Exception as e:
@@ -132,7 +200,7 @@ class LiveDataRedis:
 
     def upsert_current_bar_1m(
         self,
-        country: str,
+        routing_key: str,
         symbol: str,
         tick: Dict[str, Any],
     ) -> Tuple[Optional[Dict[str, Any]], Dict[str, Any]]:
@@ -145,8 +213,8 @@ class LiveDataRedis:
         Expected tick keys: price/last/close and (optional) volume.
         Optional tick timestamp keys (any one): ts, timestamp, time, datetime
         """
-        norm_country = self._norm_country(country) or country or self.DEFAULT_COUNTRY
-        key = f"bar:1m:current:{symbol}".lower()
+        prefix = self._routing_prefix(routing_key)
+        key = f"bar:1m:current:{prefix}:{symbol}".lower()
 
         # 1) price + volume
         price = tick.get("price") or tick.get("last") or tick.get("close")
@@ -189,7 +257,10 @@ class LiveDataRedis:
                         existing["timestamp_minute"] = datetime.fromtimestamp(t_epoch, tz=dt_timezone.utc).isoformat()
                     except Exception:
                         pass
-                closed_bar = existing
+                closed_bar = {**existing, "session_key": routing_key}
+                session_number = self._parse_session_number(routing_key)
+                if session_number is not None:
+                    closed_bar["session_number"] = session_number
 
             current_bar = {
                 "bucket": bucket,
@@ -200,8 +271,9 @@ class LiveDataRedis:
                 "l": price,
                 "c": price,
                 "v": volume,
-                "country": norm_country,
+                "country": tick.get("country"),
                 "symbol": symbol,
+                "session_key": routing_key,
             }
         else:
             current_bar = existing
@@ -212,26 +284,33 @@ class LiveDataRedis:
             current_bar["timestamp_minute"] = current_bar.get("timestamp_minute") or timestamp_minute
             current_bar["t"] = current_bar.get("t") or minute_epoch
 
+        current_bar["session_key"] = routing_key
         self.client.set(key, json.dumps(current_bar, default=str))
         return closed_bar, current_bar
 
-    def enqueue_closed_bar(self, country: str, bar: Dict[str, Any]) -> None:
+    def enqueue_closed_bar(self, routing_key: str, bar: Dict[str, Any]) -> None:
         """
-        Push a finalized 1m bar onto the global queue for later DB flush.
-        Key: q:bars:1m
+        Push a finalized 1m bar onto the session queue for later DB flush.
+        Key: q:bars:1m:{routing_key}
         """
-        norm_country = self._norm_country(country) or country or self.DEFAULT_COUNTRY
-        key = "q:bars:1m"
-        bar = {**bar, "country": norm_country}
+        prefix = self._routing_prefix(routing_key)
+        key = f"q:bars:1m:{prefix}"
+        session_number = self._parse_session_number(routing_key)
+        meta = {"session_key": routing_key}
+        if session_number is not None:
+            meta["session_number"] = session_number
+
+        bar = {**bar, **meta}
         try:
             self.client.rpush(key, json.dumps(bar, default=str))
         except Exception as e:
-            logger.error("Failed to enqueue closed bar for %s: %s", country, e)
+            logger.error("Failed to enqueue closed bar for %s: %s", routing_key, e)
 
-    def requeue_processing_closed_bars(self, country: str, limit: int = 10000) -> int:
+    def requeue_processing_closed_bars(self, routing_key: str, limit: int = 10000) -> int:
         """Move any bars stuck in the processing queue back to the main queue (crash recovery)."""
-        source = "q:bars:1m:processing"
-        target = "q:bars:1m"
+        prefix = self._routing_prefix(routing_key)
+        source = f"q:bars:1m:{prefix}:processing"
+        target = f"q:bars:1m:{prefix}"
         moved = 0
         try:
             for _ in range(limit):
@@ -244,15 +323,15 @@ class LiveDataRedis:
         return moved
 
     # ✅ FIXED: decode ALL items and return after loop
-    def checkout_closed_bars(self, country: str, count: int = 500) -> Tuple[List[dict], List[str], int]:
+    def checkout_closed_bars(self, routing_key: str, count: int = 500) -> Tuple[List[dict], List[str], int]:
         """
         Atomically move up to `count` bars from the main queue to a processing queue.
 
         Returns: (decoded_bars, raw_items, queue_left)
         """
-        norm_country = self._norm_country(country) or country or self.DEFAULT_COUNTRY
-        source = "q:bars:1m"
-        processing = "q:bars:1m:processing"
+        prefix = self._routing_prefix(routing_key)
+        source = f"q:bars:1m:{prefix}"
+        processing = f"q:bars:1m:{prefix}:processing"
         items: List[str] = []
 
         try:
@@ -264,7 +343,7 @@ class LiveDataRedis:
             *moved_items, queue_left = results
             items = [i for i in moved_items if i]
         except Exception as e:
-            logger.error("Failed to checkout closed bars for %s: %s", norm_country, e)
+            logger.error("Failed to checkout closed bars for %s: %s", prefix, e)
             return [], [], 0
 
         if not items:
@@ -275,32 +354,32 @@ class LiveDataRedis:
             try:
                 decoded.append(json.loads(item))
             except Exception:
-                logger.warning("Failed to decode closed bar payload for %s: %s", norm_country, item)
+                logger.warning("Failed to decode closed bar payload for %s: %s", prefix, item)
 
         return decoded, items, int(queue_left or 0)
 
-    def acknowledge_closed_bars(self, country: str, items: List[str]) -> None:
+    def acknowledge_closed_bars(self, routing_key: str, items: List[str]) -> None:
         """Remove successfully processed items from the processing queue."""
         if not items:
             return
-        norm_country = self._norm_country(country) or country or self.DEFAULT_COUNTRY
-        key = "q:bars:1m:processing"
+        prefix = self._routing_prefix(routing_key)
+        key = f"q:bars:1m:{prefix}:processing"
         try:
             pipe = self.client.pipeline()
             for item in items:
                 pipe.lrem(key, 1, item)
             pipe.execute()
         except Exception as e:
-            logger.error("Failed to acknowledge closed bars for %s: %s", norm_country, e)
+            logger.error("Failed to acknowledge closed bars for %s: %s", prefix, e)
 
     # ✅ FIXED: remove from processing before requeueing (prevents duplicates)
-    def return_closed_bars(self, country: str, items: List[str]) -> None:
+    def return_closed_bars(self, routing_key: str, items: List[str]) -> None:
         """Return items to the main queue if processing failed (and remove from processing queue)."""
         if not items:
             return
-        norm_country = self._norm_country(country) or country or self.DEFAULT_COUNTRY
-        main_key = "q:bars:1m"
-        processing_key = "q:bars:1m:processing"
+        prefix = self._routing_prefix(routing_key)
+        main_key = f"q:bars:1m:{prefix}"
+        processing_key = f"q:bars:1m:{prefix}:processing"
         try:
             pipe = self.client.pipeline()
             for item in items:
@@ -308,7 +387,7 @@ class LiveDataRedis:
             pipe.rpush(main_key, *items)
             pipe.execute()
         except Exception as e:
-            logger.error("Failed to return closed bars for %s: %s", norm_country, e)
+            logger.error("Failed to return closed bars for %s: %s", prefix, e)
 
     # -------------------------
     # Latest quote snapshot helpers

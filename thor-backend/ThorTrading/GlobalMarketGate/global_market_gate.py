@@ -270,7 +270,15 @@ def handle_market_opened(sender, instance: Market, **kwargs):
         try:
             from ThorTrading.GlobalMarketGate.open_capture import capture_market_open
 
-            capture_market_open(instance)
+            session_number = None
+            try:
+                from LiveData.shared.redis_client import live_data_redis
+
+                session_number = live_data_redis.get_active_session_number()
+            except Exception:
+                logger.debug("Failed to resolve active session number for open capture", exc_info=True)
+
+            capture_market_open(instance, session_number=session_number)
         except Exception:
             logger.exception("GlobalMarketGate: market-open capture failed for %s", country)
     else:

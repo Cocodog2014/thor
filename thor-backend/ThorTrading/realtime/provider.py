@@ -6,7 +6,7 @@ Single file that registers all ThorTrading jobs.
 """
 
 import logging
-from typing import Any, Callable, Iterable
+from typing import Any, Callable
 
 from core.infra.jobs import Job
 
@@ -42,33 +42,6 @@ def _active_countries() -> list[str]:
     return list(get_control_countries(require_session_capture=True) or [])
 
 
-def _flush_closed_bars_for_countries(
-    countries: Iterable[str],
-    *,
-    label: str,
-    batch_size: int = 500,
-    max_loops_per_country: int = 50,
-) -> None:
-    """Drain Redis closed-bar queues into DB for each country."""
-    from ThorTrading.services.intraday.flush import flush_closed_bars
-
-    for country in countries:
-        try:
-            total = 0
-            loops = 0
-            while loops < max_loops_per_country:
-                inserted = flush_closed_bars(country, batch_size=batch_size)
-                if not inserted:
-                    break
-                total += inserted
-                loops += 1
-
-            if total:
-                logger.info("%s inserted %s rows for %s", label, total, country)
-        except Exception:
-            logger.warning("%s failed for %s", label, country, exc_info=True)
-
-
 # -------------------------------------------------------------------
 # Job runners
 # -------------------------------------------------------------------
@@ -81,30 +54,72 @@ def _run_intraday_tick(ctx: Any) -> None:
 
 def _run_intraday_flush(ctx: Any) -> None:
     """Fast flush for newly closed 1m bars."""
-    countries = _active_countries()
-    if not countries:
+    from LiveData.shared.redis_client import live_data_redis
+    from ThorTrading.services.intraday.flush import flush_closed_bars
+
+    routing_key = live_data_redis.get_active_session_key(asset_type="futures")
+    if not routing_key:
+        logger.debug("intraday_flush skipped: no active session routing key")
         return
 
-    _flush_closed_bars_for_countries(
-        countries,
-        label="intraday_flush",
-        batch_size=500,
-        max_loops_per_country=20,
-    )
+    try:
+        total = 0
+        loops = 0
+        while loops < 20:
+            inserted = flush_closed_bars(routing_key, batch_size=500)
+            if not inserted:
+                break
+            total += inserted
+            loops += 1
+        if total:
+            logger.info("intraday_flush inserted %s rows for %s", total, routing_key)
+    except Exception:
+        logger.warning("intraday_flush failed for %s", routing_key, exc_info=True)
+
+
+def _run_publish_active_session(ctx: Any) -> None:
+    """Publish current OPEN market session routing into Redis.
+
+    This is the single source of truth for routing intraday producers/flushers.
+    """
+    from ThorTrading.services.sessions.active_session import PublishActiveSessionJob
+
+    PublishActiveSessionJob().run(ctx)
+
+
+def _run_open_capture_scan(ctx: Any) -> None:
+    """State-based open capture.
+
+    Ensures we create MarketSession rows even if the app restarts while a market is already OPEN.
+    """
+    from ThorTrading.GlobalMarketGate.open_capture import check_for_market_opens_and_capture
+
+    check_for_market_opens_and_capture()
 
 
 def _run_closed_bars_flush(ctx: Any) -> None:
-    """Slow safety flush to drain any backlog."""
-    countries = _active_countries()
-    if not countries:
+    """Deeper flush pass to drain Redis closed bars queue."""
+    from LiveData.shared.redis_client import live_data_redis
+    from ThorTrading.services.intraday.flush import flush_closed_bars
+
+    routing_key = live_data_redis.get_active_session_key(asset_type="futures")
+    if not routing_key:
+        logger.debug("closed_bars_flush skipped: no active session routing key")
         return
 
-    _flush_closed_bars_for_countries(
-        countries,
-        label="closed_bars_flush",
-        batch_size=500,
-        max_loops_per_country=100,
-    )
+    try:
+        total = 0
+        loops = 0
+        while loops < 100:
+            inserted = flush_closed_bars(routing_key, batch_size=500)
+            if not inserted:
+                break
+            total += inserted
+            loops += 1
+        if total:
+            logger.info("closed_bars_flush inserted %s rows for %s", total, routing_key)
+    except Exception:
+        logger.warning("closed_bars_flush failed for %s", routing_key, exc_info=True)
 
 
 def _run_market_metrics(ctx: Any) -> None:
@@ -128,18 +143,11 @@ def _run_market_metrics(ctx: Any) -> None:
     if not enriched:
         return
 
-    for country in {r["country"] for r in enriched if r.get("country")}:
-        try:
-            MarketHighMetric.update_from_quotes(
-                country,
-                [r for r in enriched if r["country"] == country],
-            )
-        except Exception:
-            logger.exception("market_metrics: update failed for %s", country)
+    MarketHighMetric.update_many(enriched)
 
 
 def _run_market_grader(ctx: Any) -> None:
-    from ThorTrading.services.sessions.grading import grade_pending_once
+    from ThorTrading.services.market_grader import grade_pending_once
 
     try:
         grade_pending_once()
@@ -176,28 +184,27 @@ def _run_twentyfour(ctx: Any) -> None:
     if not enriched:
         return
 
-    for country in {r["country"] for r in enriched if r.get("country")}:
-        try:
-            update_24h_for_country(
-                country,
-                [r for r in enriched if r["country"] == country],
-            )
-        except Exception:
-            logger.exception("twentyfour_hour: update failed for %s", country)
+    for country in sorted(active):
+        update_24h_for_country(country, enriched)
 
 
 # -------------------------------------------------------------------
-# Registration
+# Provider entrypoint
 # -------------------------------------------------------------------
-def register(registry):
+def register(registry: Any) -> list[str]:
     jobs = [
         InlineJob("intraday_tick", 1.0, _run_intraday_tick),
-        InlineJob("intraday_flush", 5.0, _run_intraday_flush),
-        InlineJob("closed_bars_flush", 60.0, _run_closed_bars_flush),
+        InlineJob("intraday_flush", 2.0, _run_intraday_flush),
+        InlineJob("closed_bars_flush", 10.0, _run_closed_bars_flush),
+
         InlineJob("market_metrics", 10.0, _run_market_metrics),
-        InlineJob("market_grader", 1.0, _run_market_grader),
-        InlineJob("vwap_minute_capture", 60.0, _run_vwap_minute),
+        InlineJob("market_grader", 15.0, _run_market_grader),
+        InlineJob("vwap_minute", 60.0, _run_vwap_minute),
         InlineJob("twentyfour_hour", 30.0, _run_twentyfour),
+
+        # ✅ NEW: make routing + open-capture stateful and restart-safe
+        InlineJob("gm.publish_active_session", 2.0, _run_publish_active_session),
+        InlineJob("gm.open_capture_scan", 5.0, _run_open_capture_scan),
     ]
 
     job_names: list[str] = []

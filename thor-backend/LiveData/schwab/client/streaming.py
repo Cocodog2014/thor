@@ -121,7 +121,7 @@ class SchwabStreamingProducer:
     def _resolve_session_key(self, payload: Dict[str, Any]) -> Optional[str]:
         """
         Returns a session_key like:
-          "USA:20251228:44"
+                    "session:44"
 
         No GLOBAL fallback. If routing is missing, return None and we skip bar writes.
         """
@@ -222,12 +222,19 @@ class SchwabStreamingProducer:
                     payload.get("symbol"),
                 )
             else:
+                payload["session_key"] = session_key
+                session_number = live_data_redis._parse_session_number(session_key)  # internal helper
+                if session_number is not None:
+                    payload["session_number"] = session_number
+
                 # Short TTL tick cache (keyed by session)
                 live_data_redis.set_tick(session_key, payload["symbol"], payload, ttl=10)
 
                 # Update 1m bar (keyed by session)
                 bar_tick = self._build_bar_tick(payload)
                 if bar_tick:
+                    if session_number is not None:
+                        bar_tick["session_number"] = session_number
                     closed_bar, _cur = live_data_redis.upsert_current_bar_1m(
                         session_key, payload["symbol"], bar_tick
                     )

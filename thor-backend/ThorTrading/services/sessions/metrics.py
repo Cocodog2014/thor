@@ -42,7 +42,9 @@ def _move_from_open_pct(open_price: Decimal | None, target_price: Decimal | None
         return None
 
 
-def _latest_session_group(country: str):
+def _resolve_session_group(country: str, session_group: int | None = None):
+    if session_group is not None:
+        return session_group
     return (
         MarketSession.objects
         .filter(country=country)
@@ -100,8 +102,8 @@ class MarketOpenMetric:
         return MarketOpenMetric.update_for_session_group(capture_group)
 
     @staticmethod
-    def update_latest_for_country(country: str) -> int:
-        session_group = _latest_session_group(country)
+    def update_latest_for_country(country: str, *, session_group: int | None = None) -> int:
+        session_group = _resolve_session_group(country, session_group)
         if session_group is None:
             logger.info("MarketOpenMetric → No session_group found for %s", country)
             return 0
@@ -113,13 +115,13 @@ class MarketHighMetric:
 
     @staticmethod
     @transaction.atomic
-    def update_from_quotes(country: str, enriched_rows) -> int:
+    def update_from_quotes(country: str, enriched_rows, *, session_group: int | None = None) -> int:
         if not enriched_rows:
             return 0
 
         logger.info("MarketHighMetric → Updating %s", country)
 
-        session_group = _latest_session_group(country)
+        session_group = _resolve_session_group(country, session_group)
         if session_group is None:
             logger.info("MarketHighMetric → No sessions for %s", country)
             return 0
@@ -198,13 +200,13 @@ class MarketLowMetric:
 
     @staticmethod
     @transaction.atomic
-    def update_from_quotes(country: str, enriched_rows) -> int:
+    def update_from_quotes(country: str, enriched_rows, *, session_group: int | None = None) -> int:
         if not enriched_rows:
             return 0
 
         logger.info("MarketLowMetric → Updating %s", country)
 
-        session_group = _latest_session_group(country)
+        session_group = _resolve_session_group(country, session_group)
 
         if session_group is None:
             logger.info("MarketLowMetric → No sessions for %s", country)
@@ -330,7 +332,7 @@ class MarketCloseMetric:
 
     @staticmethod
     @transaction.atomic
-    def update_for_country_on_close(country: str, enriched_rows) -> int:
+    def update_for_country_on_close(country: str, enriched_rows, *, session_group: int | None = None) -> int:
         if not enriched_rows:
             return 0
 
@@ -339,7 +341,7 @@ class MarketCloseMetric:
             country, timezone.now(),
         )
 
-        session_group = _latest_session_group(country)
+        session_group = _resolve_session_group(country, session_group)
         if session_group is None:
             logger.info("MarketCloseMetric → No session for %s; skipping", country)
             return 0
@@ -419,7 +421,7 @@ class MarketCloseMetric:
 
         # Close out any still-pending sessions where neither target nor stop hit.
         try:
-            self._neutralize_unhit_sessions(country, session_group)
+            MarketCloseMetric._neutralize_unhit_sessions(country, session_group)
         except Exception:
             logger.exception(
                 "MarketCloseMetric → pending neutralization failed for %s (session_group %s)",
@@ -434,13 +436,13 @@ class MarketRangeMetric:
 
     @staticmethod
     @transaction.atomic
-    def update_for_country_on_close(country: str) -> int:
+    def update_for_country_on_close(country: str, *, session_group: int | None = None) -> int:
         logger.info(
             "MarketRangeMetric → Computing range for %s at %s",
             country, timezone.now(),
         )
 
-        session_group = _latest_session_group(country)
+        session_group = _resolve_session_group(country, session_group)
         if session_group is None:
             logger.info("MarketRangeMetric → No session for %s; skipping", country)
             return 0
