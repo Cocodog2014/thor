@@ -24,6 +24,7 @@ from ThorTrading.GlobalMarketGate.global_market_gate import (
     session_tracking_allowed,
 )
 from GlobalMarkets.services.market_clock import is_market_open_now
+from GlobalMarkets.services.active_markets import get_control_markets
 from ThorTrading.services.sessions.metrics import MarketOpenMetric
 from LiveData.shared.redis_client import live_data_redis
 
@@ -681,7 +682,7 @@ def _scan_and_capture_once() -> int:
             session_number = None
 
         try:
-            result = capture_market_open(country_code, force=True, session_number=session_number)
+            result = capture_market_open(market, session_number=session_number)
             logger.info("OpenCapture scan: captured %s => %s", country_code, result)
             captures += 1
         except Exception:
