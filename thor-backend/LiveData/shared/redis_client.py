@@ -481,6 +481,17 @@ class LiveDataRedis:
             "country": norm,
             "ts": ts_epoch,
         }
+
+        # If another provider sends partial quotes (e.g. volume-only), don't
+        # overwrite previously-known bid/ask/last with None.
+        try:
+            existing = self.get_latest_quote(sym) or {}
+            for k in ("bid", "ask", "last"):
+                if payload.get(k) is None and existing.get(k) is not None:
+                    payload[k] = existing.get(k)
+        except Exception:
+            # Never fail publishing due to a merge attempt.
+            pass
         if provider:
             payload["provider"] = provider
         if asset_type:

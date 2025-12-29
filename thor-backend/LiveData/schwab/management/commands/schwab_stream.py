@@ -74,6 +74,12 @@ class Command(BaseCommand):
             default="",
             help="Optional filter for DB subscriptions: EQUITY,INDEX,FUTURE (comma-separated)",
         )
+        parser.add_argument(
+            "--exit-after-first",
+            action="store_true",
+            default=False,
+            help="Exit after the first received streaming message (debug/verification)",
+        )
 
     def handle(self, *args, **options):
         try:
@@ -84,6 +90,7 @@ class Command(BaseCommand):
             raise CommandError("schwab-py is not installed. Install with `pip install schwab-py`") from exc
 
         user_id: int = options["user_id"]
+        exit_after_first: bool = bool(options.get("exit_after_first"))
 
         # CLI overrides (still supported)
         equities: List[str] = _parse_csv(options.get("equities"))
@@ -220,6 +227,15 @@ class Command(BaseCommand):
 
             while True:
                 try:
+                    first_message_seen = asyncio.Event()
+
+                    def _handler(msg: object) -> None:
+                        producer.process_message(msg)
+                        try:
+                            first_message_seen.set()
+                        except Exception:
+                            pass
+
                     conn = connection
                     await refresh_from_db_async(conn)
                     conn = await ensure_token_async(conn, buffer_seconds=120)
@@ -282,7 +298,7 @@ class Command(BaseCommand):
 
                     # IMPORTANT: Handlers must be added BEFORE subscribing
                     if equities:
-                        stream_client.add_level_one_equity_handler(producer.process_message)
+                        stream_client.add_level_one_equity_handler(_handler)
                         resp = await stream_client.level_one_equity_subs(
                             [s.upper() for s in equities],
                             fields=equity_fields,
@@ -290,7 +306,7 @@ class Command(BaseCommand):
                         logger.warning("Schwab equity_subs sent symbols=%s resp=%s", equities, resp)
 
                     if futures:
-                        stream_client.add_level_one_futures_handler(producer.process_message)
+                        stream_client.add_level_one_futures_handler(_handler)
                         resp = await stream_client.level_one_futures_subs(
                             [s.upper() for s in futures],
                             fields=futures_fields,
@@ -313,6 +329,10 @@ class Command(BaseCommand):
 
                     while True:
                         await stream_client.handle_message()
+
+                        if exit_after_first and first_message_seen.is_set():
+                            logger.warning("Exiting Schwab stream after first message (--exit-after-first)")
+                            return
 
                 except asyncio.CancelledError:
                     raise

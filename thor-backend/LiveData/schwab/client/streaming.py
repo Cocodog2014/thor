@@ -128,6 +128,7 @@ class SchwabStreamingProducer:
         self._missing_routing_last_log: float = 0.0
         self._missing_price_last_log: dict[str, float] = {}
         self._logged_first_message: bool = False
+        self._logged_first_payload: bool = False
 
     @staticmethod
     def _to_session_key(value: Any) -> Optional[str]:
@@ -264,6 +265,10 @@ class SchwabStreamingProducer:
             "timestamp": ts,
             "source": "SCHWAB",
         }
+
+        if not self._logged_first_payload:
+            self._logged_first_payload = True
+            logger.warning("Schwab first normalized payload=%s", payload)
 
         # Diagnostics: when price fields are missing, log the raw tick schema (throttled)
         if bid is None and ask is None and last is None:
