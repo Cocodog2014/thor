@@ -7,7 +7,7 @@ from decimal import Decimal
 from zoneinfo import ZoneInfo
 
 from django.conf import settings
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.db.models import Max
 from django.utils import timezone
 
@@ -329,15 +329,39 @@ class MarketOpenCaptureService:
         except Exception as exc:  # noqa: BLE001
             logger.warning("Backtest stats failed for %s: %s", canonical_symbol, exc)
 
+        filtered = {k: v for k, v in data.items() if k in ALLOWED_SESSION_FIELDS}
+        lookup = {
+            "capture_group": filtered.get("capture_group"),
+            "symbol": filtered.get("symbol"),
+        }
+        defaults = {k: v for k, v in filtered.items() if k not in lookup}
+
         try:
-            filtered = {k: v for k, v in data.items() if k in ALLOWED_SESSION_FIELDS}
-            session = MarketSession.objects.create(**filtered)
-            _country_symbol_counter.assign_sequence(session)
-            logger.debug("Created %s session: %s", canonical_symbol, session.last_price)
-            return session
+            with transaction.atomic():
+                session, created = MarketSession.objects.get_or_create(
+                    **lookup,
+                    defaults=defaults,
+                )
+        except IntegrityError:
+            # Duplicate or race: fetch existing and treat as skip
+            session = MarketSession.objects.filter(**lookup).first()
+            created = False
         except Exception as exc:  # noqa: BLE001
             logger.error("Session creation failed for %s: %s", canonical_symbol, exc, exc_info=True)
-            return None
+            return None, False
+
+        if session:
+            _country_symbol_counter.assign_sequence(session)
+            if created:
+                logger.debug("Created %s session: %s", canonical_symbol, session.last_price)
+            else:
+                logger.debug(
+                    "Session exists for %s (capture_group=%s); skipping create",
+                    canonical_symbol,
+                    lookup.get("capture_group"),
+                )
+
+        return session, created
 
     def create_session_for_total(self, composite, session_number, capture_group, time_info, country, ym_entry_price=None):
         composite_signal = (composite.get("composite_signal") or "HOLD").upper()
@@ -375,20 +399,40 @@ class MarketOpenCaptureService:
         except Exception as exc:  # noqa: BLE001
             logger.warning("Backtest stats failed for TOTAL: %s", exc)
 
+        filtered = {k: v for k, v in data.items() if k in ALLOWED_SESSION_FIELDS}
+        lookup = {
+            "capture_group": filtered.get("capture_group"),
+            "symbol": filtered.get("symbol"),
+        }
+        defaults = {k: v for k, v in filtered.items() if k not in lookup}
+
         try:
-            filtered = {k: v for k, v in data.items() if k in ALLOWED_SESSION_FIELDS}
-            session = MarketSession.objects.create(**filtered)
+            with transaction.atomic():
+                session, created = MarketSession.objects.get_or_create(
+                    **lookup,
+                    defaults=defaults,
+                )
+        except IntegrityError:
+            session = MarketSession.objects.filter(**lookup).first()
+            created = False
+        except Exception as exc:  # noqa: BLE001
+            logger.error("TOTAL session creation failed: %s", exc, exc_info=True)
+            return None, False
+
+        if session:
             _country_symbol_counter.assign_sequence(session)
             if data.get("weighted_average"):
                 logger.info("TOTAL session: %.4f -> %s", data["weighted_average"], composite_signal)
             else:
                 logger.info("TOTAL: %s", composite_signal)
-            return session
-        except Exception as exc:  # noqa: BLE001
-            logger.error("TOTAL session creation failed: %s", exc, exc_info=True)
-            return None
+            if not created:
+                logger.debug(
+                    "TOTAL session already exists for capture_group=%s; skipping create",
+                    lookup.get("capture_group"),
+                )
 
-    @transaction.atomic
+        return session, created
+
     def capture_market_open(self, market, *, session_number: int | None = None):
         display_country = getattr(market, "country", None)
         country_code = normalize_country_code(display_country) or display_country
@@ -487,7 +531,9 @@ class MarketOpenCaptureService:
             capture_group = int(session_number)
 
             sessions_created = []
+            skipped = []
             failures = []
+            created_count = 0
             ym_entry_price = None
 
             for row in enriched:
@@ -495,7 +541,9 @@ class MarketOpenCaptureService:
                 if not symbol:
                     continue
 
-                session = self.create_session_for_symbol(
+                base_symbol = symbol.lstrip("/").upper()
+
+                session, created = self.create_session_for_symbol(
                     symbol,
                     row,
                     session_number,
@@ -504,19 +552,23 @@ class MarketOpenCaptureService:
                     country_code or display_country,
                     composite_signal,
                 )
+
                 if session:
                     sessions_created.append(session)
+                    if created:
+                        created_count += 1
+                    else:
+                        skipped.append(base_symbol)
                 else:
-                    failures.append(symbol)
+                    failures.append(base_symbol)
 
-                base_symbol = symbol.lstrip("/").upper()
                 if base_symbol == "YM" and composite_signal not in ["HOLD", ""]:
                     if composite_signal in ["BUY", "STRONG_BUY"]:
                         ym_entry_price = self.safe_decimal(row.get("ask"))
                     elif composite_signal in ["SELL", "STRONG_SELL"]:
                         ym_entry_price = self.safe_decimal(row.get("bid"))
 
-            total_session = self.create_session_for_total(
+            total_session, total_created = self.create_session_for_total(
                 composite,
                 session_number,
                 capture_group,
@@ -526,6 +578,10 @@ class MarketOpenCaptureService:
             )
             if total_session:
                 sessions_created.append(total_session)
+                if total_created:
+                    created_count += 1
+                else:
+                    skipped.append("TOTAL")
 
             try:
                 MarketOpenMetric.update_for_session_group(capture_group)
@@ -551,10 +607,11 @@ class MarketOpenCaptureService:
                 )
 
             logger.info(
-                "Capture complete: %s Session #%s, created=%s%s",
+                "Capture complete: %s Session #%s, created=%s, skipped=%s%s",
                 country_code or display_country or "?",
                 session_number,
-                len(sessions_created),
+                created_count,
+                len(skipped),
                 (f", failures={failures}" if failures else ""),
             )
             return sessions_created[0] if sessions_created else None
