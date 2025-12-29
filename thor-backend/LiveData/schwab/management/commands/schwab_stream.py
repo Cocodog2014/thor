@@ -90,50 +90,44 @@ async def _ws_keepalive(sock: Any, *, interval: float = 20.0) -> None:
             return
 
 
-def _start_control_listener_thread(
-    *,
-    channel: str,
-    loop: asyncio.AbstractEventLoop,
+def _control_channel(user_id: int) -> str:
+    return f"live_data:schwab:control:{user_id}"
+
+
+def _start_pubsub_thread(
+    user_id: int,
     queue: "asyncio.Queue[dict]",
-    stop_event: threading.Event,
+    loop: asyncio.AbstractEventLoop,
 ) -> threading.Thread:
-    """Start a background Redis Pub/Sub listener that forwards JSON messages into an asyncio.Queue."""
+    """Runs Redis pubsub.listen() in a background thread (blocking).
 
-    def _runner() -> None:
-        pubsub = None
+    Pushes parsed JSON control messages into the asyncio queue without blocking the event loop.
+    """
+
+    channel = _control_channel(user_id)
+
+    def _worker() -> None:
+        pubsub = live_data_redis.client.pubsub(ignore_subscribe_messages=True)
+        pubsub.subscribe(channel)
+        logger.warning("Schwab control plane subscribed to Redis channel=%s", channel)
         try:
-            pubsub = live_data_redis.client.pubsub(ignore_subscribe_messages=True)
-            pubsub.subscribe(channel)
-
-            while not stop_event.is_set():
-                msg = pubsub.get_message(timeout=1.0)
-                if not msg:
-                    continue
+            for msg in pubsub.listen():
                 data = msg.get("data")
-                if data is None:
+                if not data:
                     continue
-                if isinstance(data, (bytes, bytearray)):
-                    data = data.decode("utf-8", errors="ignore")
-                if isinstance(data, str):
-                    try:
-                        data = json.loads(data)
-                    except Exception:
-                        continue
-                if isinstance(data, dict):
-                    try:
-                        loop.call_soon_threadsafe(queue.put_nowait, data)
-                    except Exception:
-                        pass
-        except Exception:
-            logger.exception("Schwab control listener thread crashed")
+                try:
+                    if isinstance(data, (bytes, bytearray)):
+                        data = data.decode("utf-8", errors="ignore")
+                    payload = json.loads(data)
+                    if isinstance(payload, dict):
+                        loop.call_soon_threadsafe(queue.put_nowait, payload)
+                except Exception:
+                    continue
         finally:
-            try:
-                if pubsub is not None:
-                    pubsub.close()
-            except Exception:
-                pass
+            with contextlib.suppress(Exception):
+                pubsub.close()
 
-    t = threading.Thread(target=_runner, name=f"schwab-control:{channel}", daemon=True)
+    t = threading.Thread(target=_worker, name=f"schwab-control-{user_id}", daemon=True)
     t.start()
     return t
 
@@ -342,15 +336,9 @@ class Command(BaseCommand):
             backoff = 2
             max_backoff = 60
 
-            control_channel = f"live_data:schwab:control:{user_id}"
+            control_channel = _control_channel(user_id)
             control_queue: asyncio.Queue[dict] = asyncio.Queue()
-            control_stop = threading.Event()
-            control_thread = _start_control_listener_thread(
-                channel=control_channel,
-                loop=asyncio.get_running_loop(),
-                queue=control_queue,
-                stop_event=control_stop,
-            )
+            _start_pubsub_thread(user_id, control_queue, asyncio.get_running_loop())
             logger.warning(
                 "Schwab control plane listening on %s (JSON: {action:add|remove|set, asset:EQUITY|FUTURE, symbols:[...]})",
                 control_channel,
