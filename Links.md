@@ -51,7 +51,23 @@ If you see a dict (price, symbol, country=GLOBAL), Schwab → Redis is live ✅
 
 Notes
 - A small negative `age_seconds` can happen (clock skew); use `age_abs_seconds`.
-- Adding symbols in Django admin does not auto-update a running `schwab_stream` (restart it to pick up subscription changes).
+- A running `schwab_stream` can be updated live via Redis Pub/Sub control plane (no restart needed).
+
+Control plane (live add/remove/set while `schwab_stream` is running)
+
+Channel:
+- `live_data:schwab:control:<user_id>`
+
+Examples:
+
+python manage.py shell -c "import json; from LiveData.shared.redis_client import live_data_redis; live_data_redis.client.publish('live_data:schwab:control:1', json.dumps({'action':'add','asset':'EQUITY','symbols':['TSLA']}))"
+
+python manage.py shell -c "import json; from LiveData.shared.redis_client import live_data_redis; live_data_redis.client.publish('live_data:schwab:control:1', json.dumps({'action':'remove','asset':'EQUITY','symbols':['GOOG']}))"
+
+python manage.py shell -c "import json; from LiveData.shared.redis_client import live_data_redis; live_data_redis.client.publish('live_data:schwab:control:1', json.dumps({'action':'set','asset':'FUTURE','symbols':['/ES']}))"
+
+# Unsubscribe all equities:
+python manage.py shell -c "import json; from LiveData.shared.redis_client import live_data_redis; live_data_redis.client.publish('live_data:schwab:control:1', json.dumps({'action':'set','asset':'EQUITY','symbols':[]}))"
 
 clean tokens cd A:\Thor\thor-backend
 python manage.py shell -c "from LiveData.schwab.models import BrokerConnection; bc=BrokerConnection.objects.filter(user_id=1, broker='SCHWAB').first(); 

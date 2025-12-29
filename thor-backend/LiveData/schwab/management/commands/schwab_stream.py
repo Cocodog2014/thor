@@ -188,9 +188,9 @@ class Command(BaseCommand):
                     "  python manage.py schwab_stream --user-id 1 --futures ES,NQ"
                 )
 
-            # In-memory desired subscriptions (mutable via Redis control plane)
-            desired_equities: set[str] = set([s.upper() for s in equities if s])
-            desired_futures: set[str] = set([s.upper() for s in futures if s])
+        # In-memory desired subscriptions (mutable via Redis control plane)
+        desired_equities: set[str] = set([s.upper() for s in equities if s])
+        desired_futures: set[str] = set([s.upper() for s in futures if s])
 
         connection = (
             BrokerConnection.objects.select_related("user")
@@ -336,124 +336,122 @@ class Command(BaseCommand):
             backoff = 2
             max_backoff = 60
 
-            control_channel = _control_channel(user_id)
-            control_queue: asyncio.Queue[dict] = asyncio.Queue()
-            _start_pubsub_thread(user_id, control_queue, asyncio.get_running_loop())
-            logger.warning(
-                "Schwab control plane listening on %s (JSON: {action:add|remove|set, asset:EQUITY|FUTURE, symbols:[...]})",
-                control_channel,
-            )
+            # Desired sets (mutable via Redis control plane).
+            current_equities: set[str] = set(desired_equities)
+            current_futures: set[str] = set(desired_futures)
 
-            async def _apply_control_message(
-                *,
-                msg: dict,
-                stream_client: Any | None,
-                equity_fields: list[Any] | None = None,
-                futures_fields: list[Any] | None = None,
-                equity_handler: Any | None = None,
-                futures_handler: Any | None = None,
-                state: dict[str, Any] | None = None,
-            ) -> None:
-                action = (msg.get("action") or "").strip().lower()
-                asset = (msg.get("asset") or "").strip().upper()
-                raw_symbols = msg.get("symbols") or []
-                if isinstance(raw_symbols, str):
-                    raw_symbols = [raw_symbols]
-                if not isinstance(raw_symbols, list):
-                    raw_symbols = []
-                symbols = [str(s).strip().lstrip("/").upper() for s in raw_symbols if str(s).strip()]
-                if not action or not asset or not symbols and action != "set":
+            # Track what we've actually applied to the current stream connection.
+            applied_equities: set[str] = set()
+            applied_futures: set[str] = set()
+
+            # Per-connection state (reinitialized on reconnect)
+            equity_fields: list[Any] = []
+            futures_fields: list[Any] = []
+            message_handler: Any | None = None
+            equity_handler_added: bool = False
+            futures_handler_added: bool = False
+
+            async def _apply_equity_subs(stream_client: Any, desired: set[str]) -> None:
+                """Apply equity subscription set to the streamer.
+
+                Prefer unsubs if available; otherwise fall back to resubscribing the full desired list.
+                """
+                nonlocal applied_equities, equity_handler_added
+
+                desired_list = sorted([s.upper() for s in desired if s])
+                if not desired_list:
+                    unsubs = getattr(stream_client, "level_one_equity_unsubs", None)
+                    if callable(unsubs) and applied_equities:
+                        await unsubs(sorted(list(applied_equities)))
+                    applied_equities = set()
                     return
 
-                if asset in {"FUTURE", "FUTURES"}:
-                    target = desired_futures
-                    subs = getattr(stream_client, "level_one_futures_subs", None) if stream_client else None
-                    unsubs = getattr(stream_client, "level_one_futures_unsubs", None) if stream_client else None
-                    fields = futures_fields
-                    handler_adder_name = "add_level_one_futures_handler"
-                    handler_key = "futures_handler_added"
-                else:
-                    # Default everything else to EQUITY stream
-                    target = desired_equities
-                    subs = getattr(stream_client, "level_one_equity_subs", None) if stream_client else None
-                    unsubs = getattr(stream_client, "level_one_equity_unsubs", None) if stream_client else None
-                    fields = equity_fields
-                    handler_adder_name = "add_level_one_equity_handler"
-                    handler_key = "equity_handler_added"
+                if not equity_fields:
+                    return
 
-                def _ensure_handler() -> None:
-                    if not stream_client or not state:
-                        return
-                    if state.get(handler_key):
-                        return
-                    adder = getattr(stream_client, handler_adder_name, None)
-                    if not adder:
-                        return
-                    h = futures_handler if handler_key == "futures_handler_added" else equity_handler
-                    if h is None:
-                        return
+                # Ensure handler is installed exactly once per connection.
+                if not equity_handler_added and message_handler is not None:
                     try:
-                        adder(h)
-                        state[handler_key] = True
+                        stream_client.add_level_one_equity_handler(message_handler)
+                        equity_handler_added = True
                     except Exception:
                         pass
 
-                if action == "add":
-                    new = [s for s in symbols if s not in target]
-                    if not new:
-                        return
-                    target.update(new)
-                    if subs and fields is not None:
-                        _ensure_handler()
-                        await subs(new, fields=fields)
-                        logger.warning("Schwab control add %s %s", asset, new)
+                unsubs = getattr(stream_client, "level_one_equity_unsubs", None)
+                subs = getattr(stream_client, "level_one_equity_subs", None)
+                if subs is None:
                     return
 
-                if action == "remove":
-                    rem = [s for s in symbols if s in target]
-                    if not rem:
-                        return
-                    target.difference_update(rem)
-                    if unsubs:
-                        await unsubs(rem)
-                        logger.warning("Schwab control remove %s %s", asset, rem)
+                if callable(unsubs):
+                    to_remove = sorted([s for s in applied_equities if s not in desired_list])
+                    if to_remove:
+                        await unsubs(to_remove)
+                    to_add = sorted([s for s in desired_list if s not in applied_equities])
+                    if to_add:
+                        await subs(to_add, fields=equity_fields)
+                else:
+                    # Safe fallback: re-send the full list.
+                    await subs(desired_list, fields=equity_fields)
+
+                applied_equities = set(desired_list)
+
+            async def _apply_futures_subs(stream_client: Any, desired: set[str]) -> None:
+                """Apply futures subscription set to the streamer.
+
+                Prefer unsubs if available; otherwise fall back to resubscribing the full desired list.
+                """
+                nonlocal applied_futures, futures_handler_added
+
+                desired_list = sorted([s.upper() for s in desired if s])
+                if not desired_list:
+                    unsubs = getattr(stream_client, "level_one_futures_unsubs", None)
+                    if callable(unsubs) and applied_futures:
+                        await unsubs(sorted(list(applied_futures)))
+                    applied_futures = set()
                     return
 
-                if action == "set":
-                    newset = set(symbols)
-                    to_remove = sorted([s for s in target if s not in newset])
-                    to_add = sorted([s for s in newset if s not in target])
-                    target.clear()
-                    target.update(sorted(newset))
-                    if stream_client:
-                        if to_remove and unsubs:
-                            await unsubs(to_remove)
-                        if to_add and subs and fields is not None:
-                            _ensure_handler()
-                            await subs(to_add, fields=fields)
-                        logger.warning("Schwab control set %s add=%s remove=%s", asset, to_add, to_remove)
+                if not futures_fields:
                     return
 
-            async def _drain_control_queue(*, stream_client: Any | None, **kwargs: Any) -> None:
-                while True:
+                if not futures_handler_added and message_handler is not None:
                     try:
-                        msg = control_queue.get_nowait()
-                    except asyncio.QueueEmpty:
-                        return
-                    try:
-                        await _apply_control_message(msg=msg, stream_client=stream_client, **kwargs)
+                        stream_client.add_level_one_futures_handler(message_handler)
+                        futures_handler_added = True
                     except Exception:
-                        logger.exception("Failed applying Schwab control message: %s", msg)
+                        pass
+
+                unsubs = getattr(stream_client, "level_one_futures_unsubs", None)
+                subs = getattr(stream_client, "level_one_futures_subs", None)
+                if subs is None:
+                    return
+
+                if callable(unsubs):
+                    to_remove = sorted([s for s in applied_futures if s not in desired_list])
+                    if to_remove:
+                        await unsubs(to_remove)
+                    to_add = sorted([s for s in desired_list if s not in applied_futures])
+                    if to_add:
+                        await subs(to_add, fields=futures_fields)
+                else:
+                    await subs(desired_list, fields=futures_fields)
+
+                applied_futures = set(desired_list)
+
+            control_queue: asyncio.Queue[dict] | None = None
+            control_thread: threading.Thread | None = None
 
             while True:
                 try:
                     first_message_seen = asyncio.Event()
                     stream_client: Any | None = None
+                    control_task: asyncio.Task | None = None
 
-                    state: dict[str, Any] = {
-                        "equity_handler_added": False,
-                        "futures_handler_added": False,
-                    }
+                    # Reset per-connection state.
+                    equity_handler_added = False
+                    futures_handler_added = False
+                    message_handler = None
+                    equity_fields = []
+                    futures_fields = []
 
                     def _handler(msg: object) -> None:
                         producer.process_message(msg)
@@ -462,6 +460,8 @@ class Command(BaseCommand):
                             first_message_seen.set()
                         except Exception:
                             pass
+
+                    message_handler = _handler
 
                     conn = connection
                     await refresh_from_db_async(conn)
@@ -539,28 +539,82 @@ class Command(BaseCommand):
                         StreamClient.LevelOneFuturesFields.TRADE_TIME_MILLIS,
                     ]
 
+                    # Start Redis control listener after a successful login and after fields are ready.
+                    if control_queue is None:
+                        control_queue = asyncio.Queue()
+                    if control_thread is None:
+                        control_thread = _start_pubsub_thread(user_id, control_queue, asyncio.get_running_loop())
+                        logger.warning(
+                            "Schwab control plane listening on %s (JSON: {action:add|remove|set, asset:EQUITY|FUTURE, symbols:[...]})",
+                            _control_channel(user_id),
+                        )
+
                     try:
-                        # IMPORTANT: Handlers must be added BEFORE subscribing
-                        equities_list = sorted(list(desired_equities))
-                        futures_list = sorted(list(desired_futures))
+                        # Apply initial desired subscription sets (safe: unsubs if supported, else resubscribe full).
+                        await _apply_equity_subs(stream_client, current_equities)
+                        await _apply_futures_subs(stream_client, current_futures)
 
-                        if equities_list:
-                            stream_client.add_level_one_equity_handler(_handler)
-                            state["equity_handler_added"] = True
-                            resp = await stream_client.level_one_equity_subs(
-                                equities_list,
-                                fields=equity_fields,
-                            )
-                            logger.warning("Schwab equity_subs sent symbols=%s resp=%s", equities_list, resp)
+                        async def _control_consumer() -> None:
+                            nonlocal current_equities, current_futures
+                            assert control_queue is not None
+                            while True:
+                                cmd = await control_queue.get()
 
-                        if futures_list:
-                            stream_client.add_level_one_futures_handler(_handler)
-                            state["futures_handler_added"] = True
-                            resp = await stream_client.level_one_futures_subs(
-                                futures_list,
-                                fields=futures_fields,
-                            )
-                            logger.warning("Schwab futures_subs sent symbols=%s resp=%s", futures_list, resp)
+                                action = (cmd.get("action") or "").strip().lower()
+                                asset = (cmd.get("asset") or "").strip().upper()
+                                raw_symbols = cmd.get("symbols") or []
+                                if isinstance(raw_symbols, str):
+                                    raw_symbols = [raw_symbols]
+                                if not isinstance(raw_symbols, list):
+                                    raw_symbols = []
+                                symbols = [str(s).strip().upper() for s in raw_symbols if str(s).strip()]
+
+                                if not action or not asset or (not symbols and action != "set"):
+                                    continue
+
+                                if asset in ("EQUITY", "EQUITIES", "STOCK", "INDEX"):
+                                    # Strip leading '/' if the caller accidentally sent futures-style.
+                                    symbols = [s.lstrip("/") for s in symbols if s]
+
+                                    if action == "add":
+                                        current_equities |= set(symbols)
+                                    elif action == "remove":
+                                        current_equities -= set(symbols)
+                                    elif action == "set":
+                                        current_equities = set(symbols)
+                                    else:
+                                        continue
+
+                                    logger.warning(
+                                        "Schwab control: %s EQUITY %s => %s",
+                                        action,
+                                        symbols,
+                                        sorted(current_equities),
+                                    )
+                                    await _apply_equity_subs(stream_client, current_equities)
+
+                                elif asset in ("FUTURE", "FUTURES"):
+                                    # Ensure futures have a leading '/'.
+                                    symbols = [s if s.startswith("/") else "/" + s.lstrip("/") for s in symbols if s]
+
+                                    if action == "add":
+                                        current_futures |= set(symbols)
+                                    elif action == "remove":
+                                        current_futures -= set(symbols)
+                                    elif action == "set":
+                                        current_futures = set(symbols)
+                                    else:
+                                        continue
+
+                                    logger.warning(
+                                        "Schwab control: %s FUTURE %s => %s",
+                                        action,
+                                        symbols,
+                                        sorted(current_futures),
+                                    )
+                                    await _apply_futures_subs(stream_client, current_futures)
+
+                        control_task = asyncio.create_task(_control_consumer())
 
                         try:
                             sock = getattr(stream_client, "_socket", None)
@@ -576,41 +630,7 @@ class Command(BaseCommand):
 
                         logger.info("Listening for Schwab streaming messages")
                         while True:
-                            msg_task = asyncio.create_task(stream_client.handle_message())
-                            ctrl_task = asyncio.create_task(control_queue.get())
-                            done, pending = await asyncio.wait(
-                                {msg_task, ctrl_task},
-                                return_when=asyncio.FIRST_COMPLETED,
-                            )
-
-                            if ctrl_task in done:
-                                ctrl_msg = ctrl_task.result()
-                                await _apply_control_message(
-                                    msg=ctrl_msg,
-                                    stream_client=stream_client,
-                                    equity_fields=equity_fields,
-                                    futures_fields=futures_fields,
-                                    equity_handler=_handler,
-                                    futures_handler=_handler,
-                                    state=state,
-                                )
-                                msg_task.cancel()
-                                with contextlib.suppress(asyncio.CancelledError, Exception):
-                                    await msg_task
-                            else:
-                                ctrl_task.cancel()
-                                with contextlib.suppress(asyncio.CancelledError, Exception):
-                                    await ctrl_task
-
-                            # If commands queued up, apply them promptly.
-                            await _drain_control_queue(
-                                stream_client=stream_client,
-                                equity_fields=equity_fields,
-                                futures_fields=futures_fields,
-                                equity_handler=_handler,
-                                futures_handler=_handler,
-                                state=state,
-                            )
+                            await stream_client.handle_message()
 
                             if exit_after_first and first_message_seen.is_set():
                                 logger.warning("Exiting Schwab stream after first message (--exit-after-first)")
@@ -619,6 +639,10 @@ class Command(BaseCommand):
                         # Best-effort clean shutdown so Ctrl-C doesn't leave
                         # websocket close tasks pending.
                         try:
+                            if control_task is not None:
+                                control_task.cancel()
+                                with contextlib.suppress(asyncio.CancelledError, Exception):
+                                    await control_task
                             if keepalive_task is not None:
                                 keepalive_task.cancel()
                                 with contextlib.suppress(asyncio.CancelledError, Exception):
@@ -630,10 +654,6 @@ class Command(BaseCommand):
                 except asyncio.CancelledError:
                     raise
                 except ConnectionClosed as exc:
-                    # Apply any pending control messages even while disconnected.
-                    with contextlib.suppress(Exception):
-                        await _drain_control_queue(stream_client=None)
-
                     code = getattr(exc, "code", None)
                     reason = getattr(exc, "reason", None)
                     # Code=1000 is a normal close; don't spam scary tracebacks.
@@ -655,9 +675,6 @@ class Command(BaseCommand):
                     await asyncio.sleep(backoff)
                     backoff = min(backoff * 2, max_backoff)
                 except Exception as exc:
-                    with contextlib.suppress(Exception):
-                        await _drain_control_queue(stream_client=None)
-
                     logger.warning(
                         "Schwab stream loop error; reconnecting in %ss: %s", backoff, exc, exc_info=True
                     )
