@@ -113,6 +113,42 @@ class SchwabStreamingProducer:
         self.channel_layer = channel_layer or get_channel_layer()
         self._session_cache: Optional[dict] = None
         self._session_cache_until: float = 0.0  # unix time
+        self._missing_routing_last_log: float = 0.0
+
+    @staticmethod
+    def _to_session_key(value: Any) -> Optional[str]:
+        """Coerce routing snapshot values into Redis session keys.
+
+        Accepts:
+        - "session:44" (pass-through)
+        - 44 / "44" (converted)
+        - legacy tokens like "USA:20251228:44" (converted)
+        Returns:
+        - "session:<n>" or None
+        """
+        if value is None:
+            return None
+
+        s = str(value).strip()
+        if not s:
+            return None
+
+        lower = s.lower()
+        if lower.startswith("session:"):
+            num = lower.split(":", 1)[1].strip()
+            if num.isdigit():
+                return f"session:{int(num)}"
+            return None
+
+        # If it's just a number
+        if s.isdigit():
+            return f"session:{int(s)}"
+
+        # Legacy tokens like "USA:YYYYMMDD:44" -> take last segment if numeric
+        last = s.split(":")[-1].strip()
+        if last.isdigit():
+            return f"session:{int(last)}"
+        return None
 
     # ------------------------------------------------------------------
     # Session routing (THIS is where session numbers belong)
@@ -147,26 +183,18 @@ class SchwabStreamingProducer:
         return data
 
     def _resolve_session_key(self, payload: Dict[str, Any]) -> Optional[str]:
-        """
-        Returns a session_key like:
-                    "session:44"
-
-        No GLOBAL fallback. If routing is missing, return None and we skip bar writes.
-        """
         snap = self._get_active_session_snapshot()
         if not snap:
             return None
 
-        # Try to route by asset type if provided
         main = (payload.get("assetMainType") or payload.get("assetType") or "").upper()
 
         if "FUTURE" in main:
-            return snap.get("futures") or snap.get("default")
+            return self._to_session_key(snap.get("futures") or snap.get("default"))
         if "EQUITY" in main or "STOCK" in main:
-            return snap.get("equities") or snap.get("default")
+            return self._to_session_key(snap.get("equities") or snap.get("default"))
 
-        # Unknown asset type -> default routing
-        return snap.get("default")
+        return self._to_session_key(snap.get("default"))
 
     # ------------------------------------------------------------------
     # Payload normalization
@@ -249,16 +277,15 @@ class SchwabStreamingProducer:
             return
 
         try:
-            session_key = self._resolve_session_key(payload)
-            if not session_key:
-                logger.warning(
-                    "No active session routing in Redis (%s). Using fallback session:0",
-                    ACTIVE_SESSION_KEY_REDIS,
-                )
-                session_key = "session:0"
-
             # Always publish quotes (session-agnostic)
             live_data_redis.publish_quote(payload["symbol"], payload)
+
+            session_key = self._resolve_session_key(payload)
+            if not session_key:
+                # No routing available: don't write bars/ticks to session namespaces
+                # (and don't spam warnings)
+                broadcast_to_websocket_sync(self.channel_layer, {"type": "quote_tick", "data": payload})
+                return
 
             payload["session_key"] = session_key
             session_number = live_data_redis._parse_session_number(session_key)  # internal helper
@@ -293,7 +320,6 @@ class SchwabStreamingProducer:
     # ------------------------------------------------------------------
     def process_message(self, message: Any) -> None:
         try:
-            logger.info("SCHWAB MESSAGE RECEIVED")
             if isinstance(message, dict) and isinstance(message.get("content"), list):
                 for tick in message.get("content", []):
                     if isinstance(tick, dict):
