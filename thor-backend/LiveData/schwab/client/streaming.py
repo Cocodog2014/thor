@@ -134,6 +134,7 @@ class SchwabStreamingProducer:
         self._session_cache_until: float = 0.0  # unix time
         self._missing_routing_last_log: float = 0.0
         self._missing_price_last_log: dict[str, float] = {}
+        self._last_quote_by_symbol: dict[str, dict[str, Any]] = {}
         self._logged_first_message: bool = False
         self._logged_first_payload: bool = False
         self._logged_first_redis_snapshot: bool = False
@@ -264,6 +265,16 @@ class SchwabStreamingProducer:
         )
         ts = _extract_timestamp(tick)
 
+        # Schwab often sends delta updates (only changed fields). Preserve last-known
+        # bid/ask/last so consumers don't see flicker to None.
+        prev = self._last_quote_by_symbol.get(symbol) or {}
+        if bid is None:
+            bid = prev.get("bid")
+        if ask is None:
+            ask = prev.get("ask")
+        if last is None:
+            last = prev.get("last")
+
         payload: Dict[str, Any] = {
             "symbol": symbol,
             "bid": bid,
@@ -315,6 +326,13 @@ class SchwabStreamingProducer:
         for key in ("assetType", "assetMainType", "exchange", "description"):
             if tick.get(key) is not None:
                 payload[key] = tick.get(key)
+
+        self._last_quote_by_symbol[symbol] = {
+            "bid": bid,
+            "ask": ask,
+            "last": last,
+            "timestamp": ts,
+        }
 
         return payload
 
