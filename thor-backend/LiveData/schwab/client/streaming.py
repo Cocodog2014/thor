@@ -31,6 +31,12 @@ ACTIVE_SESSION_KEY_REDIS = "live_data:active_session"
 def _to_float(value: Any) -> Optional[float]:
     if value is None:
         return None
+    # Some streaming libs wrap numeric fields as objects, e.g. {"value": "400.12"}
+    # or {"val": 400.12}. Unwrap common shapes.
+    if isinstance(value, dict):
+        for k in ("value", "val", "price", "p"):
+            if k in value:
+                return _to_float(value.get(k))
     try:
         return float(value)
     except Exception:
@@ -44,13 +50,19 @@ def _extract_timestamp(tick: Dict[str, Any]) -> float:
         tick.get("time"),
         tick.get("quoteTimeInLong"),
         tick.get("QUOTE_TIME"),
+        tick.get("QUOTE_TIME_MILLIS"),
         tick.get("trade_time"),
+        tick.get("TRADE_TIME_MILLIS"),
     ]
     for c in candidates:
         try:
             if c is None:
                 continue
-            return float(c)
+            ts = float(c)
+            # Many Schwab fields are epoch-millis. Normalize to seconds.
+            if ts > 1e12:
+                ts = ts / 1000.0
+            return ts
         except Exception:
             continue
     return time.time()
@@ -114,6 +126,8 @@ class SchwabStreamingProducer:
         self._session_cache: Optional[dict] = None
         self._session_cache_until: float = 0.0  # unix time
         self._missing_routing_last_log: float = 0.0
+        self._missing_price_last_log: dict[str, float] = {}
+        self._logged_first_message: bool = False
 
     @staticmethod
     def _to_session_key(value: Any) -> Optional[str]:
@@ -207,13 +221,20 @@ class SchwabStreamingProducer:
             return None
         symbol = str(symbol_raw).lstrip("/").upper()
 
-        bid = _to_float(_get_any(tick, "bid", "bidPrice", "BID", 1, "1"))
-        ask = _to_float(_get_any(tick, "ask", "askPrice", "ASK", 2, "2"))
+        # Some Schwab streams use short keys:
+        #   b = bid, a = ask, t = last/trade
+        bid = _to_float(_get_any(tick, "bid", "bidPrice", "BID_PRICE", "BID", "b", "B", 1, "1"))
+        ask = _to_float(_get_any(tick, "ask", "askPrice", "ASK_PRICE", "ASK", "a", "A", 2, "2"))
         last = _to_float(
             _get_any(
                 tick,
                 "last",
                 "lastPrice",
+                "LAST_PRICE",
+                "trade",
+                "tradePrice",
+                "t",
+                "T",
                 "close",
                 "MARK",
                 3,
@@ -243,6 +264,40 @@ class SchwabStreamingProducer:
             "timestamp": ts,
             "source": "SCHWAB",
         }
+
+        # Diagnostics: when price fields are missing, log the raw tick schema (throttled)
+        if bid is None and ask is None and last is None:
+            now = time.time()
+            last_log = self._missing_price_last_log.get(symbol, 0.0)
+            if now - last_log > 30:
+                keys = sorted([str(k) for k in tick.keys()])
+                sample = {
+                    k: tick.get(k)
+                    for k in (
+                        "0",
+                        "1",
+                        "2",
+                        "3",
+                        "8",
+                        "key",
+                        "symbol",
+                        "bid",
+                        "ask",
+                        "last",
+                        "bidPrice",
+                        "askPrice",
+                        "lastPrice",
+                        "BID_PRICE",
+                        "ASK_PRICE",
+                        "LAST_PRICE",
+                        "TOTAL_VOLUME",
+                        "QUOTE_TIME_MILLIS",
+                        "TRADE_TIME_MILLIS",
+                    )
+                    if k in tick
+                }
+                logger.debug("Schwab tick missing bid/ask/last for %s; keys=%s sample=%s", symbol, keys, sample)
+                self._missing_price_last_log[symbol] = now
 
         for key in ("assetType", "assetMainType", "exchange", "description"):
             if tick.get(key) is not None:
@@ -320,6 +375,52 @@ class SchwabStreamingProducer:
     # ------------------------------------------------------------------
     def process_message(self, message: Any) -> None:
         try:
+            if not self._logged_first_message:
+                self._logged_first_message = True
+                try:
+                    if isinstance(message, dict):
+                        keys = sorted([str(k) for k in message.keys()])
+                        if isinstance(message.get("content"), list) and message.get("content"):
+                            first = message.get("content")[0]
+                            first_keys = sorted([str(k) for k in first.keys()]) if isinstance(first, dict) else []
+                            sample = None
+                            if isinstance(first, dict):
+                                want = (
+                                    "0",
+                                    "1",
+                                    "2",
+                                    "3",
+                                    "8",
+                                    "key",
+                                    "symbol",
+                                    "bid",
+                                    "ask",
+                                    "last",
+                                    "b",
+                                    "a",
+                                    "t",
+                                    "BID_PRICE",
+                                    "ASK_PRICE",
+                                    "LAST_PRICE",
+                                    "TOTAL_VOLUME",
+                                    "QUOTE_TIME_MILLIS",
+                                    "TRADE_TIME_MILLIS",
+                                )
+                                sample = {k: first.get(k) for k in want if k in first}
+                            logger.warning(
+                                "Schwab first message keys=%s content_len=%s first_tick_keys=%s first_tick_sample=%s",
+                                keys,
+                                len(message.get("content")),
+                                first_keys,
+                                sample,
+                            )
+                        else:
+                            logger.warning("Schwab first message keys=%s", keys)
+                    else:
+                        logger.warning("Schwab first message type=%s", type(message))
+                except Exception:
+                    logger.exception("Failed logging first Schwab message")
+
             if isinstance(message, dict) and isinstance(message.get("content"), list):
                 for tick in message.get("content", []):
                     if isinstance(tick, dict):

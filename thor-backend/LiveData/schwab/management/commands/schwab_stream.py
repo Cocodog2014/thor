@@ -79,6 +79,7 @@ class Command(BaseCommand):
         try:
             from schwab import auth as schwab_auth  # type: ignore
             from schwab.streaming import StreamClient  # type: ignore
+            from websockets.exceptions import ConnectionClosed  # type: ignore
         except Exception as exc:
             raise CommandError("schwab-py is not installed. Install with `pip install schwab-py`") from exc
 
@@ -241,8 +242,40 @@ class Command(BaseCommand):
                         asyncio=True,
                     )
 
+                    # Extra diagnostics: confirm streamer socket URL from user preferences
+                    try:
+                        prefs_resp = api_client.get_user_preferences()
+                        if asyncio.iscoroutine(prefs_resp):
+                            prefs_resp = await prefs_resp
+                        prefs_json = (prefs_resp.json() if prefs_resp is not None else None) or {}
+                        streamer_info = (prefs_json.get("streamerInfo") or [])
+                        socket_url = (streamer_info[0] or {}).get("streamerSocketUrl") if streamer_info else None
+                        logger.warning("Schwab user_preferences streamerSocketUrl=%s", socket_url)
+                    except Exception as e:
+                        logger.warning("Schwab user_preferences diagnostic failed: %s", e, exc_info=True)
+
                     stream_client = StreamClient(api_client, account_id=str(account_id))
                     await stream_client.login()
+                    logger.warning("Schwab stream login OK (account_id=%s)", str(account_id))
+
+                    equity_fields = [
+                        StreamClient.LevelOneEquityFields.SYMBOL,
+                        StreamClient.LevelOneEquityFields.BID_PRICE,
+                        StreamClient.LevelOneEquityFields.ASK_PRICE,
+                        StreamClient.LevelOneEquityFields.LAST_PRICE,
+                        StreamClient.LevelOneEquityFields.TOTAL_VOLUME,
+                        StreamClient.LevelOneEquityFields.QUOTE_TIME_MILLIS,
+                        StreamClient.LevelOneEquityFields.TRADE_TIME_MILLIS,
+                    ]
+                    futures_fields = [
+                        StreamClient.LevelOneFuturesFields.SYMBOL,
+                        StreamClient.LevelOneFuturesFields.BID_PRICE,
+                        StreamClient.LevelOneFuturesFields.ASK_PRICE,
+                        StreamClient.LevelOneFuturesFields.LAST_PRICE,
+                        StreamClient.LevelOneFuturesFields.TOTAL_VOLUME,
+                        StreamClient.LevelOneFuturesFields.QUOTE_TIME_MILLIS,
+                        StreamClient.LevelOneFuturesFields.TRADE_TIME_MILLIS,
+                    ]
 
                     # Reset backoff after a successful connect/login
                     backoff = 2
@@ -250,11 +283,31 @@ class Command(BaseCommand):
                     # IMPORTANT: Handlers must be added BEFORE subscribing
                     if equities:
                         stream_client.add_level_one_equity_handler(producer.process_message)
-                        await stream_client.level_one_equity_subs([s.upper() for s in equities])
+                        resp = await stream_client.level_one_equity_subs(
+                            [s.upper() for s in equities],
+                            fields=equity_fields,
+                        )
+                        logger.warning("Schwab equity_subs sent symbols=%s resp=%s", equities, resp)
 
                     if futures:
                         stream_client.add_level_one_futures_handler(producer.process_message)
-                        await stream_client.level_one_futures_subs([s.upper() for s in futures])
+                        resp = await stream_client.level_one_futures_subs(
+                            [s.upper() for s in futures],
+                            fields=futures_fields,
+                        )
+                        logger.warning("Schwab futures_subs sent symbols=%s resp=%s", futures, resp)
+
+                    try:
+                        sock = getattr(stream_client, "_socket", None)
+                        logger.warning(
+                            "Schwab websocket state before loop: open=%s closed=%s close_code=%s close_reason=%r",
+                            getattr(sock, "open", None),
+                            getattr(sock, "closed", None),
+                            getattr(sock, "close_code", None),
+                            getattr(sock, "close_reason", None),
+                        )
+                    except Exception:
+                        pass
 
                     logger.info("Listening for subscription events on live_data:subscriptions:schwab")
 
@@ -263,6 +316,16 @@ class Command(BaseCommand):
 
                 except asyncio.CancelledError:
                     raise
+                except ConnectionClosed as exc:
+                    logger.warning(
+                        "Schwab websocket closed; reconnecting in %ss: code=%s reason=%r",
+                        backoff,
+                        getattr(exc, "code", None),
+                        getattr(exc, "reason", None),
+                        exc_info=True,
+                    )
+                    await asyncio.sleep(backoff)
+                    backoff = min(backoff * 2, max_backoff)
                 except Exception as exc:
                     logger.warning(
                         "Schwab stream loop error; reconnecting in %ss: %s", backoff, exc, exc_info=True
