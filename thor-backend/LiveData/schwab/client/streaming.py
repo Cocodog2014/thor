@@ -129,6 +129,7 @@ class SchwabStreamingProducer:
         self._missing_price_last_log: dict[str, float] = {}
         self._logged_first_message: bool = False
         self._logged_first_payload: bool = False
+        self._logged_first_redis_snapshot: bool = False
 
     @staticmethod
     def _to_session_key(value: Any) -> Optional[str]:
@@ -339,6 +340,14 @@ class SchwabStreamingProducer:
         try:
             # Always publish quotes (session-agnostic)
             live_data_redis.publish_quote(payload["symbol"], payload)
+
+            if not self._logged_first_redis_snapshot:
+                self._logged_first_redis_snapshot = True
+                try:
+                    snap = live_data_redis.get_latest_quote(payload["symbol"])  # immediate readback
+                    logger.warning("Schwab first Redis latest quote snapshot=%s", snap)
+                except Exception:
+                    logger.exception("Failed reading back latest quote after publish")
 
             session_key = self._resolve_session_key(payload)
             if not session_key:
