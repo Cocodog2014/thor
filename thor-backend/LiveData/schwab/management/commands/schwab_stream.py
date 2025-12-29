@@ -187,17 +187,23 @@ class Command(BaseCommand):
         def _read_token():
             return deepcopy(token_state)
 
-        def _write_token(token_obj):
+        def _write_token(token_obj, *args, **kwargs):
+            """schwab-py/authlib may pass refresh_token via kwargs; accept *args/**kwargs."""
+
             payload = token_obj.get("token") if isinstance(token_obj, dict) and "token" in token_obj else token_obj
             if not isinstance(payload, dict):
                 payload = {}
+
+            kw_refresh = kwargs.get("refresh_token")
+            if kw_refresh and not payload.get("refresh_token"):
+                payload["refresh_token"] = kw_refresh
 
             token_state["token"].update(
                 {
                     "access_token": payload.get("access_token") or token_state["token"].get("access_token"),
                     "refresh_token": payload.get("refresh_token") or token_state["token"].get("refresh_token"),
                     "expires_at": int(payload.get("expires_at") or token_state["token"].get("expires_at") or 0),
-                    "token_type": "Bearer",
+                    "token_type": payload.get("token_type") or "Bearer",
                 }
             )
             token_state["creation_timestamp"] = int(time.time())
