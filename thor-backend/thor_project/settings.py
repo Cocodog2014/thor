@@ -293,7 +293,7 @@ CHANNEL_LAYERS = {
 # Realtime job providers (plugins loaded by thor_project.realtime.registry)
 REALTIME_JOB_PROVIDERS = [
     "GlobalMarkets.realtime.provider",
-    "ThorTrading.realtime.provider",
+    # "ThorTrading.realtime.provider",  # Temporarily disabled to pause ThorTrading jobs
     "LiveData.schwab.realtime.provider",
 ]
 
