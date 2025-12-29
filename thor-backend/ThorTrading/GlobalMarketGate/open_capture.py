@@ -622,35 +622,72 @@ def _market_local_date(market) -> date_cls:
         return timezone.now().date()
 
 
-def _scan_and_capture_once():
-    from GlobalMarkets.models.market import Market
-    markets = Market.objects.filter(is_active=True)
+def _scan_and_capture_once() -> int:
+    """
+    Scan all control markets and capture OPEN for any market that is OPEN now
+    and not yet captured for its market-local date.
 
-    active_session_number = live_data_redis.get_active_session_number()
+    Returns number of captures performed.
+    """
+    from datetime import datetime
+    from django.utils import timezone
+
+    captures = 0
+
+    # Only markets we care about controlling/capturing
+    markets = list(get_control_markets(require_open_capture=True))
+    if not markets:
+        return 0
 
     for market in markets:
-        if not session_tracking_allowed(market):
-            continue
-        if not open_capture_allowed(market):
-            continue
-        if not is_market_open_now(market):
+        country_code = getattr(market, "country", None)
+        if not country_code:
             continue
 
-        country_code = normalize_country_code(getattr(market, "country", None)) or getattr(market, "country", None)
-
-        if active_session_number is not None and MarketSession.objects.filter(
-            session_number=active_session_number,
-            capture_kind="OPEN",
-        ).exists():
-            continue
-
-        logger.info("🌅 Market %s open — capturing session_number=%s", market.country, active_session_number)
+        # Is this market open right now?
         try:
-            capture_market_open(market, session_number=active_session_number)
+            if not is_market_open_now(market):
+                continue
         except Exception:
-            logger.exception("Market open capture failed for %s", market.country)
-        else:
-            logger.info("✅ Market open capture complete for %s", market.country)
+            logger.exception("OpenCapture scan: failed open check for %s", country_code)
+            continue
+
+        # Market-local date determines the "session day"
+        try:
+            market_date = _market_local_date(market)  # expected date or datetime.date
+            if hasattr(market_date, "date"):
+                market_date = market_date.date()
+        except Exception:
+            logger.exception("OpenCapture scan: failed market-local date for %s", country_code)
+            continue
+
+        # ✅ Idempotence: country + market-local date (+ capture kind)
+        already = MarketSession.objects.filter(
+            country=country_code,
+            capture_kind="OPEN",
+            year=market_date.year,
+            month=market_date.month,
+            date=market_date.day,
+        ).exists()
+
+        if already:
+            continue
+
+        # Optional: include active session number if available (NOT used for idempotence)
+        session_number = None
+        try:
+            session_number = live_data_redis.get_active_session_number()
+        except Exception:
+            session_number = None
+
+        try:
+            result = capture_market_open(country_code, force=True, session_number=session_number)
+            logger.info("OpenCapture scan: captured %s => %s", country_code, result)
+            captures += 1
+        except Exception:
+            logger.exception("OpenCapture scan: capture failed for %s", country_code)
+
+    return captures
 
 
 def check_for_market_opens_and_capture() -> float:
