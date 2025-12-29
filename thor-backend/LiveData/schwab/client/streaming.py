@@ -210,36 +210,34 @@ class SchwabStreamingProducer:
 
         try:
             session_key = self._resolve_session_key(payload)
+            if not session_key:
+                logger.warning(
+                    "No active session routing in Redis (%s). Using fallback session:0",
+                    ACTIVE_SESSION_KEY_REDIS,
+                )
+                session_key = "session:0"
 
             # Always publish quotes (session-agnostic)
             live_data_redis.publish_quote(payload["symbol"], payload)
 
-            # If we don't know the session, skip bar writes (no GLOBAL fallback)
-            if not session_key:
-                logger.warning(
-                    "No active session routing in Redis (%s). Skipping bar/tick cache for %s",
-                    ACTIVE_SESSION_KEY_REDIS,
-                    payload.get("symbol"),
-                )
-            else:
-                payload["session_key"] = session_key
-                session_number = live_data_redis._parse_session_number(session_key)  # internal helper
+            payload["session_key"] = session_key
+            session_number = live_data_redis._parse_session_number(session_key)  # internal helper
+            if session_number is not None:
+                payload["session_number"] = session_number
+
+            # Short TTL tick cache (keyed by session)
+            live_data_redis.set_tick(session_key, payload["symbol"], payload, ttl=10)
+
+            # Update 1m bar (keyed by session)
+            bar_tick = self._build_bar_tick(payload)
+            if bar_tick:
                 if session_number is not None:
-                    payload["session_number"] = session_number
-
-                # Short TTL tick cache (keyed by session)
-                live_data_redis.set_tick(session_key, payload["symbol"], payload, ttl=10)
-
-                # Update 1m bar (keyed by session)
-                bar_tick = self._build_bar_tick(payload)
-                if bar_tick:
-                    if session_number is not None:
-                        bar_tick["session_number"] = session_number
-                    closed_bar, _cur = live_data_redis.upsert_current_bar_1m(
-                        session_key, payload["symbol"], bar_tick
-                    )
-                    if closed_bar:
-                        live_data_redis.enqueue_closed_bar(session_key, closed_bar)
+                    bar_tick["session_number"] = session_number
+                closed_bar, _cur = live_data_redis.upsert_current_bar_1m(
+                    session_key, payload["symbol"], bar_tick
+                )
+                if closed_bar:
+                    live_data_redis.enqueue_closed_bar(session_key, closed_bar)
 
             # Broadcast to WebSocket
             broadcast_to_websocket_sync(self.channel_layer, {"type": "quote_tick", "data": payload})

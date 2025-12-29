@@ -89,11 +89,19 @@ class SchwabSubscription(models.Model):
     ASSET_EQUITY = "EQUITY"
     ASSET_FUTURE = "FUTURE"
     ASSET_INDEX = "INDEX"
+    ASSET_OPTION = "OPTION"
+    ASSET_BOND = "BOND"
+    ASSET_FOREX = "FOREX"
+    ASSET_MUTUAL_FUND = "MUTUAL_FUND"
 
     ASSET_CHOICES = [
         (ASSET_EQUITY, "Equity"),
         (ASSET_FUTURE, "Future"),
         (ASSET_INDEX, "Index"),
+        (ASSET_OPTION, "Option"),
+        (ASSET_BOND, "Bond"),
+        (ASSET_FOREX, "Forex"),
+        (ASSET_MUTUAL_FUND, "Mutual Fund"),
     ]
 
     user = models.ForeignKey(

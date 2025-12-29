@@ -6,7 +6,7 @@ from django.conf import settings
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('schwab', '0004_alter_brokerconnection_broker_account_id'),
+        ('SchwabLiveData', '0004_alter_brokerconnection_broker_account_id'),
     ]
 
     operations = [

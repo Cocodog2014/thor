@@ -6,16 +6,15 @@ import asyncio
 import logging
 import time
 from copy import deepcopy
-from typing import List, Optional
+from typing import List, Optional, Dict, Tuple
 
+from asgiref.sync import sync_to_async
 from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
-from asgiref.sync import sync_to_async
 
 from LiveData.schwab.models import BrokerConnection, SchwabSubscription
 from LiveData.schwab.client.streaming import SchwabStreamingProducer
 from LiveData.schwab.client.tokens import ensure_valid_access_token
-
 
 logger = logging.getLogger(__name__)
 
@@ -23,41 +22,58 @@ logger = logging.getLogger(__name__)
 def _parse_csv(value: Optional[str]) -> List[str]:
     if not value:
         return []
-    return [item.strip() for item in value.split(",") if item.strip()]
+    return [item.strip().upper() for item in value.split(",") if item.strip()]
+
+
+def _group_subscriptions(subs: List[Dict[str, str]]) -> Tuple[List[str], List[str]]:
+    """
+    Returns (equities_and_indexes, futures)
+    Treat INDEX as equity-stream for now (Schwab symbol formats vary, but the feed is typically equity L1).
+    """
+    equities: List[str] = []
+    futures: List[str] = []
+
+    for row in subs:
+        sym = (row.get("symbol") or "").strip().upper()
+        typ = (row.get("asset_type") or "").strip().upper()
+        if not sym:
+            continue
+
+        if typ in {"FUTURE", "FUTURES"}:
+            futures.append(sym)
+        else:
+            # EQUITY + INDEX + anything else we want to try on equity L1 feed
+            equities.append(sym)
+
+    # de-dupe stable
+    def _dedupe(xs: List[str]) -> List[str]:
+        seen = set()
+        out = []
+        for x in xs:
+            if x in seen:
+                continue
+            seen.add(x)
+            out.append(x)
+        return out
+
+    return _dedupe(equities), _dedupe(futures)
 
 
 class Command(BaseCommand):
-    help = "Start Schwab streaming and publish ticks to Redis/WebSocket"
+    help = "Start Schwab streaming and publish ticks to Redis/WebSocket (auto-loads user subscriptions by default)"
 
     def add_arguments(self, parser):
         parser.add_argument("--user-id", type=int, required=True)
+        # Backward compatible overrides
         parser.add_argument("--equities", type=str, default="")
         parser.add_argument("--futures", type=str, default="")
-
-    def _load_subscriptions(self, user_id: int) -> tuple[list[str], list[str]]:
-        """Load enabled Schwab subscriptions for the user, grouped by asset type.
-
-        Returns: (equities_and_indexes, futures)
-        """
-        subs = SchwabSubscription.objects.filter(user_id=user_id, enabled=True).values("symbol", "asset_type")
-
-        equities: set[str] = set()
-        futures: set[str] = set()
-
-        for sub in subs:
-            sym = (sub.get("symbol") or "").lstrip("/").upper()
-            if not sym:
-                continue
-
-            asset = (sub.get("asset_type") or "").upper()
-            if asset in {SchwabSubscription.ASSET_EQUITY, SchwabSubscription.ASSET_INDEX}:
-                equities.add(sym)
-            elif asset == SchwabSubscription.ASSET_FUTURE:
-                futures.add(sym)
-            else:
-                logger.warning("Ignoring Schwab subscription with unknown asset_type=%s symbol=%s", asset, sym)
-
-        return sorted(equities), sorted(futures)
+        # Optional: force-load only specific types from DB (rarely needed)
+        parser.add_argument(
+            "--types",
+            type=str,
+            default="",
+            help="Optional filter for DB subscriptions: EQUITY,INDEX,FUTURE (comma-separated)",
+        )
 
     def handle(self, *args, **options):
         try:
@@ -67,15 +83,28 @@ class Command(BaseCommand):
             raise CommandError("schwab-py is not installed. Install with `pip install schwab-py`") from exc
 
         user_id: int = options["user_id"]
+
+        # CLI overrides (still supported)
         equities: List[str] = _parse_csv(options.get("equities"))
         futures: List[str] = _parse_csv(options.get("futures"))
 
-        loaded_from_subs = False
+        # If no CLI overrides, load from DB subscriptions
         if not equities and not futures:
-            equities, futures = self._load_subscriptions(user_id)
-            loaded_from_subs = True
+            types_filter = set(_parse_csv(options.get("types")))
+            qs = SchwabSubscription.objects.filter(user_id=user_id, enabled=True)
+            if types_filter:
+                qs = qs.filter(asset_type__in=list(types_filter))
+
+            rows = list(qs.values("symbol", "asset_type"))
+            equities, futures = _group_subscriptions(rows)
+
             if not equities and not futures:
-                raise CommandError("No Schwab subscriptions found for this user; pass --equities/--futures or create subscriptions")
+                raise CommandError(
+                    f"No enabled SchwabSubscription rows found for user_id={user_id}.\n"
+                    "Add symbols in Admin → SchwabLiveData → Schwab subscriptions, or run with:\n"
+                    "  python manage.py schwab_stream --user-id 1 --equities NVDA,MSFT\n"
+                    "  python manage.py schwab_stream --user-id 1 --futures ES,NQ"
+                )
 
         connection = (
             BrokerConnection.objects.select_related("user")
@@ -97,6 +126,7 @@ class Command(BaseCommand):
 
         if not api_key or not app_secret:
             raise CommandError("SCHWAB_CLIENT_ID and SCHWAB_CLIENT_SECRET must be set in settings/.env")
+
         if not account_id:
             # Auto-resolve broker_account_id (hashValue) from Schwab if missing
             from LiveData.schwab.client.trader import SchwabTraderAPI
@@ -126,12 +156,15 @@ class Command(BaseCommand):
                 raise CommandError(
                     f"Schwab connection missing broker_account_id and auto-resolve failed: {exc}"
                 )
+
         if not account_id:
             raise CommandError("Schwab connection missing broker_account_id; cannot start stream")
 
         # Token cache kept in-memory so schwab-py sync callbacks avoid ORM in async loop
         token_state = {
-            "creation_timestamp": int(connection.updated_at.timestamp()) if getattr(connection, "updated_at", None) else int(time.time()),
+            "creation_timestamp": int(connection.updated_at.timestamp())
+            if getattr(connection, "updated_at", None)
+            else int(time.time()),
             "token": {
                 "access_token": connection.access_token,
                 "refresh_token": connection.refresh_token,
@@ -151,8 +184,6 @@ class Command(BaseCommand):
                 update_fields=["access_token", "refresh_token", "access_expires_at", "updated_at"],
             )
 
-        # Token functions (schwab-py advanced auth helper). Keep them sync, but make
-        # them rely on in-memory state and dispatch persistence to background tasks
         def _read_token():
             return deepcopy(token_state)
 
@@ -161,12 +192,14 @@ class Command(BaseCommand):
             if not isinstance(payload, dict):
                 payload = {}
 
-            token_state["token"].update({
-                "access_token": payload.get("access_token") or token_state["token"].get("access_token"),
-                "refresh_token": payload.get("refresh_token") or token_state["token"].get("refresh_token"),
-                "expires_at": int(payload.get("expires_at") or token_state["token"].get("expires_at") or 0),
-                "token_type": "Bearer",
-            })
+            token_state["token"].update(
+                {
+                    "access_token": payload.get("access_token") or token_state["token"].get("access_token"),
+                    "refresh_token": payload.get("refresh_token") or token_state["token"].get("refresh_token"),
+                    "expires_at": int(payload.get("expires_at") or token_state["token"].get("expires_at") or 0),
+                    "token_type": "Bearer",
+                }
+            )
             token_state["creation_timestamp"] = int(time.time())
 
             loop = asyncio.get_running_loop()
@@ -180,21 +213,19 @@ class Command(BaseCommand):
 
             while True:
                 try:
-                    # Use a local variable (avoid scope issues) + keep DB ops async-safe
                     conn = connection
                     await refresh_from_db_async(conn)
                     conn = await ensure_token_async(conn, buffer_seconds=120)
 
-                    # Keep in-memory token cache aligned with the refreshed connection
                     token_state["token"] = {
                         "access_token": conn.access_token,
                         "refresh_token": conn.refresh_token,
                         "expires_at": int(conn.access_expires_at or 0),
                         "token_type": "Bearer",
                     }
-                    token_state["creation_timestamp"] = int(
-                        conn.updated_at.timestamp()
-                    ) if getattr(conn, "updated_at", None) else int(time.time())
+                    token_state["creation_timestamp"] = int(conn.updated_at.timestamp()) if getattr(
+                        conn, "updated_at", None
+                    ) else int(time.time())
 
                     api_client = schwab_auth.client_from_access_functions(
                         api_key,
@@ -210,7 +241,7 @@ class Command(BaseCommand):
                     # Reset backoff after a successful connect/login
                     backoff = 2
 
-                    # Handlers must be added BEFORE subscribing (docs warn about dropped messages)
+                    # IMPORTANT: Handlers must be added BEFORE subscribing
                     if equities:
                         stream_client.add_level_one_equity_handler(producer.process_message)
                         await stream_client.level_one_equity_subs([s.upper() for s in equities])
@@ -231,12 +262,13 @@ class Command(BaseCommand):
                     await asyncio.sleep(backoff)
                     backoff = min(backoff * 2, max_backoff)
 
-        source_label = "subscriptions" if loaded_from_subs else "cli"
-        self.stdout.write(self.style.SUCCESS(
-            f"Starting Schwab stream user_id={user_id} equities={equities or '-'} futures={futures or '-'} source={source_label}"
-        ))
+        self.stdout.write(
+            self.style.SUCCESS(
+                f"Starting Schwab stream user_id={user_id} "
+                f"equities={equities or '-'} futures={futures or '-'}"
+            )
+        )
         try:
             asyncio.run(_run())
         except KeyboardInterrupt:
             self.stdout.write(self.style.WARNING("Schwab stream stopped (KeyboardInterrupt)"))
-

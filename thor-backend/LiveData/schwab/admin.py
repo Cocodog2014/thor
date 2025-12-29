@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.contrib import messages
 
-from .models import BrokerConnection
+from .models import BrokerConnection, SchwabSubscription
 from LiveData.schwab.client.tokens import ensure_valid_access_token
 
 
@@ -65,8 +65,28 @@ class BrokerConnectionAdmin(admin.ModelAdmin):
                     level=messages.ERROR,
                 )
         if refreshed:
-            self.message_user(request, f"Refreshed Schwab tokens for {refreshed} connection(s)", level=messages.SUCCESS)
+            self.message_user(
+                request,
+                f"Refreshed Schwab tokens for {refreshed} connection(s)",
+                level=messages.SUCCESS,
+            )
         if not refreshed and not errors:
             self.message_user(request, "No connections selected for refresh", level=messages.INFO)
 
     refresh_access_tokens.short_description = "Force refresh Schwab token"
+
+
+@admin.register(SchwabSubscription)
+class SchwabSubscriptionAdmin(admin.ModelAdmin):
+    list_display = ("user", "symbol", "asset_type", "enabled", "updated_at")
+    list_editable = ("enabled",)
+    list_filter = ("asset_type", "enabled", "updated_at")
+    search_fields = ("user__email", "symbol")
+    ordering = ("user", "asset_type", "symbol")
+    readonly_fields = ("created_at", "updated_at")
+
+    fieldsets = (
+        ("Subscription", {"fields": ("user", "symbol", "asset_type", "enabled")}),
+        ("Timestamps", {"fields": ("created_at", "updated_at")}),
+    )
+
