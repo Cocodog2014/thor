@@ -71,6 +71,34 @@ def _safe_json_loads(raw: Any) -> Optional[dict]:
     return None
 
 
+def _get_any(d: Dict[str, Any], *keys: Any) -> Any:
+    """Return the first non-None value for any key, trying str/int forms.
+
+    Schwab streaming often uses numeric field IDs serialized as strings
+    (e.g. "1" for bid, "2" for ask, "3" for last).
+    """
+    for key in keys:
+        if key is None:
+            continue
+        # Try as-is
+        if key in d and d.get(key) is not None:
+            return d.get(key)
+        # Try str/int conversions
+        try:
+            sk = str(key)
+            if sk in d and d.get(sk) is not None:
+                return d.get(sk)
+        except Exception:
+            pass
+        try:
+            ik = int(key)  # may raise
+            if ik in d and d.get(ik) is not None:
+                return d.get(ik)
+        except Exception:
+            pass
+    return None
+
+
 class SchwabStreamingProducer:
     """
     Normalize Schwab streaming ticks into Thor quote + bar updates.
@@ -144,25 +172,37 @@ class SchwabStreamingProducer:
     # Payload normalization
     # ------------------------------------------------------------------
     def _normalize_payload(self, tick: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-        symbol_raw = tick.get("symbol") or tick.get("key") or tick.get("SYMBOL")
+        # Level One Equity/Futures in schwab-py may provide numeric field IDs:
+        # 0 symbol, 1 bid, 2 ask, 3 last, 8 total volume
+        symbol_raw = _get_any(tick, "symbol", "key", "SYMBOL", "KEY", 0, "0")
         if not symbol_raw:
             return None
         symbol = str(symbol_raw).lstrip("/").upper()
 
-        bid = _to_float(tick.get("bid") or tick.get("bidPrice") or tick.get("BID"))
-        ask = _to_float(tick.get("ask") or tick.get("askPrice") or tick.get("ASK"))
+        bid = _to_float(_get_any(tick, "bid", "bidPrice", "BID", 1, "1"))
+        ask = _to_float(_get_any(tick, "ask", "askPrice", "ASK", 2, "2"))
         last = _to_float(
-            tick.get("last")
-            or tick.get("lastPrice")
-            or tick.get("close")
-            or tick.get("MARK")
+            _get_any(
+                tick,
+                "last",
+                "lastPrice",
+                "close",
+                "MARK",
+                3,
+                "3",
+            )
         )
         volume = _to_float(
-            tick.get("volume")
-            or tick.get("totalVolume")
-            or tick.get("TOTAL_VOLUME")
-            or tick.get("lastSize")
-            or tick.get("LAST_SIZE")
+            _get_any(
+                tick,
+                "volume",
+                "totalVolume",
+                "TOTAL_VOLUME",
+                "lastSize",
+                "LAST_SIZE",
+                8,
+                "8",
+            )
         )
         ts = _extract_timestamp(tick)
 
