@@ -142,7 +142,10 @@ def _run_market_metrics(ctx: Any) -> None:
     if not enriched:
         return
 
-    MarketHighMetric.update_many(enriched)
+    for country in sorted(active):
+        country_rows = [r for r in enriched if r.get("country") == country]
+        if country_rows:
+            MarketHighMetric.update_from_quotes(country, country_rows)
 
 
 def _run_market_grader(ctx: Any) -> None:
