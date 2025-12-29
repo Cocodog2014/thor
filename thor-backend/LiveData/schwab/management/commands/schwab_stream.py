@@ -338,6 +338,17 @@ class Command(BaseCommand):
                     await stream_client.login()
                     logger.warning("Schwab stream login OK (account_id=%s)", str(account_id))
 
+                    # Optional QoS request (some streamer backends expect it).
+                    # If schwab-py doesn't expose this, fail silently.
+                    try:
+                        qos_level = getattr(getattr(StreamClient, "QOSLevel", None), "EXPRESS", None)
+                        qos_request = getattr(stream_client, "qos_request", None)
+                        if qos_level is not None and qos_request is not None:
+                            await qos_request(qos_level)
+                            logger.warning("Schwab qos_request: %s", qos_level)
+                    except Exception:
+                        pass
+
                     keepalive_task: asyncio.Task | None = None
                     try:
                         sock = getattr(stream_client, "_socket", None)
