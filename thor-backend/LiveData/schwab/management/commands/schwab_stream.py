@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
 import time
 from copy import deepcopy
@@ -57,6 +58,33 @@ def _group_subscriptions(subs: List[Dict[str, str]]) -> Tuple[List[str], List[st
         return out
 
     return _dedupe(equities), _dedupe(futures)
+
+
+async def _ws_keepalive(sock: Any, *, interval: float = 20.0) -> None:
+    """Best-effort websocket keepalive.
+
+    Some streaming servers close idle connections unless the client sends periodic pings.
+    websockets' `ping()` typically returns an awaitable that resolves when the pong is received.
+    """
+
+    while True:
+        try:
+            ping_fn = getattr(sock, "ping", None)
+            if ping_fn is None:
+                return
+
+            pong_waiter = ping_fn()
+            if asyncio.iscoroutine(pong_waiter):
+                pong_waiter = await pong_waiter
+            if pong_waiter is not None:
+                with contextlib.suppress(Exception):
+                    await asyncio.wait_for(pong_waiter, timeout=10)
+
+            await asyncio.sleep(interval)
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            return
 
 
 class Command(BaseCommand):
@@ -310,6 +338,14 @@ class Command(BaseCommand):
                     await stream_client.login()
                     logger.warning("Schwab stream login OK (account_id=%s)", str(account_id))
 
+                    keepalive_task: asyncio.Task | None = None
+                    try:
+                        sock = getattr(stream_client, "_socket", None)
+                        if sock is not None:
+                            keepalive_task = asyncio.create_task(_ws_keepalive(sock, interval=20.0))
+                    except Exception:
+                        keepalive_task = None
+
                     equity_fields = [
                         StreamClient.LevelOneEquityFields.SYMBOL,
                         StreamClient.LevelOneEquityFields.BID_PRICE,
@@ -328,9 +364,6 @@ class Command(BaseCommand):
                         StreamClient.LevelOneFuturesFields.QUOTE_TIME_MILLIS,
                         StreamClient.LevelOneFuturesFields.TRADE_TIME_MILLIS,
                     ]
-
-                    # Reset backoff after a successful connect/login
-                    backoff = 2
 
                     try:
                         # IMPORTANT: Handlers must be added BEFORE subscribing
@@ -373,6 +406,10 @@ class Command(BaseCommand):
                         # Best-effort clean shutdown so Ctrl-C doesn't leave
                         # websocket close tasks pending.
                         try:
+                            if keepalive_task is not None:
+                                keepalive_task.cancel()
+                                with contextlib.suppress(asyncio.CancelledError, Exception):
+                                    await keepalive_task
                             await stream_client.logout()
                         except Exception:
                             pass
