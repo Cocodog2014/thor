@@ -2,7 +2,13 @@ from __future__ import annotations
 """
 ThorTrading realtime job provider for the heartbeat scheduler.
 
-Single file that registers all ThorTrading jobs.
+This provider registers ThorTrading jobs only.
+
+Key rule:
+- GlobalMarkets is the source of truth for OPEN markets + active routing (session:<n>).
+- ThorTrading consumes that routing snapshot for streaming/flush.
+- ThorTrading is responsible for creating/updating ThorTrading DB artifacts (MarketSession, intraday bars, stats)
+  based on that OPEN state (including restart-safe open capture scans).
 """
 
 import logging
@@ -77,16 +83,6 @@ def _run_intraday_flush(ctx: Any) -> None:
         logger.warning("intraday_flush failed for %s", routing_key, exc_info=True)
 
 
-def _run_publish_active_session(ctx: Any) -> None:
-    """Publish current OPEN market session routing into Redis.
-
-    This is the single source of truth for routing intraday producers/flushers.
-    """
-    from ThorTrading.services.sessions.active_session import PublishActiveSessionJob
-
-    PublishActiveSessionJob().run(ctx)
-
-
 def _run_open_capture_scan(ctx: Any) -> None:
     """State-based open capture.
 
@@ -94,7 +90,10 @@ def _run_open_capture_scan(ctx: Any) -> None:
     """
     from ThorTrading.GlobalMarketGate.open_capture import check_for_market_opens_and_capture
 
-    check_for_market_opens_and_capture()
+    try:
+        check_for_market_opens_and_capture()
+    except Exception:
+        logger.exception("open_capture_scan failed")
 
 
 def _run_closed_bars_flush(ctx: Any) -> None:
@@ -197,14 +196,13 @@ def register(registry: Any) -> list[str]:
         InlineJob("intraday_flush", 2.0, _run_intraday_flush),
         InlineJob("closed_bars_flush", 10.0, _run_closed_bars_flush),
 
+        # ✅ Restart-safe: create MarketSession rows while market is OPEN
+        InlineJob("gm.open_capture_scan", 5.0, _run_open_capture_scan),
+
         InlineJob("market_metrics", 10.0, _run_market_metrics),
         InlineJob("market_grader", 15.0, _run_market_grader),
         InlineJob("vwap_minute", 60.0, _run_vwap_minute),
         InlineJob("twentyfour_hour", 30.0, _run_twentyfour),
-
-        # ✅ NEW: make routing + open-capture stateful and restart-safe
-        InlineJob("gm.publish_active_session", 2.0, _run_publish_active_session),
-        InlineJob("gm.open_capture_scan", 5.0, _run_open_capture_scan),
     ]
 
     job_names: list[str] = []
@@ -231,3 +229,4 @@ def register(registry: Any) -> list[str]:
 
 
 __all__ = ["register"]
+
