@@ -15,6 +15,8 @@ python manage.py schwab_stream --user-id <your_user_id> --equities VFF --futures
 PS A:\Thor\thor-backend> python manage.py schwab_stream --user-id 1 --equities VFF --futures ""
 >
 cd A:\Thor\thor-backend
+python manage.py schwab_stream --user-id 1
+
 python manage.py schwab_stream --user-id 1 --equities VFF --futures ""
 python manage.py schwab_stream --user-id 1 --equities GOOG
 python manage.py schwab_stream --user-id 1 --equities NFLX
