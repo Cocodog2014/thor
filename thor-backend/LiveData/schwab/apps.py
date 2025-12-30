@@ -15,5 +15,5 @@ class SchwabConfig(AppConfig):
     
     def ready(self):
         """Called when Django starts up."""
-        # Import signals or startup code here if needed
-        pass
+        # Register model signals (Admin add/edit/delete should update streaming instantly)
+        from . import signals  # noqa: F401
