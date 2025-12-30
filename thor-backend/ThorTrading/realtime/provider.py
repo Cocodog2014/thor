@@ -53,7 +53,7 @@ def _active_countries() -> list[str]:
 # -------------------------------------------------------------------
 def _run_intraday_tick(ctx: Any) -> None:
     """1-second tick: build ticks + current 1m bars in Redis."""
-    from ThorTrading.services.intraday_supervisor.supervisor import intraday_market_supervisor
+    from ThorTrading.intraday.supervisor_engine import intraday_market_supervisor
 
     intraday_market_supervisor.step_once()
 
@@ -61,7 +61,7 @@ def _run_intraday_tick(ctx: Any) -> None:
 def _run_intraday_flush(ctx: Any) -> None:
     """Fast flush for newly closed 1m bars."""
     from LiveData.shared.redis_client import live_data_redis
-    from ThorTrading.services.intraday.flush import flush_closed_bars
+    from ThorTrading.intraday.flush import flush_closed_bars
 
     routing_key = live_data_redis.get_active_session_key(asset_type="futures")
     if not routing_key:
@@ -99,7 +99,7 @@ def _run_open_capture_scan(ctx: Any) -> None:
 def _run_closed_bars_flush(ctx: Any) -> None:
     """Deeper flush pass to drain Redis closed bars queue."""
     from LiveData.shared.redis_client import live_data_redis
-    from ThorTrading.services.intraday.flush import flush_closed_bars
+    from ThorTrading.intraday.flush import flush_closed_bars
 
     routing_key = live_data_redis.get_active_session_key(asset_type="futures")
     if not routing_key:
