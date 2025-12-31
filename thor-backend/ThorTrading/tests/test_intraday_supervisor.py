@@ -6,7 +6,7 @@ from django.test import TestCase
 from django.utils import timezone
 
 from ThorTrading.models.MarketSession import MarketSession
-from ThorTrading.services.intraday_supervisor import IntradayMarketSupervisor
+from ThorTrading.services.intraday_supervisor.supervisor import IntradayMarketSupervisor
 from ThorTrading.services.sessions.finalize_close import finalize_pending_sessions_at_close
 
 

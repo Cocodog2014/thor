@@ -10,7 +10,7 @@ from django.utils import timezone
 from LiveData.shared.redis_client import live_data_redis
 from ThorTrading.models.Market24h import MarketTrading24Hour
 from ThorTrading.models.MarketSession import MarketSession
-from ThorTrading.services.intraday_supervisor.utils import safe_decimal
+from ThorTrading.intraday.utils import safe_decimal
 
 logger = logging.getLogger(__name__)
 
