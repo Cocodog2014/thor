@@ -8,6 +8,7 @@ from zoneinfo import ZoneInfo
 
 from django.conf import settings
 from django.db import IntegrityError, transaction
+from django.core.exceptions import MultipleObjectsReturned
 from django.db.models import Max
 from django.utils import timezone
 
@@ -33,7 +34,6 @@ logger = logging.getLogger(__name__)
 # Only allow fields that exist on MarketSession to avoid runtime errors
 ALLOWED_SESSION_FIELDS = {
     "session_number",
-    "capture_group",
     "capture_kind",
     "year",
     "month",
@@ -136,6 +136,29 @@ class MarketOpenCaptureService:
             except Exception:  # noqa: BLE001
                 return None
 
+    def _open_session_exists(self, session_number: int) -> bool:
+        """Return True if OPEN capture already exists for this session_number."""
+        try:
+            return MarketSession.objects.filter(session_number=session_number, capture_kind="OPEN").exists()
+        except Exception:
+            return False
+
+    def _get_or_create_session(self, *, lookup: dict, defaults: dict):
+        """Robust get-or-create that tolerates duplicates.
+
+        If multiple rows already exist (historical data), treat as already-created.
+        """
+        try:
+            with transaction.atomic():
+                session, created = MarketSession.objects.get_or_create(**lookup, defaults=defaults)
+                return session, created
+        except MultipleObjectsReturned:
+            session = MarketSession.objects.filter(**lookup).order_by("-id").first()
+            return session, False
+        except IntegrityError:
+            session = MarketSession.objects.filter(**lookup).order_by("-id").first()
+            return session, False
+
     def _persist_fallback_instruments(self, canonical_country: str, fallback_qs):
         """Clone fallback instruments into the target country so future runs are country-scoped."""
         created_symbols = []
@@ -235,7 +258,6 @@ class MarketOpenCaptureService:
         symbol: str,
         row: dict,
         session_number: int,
-        capture_group: int,
         time_info: dict,
         country: str,
         composite_signal: str,
@@ -245,7 +267,6 @@ class MarketOpenCaptureService:
 
         data = {
             "session_number": session_number,
-            "capture_group": capture_group,
             "capture_kind": "OPEN",
             "year": time_info["year"],
             "month": time_info["month"],
@@ -331,21 +352,14 @@ class MarketOpenCaptureService:
 
         filtered = {k: v for k, v in data.items() if k in ALLOWED_SESSION_FIELDS}
         lookup = {
-            "capture_group": filtered.get("capture_group"),
+            "session_number": filtered.get("session_number"),
+            "capture_kind": "OPEN",
             "symbol": filtered.get("symbol"),
         }
         defaults = {k: v for k, v in filtered.items() if k not in lookup}
 
         try:
-            with transaction.atomic():
-                session, created = MarketSession.objects.get_or_create(
-                    **lookup,
-                    defaults=defaults,
-                )
-        except IntegrityError:
-            # Duplicate or race: fetch existing and treat as skip
-            session = MarketSession.objects.filter(**lookup).first()
-            created = False
+            session, created = self._get_or_create_session(lookup=lookup, defaults=defaults)
         except Exception as exc:  # noqa: BLE001
             logger.error("Session creation failed for %s: %s", canonical_symbol, exc, exc_info=True)
             return None, False
@@ -356,19 +370,18 @@ class MarketOpenCaptureService:
                 logger.debug("Created %s session: %s", canonical_symbol, session.last_price)
             else:
                 logger.debug(
-                    "Session exists for %s (capture_group=%s); skipping create",
+                    "Session exists for %s (session_number=%s); skipping create",
                     canonical_symbol,
-                    lookup.get("capture_group"),
+                    lookup.get("session_number"),
                 )
 
         return session, created
 
-    def create_session_for_total(self, composite, session_number, capture_group, time_info, country, ym_entry_price=None):
+    def create_session_for_total(self, composite, session_number, time_info, country, ym_entry_price=None):
         composite_signal = (composite.get("composite_signal") or "HOLD").upper()
 
         data = {
             "session_number": session_number,
-            "capture_group": capture_group,
             "capture_kind": "OPEN",
             "year": time_info["year"],
             "month": time_info["month"],
@@ -401,20 +414,14 @@ class MarketOpenCaptureService:
 
         filtered = {k: v for k, v in data.items() if k in ALLOWED_SESSION_FIELDS}
         lookup = {
-            "capture_group": filtered.get("capture_group"),
+            "session_number": filtered.get("session_number"),
+            "capture_kind": "OPEN",
             "symbol": filtered.get("symbol"),
         }
         defaults = {k: v for k, v in filtered.items() if k not in lookup}
 
         try:
-            with transaction.atomic():
-                session, created = MarketSession.objects.get_or_create(
-                    **lookup,
-                    defaults=defaults,
-                )
-        except IntegrityError:
-            session = MarketSession.objects.filter(**lookup).first()
-            created = False
+            session, created = self._get_or_create_session(lookup=lookup, defaults=defaults)
         except Exception as exc:  # noqa: BLE001
             logger.error("TOTAL session creation failed: %s", exc, exc_info=True)
             return None, False
@@ -427,8 +434,8 @@ class MarketOpenCaptureService:
                 logger.info("TOTAL: %s", composite_signal)
             if not created:
                 logger.debug(
-                    "TOTAL session already exists for capture_group=%s; skipping create",
-                    lookup.get("capture_group"),
+                    "TOTAL session already exists for session_number=%s; skipping create",
+                    lookup.get("session_number"),
                 )
 
         return session, created
@@ -445,6 +452,21 @@ class MarketOpenCaptureService:
             return None
 
         try:
+            if session_number is None:
+                session_number = live_data_redis.get_active_session_number()
+
+            # For stability, do not mint new session numbers here.
+            if session_number is None:
+                logger.debug(
+                    "Open capture skipped for %s: missing active session_number",
+                    country_code or display_country or "?",
+                )
+                return None
+
+            # Idempotence: once per session_number.
+            if self._open_session_exists(int(session_number)):
+                return None
+
             logger.info("Capturing %s market open...", country_code or display_country or "?")
 
             allowed_symbols, used_fallback = self._allowed_symbols_for_country(country_code or display_country)
@@ -505,30 +527,7 @@ class MarketOpenCaptureService:
             composite_signal = (composite.get("composite_signal") or "HOLD").upper()
             time_info = _market_time_info(market)
 
-            if session_number is None:
-                session_number = live_data_redis.get_active_session_number()
-            if session_number is None:
-                session_number = self.get_next_session_number()
-
-            # Idempotence: country + market-local date
-            if MarketSession.objects.filter(
-                country=country_code or display_country,
-                capture_kind="OPEN",
-                year=time_info["year"],
-                month=time_info["month"],
-                date=time_info["date"],
-            ).exists():
-                logger.info(
-                    "Open capture skipped: %s already captured for %04d-%02d-%02d",
-                    country_code or display_country,
-                    time_info["year"],
-                    time_info["month"],
-                    time_info["date"],
-                )
-                return None
-
-            # Capture group strategy: use session_number as group id (explicit + stable)
-            capture_group = int(session_number)
+            session_number = int(session_number)
 
             sessions_created = []
             skipped = []
@@ -547,7 +546,6 @@ class MarketOpenCaptureService:
                     symbol,
                     row,
                     session_number,
-                    capture_group,
                     time_info,
                     country_code or display_country,
                     composite_signal,
@@ -571,7 +569,6 @@ class MarketOpenCaptureService:
             total_session, total_created = self.create_session_for_total(
                 composite,
                 session_number,
-                capture_group,
                 time_info,
                 country_code or display_country,
                 ym_entry_price=ym_entry_price,
@@ -584,7 +581,7 @@ class MarketOpenCaptureService:
                     skipped.append("TOTAL")
 
             try:
-                MarketOpenMetric.update_for_session_group(capture_group)
+                MarketOpenMetric.update_for_session_group(session_number)
             except Exception as metrics_error:  # noqa: BLE001
                 logger.warning(
                     "market_open refresh failed for session %s: %s",
@@ -595,7 +592,7 @@ class MarketOpenCaptureService:
 
             try:
                 _country_symbol_wndw_service.update_for_session_group(
-                    session_group=capture_group,
+                    session_group=session_number,
                     country=country_code or display_country,
                 )
             except Exception as stats_error:  # noqa: BLE001
@@ -690,12 +687,25 @@ def _market_local_date(market) -> date_cls:
 def _scan_and_capture_once() -> int:
     """
     Scan all control markets and capture OPEN for any market that is OPEN now
-    and not yet captured for its market-local date.
+    and not yet captured for the current session_number.
     """
     captures = 0
 
     markets = list(get_control_markets())
     if not markets:
+        return 0
+
+    session_number = None
+    try:
+        session_number = live_data_redis.get_active_session_number()
+    except Exception:
+        session_number = None
+
+    if session_number is None:
+        return 0
+
+    session_number = int(session_number)
+    if MarketSession.objects.filter(session_number=session_number, capture_kind="OPEN").exists():
         return 0
 
     for market in markets:
@@ -711,31 +721,10 @@ def _scan_and_capture_once() -> int:
             continue
 
         try:
-            market_date = _market_local_date(market)
-        except Exception:
-            logger.exception("OpenCapture scan: failed market-local date for %s", country_code)
-            continue
-
-        already = MarketSession.objects.filter(
-            country=country_code,
-            capture_kind="OPEN",
-            year=market_date.year,
-            month=market_date.month,
-            date=market_date.day,
-        ).exists()
-        if already:
-            continue
-
-        session_number = None
-        try:
-            session_number = live_data_redis.get_active_session_number()
-        except Exception:
-            session_number = None
-
-        try:
             result = capture_market_open(market, session_number=session_number)
-            logger.info("OpenCapture scan: captured %s => %s", country_code, result)
-            captures += 1
+            if result is not None:
+                logger.info("OpenCapture scan: captured %s => %s", country_code, result)
+                captures += 1
         except Exception:
             logger.exception("OpenCapture scan: capture failed for %s", country_code)
 

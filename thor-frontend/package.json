@@ -7,6 +7,7 @@
     "dev": "vite",
     "dev:local": "node ./scripts/switch-env.mjs dev && vite",
     "dev:docker": "node ./scripts/switch-env.mjs docker && vite",
+    "dev:tunnel": "node ./scripts/switch-env.mjs dev && set VITE_HMR_HOST=dev-thor.360edu.org&& set VITE_HMR_PROTOCOL=wss&& set VITE_HMR_CLIENT_PORT=443&& vite --host 0.0.0.0 --port 5173 --strictPort",
     "env:docker": "node ./scripts/switch-env.mjs docker",
     "build": "tsc -b && vite build",
     "deploy": "npm run build",

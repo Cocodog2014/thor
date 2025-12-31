@@ -5,6 +5,20 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
   const proxyTarget = env.VITE_PROXY_TARGET || 'http://127.0.0.1:8000'
 
+  const hmrHost = env.VITE_HMR_HOST
+  const hmrProtocol = env.VITE_HMR_PROTOCOL
+  const hmrClientPort = env.VITE_HMR_CLIENT_PORT
+    ? Number(env.VITE_HMR_CLIENT_PORT)
+    : undefined
+
+  const hmrConfig = hmrHost || hmrProtocol || hmrClientPort
+    ? {
+        host: hmrHost,
+        protocol: hmrProtocol,
+        clientPort: hmrClientPort,
+      }
+    : undefined
+
   return {
     plugins: [react()],
     server: {
@@ -17,9 +31,7 @@ export default defineConfig(({ mode }) => {
         'localhost',
         '127.0.0.1',
       ],
-      hmr: {
-        clientPort: 443,
-      },
+      ...(hmrConfig ? { hmr: hmrConfig } : {}),
       proxy: {
         '/api': {
           target: proxyTarget,

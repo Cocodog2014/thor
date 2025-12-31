@@ -65,6 +65,12 @@ Leave this window running so Redis gets updated every second.
 cd A:\Thor\thor-frontend
 npm run dev:local
 
+If you will browse through the Cloudflare dev tunnel (HMR/WebSockets safe):
+(still uses the normal dev env; just makes HMR work over https://dev-thor.360edu.org)
+
+cd A:\Thor\thor-frontend
+npm run dev:tunnel
+
 ==========================================
 ⭐ 5. OPTIONAL — Cloudflare Tunnel for External Access
 ==========================================
@@ -247,6 +253,15 @@ python manage.py poll_tos_excel --interval 1
 
 4. cd A:\Thor
    cloudflared tunnel run dev-thor
+
+   cd A:\Thor
+   cloudflared tunnel run --protocol http2 dev-thor
+
+cd A:\Thor
+cloudflared tunnel --config C:\Users\sutto\.cloudflared\thor-dev.yml run
+
+
+
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 Production
 
