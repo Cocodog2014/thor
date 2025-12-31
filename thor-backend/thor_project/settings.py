@@ -286,6 +286,10 @@ CHANNEL_LAYERS = {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
         "CONFIG": {
             "hosts": [REDIS_URL],
+
+            # Shorter group expiry prevents ghost WebSocket channels from lingering
+            # and driving up fanout/over-capacity warnings during reconnects in dev.
+            **({"group_expiry": config("CHANNEL_GROUP_EXPIRY", default=15, cast=int)} if DEBUG else {}),
         },
     },
 }

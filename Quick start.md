@@ -42,6 +42,10 @@ Postgres stores intraday/session data.
 cd A:\Thor\thor-backend
 python manage.py runserver
 
+Optional debug (helps diagnose Channels "over capacity" spam):
+- Set `THOR_DEBUG_MARKET_DATA=1` to count `market_data` broadcasts per minute in Redis.
+- Set `CHANNEL_GROUP_EXPIRY=15` (seconds) to evict stale WebSocket group members faster in dev.
+
 
 Backend now alive at:
 👉 http://localhost:8000/api/
