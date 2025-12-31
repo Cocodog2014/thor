@@ -1,18 +1,10 @@
 from __future__ import annotations
 
-"""Legacy compatibility package.
+"""Intraday supervisor engine (deprecated).
 
-The original intraday supervisor engine was intentionally removed.
-This package remains importable to avoid crashes from stale imports,
-but it only re-exports the minimal compatibility supervisor.
+New intraday routing/tick capture lives in `ThorTrading.intraday.supervisor`.
+This package remains only for the historical engine modules that still exist
+under this folder (e.g. `supervisor_old.py`).
 """
 
-from ThorTrading.services.intraday_supervisor.supervisor import (
-    IntradayMarketSupervisor,
-    intraday_market_supervisor,
-)
-
-__all__ = [
-    "IntradayMarketSupervisor",
-    "intraday_market_supervisor",
-]
+__all__: list[str] = []
