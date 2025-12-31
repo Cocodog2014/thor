@@ -255,14 +255,9 @@ python manage.py poll_tos_excel --interval 1
 3. cd A:\Thor\thor-frontend
    npm run dev:local
 
-4. cd A:\Thor
-   cloudflared tunnel run dev-thor
+4. # If you want to force the exact config file explicitly:
 
-   cd A:\Thor
-   cloudflared tunnel run --protocol http2 dev-thor
-
-cd A:\Thor
-cloudflared tunnel --config C:\Users\sutto\.cloudflared\thor-dev.yml run
+   cloudflared tunnel --config C:\Users\sutto\.cloudflared\thor-dev.yml run
 
 
 
@@ -271,6 +266,8 @@ Production
 
 cd A:\Thor\thor-frontend
    npm run dev:docker
+
+cloudflared tunnel --config [thor-prod.yml](http://_vscodecontentref_/0) run
 
 http://localhost:8080/
 

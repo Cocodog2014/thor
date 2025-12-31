@@ -4,12 +4,16 @@ import type { ConnectionHandler, WsMessage } from './types';
 const MAX_RETRIES = 10;
 const INITIAL_DELAY = 1000;
 const MAX_DELAY = 30000;
-const HEARTBEAT_TIMEOUT = 15000;
+// If we don't receive any WS messages for this long, send a ping.
+const IDLE_PING_AFTER_MS = 15000;
+// If we still don't receive anything after ping, consider the socket dead.
+const PONG_GRACE_MS = 5000;
 
 let socket: WebSocket | null = null;
 let retryCount = 0;
 let retryTimeout: ReturnType<typeof setTimeout> | null = null;
 let heartbeatTimeout: ReturnType<typeof setTimeout> | null = null;
+let pongTimeout: ReturnType<typeof setTimeout> | null = null;
 let connected = false;
 let shouldReconnect = true;
 const messageQueue: string[] = [];
@@ -45,13 +49,30 @@ function clearHeartbeat() {
     clearTimeout(heartbeatTimeout);
     heartbeatTimeout = null;
   }
+  if (pongTimeout) {
+    clearTimeout(pongTimeout);
+    pongTimeout = null;
+  }
 }
 
 function scheduleHeartbeatTimeout() {
   clearHeartbeat();
   heartbeatTimeout = setTimeout(() => {
-    socket?.close();
-  }, HEARTBEAT_TIMEOUT);
+    // If we go idle, ping the server. The backend consumer responds with pong.
+    // Only close the socket if it stays silent after the ping.
+    if (!socket || socket.readyState !== WebSocket.OPEN) return;
+    try {
+      socket.send(JSON.stringify({ type: 'ping', timestamp: Date.now() }));
+    } catch {
+      // If send fails, just close to trigger reconnect.
+      socket.close();
+      return;
+    }
+
+    pongTimeout = setTimeout(() => {
+      socket?.close();
+    }, PONG_GRACE_MS);
+  }, IDLE_PING_AFTER_MS);
 }
 
 function scheduleReconnect(url: string) {
