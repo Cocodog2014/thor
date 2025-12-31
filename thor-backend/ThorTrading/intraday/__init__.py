@@ -1,5 +1,5 @@
 # ThorTrading/intraday/__init__.py
 
-from .supervisor import IntradayCollectorSupervisor
+from .supervisor import IntradaySupervisor
 
-__all__ = ["IntradayCollectorSupervisor"]
+__all__ = ["IntradaySupervisor"]

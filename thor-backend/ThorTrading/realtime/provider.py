@@ -53,9 +53,9 @@ def _active_countries() -> list[str]:
 # -------------------------------------------------------------------
 def _run_intraday_tick(ctx: Any) -> None:
     """1-second tick: build ticks + current 1m bars in Redis."""
-    from ThorTrading.intraday.supervisor import IntradayCollectorSupervisor
+    from ThorTrading.intraday.supervisor import IntradaySupervisor
 
-    IntradayCollectorSupervisor().tick()
+    IntradaySupervisor().tick()
 
 
 def _run_intraday_flush(ctx: Any) -> None:

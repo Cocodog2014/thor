@@ -4,7 +4,7 @@ This module intentionally does NOT import the legacy intraday supervisor engine.
 
 The production-stable behavior we want right now is:
 - the realtime job `intraday_tick` runs the thin collector/flush path
-  (`ThorTrading.intraday.supervisor.IntradayCollectorSupervisor.tick`).
+	(`ThorTrading.intraday.supervisor.IntradaySupervisor.tick`).
 
 We keep the historical symbol names here so existing imports continue to work.
 """
@@ -24,9 +24,9 @@ class IntradayMarketSupervisor:
 	"""
 
 	def step_once(self) -> None:
-		from ThorTrading.intraday.supervisor import IntradayCollectorSupervisor
+		from ThorTrading.intraday.supervisor import IntradaySupervisor
 
-		IntradayCollectorSupervisor().tick()
+		IntradaySupervisor().tick()
 
 	def on_market_open(self, market: Any) -> None:  # pragma: no cover
 		return

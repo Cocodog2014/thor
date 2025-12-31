@@ -66,14 +66,13 @@ def _make_tick(sym: str, row: Dict[str, Any], session_key: str, session_number: 
 
 
 @dataclass
-class IntradayCollectorSupervisor:
-    """
-        Thin supervisor used by the heartbeat scheduler.
+class IntradaySupervisor:
+    """Thin supervisor used by the heartbeat scheduler.
 
-        Responsibilities per tick:
-            1) capture latest ticks into Redis (per active session)
-            2) maintain current 1m bars in Redis
-            3) enqueue closed 1m bars into Redis for later DB flush
+    Responsibilities per tick:
+      1) capture latest ticks into Redis (per active session)
+      2) maintain current 1m bars in Redis
+      3) enqueue closed 1m bars into Redis for later DB flush
     """
 
     include_equities: bool = True
@@ -139,6 +138,9 @@ class IntradayCollectorSupervisor:
             return result
 
         except Exception as e:
-            logger.exception("IntradayCollectorSupervisor.tick failed")
+            logger.exception("IntradaySupervisor.tick failed")
             result["error"] = str(e)
             return result
+
+
+__all__ = ["IntradaySupervisor"]
