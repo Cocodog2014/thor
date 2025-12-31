@@ -378,7 +378,6 @@ class SchwabStreamingProducer:
             if not session_key:
                 # No routing available: don't write bars/ticks to session namespaces
                 # (and don't spam warnings)
-                broadcast_to_websocket_sync(self.channel_layer, {"type": "quote_tick", "data": payload})
                 return
 
             payload["session_key"] = session_key
@@ -399,9 +398,6 @@ class SchwabStreamingProducer:
                 )
                 if closed_bar:
                     live_data_redis.enqueue_closed_bar(session_key, closed_bar)
-
-            # Broadcast to WebSocket
-            broadcast_to_websocket_sync(self.channel_layer, {"type": "quote_tick", "data": payload})
 
         except Exception:
             logger.exception(

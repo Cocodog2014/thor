@@ -106,6 +106,13 @@ class MarketDataConsumer(AsyncWebsocketConsumer):
             "type": "quote_tick",
             "data": event.get("data")
         }))
+
+    async def market_data(self, event):
+        """Broadcast batched market data snapshot (quotes array) to client."""
+        await self.send(text_data=json.dumps({
+            "type": "market_data",
+            "data": event.get("data")
+        }))
     
     async def twenty_four_hour(self, event):
         """Broadcast 24-hour statistics update to client."""

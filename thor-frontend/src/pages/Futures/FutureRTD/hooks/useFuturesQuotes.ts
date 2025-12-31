@@ -14,6 +14,11 @@ type QuoteTick = {
   exchange?: string | null;
 };
 
+type MarketDataSnapshot = {
+  timestamp?: number | string | null;
+  quotes?: QuoteTick[];
+};
+
 const normalizeSymbol = (symbol: string | undefined | null) =>
   (symbol ?? "").replace(/^\//, "").toUpperCase();
 
@@ -187,55 +192,63 @@ export function useFuturesQuotes(): UseFuturesQuotesResult {
     fetchQuotes("initial");
   }, [fetchQuotes]);
 
-  useWsMessage<QuoteTick>(
-    "quote_tick",
+  useWsMessage<MarketDataSnapshot>(
+    "market_data",
     (msg) => {
-      const tick = msg.data;
-      if (!tick) return;
-      const symbol = normalizeSymbol(tick.symbol);
-      if (!symbol) return;
+      const data = msg.data;
+      const quotes = data?.quotes;
+      if (!quotes || !Array.isArray(quotes) || !quotes.length) return;
 
+      // Apply the whole snapshot in one state update.
       setRows((prev) => {
-        const idx = prev.findIndex(
-          (row) => normalizeSymbol(row.instrument.symbol) === symbol
-        );
+        let next = prev;
 
-        const bid = toFloat(tick.bid);
-        const ask = toFloat(tick.ask);
-        const price =
-          toFloat(tick.last) ??
-          toFloat(tick.price) ??
-          bid ??
-          ask ??
-          toFloat(prev[idx]?.price);
-        const volume = toFloat(tick.volume) ?? prev[idx]?.volume ?? null;
-        const timestamp = toIsoTimestamp(tick.timestamp, prev[idx]?.timestamp);
-        const spread = computeSpread(bid, ask, prev[idx]?.spread);
+        for (const tick of quotes) {
+          if (!tick) continue;
+          const symbol = normalizeSymbol(tick.symbol);
+          if (!symbol) continue;
 
-        if (idx === -1) {
-          // No seed row yet; create a minimal realtime row
-          const next = makeRealtimeRow(
-            { ...tick, bid, ask, price, volume, timestamp, source: tick.source },
-            symbol
-          );
-          return [...prev, next];
+          const idx = next.findIndex((row) => normalizeSymbol(row.instrument.symbol) === symbol);
+
+          const bid = toFloat(tick.bid);
+          const ask = toFloat(tick.ask);
+          const price =
+            toFloat(tick.last) ??
+            toFloat(tick.price) ??
+            bid ??
+            ask ??
+            toFloat(next[idx]?.price);
+          const volume = toFloat(tick.volume) ?? next[idx]?.volume ?? null;
+          const timestamp = toIsoTimestamp(tick.timestamp, next[idx]?.timestamp);
+          const spread = computeSpread(bid, ask, next[idx]?.spread);
+
+          if (idx === -1) {
+            const row = makeRealtimeRow(
+              { ...tick, bid, ask, price, volume, timestamp, source: tick.source },
+              symbol
+            );
+            next = [...next, row];
+            continue;
+          }
+
+          const current = next[idx];
+          const updated: MarketData = {
+            ...current,
+            price,
+            bid: bid ?? current.bid,
+            ask: ask ?? current.ask,
+            volume,
+            data_source: tick.source ?? current.data_source,
+            is_real_time: true,
+            timestamp,
+            spread,
+          };
+
+          const copy = [...next];
+          copy[idx] = updated;
+          next = copy;
         }
 
-        const current = prev[idx];
-        const updated: MarketData = {
-          ...current,
-          price,
-          bid: bid ?? current.bid,
-          ask: ask ?? current.ask,
-          volume,
-          data_source: tick.source ?? current.data_source,
-          is_real_time: true,
-          timestamp,
-          spread,
-        };
-
-        const next = [...prev];
-        next[idx] = updated;
         return next;
       });
     },

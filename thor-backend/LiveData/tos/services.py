@@ -106,7 +106,7 @@ class TOSStreamer:
                 "timestamp": time.time(),
                 "source": "TOS",
             },
-            broadcast_ws=True,
+            broadcast_ws=False,
         )
     
     def run(self):

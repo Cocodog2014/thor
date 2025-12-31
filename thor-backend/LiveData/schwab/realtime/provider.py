@@ -21,6 +21,83 @@ from LiveData.shared.redis_client import live_data_redis
 logger = logging.getLogger(__name__)
 
 
+class MarketDataSnapshotJob(Job):
+    name = "market_data_snapshot"
+
+    def __init__(
+        self,
+        interval_seconds: float = 1.0,
+        *,
+        active_window_seconds: int = 60,
+        prune_after_seconds: int = 300,
+        max_symbols: int = 500,
+    ):
+        self.interval_seconds = float(interval_seconds)
+        self.active_window_seconds = int(active_window_seconds)
+        self.prune_after_seconds = int(prune_after_seconds)
+        self.max_symbols = int(max_symbols)
+
+    def should_run(self, now: float, state: dict[str, Any]) -> bool:
+        last = state.get("last_run", {}).get(self.name)
+        return last is None or (now - last) >= self.interval_seconds
+
+    def run(self, ctx: Any) -> None:
+        now_ts = int(time.time())
+
+        # Prune old symbols and pull the active set from Redis.
+        try:
+            zkey = live_data_redis.ACTIVE_QUOTES_ZSET
+            live_data_redis.client.zremrangebyscore(zkey, 0, now_ts - self.prune_after_seconds)
+            symbols = live_data_redis.client.zrevrangebyscore(
+                zkey,
+                "+inf",
+                now_ts - self.active_window_seconds,
+                start=0,
+                num=self.max_symbols,
+            )
+        except Exception:
+            logger.debug("market_data_snapshot: failed reading active symbols", exc_info=True)
+            return
+
+        if not symbols:
+            return
+
+        # Pull quote snapshots in one HMGET.
+        quotes: list[dict[str, Any]] = []
+        try:
+            raws = live_data_redis.client.hmget(live_data_redis.LATEST_QUOTES_HASH, *symbols)
+            for raw in raws:
+                if not raw:
+                    continue
+                try:
+                    q = json.loads(raw)
+                    if isinstance(q, dict):
+                        quotes.append(q)
+                except Exception:
+                    continue
+        except Exception:
+            logger.debug("market_data_snapshot: failed reading latest quotes", exc_info=True)
+            return
+
+        if not quotes:
+            return
+
+        payload = {"timestamp": now_ts, "quotes": quotes}
+
+        try:
+            live_data_redis.client.setex("thor:market_data:snapshot", 10, json.dumps(payload, default=str))
+        except Exception:
+            logger.debug("market_data_snapshot: failed caching snapshot", exc_info=True)
+
+        try:
+            broadcast_to_websocket_sync(
+                getattr(ctx, "channel_layer", None) if ctx else None,
+                {"type": "market_data", "data": payload},
+            )
+        except Exception:
+            logger.debug("market_data_snapshot: websocket broadcast failed", exc_info=True)
+
+
 class SchwabHealthJob(Job):
     name = "schwab_health"
 
@@ -115,7 +192,9 @@ class SchwabHealthJob(Job):
 def register(registry):
     job = SchwabHealthJob()
     registry.register(job, interval_seconds=job.interval_seconds)
-    return [job.name]
+    snapshot_job = MarketDataSnapshotJob(interval_seconds=1.0)
+    registry.register(snapshot_job, interval_seconds=snapshot_job.interval_seconds)
+    return [job.name, snapshot_job.name]
 
 
-__all__ = ["register", "SchwabHealthJob"]
+__all__ = ["register", "SchwabHealthJob", "MarketDataSnapshotJob"]

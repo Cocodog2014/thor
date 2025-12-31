@@ -79,6 +79,7 @@ class LiveDataRedis:
 
     # --- Snapshot (latest) helpers ---
     LATEST_QUOTES_HASH = "live_data:latest:quotes"
+    ACTIVE_QUOTES_ZSET = "live_data:active_symbols"
 
     # --- Single-flight lock for Excel reads ---
     EXCEL_LOCK_KEY = "live_data:excel_lock"
@@ -499,6 +500,12 @@ class LiveDataRedis:
 
         result = self.publish(channel, payload)
         self.set_latest_quote(sym, payload)
+
+        # Track "active" symbols for snapshot batching (score = last update epoch seconds)
+        try:
+            self.client.zadd(self.ACTIVE_QUOTES_ZSET, {sym: float(ts_epoch)})
+        except Exception:
+            logger.debug("Failed to update active symbols zset", exc_info=True)
 
         if broadcast_ws:
             try:

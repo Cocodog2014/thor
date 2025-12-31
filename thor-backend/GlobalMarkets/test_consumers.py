@@ -64,6 +64,7 @@ class TestMarketDataConsumer(TransactionTestCase):
         self.assertTrue(hasattr(MarketDataConsumer, 'intraday_bar'))
         self.assertTrue(hasattr(MarketDataConsumer, 'market_status'))
         self.assertTrue(hasattr(MarketDataConsumer, 'quote_tick'))
+        self.assertTrue(hasattr(MarketDataConsumer, 'market_data'))
         self.assertTrue(hasattr(MarketDataConsumer, 'twenty_four_hour'))
         self.assertTrue(hasattr(MarketDataConsumer, 'vwap_update'))
         self.assertTrue(hasattr(MarketDataConsumer, 'heartbeat'))
