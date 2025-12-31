@@ -13,6 +13,8 @@ import time
 from copy import deepcopy
 from typing import List, Optional, Dict, Tuple, Any
 
+import ctypes
+
 from uuid import uuid4
 
 from asgiref.sync import sync_to_async
@@ -175,10 +177,135 @@ class Command(BaseCommand):
         # ------------------------------------------------------------------
         lock_key = f"live_data:schwab:stream_lock:{user_id}"
         lock_token = f"{socket.gethostname()}:{os.getpid()}:{uuid4().hex}"
-        # Long TTL prevents stale locks from persisting forever if the process is killed.
-        lock_ttl_seconds = 60 * 60 * 6  # 6h
+        # Short TTL + periodic renew prevents stale locks from persisting.
+        # Configurable in settings for safety in different environments.
+        lock_ttl_seconds = int(getattr(settings, "SCHWAB_STREAM_LOCK_TTL_SECONDS", 60) or 60)
+        lock_renew_seconds = int(getattr(settings, "SCHWAB_STREAM_LOCK_RENEW_SECONDS", 20) or 20)
+        # Safety: keep renew interval comfortably below TTL.
+        lock_renew_seconds = max(5, min(lock_renew_seconds, max(5, lock_ttl_seconds // 2)))
+
+        _RENEW_LUA = """
+        if redis.call('GET', KEYS[1]) == ARGV[1] then
+            return redis.call('EXPIRE', KEYS[1], tonumber(ARGV[2]))
+        else
+            return 0
+        end
+        """
+        _RELEASE_LUA = """
+        if redis.call('GET', KEYS[1]) == ARGV[1] then
+            return redis.call('DEL', KEYS[1])
+        else
+            return 0
+        end
+        """
+
+        def _parse_lock_owner(value: object) -> tuple[str | None, int | None]:
+            if not value:
+                return None, None
+            if isinstance(value, (bytes, bytearray)):
+                try:
+                    value = value.decode("utf-8", errors="ignore")
+                except Exception:
+                    return None, None
+            if not isinstance(value, str):
+                return None, None
+            parts = value.split(":")
+            if len(parts) < 2:
+                return None, None
+            host = (parts[0] or "").strip()
+            try:
+                pid = int(parts[1])
+            except Exception:
+                pid = None
+            return host or None, pid
+
+        def _pid_exists_windows(pid: int) -> bool:
+            # OpenProcess returns NULL on failure; ERROR_ACCESS_DENIED still means it exists.
+            PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
+            handle = ctypes.windll.kernel32.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, int(pid))
+            if handle:
+                ctypes.windll.kernel32.CloseHandle(handle)
+                return True
+            try:
+                err = ctypes.get_last_error()
+            except Exception:
+                err = 0
+            return err == 5  # ERROR_ACCESS_DENIED
+
+        def _pid_exists(pid: int | None) -> bool:
+            if not pid or pid <= 0:
+                return False
+            if os.name == "nt":
+                try:
+                    return _pid_exists_windows(int(pid))
+                except Exception:
+                    return False
+            try:
+                os.kill(int(pid), 0)
+                return True
+            except Exception:
+                return False
+
+        def _same_host(lock_host: str | None) -> bool:
+            if not lock_host:
+                return False
+            local = (socket.gethostname() or "").strip().lower()
+            remote = lock_host.strip().lower()
+            if not local or not remote:
+                return False
+            if remote == local:
+                return True
+            # Compare short hostnames (before first '.')
+            return remote.split(".", 1)[0] == local.split(".", 1)[0]
+
+        def _try_acquire_lock() -> bool:
+            return bool(live_data_redis.client.set(lock_key, lock_token, nx=True, ex=lock_ttl_seconds))
+
+        def _maybe_clear_stale_lock() -> bool:
+            """Clear lock only if it appears to be from this host and its PID is dead."""
+            try:
+                owner = live_data_redis.client.get(lock_key)
+            except Exception:
+                return False
+
+            host, pid = _parse_lock_owner(owner)
+            if not _same_host(host):
+                return False
+            if pid is None:
+                return False
+            if _pid_exists(pid):
+                return False
+
+            # Best-effort: delete only if unchanged (avoids racing another starter).
+            try:
+                deleted = live_data_redis.client.eval(_RELEASE_LUA, 1, lock_key, owner)
+                if deleted:
+                    logger.warning(
+                        "Cleared stale Schwab stream lock for user_id=%s: owner=%r", user_id, owner
+                    )
+                return bool(deleted)
+            except Exception:
+                # Fallback: if Lua not allowed, do a read-then-delete (still guarded by prior get()).
+                try:
+                    current = live_data_redis.client.get(lock_key)
+                    if current == owner:
+                        live_data_redis.client.delete(lock_key)
+                        logger.warning(
+                            "Cleared stale Schwab stream lock (fallback) for user_id=%s: owner=%r",
+                            user_id,
+                            owner,
+                        )
+                        return True
+                except Exception:
+                    return False
+            return False
+
         try:
-            acquired = live_data_redis.client.set(lock_key, lock_token, nx=True, ex=lock_ttl_seconds)
+            acquired = _try_acquire_lock()
+            if not acquired:
+                # If the lock is from this host but its PID is gone, auto-clear and retry once.
+                _maybe_clear_stale_lock()
+                acquired = _try_acquire_lock()
         except Exception as exc:
             raise CommandError(f"Failed to acquire Schwab stream lock in Redis: {exc}")
 
@@ -191,6 +318,33 @@ class Command(BaseCommand):
                 f"schwab_stream already running for user_id={user_id}. "
                 f"Stop the other process first. lock={lock_key} owner={owner!r}"
             )
+
+        lock_stop = threading.Event()
+        lock_lost = threading.Event()
+
+        def _lock_renew_worker() -> None:
+            while not lock_stop.wait(timeout=lock_renew_seconds):
+                try:
+                    ok = live_data_redis.client.eval(_RENEW_LUA, 1, lock_key, lock_token, lock_ttl_seconds)
+                    if not ok:
+                        # Lock missing or ownership changed (expired/stolen). Stop streamer.
+                        lock_lost.set()
+                        logger.error(
+                            "Lost Schwab stream lock for user_id=%s (key=%s). Stopping.",
+                            user_id,
+                            lock_key,
+                        )
+                        return
+                except Exception as exc:
+                    # Don't crash on transient Redis errors; next renew should recover.
+                    logger.warning("Failed to renew Schwab stream lock: %s", exc)
+
+        renew_thread = threading.Thread(
+            target=_lock_renew_worker,
+            name=f"schwab-lock-renew-{user_id}",
+            daemon=True,
+        )
+        renew_thread.start()
 
         # CLI overrides (still supported)
         equities: List[str] = _parse_csv(options.get("equities"))
@@ -468,6 +622,10 @@ class Command(BaseCommand):
 
             while True:
                 try:
+                    if lock_lost.is_set():
+                        raise CommandError(
+                            f"Lost Schwab stream lock (another process may have started). key={lock_key}"
+                        )
                     first_message_seen = asyncio.Event()
                     stream_client: Any | None = None
                     control_task: asyncio.Task | None = None
@@ -658,6 +816,11 @@ class Command(BaseCommand):
                         while True:
                             await stream_client.handle_message()
 
+                            if lock_lost.is_set():
+                                raise CommandError(
+                                    f"Lost Schwab stream lock (another process may have started). key={lock_key}"
+                                )
+
                             if exit_after_first and first_message_seen.is_set():
                                 logger.warning("Exiting Schwab stream after first message (--exit-after-first)")
                                 return
@@ -721,10 +884,18 @@ class Command(BaseCommand):
         except KeyboardInterrupt:
             self.stdout.write(self.style.WARNING("Schwab stream stopped (KeyboardInterrupt)"))
         finally:
-            # Release lock (only if we still own it)
+            # Stop renew thread then release lock.
+            lock_stop.set()
+            with contextlib.suppress(Exception):
+                renew_thread.join(timeout=2)
             try:
-                current = live_data_redis.client.get(lock_key)
-                if current == lock_token:
-                    live_data_redis.client.delete(lock_key)
+                live_data_redis.client.eval(_RELEASE_LUA, 1, lock_key, lock_token)
             except Exception:
-                pass
+                # Fallback in restricted Redis environments.
+                try:
+                    current = live_data_redis.client.get(lock_key)
+                    if current == lock_token:
+                        live_data_redis.client.delete(lock_key)
+                except Exception:
+                    pass
+
