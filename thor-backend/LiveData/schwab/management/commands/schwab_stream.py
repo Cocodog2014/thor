@@ -6,10 +6,14 @@ import asyncio
 import contextlib
 import json
 import logging
+import os
+import socket
 import threading
 import time
 from copy import deepcopy
 from typing import List, Optional, Dict, Tuple, Any
+
+from uuid import uuid4
 
 from asgiref.sync import sync_to_async
 from django.conf import settings
@@ -165,6 +169,28 @@ class Command(BaseCommand):
         user_id: int = options["user_id"]
         exit_after_first: bool = bool(options.get("exit_after_first"))
         echo_ticks: bool = int(options.get("verbosity", 1) or 0) >= 1
+
+        # ------------------------------------------------------------------
+        # Single-instance guard (per user_id)
+        # ------------------------------------------------------------------
+        lock_key = f"live_data:schwab:stream_lock:{user_id}"
+        lock_token = f"{socket.gethostname()}:{os.getpid()}:{uuid4().hex}"
+        # Long TTL prevents stale locks from persisting forever if the process is killed.
+        lock_ttl_seconds = 60 * 60 * 6  # 6h
+        try:
+            acquired = live_data_redis.client.set(lock_key, lock_token, nx=True, ex=lock_ttl_seconds)
+        except Exception as exc:
+            raise CommandError(f"Failed to acquire Schwab stream lock in Redis: {exc}")
+
+        if not acquired:
+            try:
+                owner = live_data_redis.client.get(lock_key)
+            except Exception:
+                owner = None
+            raise CommandError(
+                f"schwab_stream already running for user_id={user_id}. "
+                f"Stop the other process first. lock={lock_key} owner={owner!r}"
+            )
 
         # CLI overrides (still supported)
         equities: List[str] = _parse_csv(options.get("equities"))
@@ -694,3 +720,11 @@ class Command(BaseCommand):
             asyncio.run(_run())
         except KeyboardInterrupt:
             self.stdout.write(self.style.WARNING("Schwab stream stopped (KeyboardInterrupt)"))
+        finally:
+            # Release lock (only if we still own it)
+            try:
+                current = live_data_redis.client.get(lock_key)
+                if current == lock_token:
+                    live_data_redis.client.delete(lock_key)
+            except Exception:
+                pass
