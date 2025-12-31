@@ -32,6 +32,11 @@ const toFloat = (value: unknown): number | null => {
   return null;
 };
 
+const toPriceString = (value: number | null): string | null => {
+  if (value === null) return null;
+  return String(value);
+};
+
 const toIsoTimestamp = (raw: unknown, fallback?: string): string => {
   const num = toFloat(raw);
   if (num === null) return fallback ?? new Date().toISOString();
@@ -51,10 +56,10 @@ const computeSpread = (
 };
 
 const makeRealtimeRow = (tick: QuoteTick, symbol: string): MarketData => {
-  const bid = toFloat(tick.bid);
-  const ask = toFloat(tick.ask);
-  const price =
-    toFloat(tick.last) ?? toFloat(tick.price) ?? bid ?? ask ?? null;
+  const bidNum = toFloat(tick.bid);
+  const askNum = toFloat(tick.ask);
+  const priceNum =
+    toFloat(tick.last) ?? toFloat(tick.price) ?? bidNum ?? askNum ?? null;
   return {
     instrument: {
       id: Date.now(),
@@ -68,9 +73,9 @@ const makeRealtimeRow = (tick: QuoteTick, symbol: string): MarketData => {
       is_active: true,
       sort_order: 0,
     },
-    price,
-    bid,
-    ask,
+    price: toPriceString(priceNum),
+    bid: toPriceString(bidNum),
+    ask: toPriceString(askNum),
     last_size: null,
     bid_size: null,
     ask_size: null,
@@ -89,7 +94,7 @@ const makeRealtimeRow = (tick: QuoteTick, symbol: string): MarketData => {
     delay_minutes: 0,
     extended_data: {},
     timestamp: toIsoTimestamp(tick.timestamp),
-    spread: computeSpread(bid, ask, null) ?? undefined,
+    spread: computeSpread(bidNum, askNum, null) ?? undefined,
   } as MarketData;
 };
 
@@ -210,21 +215,21 @@ export function useFuturesQuotes(): UseFuturesQuotesResult {
 
           const idx = next.findIndex((row) => normalizeSymbol(row.instrument.symbol) === symbol);
 
-          const bid = toFloat(tick.bid);
-          const ask = toFloat(tick.ask);
-          const price =
+          const bidNum = toFloat(tick.bid);
+          const askNum = toFloat(tick.ask);
+          const priceNum =
             toFloat(tick.last) ??
             toFloat(tick.price) ??
-            bid ??
-            ask ??
+            bidNum ??
+            askNum ??
             toFloat(next[idx]?.price);
           const volume = toFloat(tick.volume) ?? next[idx]?.volume ?? null;
           const timestamp = toIsoTimestamp(tick.timestamp, next[idx]?.timestamp);
-          const spread = computeSpread(bid, ask, next[idx]?.spread);
+          const spread = computeSpread(bidNum, askNum, next[idx]?.spread);
 
           if (idx === -1) {
             const row = makeRealtimeRow(
-              { ...tick, bid, ask, price, volume, timestamp, source: tick.source },
+              { ...tick, bid: bidNum, ask: askNum, price: priceNum, volume, timestamp, source: tick.source },
               symbol
             );
             next = [...next, row];
@@ -234,9 +239,9 @@ export function useFuturesQuotes(): UseFuturesQuotesResult {
           const current = next[idx];
           const updated: MarketData = {
             ...current,
-            price,
-            bid: bid ?? current.bid,
-            ask: ask ?? current.ask,
+            price: toPriceString(priceNum) ?? current.price,
+            bid: toPriceString(bidNum) ?? current.bid,
+            ask: toPriceString(askNum) ?? current.ask,
             volume,
             data_source: tick.source ?? current.data_source,
             is_real_time: true,
