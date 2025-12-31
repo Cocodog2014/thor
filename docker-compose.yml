@@ -89,11 +89,11 @@ services:
     image: cloudflare/cloudflared:latest
     container_name: thor_cloudflared
     restart: unless-stopped
-    command: tunnel --config /etc/cloudflared/config.yml run thor
+    command: tunnel --config /etc/cloudflared/thor-prod.yml run
     volumes:
       - ./cloudflared:/etc/cloudflared
     depends_on:
-      - frontend
+      - nginx
 
 volumes:
   postgres_data:
