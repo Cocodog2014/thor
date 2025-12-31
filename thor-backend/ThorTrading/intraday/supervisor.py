@@ -9,6 +9,7 @@ from typing import Any, Dict, Optional, Tuple
 from LiveData.shared.redis_client import live_data_redis
 from ThorTrading.services.quotes import get_enriched_quotes_with_composite
 
+from .flush import flush_closed_bars
 from .redis_gateway import get_active_sessions
 
 logger = logging.getLogger(__name__)
@@ -81,6 +82,7 @@ class IntradaySupervisor:
     def tick(self) -> Dict[str, Any]:
         result: Dict[str, Any] = {
             "captured": {"ticks": 0, "closed_bars": 0},
+            "flushed": {"equities": 0, "futures": 0},
             "skipped": [],
             "error": None,
         }
@@ -135,6 +137,18 @@ class IntradaySupervisor:
 
             result["captured"]["ticks"] = captured_ticks
             result["captured"]["closed_bars"] = captured_closed
+
+            # Stage B: flush any newly closed bars to DB.
+            # This keeps InstrumentIntraday up-to-date without requiring a separate scheduled job.
+            try:
+                if self.include_futures and fut_key:
+                    # keep this lightweight per tick; deeper drains can be run manually if needed
+                    result["flushed"]["futures"] = int(flush_closed_bars(fut_key, batch_size=500, max_batches=1) or 0)
+                if self.include_equities and eq_key:
+                    result["flushed"]["equities"] = int(flush_closed_bars(eq_key, batch_size=500, max_batches=1) or 0)
+            except Exception:
+                logger.exception("intraday_flush failed")
+
             return result
 
         except Exception as e:

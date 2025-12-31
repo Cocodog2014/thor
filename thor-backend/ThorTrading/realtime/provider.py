@@ -52,35 +52,10 @@ def _active_countries() -> list[str]:
 # Job runners
 # -------------------------------------------------------------------
 def _run_intraday_tick(ctx: Any) -> None:
-    """1-second tick: build ticks + current 1m bars in Redis."""
+    """1-second tick: build ticks + bars + flush closed bars to DB."""
     from ThorTrading.intraday.supervisor import IntradaySupervisor
 
     IntradaySupervisor().tick()
-
-
-def _run_intraday_flush(ctx: Any) -> None:
-    """Fast flush for newly closed 1m bars."""
-    from LiveData.shared.redis_client import live_data_redis
-    from ThorTrading.intraday.flush import flush_closed_bars
-
-    routing_key = live_data_redis.get_active_session_key(asset_type="futures")
-    if not routing_key:
-        logger.debug("intraday_flush skipped: no active session routing key")
-        return
-
-    try:
-        total = 0
-        loops = 0
-        while loops < 20:
-            inserted = flush_closed_bars(routing_key, batch_size=500)
-            if not inserted:
-                break
-            total += inserted
-            loops += 1
-        if total:
-            logger.info("intraday_flush inserted %s rows for %s", total, routing_key)
-    except Exception:
-        logger.warning("intraday_flush failed for %s", routing_key, exc_info=True)
 
 
 def _run_open_capture_scan(ctx: Any) -> None:
@@ -96,29 +71,6 @@ def _run_open_capture_scan(ctx: Any) -> None:
         logger.exception("open_capture_scan failed")
 
 
-def _run_closed_bars_flush(ctx: Any) -> None:
-    """Deeper flush pass to drain Redis closed bars queue."""
-    from LiveData.shared.redis_client import live_data_redis
-    from ThorTrading.intraday.flush import flush_closed_bars
-
-    routing_key = live_data_redis.get_active_session_key(asset_type="futures")
-    if not routing_key:
-        logger.debug("closed_bars_flush skipped: no active session routing key")
-        return
-
-    try:
-        total = 0
-        loops = 0
-        while loops < 100:
-            inserted = flush_closed_bars(routing_key, batch_size=500)
-            if not inserted:
-                break
-            total += inserted
-            loops += 1
-        if total:
-            logger.info("closed_bars_flush inserted %s rows for %s", total, routing_key)
-    except Exception:
-        logger.warning("closed_bars_flush failed for %s", routing_key, exc_info=True)
 
 
 def _run_market_metrics(ctx: Any) -> None:
@@ -196,8 +148,6 @@ def _run_twentyfour(ctx: Any) -> None:
 def register(registry: Any) -> list[str]:
     jobs = [
         InlineJob("intraday_tick", 1.0, _run_intraday_tick),
-        InlineJob("intraday_flush", 2.0, _run_intraday_flush),
-        InlineJob("closed_bars_flush", 10.0, _run_closed_bars_flush),
 
         # ✅ Restart-safe: create MarketSession rows while market is OPEN
         InlineJob("gm.open_capture_scan", 5.0, _run_open_capture_scan),
