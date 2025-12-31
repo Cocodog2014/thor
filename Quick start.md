@@ -267,7 +267,10 @@ Production
 cd A:\Thor\thor-frontend
    npm run dev:docker
 
-cloudflared tunnel --config [thor-prod.yml](http://_vscodecontentref_/0) run
+cloudflared tunnel --config C:\Users\sutto\.cloudflared\thor-prod.yml run
+
+# NOTE: If you are using docker-compose, the `cloudflared` container already runs using:
+#   command: tunnel --config /etc/cloudflared/thor-prod.yml run
 
 http://localhost:8080/
 

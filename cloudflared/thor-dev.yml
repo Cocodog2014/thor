@@ -1,0 +1,37 @@
+# Dev tunnel config for dev-thor.360edu.org (host dev)
+# cloudflared 'path' is a regex (RE2), so use /api/.* not /api/*.
+
+tunnel: dev-thor
+credentials-file: C:\Users\sutto\.cloudflared\556698d2-2814-415f-a31e-4c3c49c1e120.json
+protocol: http2
+
+originRequest:
+  noHappyEyeballs: true
+
+ingress:
+  # Backend first (Django/ASGI)
+  - hostname: dev-thor.360edu.org
+    path: /ws/.*
+    service: http://127.0.0.1:8000
+
+  - hostname: dev-thor.360edu.org
+    path: /api/.*
+    service: http://127.0.0.1:8000
+
+  - hostname: dev-thor.360edu.org
+    path: /admin.*
+    service: http://127.0.0.1:8000
+
+  - hostname: dev-thor.360edu.org
+    path: /static/.*
+    service: http://127.0.0.1:8000
+
+  - hostname: dev-thor.360edu.org
+    path: /media/.*
+    service: http://127.0.0.1:8000
+
+  # Everything else -> Vite dev server
+  - hostname: dev-thor.360edu.org
+    service: http://127.0.0.1:5173
+
+  - service: http_status:404

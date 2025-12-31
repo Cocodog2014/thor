@@ -1,8 +1,0 @@
-tunnel: thor
-credentials-file: /etc/cloudflared/thor.json
-
-ingress:
-  - hostname: thor.360edu.org
-    service: http://frontend:80
-
-  - service: http_status:404

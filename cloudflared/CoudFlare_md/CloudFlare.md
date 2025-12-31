@@ -24,66 +24,18 @@ This allows full Schwab OAuth testing, API calls, and local dev — all through 
 
 Cloudflare Tunnel uses:
 
-C:\Users\sutto\.cloudflared\config.yml
+C:\Users\sutto\.cloudflared\thor-dev.yml
 
 
 This file contains your routing rules. Here is the correct version (backed up in your MD folder and kept in sync with both tunnel hostnames):
 
+The canonical dev config is checked into the project as:
 
-Backup(.cloudflared)
+cloudflared/thor-dev.yml
 
-tunnel: thor
-credentials-file: C:\Users\sutto\.cloudflared\556698d2-2814-415f-a31e-4c3c49c1e120.json
+To make your machine match the repo, copy it to:
 
-ingress:
-  # Ensure TS/JS modules load from Vite on both domains
-  - hostname: thor.360edu.org
-    path: /src/*
-    service: http://localhost:5173
-  - hostname: dev-thor.360edu.org
-    path: /src/*
-    service: http://localhost:5173
-
-  # Django backend (admin, API, static/media)
-  - hostname: thor.360edu.org
-    path: /admin/*
-    service: http://localhost:8000
-  - hostname: thor.360edu.org
-    path: /admin
-    service: http://localhost:8000
-  - hostname: thor.360edu.org
-    path: /api/*
-    service: http://localhost:8000
-  - hostname: thor.360edu.org
-    path: /static/*
-    service: http://localhost:8000
-  - hostname: thor.360edu.org
-    path: /media/*
-    service: http://localhost:8000
-  - hostname: dev-thor.360edu.org
-    path: /admin/*
-    service: http://localhost:8000
-  - hostname: dev-thor.360edu.org
-    path: /admin
-    service: http://localhost:8000
-  - hostname: dev-thor.360edu.org
-    path: /api/*
-    service: http://localhost:8000
-  - hostname: dev-thor.360edu.org
-    path: /static/*
-    service: http://localhost:8000
-  - hostname: dev-thor.360edu.org
-    path: /media/*
-    service: http://localhost:8000
-
-  # Everything else → React dev server on 5173
-  - hostname: thor.360edu.org
-    service: http://localhost:5173
-  - hostname: dev-thor.360edu.org
-    service: http://localhost:5173
-
-  # Catch-all
-  - service: http_status:404
+C:\Users\sutto\.cloudflared\thor-dev.yml
 
 
 This config ensures perfect separation:
@@ -97,8 +49,6 @@ API & admin traffic → Django
 📁 3. What’s in the /CloudFlareMD Folder?
 
 This folder holds all documentation and backup configs related to Cloudflare Tunnel:
-
-CloudFlareConfigUpdateYML
 
 CloudflareTunnel.md (this document)
 
@@ -114,15 +64,17 @@ These are developer reference files, not used by Cloudflare itself.
 
 To keep all Cloudflare knowledge in one place
 
-To avoid losing the correct config.yml
+To avoid losing the correct thor-dev.yml
 
 To let any developer restore or understand the tunnel fast
 
 To ensure consistency if Windows or Cloudflare overwrites files
 
-📄 4. What Is CloudFlareConfigUpdateYML?
+📄 4. Restoring Your Local Tunnel Config
 
-CloudFlareConfigUpdateYML is your reference copy of the working Cloudflare config.yml.
+The canonical dev config is stored in this repo as:
+
+cloudflared/thor-dev.yml
 
 It is:
 
@@ -134,27 +86,27 @@ Only for you (developer backup + restore)
 
 Why it exists
 
-Windows, Cloudflare updates, or service reinstalls sometimes overwrite:
+Windows, Cloudflare updates, or service reinstalls sometimes overwrite your local file:
 
-C:\Users\sutto\.cloudflared\config.yml
+C:\Users\sutto\.cloudflared\thor-dev.yml
 
 
 If that happens, simply:
 
 How to restore the tunnel config
 
-Open CloudFlareConfigUpdateYML
+Copy:
 
-Copy contents
+A:\Thor\cloudflared\thor-dev.yml
 
-Paste into:
+To:
 
-C:\Users\sutto\.cloudflared\config.yml
+C:\Users\sutto\.cloudflared\thor-dev.yml
 
 
 Restart Cloudflare:
 
-cloudflared tunnel run thor
+cloudflared tunnel --config C:\Users\sutto\.cloudflared\thor-dev.yml run
 
 
 Instant recovery — no debugging.
@@ -172,7 +124,7 @@ cd A:\Thor\thor-frontend
 npm run dev:local
 
 Terminal 3 — Start Cloudflare Tunnel
-cloudflared tunnel run thor
+cloudflared tunnel --config C:\Users\sutto\.cloudflared\thor-dev.yml run
 
 
 👉 This terminal must stay open.
@@ -209,7 +161,7 @@ Stop the tunnel
 Get-Process cloudflared | Stop-Process -Force
 
 Restart it
-cloudflared tunnel run thor
+cloudflared tunnel --config C:\Users\sutto\.cloudflared\thor-dev.yml run
 
 
 This restart process is also documented in:
@@ -243,14 +195,14 @@ python manage.py runserver
 
 ❌ Wrong routing / white screen
 
-Likely config.yml overwritten → Restore from CloudFlareConfigUpdateYML.
+Likely thor-dev.yml overwritten → restore it from A:\Thor\cloudflared\thor-dev.yml.
 
 ❌ Tunnel running but domain not loading
 
 Restart Cloudflare:
 
 Get-Process cloudflared | Stop-Process -Force
-cloudflared tunnel run thor
+cloudflared tunnel --config C:\Users\sutto\.cloudflared\thor-dev.yml run
 
 🎉 9. Summary — Your Final Cloudflare Workflow
 
