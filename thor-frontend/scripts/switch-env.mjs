@@ -8,11 +8,16 @@ import { copyFileSync, existsSync } from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-// Expect a single argument (dev | docker) pointing to .env.<name>
+// Expect a single argument (docker) pointing to .env.<name>
 const envName = process.argv[2];
 
 if (!envName) {
-  console.error('Usage: node scripts/switch-env.mjs <env-name> (e.g. dev, docker)');
+  console.error('Usage: node scripts/switch-env.mjs <env-name> (e.g. docker)');
+  process.exit(1);
+}
+
+if (envName !== 'docker') {
+  console.error('[env] Only "docker" is supported. Local dev uses .env.local directly.');
   process.exit(1);
 }
 

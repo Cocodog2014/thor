@@ -83,7 +83,7 @@ Frontend now alive at:
 
 Frontend reads API from:
 thor-frontend/.env.local
-- `npm run dev:local` copies `.env.dev` → `.env.local` automatically
+- Local dev uses `.env.local` directly
 - `VITE_API_BASE_URL=/api` (always relative!)
 - `VITE_PROXY_TARGET=http://127.0.0.1:8000` (Vite proxy)
 
