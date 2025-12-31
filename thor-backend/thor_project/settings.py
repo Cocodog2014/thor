@@ -356,6 +356,7 @@ LOGGING = {
         'ThorTrading': {
             'handlers': ['console'],
             'level': 'INFO',
+            'propagate': False,
         },
         'thor_project': {
             'handlers': ['console'],
