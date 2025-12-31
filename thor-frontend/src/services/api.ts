@@ -1,4 +1,4 @@
-import axios from 'axios';
+import axios, { AxiosHeaders } from 'axios';
 import { AUTH_ACCESS_TOKEN_KEY, AUTH_REFRESH_TOKEN_KEY } from '../constants/storageKeys';
 
 /**
@@ -43,6 +43,52 @@ const readStoredToken = (key: string): string | null => {
   }
 };
 
+type RefreshQueueItem = {
+  resolve: (accessToken: string) => void;
+  reject: (error: unknown) => void;
+};
+
+type RetriableRequestConfig = {
+  _retry?: boolean;
+  url?: string;
+  headers?: unknown;
+};
+
+let isRefreshing = false;
+let refreshQueue: RefreshQueueItem[] = [];
+
+const setRequestAuthHeader = (requestConfig: RetriableRequestConfig, accessToken: string) => {
+  const headerValue = `Bearer ${accessToken}`;
+
+  if (requestConfig.headers instanceof AxiosHeaders) {
+    requestConfig.headers.set('Authorization', headerValue);
+    return;
+  }
+
+  const currentHeaders: Record<string, unknown> =
+    requestConfig.headers && typeof requestConfig.headers === 'object'
+      ? (requestConfig.headers as Record<string, unknown>)
+      : {};
+
+  requestConfig.headers = {
+    ...currentHeaders,
+    Authorization: headerValue,
+  };
+};
+
+const flushRefreshQueue = (error: unknown, accessToken: string | null) => {
+  const queue = refreshQueue;
+  refreshQueue = [];
+
+  queue.forEach(({ resolve, reject }) => {
+    if (accessToken) {
+      resolve(accessToken);
+    } else {
+      reject(error);
+    }
+  });
+};
+
 export const setAuthHeader = (token: string | null) => {
   if (token) {
     api.defaults.headers.common.Authorization = `Bearer ${token}`;
@@ -81,7 +127,10 @@ api.interceptors.response.use(
     return response;
   },
   async (error) => {
-    const originalRequest = error.config;
+    const originalRequest = error.config as RetriableRequestConfig | undefined;
+    if (!originalRequest) {
+      return Promise.reject(error);
+    }
     
     // Check if this is a public endpoint - don't try auth refresh
     const isPublic = PUBLIC_ENDPOINTS.some(endpoint => 
@@ -89,26 +138,51 @@ api.interceptors.response.use(
     );
     
     // If 401 and we haven't tried refreshing yet and it's not a public endpoint
-    if (error.response?.status === 401 && !originalRequest._retry && !isPublic) {
+    // NOTE: Use a single refresh lock + queue so we don't spam refresh calls during app boot.
+    if (error.response?.status === 401 && !isPublic) {
+      if (originalRequest._retry) {
+        return Promise.reject(error);
+      }
       originalRequest._retry = true;
-      
-      try {
-        // Try to refresh the token
-        const refreshToken = readStoredToken(AUTH_REFRESH_TOKEN_KEY);
-        if (refreshToken) {
-          const { data } = await axios.post(`${API_BASE_URL}/users/token/refresh/`, {
-          refresh: refreshToken,
+
+      const refreshToken = readStoredToken(AUTH_REFRESH_TOKEN_KEY);
+      if (!refreshToken) {
+        return Promise.reject(error);
+      }
+
+      if (isRefreshing) {
+        return new Promise((resolve, reject) => {
+          refreshQueue.push({
+            resolve: (accessToken) => {
+              setRequestAuthHeader(originalRequest, accessToken);
+              resolve(api(originalRequest));
+            },
+            reject,
           });
-          
-          // Store new access token
-          localStorage.setItem(AUTH_ACCESS_TOKEN_KEY, data.access);
-          setAuthHeader(data.access);
-          
-          // Retry original request with new token
-          originalRequest.headers.Authorization = `Bearer ${data.access}`;
-          return api(originalRequest);
+        });
+      }
+
+      isRefreshing = true;
+
+      try {
+        const { data } = await axios.post(`${API_BASE_URL}/users/token/refresh/`, {
+          refresh: refreshToken,
+        });
+
+        const newAccessToken = data?.access as string | undefined;
+        if (!newAccessToken) {
+          throw new Error('Missing access token in refresh response');
         }
+
+        localStorage.setItem(AUTH_ACCESS_TOKEN_KEY, newAccessToken);
+        setAuthHeader(newAccessToken);
+        flushRefreshQueue(null, newAccessToken);
+
+        setRequestAuthHeader(originalRequest, newAccessToken);
+        return api(originalRequest);
       } catch (refreshError) {
+        flushRefreshQueue(refreshError, null);
+
         // Refresh failed, clear tokens and redirect to login
         try {
           localStorage.removeItem(AUTH_ACCESS_TOKEN_KEY);
@@ -122,6 +196,8 @@ api.interceptors.response.use(
           window.location.href = '/auth/login';
         }
         return Promise.reject(refreshError);
+      } finally {
+        isRefreshing = false;
       }
     }
     
