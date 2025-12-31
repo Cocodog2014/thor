@@ -75,7 +75,17 @@ function flushQueue() {
 }
 
 export function connectSocket(urlOverride?: string): void {
-  if (socket && connected) return;
+  // If a socket already exists and is OPEN or CONNECTING, don't create another.
+  // React effects/rerenders can call connectSocket multiple times before onopen.
+  if (socket && (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING)) {
+    return;
+  }
+
+  // If we have a stale/closed socket reference, drop it.
+  if (socket && socket.readyState === WebSocket.CLOSED) {
+    socket = null;
+  }
+
   const url = urlOverride || resolveUrl();
 
   shouldReconnect = true;
@@ -93,7 +103,9 @@ export function connectSocket(urlOverride?: string): void {
     return;
   }
 
-  socket.onopen = () => {
+  const currentSocket = socket;
+
+  currentSocket.onopen = () => {
     connected = true;
     retryCount = 0;
     flushQueue();
@@ -101,7 +113,7 @@ export function connectSocket(urlOverride?: string): void {
     notifyConnection(true);
   };
 
-  socket.onmessage = (event) => {
+  currentSocket.onmessage = (event) => {
     scheduleHeartbeatTimeout();
     try {
       const msg = JSON.parse(event.data) as WsMessage;
@@ -111,14 +123,17 @@ export function connectSocket(urlOverride?: string): void {
     }
   };
 
-  socket.onerror = (event) => {
+  currentSocket.onerror = (event) => {
     console.error('[ws] error', event);
   };
 
-  socket.onclose = () => {
+  currentSocket.onclose = () => {
     connected = false;
     clearHeartbeat();
     notifyConnection(false);
+    if (socket === currentSocket) {
+      socket = null;
+    }
     if (shouldReconnect) {
       scheduleReconnect(url);
     }
