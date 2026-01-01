@@ -5,6 +5,15 @@ tunnel: dev-thor
 credentials-file: C:\Users\sutto\.cloudflared\556698d2-2814-415f-a31e-4c3c49c1e120.json
 protocol: http2
 
+# Force cloudflared to resolve tunnel endpoints using these resolvers
+# (avoid Windows multi-homing/local resolver flakiness)
+dns-resolver-addrs:
+  - 1.1.1.1:53
+  - 1.0.0.1:53
+
+# Prefer auto IP selection for edge connectivity
+edge-ip-version: auto
+
 originRequest:
   noHappyEyeballs: true
 
@@ -19,7 +28,7 @@ ingress:
     service: http://127.0.0.1:8000
 
   - hostname: dev-thor.360edu.org
-    path: /admin.*
+    path: /admin/.*
     service: http://127.0.0.1:8000
 
   - hostname: dev-thor.360edu.org

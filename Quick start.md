@@ -257,7 +257,15 @@ python manage.py poll_tos_excel --interval 1
 
 4. # If you want to force the exact config file explicitly:
 
-   cloudflared tunnel --config C:\Users\sutto\.cloudflared\thor-dev.yml run
+   # Use the repo-managed config (recommended):
+   cloudflared tunnel --config A:\Thor\cloudflared\thor-dev.yml run
+
+   # If you still run from C:\Users\sutto\.cloudflared\thor-dev.yml, either copy the same settings
+   # over or launch with explicit overrides:
+   # cloudflared tunnel --config C:\Users\sutto\.cloudflared\thor-dev.yml --dns-resolver-addrs 1.1.1.1:53 --dns-resolver-addrs 1.0.0.1:53 --edge-ip-version auto run
+
+   # For troubleshooting DNS/edge selection:
+   # cloudflared tunnel --config A:\Thor\cloudflared\thor-dev.yml --loglevel debug run
 
 
 
