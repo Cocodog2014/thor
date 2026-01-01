@@ -1,6 +1,6 @@
 from __future__ import annotations
 from django.contrib import admin
-from ThorTrading.config.markets import get_control_countries
+from GlobalMarkets.config.markets import get_control_countries
 from ThorTrading.services.config.country_codes import normalize_country_code
 from .models import (
     InstrumentCategory, TradingInstrument,

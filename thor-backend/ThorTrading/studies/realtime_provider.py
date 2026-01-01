@@ -37,7 +37,7 @@ class InlineJob(Job):
 
 def _active_countries() -> list[str]:
     """Countries currently controlled/open for realtime work."""
-    from ThorTrading.config.markets import get_control_countries
+    from GlobalMarkets.config.markets import get_control_countries
 
     return list(get_control_countries(require_session_capture=True) or [])
 

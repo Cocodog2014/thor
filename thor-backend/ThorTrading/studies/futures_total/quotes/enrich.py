@@ -19,7 +19,7 @@ import logging
 from typing import Dict, List, Tuple
 
 from LiveData.shared.redis_client import live_data_redis
-from ThorTrading.config.markets import get_control_countries
+from GlobalMarkets.config.markets import get_control_countries
 from ThorTrading.models import TradingInstrument
 from ThorTrading.models.extremes import Rolling52WeekStats
 from ThorTrading.services.config.country_codes import is_known_country, normalize_country_code

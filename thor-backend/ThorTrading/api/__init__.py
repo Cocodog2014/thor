@@ -1,5 +1,7 @@
-from __future__ import annotations
-"""HTTP API entrypoints for ThorTrading.
+"""Deprecated shim.
 
-Views/serializers/urls are organized under api/ for clarity.
+Canonical location:
+`ThorTrading.studies.futures_total.api`
 """
+
+from ThorTrading.studies.futures_total.api import *  # noqa: F401,F403

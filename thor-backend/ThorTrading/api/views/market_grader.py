@@ -1,21 +1,7 @@
-from __future__ import annotations
-"""Market Open Grading API wrappers.
+"""Deprecated shim.
 
-Delegates grading logic to services.sessions.grading.
+Canonical location:
+`ThorTrading.studies.futures_total.api.views.market_grader`
 """
 
-from ThorTrading.services.sessions.grading import (  # noqa: F401
-    MarketGrader,
-    grade_pending_once,
-    grader,
-    start_grading_service,
-    stop_grading_service,
-)
-
-__all__ = [
-    "start_grading_service",
-    "stop_grading_service",
-    "MarketGrader",
-    "grader",
-    "grade_pending_once",
-]
+from ThorTrading.studies.futures_total.api.views.market_grader import *  # noqa: F401,F403

@@ -23,7 +23,7 @@ from django.dispatch import receiver
 from GlobalMarkets.models.market import Market
 from GlobalMarkets.signals import market_closed, market_opened
 
-from ThorTrading.config.markets import get_control_countries
+from GlobalMarkets.config.markets import get_control_countries
 from ThorTrading.services.config.country_codes import normalize_country_code
 
 # Capture implementations live in this study (import lazily inside functions)
@@ -50,7 +50,7 @@ _CONTROL_LAST_REFRESH = 0.0
 
 
 def _refresh_controlled_countries(force: bool = False) -> Set[str]:
-    """Load controlled countries from GlobalMarkets (via ThorTrading.config.markets) with simple TTL caching."""
+    """Load controlled countries from GlobalMarkets (via GlobalMarkets.config.markets) with simple TTL caching."""
     global _CONTROL_LAST_REFRESH
 
     now = time.time()
