@@ -3,44 +3,29 @@
 
 tunnel: dev-thor
 credentials-file: C:\Users\sutto\.cloudflared\556698d2-2814-415f-a31e-4c3c49c1e120.json
-protocol: http2
 
-# Force cloudflared to resolve tunnel endpoints using these resolvers
-# (avoid Windows multi-homing/local resolver flakiness)
-dns-resolver-addrs:
-  - 1.1.1.1:53
-  - 1.0.0.1:53
-
-# Prefer auto IP selection for edge connectivity
-edge-ip-version: auto
+protocol: http2   # or auto/quic if you want
 
 originRequest:
   noHappyEyeballs: true
+  connectTimeout: 30s
+  tcpKeepAlive: 30s
+  edgeIpVersion: 4
+  dnsResolverAddrs:
+    - 1.1.1.1:53
+    - 8.8.8.8:53
 
 ingress:
-  # Backend first (Django/ASGI)
   - hostname: dev-thor.360edu.org
     path: /ws/.*
     service: http://127.0.0.1:8000
-
   - hostname: dev-thor.360edu.org
     path: /api/.*
     service: http://127.0.0.1:8000
-
   - hostname: dev-thor.360edu.org
-    path: /admin/.*
+    path: /admin.*
     service: http://127.0.0.1:8000
-
   - hostname: dev-thor.360edu.org
     path: /static/.*
     service: http://127.0.0.1:8000
-
-  - hostname: dev-thor.360edu.org
-    path: /media/.*
-    service: http://127.0.0.1:8000
-
-  # Everything else -> Vite dev server
-  - hostname: dev-thor.360edu.org
-    service: http://127.0.0.1:5173
-
   - service: http_status:404
