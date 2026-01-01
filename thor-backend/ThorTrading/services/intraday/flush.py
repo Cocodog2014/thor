@@ -1,11 +1,11 @@
 """Backward-compatible shim.
 
-The intraday restructure moved the implementation to `ThorTrading.intraday.flush`.
+The intraday implementation now lives in `ThorTrading.studies.futures_total.intraday`.
 Keep this module for existing imports.
 """
 
 from __future__ import annotations
 
-from ThorTrading.intraday.flush import flush_closed_bars
+from ThorTrading.studies.futures_total.intraday.flush import flush_closed_bars
 
 __all__ = ["flush_closed_bars"]

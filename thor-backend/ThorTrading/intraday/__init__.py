@@ -1,5 +1,8 @@
-# ThorTrading/intraday/__init__.py
+"""Deprecated import path.
 
-from .supervisor import IntradaySupervisor
+The intraday realtime capture package has moved to:
+`ThorTrading.studies.futures_total.intraday`.
+"""
 
-__all__ = ["IntradaySupervisor"]
+from ThorTrading.studies.futures_total.intraday import *  # noqa: F403
+

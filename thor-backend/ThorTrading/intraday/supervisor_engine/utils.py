@@ -1,18 +1,7 @@
-from __future__ import annotations
+"""Deprecated import path.
 
-"""Utilities for the intraday supervisor engine.
-
-This is relocated from `ThorTrading.services.intraday_supervisor.utils` as part of the
-ThorTrading intraday restructure.
+Moved to `ThorTrading.studies.futures_total.intraday.supervisor_engine.utils`.
 """
 
-from decimal import Decimal as D
+from ThorTrading.studies.futures_total.intraday.supervisor_engine.utils import *  # noqa: F403
 
-
-def safe_decimal(val):
-    if val in (None, "", " "):
-        return None
-    try:
-        return D(str(val))
-    except Exception:
-        return None

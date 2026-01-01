@@ -1,10 +1,7 @@
-from __future__ import annotations
+"""Deprecated import path.
 
-"""Intraday supervisor engine (deprecated).
-
-New intraday routing/tick capture lives in `ThorTrading.intraday.supervisor`.
-This package remains only for the historical engine modules that still exist
-under this folder (e.g. `supervisor_old.py`).
+Moved to `ThorTrading.studies.futures_total.intraday.supervisor_engine`.
 """
 
-__all__: list[str] = []
+from ThorTrading.studies.futures_total.intraday.supervisor_engine import *  # noqa: F403
+

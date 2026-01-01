@@ -1,0 +1,107 @@
+from __future__ import annotations
+
+import logging
+from typing import Iterable
+
+from django.db import transaction
+
+from LiveData.shared.redis_client import live_data_redis
+from ThorTrading.models.MarketSession import MarketSession
+
+logger = logging.getLogger(__name__)
+
+LAST_SEEN_TTL_SECONDS = 60 * 60 * 24 * 7
+
+
+def _last_seen_key(country: str, session_group: int, symbol: str) -> str:
+    return f"thor:last_seen_vol_session:{(country or '').lower()}:{session_group}:{symbol}"
+
+
+def _get_last_seen(country: str, session_group: int, symbol: str) -> int | None:
+    try:
+        raw = live_data_redis.client.get(_last_seen_key(country, session_group, symbol))
+        if raw is None:
+            return None
+        return int(raw)
+    except Exception:
+        logger.debug("session_volume last_seen redis get failed for %s/%s", country, symbol, exc_info=True)
+        return None
+
+
+def _set_last_seen(country: str, session_group: int, symbol: str, vol: int) -> None:
+    try:
+        live_data_redis.client.set(
+            _last_seen_key(country, session_group, symbol),
+            int(vol),
+            ex=LAST_SEEN_TTL_SECONDS,
+        )
+    except Exception:
+        logger.debug("session_volume last_seen redis set failed for %s/%s", country, symbol, exc_info=True)
+
+
+@transaction.atomic
+def update_session_volume_for_country(
+    country: str,
+    enriched_rows: Iterable[dict],
+    *,
+    session_number: int | None = None,
+):
+    enriched_rows = list(enriched_rows or [])
+    if not enriched_rows:
+        return {"session_volume_updates": 0}
+
+    session_group = session_number
+    if session_group is None:
+        session_group = (
+            MarketSession.objects.filter(country=country)
+            .order_by("-session_number")
+            .values_list("session_number", flat=True)
+            .first()
+        )
+    if session_group is None:
+        return {"session_volume_updates": 0}
+
+    sessions = {row.symbol: row for row in MarketSession.objects.filter(country=country, session_number=session_group)}
+
+    updates = 0
+    for row in enriched_rows:
+        sym = (row.get("instrument", {}) or {}).get("symbol") or ""
+        symbol = sym.lstrip("/").upper()
+        if not symbol or symbol == "TOTAL":
+            continue
+
+        vol = row.get("volume")
+        try:
+            vol_int = int(vol)
+        except Exception:
+            continue
+        if vol_int <= 0:
+            continue
+
+        session = sessions.get(symbol)
+        if not session:
+            continue
+
+        prior_seen = _get_last_seen(country, session_group, symbol)
+        if prior_seen is None:
+            prior_seen = int(session.session_volume or 0)
+
+        delta = vol_int - prior_seen
+        if delta <= 0:
+            _set_last_seen(country, session_group, symbol, vol_int)
+            continue
+
+        session.session_volume = (session.session_volume or 0) + delta
+        session.save(update_fields=["session_volume"])
+        _set_last_seen(country, session_group, symbol, vol_int)
+        updates += 1
+
+    if updates and logger.isEnabledFor(logging.DEBUG):
+        logger.debug(
+            "Session volume updated: country=%s session_group=%s rows=%s",
+            country,
+            session_group,
+            updates,
+        )
+
+    return {"session_volume_updates": updates}
