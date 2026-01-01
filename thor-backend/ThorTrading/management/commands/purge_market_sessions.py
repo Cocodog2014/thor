@@ -7,7 +7,7 @@ Usage:
 """
 
 from django.core.management.base import BaseCommand, CommandError
-from ThorTrading.models.MarketSession import MarketSession
+from ThorTrading.studies.futures_total.command_logic.purge_market_sessions import run
 
 
 class Command(BaseCommand):
@@ -23,20 +23,14 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
-        dry_run = options.get('dry_run')
-
-        count = MarketSession.objects.count()
-        if dry_run:
-            self.stdout.write(self.style.WARNING(f"Dry run: would purge {count} MarketSession rows."))
-            return
-
-        if not options.get('yes_i_am_sure'):
-            raise CommandError('Refusing to purge without --yes-i-am-sure')
-
-        confirm_token = options.get('confirm')
-        if confirm_token != 'DELETE':
-            raise CommandError("Refusing to purge without --confirm DELETE")
-
-        MarketSession.objects.all().delete()
-        self.stdout.write(self.style.SUCCESS(f"Purged {count} MarketSession rows."))
+        try:
+            run(
+                dry_run=bool(options.get("dry_run")),
+                yes_i_am_sure=bool(options.get("yes_i_am_sure")),
+                confirm=options.get("confirm"),
+                stdout=self.stdout,
+                style=self.style,
+            )
+        except ValueError as exc:
+            raise CommandError(str(exc))
 

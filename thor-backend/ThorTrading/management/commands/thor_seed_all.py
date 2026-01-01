@@ -36,16 +36,9 @@ Notes:
 - It does not touch Redis or live quote streams.
 """
 from django.core.management.base import BaseCommand
-import json
 import os
 
-from GlobalMarkets.models.market import Market
-from GlobalMarkets.models.constants import ALLOWED_CONTROL_COUNTRIES
-from ThorTrading.services.config.country_codes import normalize_country_code
-try:
-    from ThorTrading.models import instruments  # placeholder if a dedicated instruments model exists
-except Exception:
-    instruments = None
+from ThorTrading.studies.futures_total.command_logic.thor_seed_all import run
 
 
 class Command(BaseCommand):
@@ -69,69 +62,11 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
-        data_dir = options["data_dir"]
-        self.stdout.write(self.style.NOTICE(f"Seeding from {data_dir}"))
-
-        # Build a case-insensitive map of canonical market keys
-        canonical_map = {c.lower(): c for c in ALLOWED_CONTROL_COUNTRIES}
-
-        markets_path = os.path.join(data_dir, "seed_markets.json")
-        if os.path.exists(markets_path):
-            with open(markets_path, "r", encoding="utf-8") as f:
-                markets = json.load(f)
-            created, updated = 0, 0
-            for m in markets:
-                raw_name = m.get("name")
-                normalized = normalize_country_code(raw_name)
-                canonical = canonical_map.get(normalized.lower()) if normalized else None
-                if not canonical:
-                    self.stdout.write(self.style.WARNING(f"Skipping unknown market key: {raw_name!r}"))
-                    continue
-
-                obj, is_created = Market.objects.update_or_create(
-                    country=canonical,
-                    defaults={
-                        "timezone_name": m.get("timezone"),
-                        "enable_session_capture": m.get("enable_session_capture", True),
-                        "enable_open_capture": m.get("enable_open_capture", True),
-                    },
-                )
-                if is_created:
-                    created += 1
-                else:
-                    updated += 1
-            self.stdout.write(self.style.SUCCESS(f"Markets seeded: created={created}, updated={updated}"))
-        else:
-            self.stdout.write(self.style.WARNING("seed_markets.json not found; skipping Markets."))
-
-        # Futures universe (optional wiring depending on actual model)
-        include_futures = options.get("include_futures", False)
-        futures_path = os.path.join(data_dir, "seed_futures.json")
-        if include_futures:
-            if os.path.exists(futures_path):
-                if instruments is None:
-                    self.stdout.write(self.style.NOTICE("Futures requested but no instruments model wired; skipping."))
-                else:
-                    try:
-                        with open(futures_path, "r", encoding="utf-8") as f:
-                            futures = json.load(f)
-                        self.stdout.write(self.style.NOTICE(f"Loaded {len(futures)} futures rows; implement model wiring before use."))
-                    except Exception as e:
-                        self.stdout.write(self.style.WARNING(f"Failed reading futures fixture: {e}"))
-            else:
-                self.stdout.write(self.style.NOTICE("--include-futures passed but seed_futures.json not found; skipping."))
-        else:
-            self.stdout.write(self.style.NOTICE("Skipping futures (enable with --include-futures)."))
-
-        include_weights = options.get("include_weights", False)
-        weights_path = os.path.join(data_dir, "seed_default_weights.json")
-        if include_weights:
-            if os.path.exists(weights_path):
-                self.stdout.write(self.style.NOTICE("Weights fixture present; apply once model wiring is available."))
-            else:
-                self.stdout.write(self.style.NOTICE("--include-weights passed but seed_default_weights.json not found; skipping."))
-        else:
-            self.stdout.write(self.style.NOTICE("Skipping weights (enable with --include-weights)."))
-
-        self.stdout.write(self.style.SUCCESS("Thor seed complete."))
+        run(
+            data_dir=options["data_dir"],
+            include_futures=bool(options.get("include_futures", False)),
+            include_weights=bool(options.get("include_weights", False)),
+            stdout=self.stdout,
+            style=self.style,
+        )
 

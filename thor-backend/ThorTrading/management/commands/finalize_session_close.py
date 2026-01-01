@@ -1,10 +1,7 @@
 from __future__ import annotations
 from django.core.management.base import BaseCommand, CommandError
-from django.db import transaction
-from django.utils import timezone
 
-from ThorTrading.models.MarketSession import MarketSession
-from ThorTrading.models.Market24h import MarketTrading24Hour
+from ThorTrading.studies.futures_total.command_logic.finalize_session_close import run
 
 
 class Command(BaseCommand):
@@ -20,56 +17,15 @@ class Command(BaseCommand):
         parser.add_argument('--dry-run', action='store_true', help='Report the intended update without writing.')
 
     def handle(self, *args, **options):
-        country = options['country']
-        symbol = options['symbol']
-        session_number = options.get('session_number')
-        dry_run: bool = options.get('dry_run', False)
-
-        # Resolve the target MarketSession via session_number identity instead of timestamp heuristics
-        if session_number is not None:
-            session = MarketSession.objects.filter(country=country, session_number=session_number).order_by('-id').first()
-            if session is None:
-                raise CommandError(f"No MarketSession found for country={country} session_number={session_number}.")
-            group = session_number
-        else:
-            session = (
-                MarketSession.objects
-                .filter(country=country)
-                .order_by('-session_number', '-id')
-                .first()
-            )
-            if session is None:
-                raise CommandError(f"No MarketSession found for country={country}.")
-            group = session.session_number
-
-        # Get 24h row for instrument + group
         try:
-            twentyfour = MarketTrading24Hour.objects.get(session_group=group, symbol=symbol)
-        except MarketTrading24Hour.DoesNotExist:
-            raise CommandError(
-                f"No MarketTrading24Hour found for session_group={group} symbol={symbol}. Supervisor must populate it first."
+            run(
+                country=options["country"],
+                symbol=options["symbol"],
+                session_number=options.get("session_number"),
+                dry_run=bool(options.get("dry_run", False)),
+                stdout=self.stdout,
+                style=self.style,
             )
-
-        close_val = twentyfour.close_24h
-        if close_val is None:
-            raise CommandError("MarketTrading24Hour.close_24h is None; cannot finalize session close.")
-
-        if dry_run:
-            self.stdout.write(
-                self.style.WARNING(
-                    f"Dry-run: would set MarketSession.close_24h to {close_val} for country={country} group={group} from {symbol}"
-                )
-            )
-            return
-
-        with transaction.atomic():
-            # Denormalize into MarketSession.close_24h and set a finalized timestamp if available
-            session.close_24h = close_val
-            # Optional: update captured_at to now to mark finalization
-            session.captured_at = session.captured_at or timezone.now()
-            session.save(update_fields=['close_24h', 'captured_at'])
-
-        self.stdout.write(self.style.SUCCESS(
-            f"Finalized session for {country} group={group}: close_24h={close_val} from {symbol}"
-        ))
+        except ValueError as exc:
+            raise CommandError(str(exc))
 

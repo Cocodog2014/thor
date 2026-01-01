@@ -2,6 +2,8 @@
 
 Four high-safety commands and their flags. Run from `A:\Thor\thor-backend` with `python manage.py <command>`.
 
+Note: command entrypoints remain in `ThorTrading.management.commands` for Django discovery, but the business logic has been moved into `ThorTrading.studies.futures_total.command_logic` so it can be reused by study code.
+
 ## backfill_capture_group
 - Deprecated: MarketSession grouping uses `session_number` now; command is a no-op.
 
