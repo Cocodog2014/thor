@@ -1,12 +1,8 @@
-from __future__ import annotations
+"""Django-discoverable shim.
 
-from django.core.management.base import BaseCommand
+Canonical command lives at:
+`ThorTrading.studies.futures_total.management.commands.backfill_capture_group`.
+"""
 
-class Command(BaseCommand):
-    help = "Deprecated (no-op): MarketSession grouping uses session_number now."
-
-    def handle(self, *args, **options):
-        from ThorTrading.studies.futures_total.command_logic.backfill_capture_group import run
-
-        run(stdout=self.stdout, style=self.style)
+from ThorTrading.studies.futures_total.management.commands.backfill_capture_group import Command
 

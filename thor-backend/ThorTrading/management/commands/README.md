@@ -1,34 +1,7 @@
-# Management Commands Cheat Sheet
+# Management Commands
 
-Four high-safety commands and their flags. Run from `A:\Thor\thor-backend` with `python manage.py <command>`.
+Canonical docs for these commands now live at:
+`ThorTrading/studies/futures_total/management/commands/README.md`
 
-Note: command entrypoints remain in `ThorTrading.management.commands` for Django discovery, but the business logic has been moved into `ThorTrading.studies.futures_total.command_logic` so it can be reused by study code.
-
-## backfill_capture_group
-- Deprecated: MarketSession grouping uses `session_number` now; command is a no-op.
-
-## backfill_feed_symbols
-- Purpose: fill missing `feed_symbol` from leading-slash `symbol` values; normalize symbol when safe.
-- Safety: no global transaction; conflict check before symbol update.
-- Flags:
-  - `--dry-run` (no writes)
-  - `--batch-size` (default 1000)
-  - `--verbose`
-
-## link_intraday_twentyfour
-- Purpose: link `MarketIntraday.twentyfour` to existing `MarketTrading24Hour` parents.
-- Safety: does **not** create parents unless asked.
-- Flags:
-  - `--batch-size` (default 500)
-  - `--max-rows` (optional cap)
-  - `--dry-run` (no writes)
-  - `--create-missing` (allow parent creation; otherwise skips)
-  - `--verbose`
-
-## purge_market_sessions
-- Purpose: delete **all** `MarketSession` rows.
-- Safety: double confirmation required.
-- Flags:
-  - `--dry-run` (no writes; shows count)
-  - `--yes-i-am-sure`
-  - `--confirm DELETE`
+This folder stays in place for Django command discovery. Each command module here
+is a tiny shim that imports the canonical `Command` from the Futures Total study.
