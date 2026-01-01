@@ -18,7 +18,7 @@ except ModuleNotFoundError:
 	def clear_symbol_caches():
 		return None
 
-from ThorTrading.config.markets import get_control_countries
+from ThorTrading.config.global_markets import get_control_countries
 
 __all__ = [
 	"get_active_symbols",
