@@ -268,7 +268,7 @@ def handle_market_opened(sender, instance: Market, **kwargs):
     # OPEN capture (only if enabled)
     if open_capture_allowed(instance):
         try:
-            from ThorTrading.GlobalMarketGate.open_capture import capture_market_open
+            from ThorTrading.studies.futures_total.services.session_capture import capture_open_for_market
 
             session_number = None
             try:
@@ -278,7 +278,7 @@ def handle_market_opened(sender, instance: Market, **kwargs):
             except Exception:
                 logger.debug("Failed to resolve active session number for open capture", exc_info=True)
 
-            capture_market_open(instance, session_number=session_number)
+            capture_open_for_market(instance, session_number=session_number)
         except Exception:
             logger.exception("GlobalMarketGate: market-open capture failed for %s", country)
     else:
@@ -315,9 +315,9 @@ def handle_market_closed(sender, instance: Market, **kwargs):
     # CLOSE capture (only if enabled)
     if close_capture_allowed(instance):
         try:
-            from ThorTrading.GlobalMarketGate.close_capture import capture_market_close
+            from ThorTrading.studies.futures_total.services.session_capture import capture_close_for_country
 
-            result = capture_market_close(country)
+            result = capture_close_for_country(country)
             logger.info("GlobalMarketGate: close capture result %s => %s", country, result.get("status"))
         except Exception:
             logger.exception("GlobalMarketGate: market-close capture failed for %s", country)

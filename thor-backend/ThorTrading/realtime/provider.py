@@ -63,7 +63,7 @@ def _run_open_capture_scan(ctx: Any) -> None:
 
     Ensures we create MarketSession rows even if the app restarts while a market is already OPEN.
     """
-    from ThorTrading.GlobalMarketGate.open_capture import check_for_market_opens_and_capture
+    from ThorTrading.studies.futures_total.services.session_capture import check_for_market_opens_and_capture
 
     try:
         check_for_market_opens_and_capture()

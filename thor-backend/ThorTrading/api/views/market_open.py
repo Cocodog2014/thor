@@ -4,7 +4,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 
-from ThorTrading.GlobalMarketGate.open_capture import capture_market_open
+from ThorTrading.studies.futures_total.services.session_capture import capture_open_for_market
 
 
 class MarketOpenCaptureView(APIView):
@@ -41,7 +41,7 @@ class MarketOpenCaptureView(APIView):
 			)
 
 		try:
-			result = capture_market_open(market)
+			result = capture_open_for_market(market)
 			if result:
 				return Response(
 					{

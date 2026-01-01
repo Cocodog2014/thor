@@ -4,7 +4,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 
-from ThorTrading.GlobalMarketGate.close_capture import capture_market_close
+from ThorTrading.studies.futures_total.services.session_capture import capture_close_for_country
 
 
 class MarketCloseCaptureView(APIView):
@@ -24,7 +24,7 @@ class MarketCloseCaptureView(APIView):
 		if not country:
 			return Response({"error": "Missing 'country' query parameter"}, status=status.HTTP_400_BAD_REQUEST)
 
-		result = capture_market_close(country, force=force)
+		result = capture_close_for_country(country, force=force)
 
 		status_map = {
 			"ok": status.HTTP_200_OK,

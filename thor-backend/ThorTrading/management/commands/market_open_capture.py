@@ -2,8 +2,8 @@ import logging
 from django.core.management.base import BaseCommand
 from GlobalMarkets.models.market import Market
 from GlobalMarkets.services.market_clock import is_market_open_now
-from ThorTrading.GlobalMarketGate.open_capture import (
-    capture_market_open,
+from ThorTrading.studies.futures_total.services.session_capture import (
+    capture_open_for_market,
     _market_local_date,
 )
 from ThorTrading.models.MarketSession import MarketSession
@@ -83,7 +83,7 @@ class Command(BaseCommand):
 
             self.stdout.write(f"🌅 {country}: running market open capture for {market_date}")
             try:
-                capture_market_open(market)
+				capture_open_for_market(market)
             except Exception:
                 logger.exception("Market open capture failed for %s", country)
                 self.stdout.write(self.style.ERROR(f"❌ {country}: capture failed (see logs)"))
