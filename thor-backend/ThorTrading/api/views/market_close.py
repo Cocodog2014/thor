@@ -11,7 +11,7 @@ class MarketCloseCaptureView(APIView):
 	"""GET /api/future-trading/market-close/capture?country=United%20States[&force=1]
 
 	Workflow:
-		1. Determine latest capture_group for the given country.
+		1. Determine latest session_number for the given country.
 		2. If close metrics already populated and force not set → skip.
 		3. Fetch enriched quotes (single snapshot) for price reference.
 		4. Run MarketCloseMetric then MarketRangeMetric.

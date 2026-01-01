@@ -260,7 +260,6 @@ class MarketSessionAdmin(admin.ModelAdmin):
             "bhs",
             "wndw",
             "session_number",
-            "capture_group",
             "country_symbol",
             "year",
             "month",
@@ -381,7 +380,7 @@ class MarketSessionAdmin(admin.ModelAdmin):
         return f"{obj.year}/{obj.month:02d}/{obj.date:02d}"
     date_display.short_description = 'Date'
     
-    ordering = ['-capture_group', 'symbol']
+    ordering = ['-session_number', 'symbol']
 
     class Media:
         css = {

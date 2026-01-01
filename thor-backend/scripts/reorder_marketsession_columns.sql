@@ -7,7 +7,6 @@ BEGIN;
 CREATE TABLE "FutureTrading_marketsession_new" (
     "id" serial NOT NULL PRIMARY KEY,
     "session_number" integer NOT NULL,
-    "capture_group" integer,
     "year" integer NOT NULL,
     "month" integer NOT NULL,
     "date" integer NOT NULL,
@@ -82,7 +81,7 @@ CREATE TABLE "FutureTrading_marketsession_new" (
 -- Copy data from old table to new table
 INSERT INTO "FutureTrading_marketsession_new" 
 SELECT 
-    id, session_number, capture_group, year, month, date, day, captured_at,
+    id, session_number, year, month, date, day, captured_at,
     country, symbol, country_symbol, weight, bhs, wndw, country_symbol_wndw_total,
     bid_price, bid_size, last_price, spread, ask_price, ask_size,
     entry_price, target_hit_price, target_hit_type, target_high, target_low, target_hit_at,
@@ -107,7 +106,6 @@ DROP TABLE "FutureTrading_marketsession";
 ALTER TABLE "FutureTrading_marketsession_new" RENAME TO "FutureTrading_marketsession";
 
 -- Recreate indexes
-CREATE INDEX "FutureTrading_marke_capture_group_ef5816_idx" ON "FutureTrading_marketsession" ("capture_group");
 CREATE INDEX "FutureTrading_marketsession_country_idx" ON "FutureTrading_marketsession" ("country");
 CREATE INDEX "FutureTrading_marketsession_symbol_idx" ON "FutureTrading_marketsession" ("symbol");
 CREATE INDEX "FutureTrading_marketsession_session_number_idx" ON "FutureTrading_marketsession" ("session_number");

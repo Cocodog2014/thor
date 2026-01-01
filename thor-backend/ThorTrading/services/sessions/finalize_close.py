@@ -9,34 +9,33 @@ from ThorTrading.models.MarketSession import MarketSession
 logger = logging.getLogger(__name__)
 
 
-def _resolve_capture_group(country: str, session_number: int | None) -> int | None:
+def _resolve_session_number(country: str, session_number: int | None) -> int | None:
     if session_number is not None:
         return session_number
     return (
         MarketSession.objects
         .filter(country=country)
-        .exclude(capture_group__isnull=True)
-        .order_by("-capture_group")
-        .values_list("capture_group", flat=True)
+        .order_by("-session_number")
+        .values_list("session_number", flat=True)
         .first()
     )
 
 
 @transaction.atomic
-def finalize_pending_sessions_at_close(country: str, *, capture_group: int | None = None, session_number: int | None = None) -> int:
+def finalize_pending_sessions_at_close(country: str, *, session_number: int | None = None) -> int:
     """
     End-of-session rule:
       - If still PENDING and NOT frozen (target_hit_at is null) -> mark NEUTRAL.
       - Never override a frozen outcome.
     """
-    group = capture_group or _resolve_capture_group(country, session_number)
-    if group is None:
+    resolved_session_number = _resolve_session_number(country, session_number)
+    if resolved_session_number is None:
         return 0
 
     qs = (
         MarketSession.objects
         .select_for_update()
-        .filter(country=country, capture_group=group, wndw="PENDING", target_hit_at__isnull=True)
+        .filter(country=country, session_number=resolved_session_number, wndw="PENDING", target_hit_at__isnull=True)
     )
 
     count = qs.count()
@@ -47,7 +46,7 @@ def finalize_pending_sessions_at_close(country: str, *, capture_group: int | Non
     updated = qs.update(wndw="NEUTRAL")
 
     logger.info(
-        "⛔ Finalize close: country=%s group=%s -> %s PENDING sessions set to NEUTRAL at %s",
-        country, group, updated, timezone.now()
+        "⛔ Finalize close: country=%s session_number=%s -> %s PENDING sessions set to NEUTRAL at %s",
+        country, resolved_session_number, updated, timezone.now()
     )
     return updated

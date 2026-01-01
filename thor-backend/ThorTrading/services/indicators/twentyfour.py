@@ -49,14 +49,13 @@ def update_24h_for_country(country: str, enriched_rows: Iterable[dict]):
     latest_group = (
         MarketSession.objects
         .filter(country=country)
-        .exclude(capture_group__isnull=True)
-        .order_by('-capture_group')
-        .values_list('capture_group', flat=True)
+        .order_by('-session_number')
+        .values_list('session_number', flat=True)
         .first()
     )
     if latest_group is None:
         logger.warning(
-            "24h update skipped for %s: no MarketSession capture_group found (quotes=%s)",
+            "24h update skipped for %s: no MarketSession session_number found (quotes=%s)",
             country,
             len(enriched_rows),
         )

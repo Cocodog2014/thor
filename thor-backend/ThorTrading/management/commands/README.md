@@ -3,12 +3,7 @@
 Four high-safety commands and their flags. Run from `A:\Thor\thor-backend` with `python manage.py <command>`.
 
 ## backfill_capture_group
-- Purpose: set `capture_group` = `session_number` where null.
-- Safety: skips rows with null `session_number`.
-- Flags:
-  - `--dry-run` (no writes)
-  - `--batch-size` (default 5000)
-  - `--verbose`
+- Deprecated: MarketSession grouping uses `session_number` now; command is a no-op.
 
 ## backfill_feed_symbols
 - Purpose: fill missing `feed_symbol` from leading-slash `symbol` values; normalize symbol when safe.

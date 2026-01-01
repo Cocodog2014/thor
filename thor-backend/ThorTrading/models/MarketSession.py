@@ -9,6 +9,7 @@ Tracks trades based on TOTAL composite signals and grades outcomes.
 
 from django.db import models
 from django.utils import timezone
+
 from GlobalMarkets.models.constants import CONTROL_COUNTRY_CHOICES
 from ThorTrading.services.config.country_codes import normalize_country_code
 
@@ -16,18 +17,20 @@ from ThorTrading.services.config.country_codes import normalize_country_code
 class MarketSession(models.Model):
     """
     Captures one instrument at one market open event.
-    Single-table design: multiple rows per market open (one per instrument + TOTAL).
-    Enables easy filtering by instrument or market without joins.
+
+    Single-table design:
+      - multiple rows per market open event (one per instrument + TOTAL)
+      - grouped by session_number (ONE number for the entire capture event)
     """
 
+    # =========================================================================
     # Identification
-    session_number = models.IntegerField(help_text="Trade counter/sequence number")
-    capture_group = models.IntegerField(
-        null=True,
-        blank=True,
+    # =========================================================================
+    session_number = models.IntegerField(
         db_index=True,
-        help_text="Group identifier for all rows captured in the same market-open event",
+        help_text="Trade counter/sequence number (groups all rows in the same market-open event)",
     )
+
     capture_kind = models.CharField(
         max_length=20,
         default="OPEN",
@@ -40,17 +43,23 @@ class MarketSession(models.Model):
         help_text="Type of capture event (OPEN, CLOSE, OTHER)",
     )
 
-    # Date / Time
+    # =========================================================================
+    # Date / Time (denormalized for reporting)
+    # =========================================================================
     year = models.IntegerField()
     month = models.IntegerField()
     date = models.IntegerField(help_text="Day of month")
     day = models.CharField(max_length=10, help_text="Day of week (Mon, Tue, etc.)")
+
     captured_at = models.DateTimeField(
         default=timezone.now,
+        db_index=True,
         help_text="Exact timestamp of capture",
     )
 
+    # =========================================================================
     # Market Info
+    # =========================================================================
     country = models.CharField(
         max_length=32,
         choices=CONTROL_COUNTRY_CHOICES,
@@ -61,21 +70,8 @@ class MarketSession(models.Model):
         max_length=32,
         null=True,
         blank=True,
-        choices=[
-            ("TOTAL", "TOTAL Composite"),
-            ("YM", "Dow Jones (YM)"),
-            ("ES", "S&P 500 (ES)"),
-            ("NQ", "NASDAQ (NQ)"),
-            ("RTY", "Russell 2000 (RTY)"),
-            ("CL", "Crude Oil (CL)"),
-            ("SI", "Silver (SI)"),
-            ("HG", "Copper (HG)"),
-            ("GC", "Gold (GC)"),
-            ("VX", "Volatility (VX)"),
-            ("DX", "Dollar Index (DX)"),
-            ("ZB", "Bonds (ZB)"),
-        ],
-        help_text="Instrument symbol for this capture row",
+        db_index=True,
+        help_text="Instrument symbol for this capture row (dynamic; admin/study-controlled)",
     )
 
     country_symbol = models.DecimalField(
@@ -92,7 +88,9 @@ class MarketSession(models.Model):
         help_text="Weight value (for TOTAL)",
     )
 
+    # =========================================================================
     # Signal
+    # =========================================================================
     bhs = models.CharField(
         max_length=20,
         choices=[
@@ -105,7 +103,9 @@ class MarketSession(models.Model):
         help_text="Signal from TOTAL or individual instrument",
     )
 
+    # =========================================================================
     # Window / outcome label
+    # =========================================================================
     wndw = models.CharField(
         max_length=20,
         choices=[
@@ -126,7 +126,9 @@ class MarketSession(models.Model):
         help_text="Historical total count for this country/instrument window",
     )
 
-    # Live Price Data at Market Open
+    # =========================================================================
+    # Live Price Data at Capture
+    # =========================================================================
     bid_price = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True)
     bid_size = models.IntegerField(null=True, blank=True)
     last_price = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True)
@@ -138,7 +140,9 @@ class MarketSession(models.Model):
     ask_price = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True)
     ask_size = models.IntegerField(null=True, blank=True)
 
+    # =========================================================================
     # Entry and targets
+    # =========================================================================
     entry_price = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True)
 
     TARGET_HIT_CHOICES = [
@@ -152,7 +156,9 @@ class MarketSession(models.Model):
     target_low = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True)
     target_hit_at = models.DateTimeField(null=True, blank=True)
 
+    # =========================================================================
     # Market stats (unchanged)
+    # =========================================================================
     volume = models.BigIntegerField(null=True, blank=True)
     change = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True)
     change_percent = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True)
@@ -224,9 +230,14 @@ class MarketSession(models.Model):
 
     class Meta:
         ordering = ["-captured_at", "symbol"]
-        unique_together = ["capture_group", "symbol"]
         verbose_name = "Market Session"
         verbose_name_plural = "Market Sessions"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["session_number", "symbol", "capture_kind", "country"],
+                name="uniq_market_session_session_symbol_kind_country",
+            )
+        ]
 
     def __str__(self):
         return f"{self.country} - {self.symbol} - {self.year}/{self.month}/{self.date} - {self.bhs}"

@@ -12,10 +12,9 @@ from ThorTrading.services.sessions.metrics import (
 
 
 def make_session(country: str, symbol: str, session_number: int, last_price=None, market_open=None,
-                 high=None, low=None, capture_group: int | None = None):
+                 high=None, low=None):
     return MarketSession.objects.create(
         session_number=session_number,
-        capture_group=capture_group if capture_group is not None else session_number,
         year=2025,
         month=11,
         date=22,

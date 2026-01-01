@@ -47,7 +47,6 @@ class MarketOpenCaptureView(APIView):
 					{
 						"status": "ok",
 						"session_number": result.session_number,
-						"capture_group": result.capture_group,
 						"country": result.country,
 					},
 					status=status.HTTP_201_CREATED

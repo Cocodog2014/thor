@@ -10,38 +10,37 @@ from ThorTrading.models.Market24h import MarketTrading24Hour
 class Command(BaseCommand):
     help = (
         "Copy 24h close from MarketTrading24Hour into MarketSession.close_24h at session close. "
-        "Requires --country and --symbol (instrument code). Optionally --capture_group to override latest."
+        "Requires --country and --symbol (instrument code). Optionally --session_number to override latest."
     )
 
     def add_arguments(self, parser):
         parser.add_argument('--country', required=True, help='Country code, e.g., USA, Japan, London')
         parser.add_argument('--symbol', required=True, help='Instrument code, e.g., ES, NQ, CL')
-        parser.add_argument('--capture_group', type=int, help='Numeric capture_group to use; defaults to latest for country')
+        parser.add_argument('--session_number', type=int, help='Numeric session_number to use; defaults to latest for country')
         parser.add_argument('--dry-run', action='store_true', help='Report the intended update without writing.')
 
     def handle(self, *args, **options):
         country = options['country']
         symbol = options['symbol']
-        capture_group = options.get('capture_group')
+        session_number = options.get('session_number')
         dry_run: bool = options.get('dry_run', False)
 
-        # Resolve the target MarketSession via capture_group identity instead of timestamp heuristics
-        if capture_group is not None:
-            session = MarketSession.objects.filter(country=country, capture_group=capture_group).order_by('-id').first()
+        # Resolve the target MarketSession via session_number identity instead of timestamp heuristics
+        if session_number is not None:
+            session = MarketSession.objects.filter(country=country, session_number=session_number).order_by('-id').first()
             if session is None:
-                raise CommandError(f"No MarketSession found for country={country} capture_group={capture_group}.")
-            group = capture_group
+                raise CommandError(f"No MarketSession found for country={country} session_number={session_number}.")
+            group = session_number
         else:
             session = (
                 MarketSession.objects
                 .filter(country=country)
-                .exclude(capture_group__isnull=True)
-                .order_by('-capture_group', '-id')
+                .order_by('-session_number', '-id')
                 .first()
             )
             if session is None:
-                raise CommandError(f"No MarketSession with capture_group for country={country}.")
-            group = session.capture_group
+                raise CommandError(f"No MarketSession found for country={country}.")
+            group = session.session_number
 
         # Get 24h row for instrument + group
         try:

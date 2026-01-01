@@ -48,9 +48,8 @@ def _resolve_session_group(country: str, session_group: int | None = None):
     return (
         MarketSession.objects
         .filter(country=country)
-        .exclude(capture_group__isnull=True)
-        .order_by('-capture_group')
-        .values_list('capture_group', flat=True)
+        .order_by('-session_number')
+        .values_list('session_number', flat=True)
         .first()
     )
 
@@ -66,7 +65,7 @@ class MarketOpenMetric:
     def update_for_session_group(session_group: int) -> int:
         logger.info("MarketOpenMetric → session_group %s", session_group)
 
-        base_qs = MarketSession.objects.filter(capture_group=session_group)
+        base_qs = MarketSession.objects.filter(session_number=session_group)
         open_updated = base_qs.update(market_open=F("last_price"))
 
         initialized_count = 0
@@ -95,11 +94,6 @@ class MarketOpenMetric:
             open_updated, initialized_count, session_group
         )
         return total
-
-    # Backward compatibility: prefer update_for_session_group
-    @staticmethod
-    def update_for_capture_group(capture_group: int) -> int:
-        return MarketOpenMetric.update_for_session_group(capture_group)
 
     @staticmethod
     def update_latest_for_country(country: str, *, session_group: int | None = None) -> int:
@@ -143,7 +137,7 @@ class MarketHighMetric:
             session = (
                 MarketSession.objects
                 .select_for_update()
-                .filter(country=country, symbol=base_symbol, capture_group=session_group)
+                .filter(country=country, symbol=base_symbol, session_number=session_group)
                 .first()
             )
             if not session:
@@ -232,7 +226,7 @@ class MarketLowMetric:
                 .filter(
                     country=country,
                     symbol=base_symbol,
-                    capture_group=session_group,
+                    session_number=session_group,
                 )
                 .first()
             )
@@ -293,7 +287,7 @@ class MarketCloseMetric:
         """Set wndw=NEUTRAL when no target/stop was hit during the session."""
         pending = (
             MarketSession.objects
-            .filter(country=country, capture_group=session_group, wndw="PENDING")
+            .filter(country=country, session_number=session_group, wndw="PENDING")
         )
 
         updated = 0
@@ -361,7 +355,7 @@ class MarketCloseMetric:
             session = (
                 MarketSession.objects
                 .select_for_update()
-                .filter(country=country, symbol=base_symbol, capture_group=session_group)
+                .filter(country=country, symbol=base_symbol, session_number=session_group)
                 .first()
             )
             if not session:
@@ -450,7 +444,7 @@ class MarketRangeMetric:
         sessions = (
             MarketSession.objects
             .select_for_update()
-            .filter(country=country, capture_group=session_group)
+            .filter(country=country, session_number=session_group)
         )
 
         updated_count = 0

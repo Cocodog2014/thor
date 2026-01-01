@@ -21,15 +21,14 @@ def _safe_decimal(x) -> Optional[Decimal]:
         return None
 
 
-def _resolve_capture_group(country: str, session_number: int | None) -> Optional[int]:
+def _resolve_session_number(country: str, session_number: int | None) -> Optional[int]:
     if session_number is not None:
         return session_number
     return (
         MarketSession.objects
         .filter(country=country)
-        .exclude(capture_group__isnull=True)
-        .order_by("-capture_group")
-        .values_list("capture_group", flat=True)
+        .order_by("-session_number")
+        .values_list("session_number", flat=True)
         .first()
     )
 
@@ -55,14 +54,14 @@ def maybe_freeze_first_touch(
     """
     symbol = symbol.lstrip("/").upper()
 
-    group = _resolve_capture_group(country, session_number)
-    if group is None:
+    resolved_session_number = _resolve_session_number(country, session_number)
+    if resolved_session_number is None:
         return False
 
     session = (
         MarketSession.objects
         .select_for_update()
-        .filter(country=country, capture_group=group, symbol=symbol, wndw="PENDING")
+        .filter(country=country, session_number=resolved_session_number, symbol=symbol, wndw="PENDING")
         .first()
     )
     if not session:
@@ -115,7 +114,7 @@ def maybe_freeze_first_touch(
     session.save(update_fields=["target_hit_at", "target_hit_price", "target_hit_type", "wndw"])
 
     logger.info(
-        "FIRST TOUCH FREEZE: %s %s group=%s hit=%s price=%s wndw=%s",
-        country, symbol, group, hit_type, price, wndw,
+        "FIRST TOUCH FREEZE: %s %s session_number=%s hit=%s price=%s wndw=%s",
+        country, symbol, resolved_session_number, hit_type, price, wndw,
     )
     return True

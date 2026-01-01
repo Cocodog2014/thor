@@ -110,10 +110,9 @@ class IntradayMarketSupervisorTests(TestCase):
         self.assertTrue(Decimal("2.66") < total.market_range_pct < Decimal("2.67"))
 
 class FinalizeCloseTests(TestCase):
-    def _make_session(self, *, country="USA", symbol="ES", capture_group=10, wndw="PENDING", target_hit_at=None):
+    def _make_session(self, *, country="USA", symbol="ES", session_number=10, wndw="PENDING", target_hit_at=None):
         return MarketSession.objects.create(
-            session_number=capture_group,
-            capture_group=capture_group,
+            session_number=session_number,
             year=2025,
             month=12,
             date=26,
@@ -130,23 +129,23 @@ class FinalizeCloseTests(TestCase):
             target_hit_at=target_hit_at,
         )
 
-    def test_finalize_uses_latest_capture_group(self):
-        older = self._make_session(capture_group=5)
-        newer = self._make_session(capture_group=6)
+    def test_finalize_uses_latest_session_number(self):
+        older = self._make_session(session_number=5)
+        newer = self._make_session(session_number=6)
 
         updated = finalize_pending_sessions_at_close("USA")
 
         older.refresh_from_db(); newer.refresh_from_db()
         self.assertEqual(updated, 1)
-        self.assertEqual(older.wndw, "PENDING")  # untouched (not latest group)
+        self.assertEqual(older.wndw, "PENDING")  # untouched (not latest session)
         self.assertEqual(newer.wndw, "NEUTRAL")
 
     def test_finalize_skips_frozen_rows(self):
         hit_time = timezone.now()
-        frozen = self._make_session(capture_group=7, symbol="ES", target_hit_at=hit_time, wndw="WORKED")
-        pending = self._make_session(capture_group=7, symbol="NQ", target_hit_at=None, wndw="PENDING")
+        frozen = self._make_session(session_number=7, symbol="ES", target_hit_at=hit_time, wndw="WORKED")
+        pending = self._make_session(session_number=7, symbol="NQ", target_hit_at=None, wndw="PENDING")
 
-        updated = finalize_pending_sessions_at_close("USA", capture_group=7)
+        updated = finalize_pending_sessions_at_close("USA", session_number=7)
 
         frozen.refresh_from_db(); pending.refresh_from_db()
         self.assertEqual(updated, 1)

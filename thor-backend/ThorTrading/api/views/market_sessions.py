@@ -79,26 +79,17 @@ class TodayMarketSessionsView(APIView):
 	"""
 	GET /api/futures/market-opens/today/
 
-	Get all market open sessions captured today (capture_group-based).
+	Get all market open sessions captured today (session_number-based).
 	"""
 
 	def get(self, request):
 		today = timezone.now().date()
 
-		capture_groups = (
-			MarketSession.objects.filter(captured_at__date=today, capture_group__isnull=False)
-			.values_list("capture_group", flat=True)
-			.distinct()
+		sessions = MarketSession.objects.filter(
+			year=today.year,
+			month=today.month,
+			date=today.day,
 		)
-
-		if capture_groups:
-			sessions = MarketSession.objects.filter(capture_group__in=capture_groups)
-		else:
-			sessions = MarketSession.objects.filter(
-				year=today.year,
-				month=today.month,
-				date=today.day,
-			)
 
 		serializer = MarketSessionDetailSerializer(sessions, many=True)
 		return Response(serializer.data)
@@ -129,9 +120,9 @@ class MarketSessionStatsView(APIView):
 	"""
 
 	def get(self, request):
-		total_sessions = MarketSession.objects.exclude(capture_group__isnull=True).count()
+		total_sessions = MarketSession.objects.count()
 
-		base_qs = MarketSession.objects.exclude(capture_group__isnull=True)
+		base_qs = MarketSession.objects.all()
 		worked = base_qs.filter(wndw="WORKED").count()
 		didnt_work = base_qs.filter(wndw="DIDNT_WORK").count()
 		pending = base_qs.filter(wndw="PENDING").count()
@@ -141,8 +132,8 @@ class MarketSessionStatsView(APIView):
 		win_rate = (worked / graded_sessions * 100) if graded_sessions > 0 else 0
 
 		market_stats = (
-			MarketSession.objects.exclude(capture_group__isnull=True)
-			.values("country", "capture_group")
+			MarketSession.objects
+			.values("country", "session_number")
 			.annotate(
 				total=Count("id"),
 				worked=Count("id", filter=Q(wndw="WORKED")),
@@ -209,8 +200,8 @@ class LatestPerMarketSessionsView(APIView):
 		for country in control_countries:
 			latest = (
 				MarketSession.objects
-				.filter(country=country, capture_group__isnull=False)
-				.order_by("-capture_group", "-captured_at")
+				.filter(country=country)
+				.order_by("-session_number", "-captured_at")
 				.first()
 			)
 			if not latest:
@@ -218,7 +209,7 @@ class LatestPerMarketSessionsView(APIView):
 
 			session_rows = (
 				MarketSession.objects
-				.filter(country=country, capture_group=latest.capture_group)
+				.filter(country=country, session_number=latest.session_number)
 				.order_by("symbol")
 			)
 			full_sessions.extend(session_rows)

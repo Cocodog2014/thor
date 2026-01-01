@@ -12,7 +12,7 @@ class MarketTrading24Hour(models.Model):
     """
     session_group = models.IntegerField(
         db_index=True,
-        help_text="Shared key with MarketSession.capture_group",
+        help_text="Shared key with MarketSession.session_number",
     )
     session_date = models.DateField(db_index=True)
 

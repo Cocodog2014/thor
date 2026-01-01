@@ -54,9 +54,8 @@ class Command(BaseCommand):
                 return session_group_cache[country]
             sg = (
                 MarketSession.objects.filter(country=country)
-                .exclude(capture_group__isnull=True)
-                .order_by("-capture_group")
-                .values_list("capture_group", flat=True)
+                .order_by("-session_number")
+                .values_list("session_number", flat=True)
                 .first()
             )
             session_group_cache[country] = sg
@@ -73,7 +72,7 @@ class Command(BaseCommand):
 
             sg = resolve_session_group(country)
             if sg is None:
-                # Cannot link without a numeric capture_group; skip
+                # Cannot link without a numeric session_number; skip
                 continue
 
             cache_key = (sg, symbol)

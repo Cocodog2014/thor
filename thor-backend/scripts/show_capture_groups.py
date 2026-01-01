@@ -16,29 +16,29 @@ from ThorTrading.models.MarketSession import MarketSession
 
 latest_groups = (
     MarketSession.objects
-    .values('capture_group')
-    .order_by('-capture_group')
+    .values('session_number')
+    .order_by('-session_number')
     .distinct()[:5]
 )
 
-print("Latest capture_group values (top 5):")
+print("Latest session_number values (top 5):")
 for g in latest_groups:
-    cg = g['capture_group']
-    count = MarketSession.objects.filter(capture_group=cg).count()
+    session_number = g['session_number']
+    count = MarketSession.objects.filter(session_number=session_number).count()
     countries = (MarketSession.objects
-                 .filter(capture_group=cg)
+                 .filter(session_number=session_number)
                  .values_list('country', flat=True)
                  .distinct())
-    print(f"  group={cg}: rows={count}, countries={', '.join(countries)}")
+    print(f"  session_number={session_number}: rows={count}, countries={', '.join(countries)}")
 
 # Show sample rows for newest group ordered as in admin
 if latest_groups:
-    newest = latest_groups[0]['capture_group']
+    newest = latest_groups[0]['session_number']
     rows = (MarketSession.objects
-            .filter(capture_group=newest)
+            .filter(session_number=newest)
             .order_by('future')
             .values('future','country','last_price','bhs')[:15])
-    print(f"\nFirst 15 rows in newest capture_group {newest} ordered by future:")
+    print(f"\nFirst 15 rows in newest session_number {newest} ordered by future:")
     for r in rows:
         print(r)
 

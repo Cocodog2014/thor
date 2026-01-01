@@ -45,15 +45,14 @@ def update_session_volume_for_country(country: str, enriched_rows: Iterable[dict
     if session_group is None:
         session_group = (
             MarketSession.objects.filter(country=country)
-            .exclude(capture_group__isnull=True)
-            .order_by("-capture_group")
-            .values_list("capture_group", flat=True)
+            .order_by("-session_number")
+            .values_list("session_number", flat=True)
             .first()
         )
     if session_group is None:
         return {"session_volume_updates": 0}
 
-    sessions = {row.symbol: row for row in MarketSession.objects.filter(country=country, capture_group=session_group)}
+    sessions = {row.symbol: row for row in MarketSession.objects.filter(country=country, session_number=session_group)}
 
     updates = 0
     for row in enriched_rows:

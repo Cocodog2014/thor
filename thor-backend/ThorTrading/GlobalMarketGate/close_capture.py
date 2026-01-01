@@ -19,23 +19,22 @@ from LiveData.shared.redis_client import live_data_redis
 logger = logging.getLogger(__name__)
 
 
-def _latest_capture_group(country: str | None):
+def _latest_session_number(country: str | None):
     if not country:
         return None
     return (
         MarketSession.objects
         .filter(country=country)
-        .exclude(capture_group__isnull=True)
-        .order_by('-capture_group')
-        .values_list('capture_group', flat=True)
+        .order_by('-session_number')
+        .values_list('session_number', flat=True)
         .first()
     )
 
 
-def _resolve_capture_group(country: str, session_number: int | None) -> int | None:
+def _resolve_session_number(country: str, session_number: int | None) -> int | None:
     if session_number is not None:
         return session_number
-    return _latest_capture_group(country)
+    return _latest_session_number(country)
 
 
 def _base_payload(country: str | None) -> Dict[str, Any]:
@@ -78,9 +77,9 @@ def capture_market_close(country: str | None, force: bool = False) -> Dict[str, 
         return payload
 
     active_session_number = live_data_redis.get_active_session_number()
-    latest_group = _resolve_capture_group(country, active_session_number)
+    latest_session_number = _resolve_session_number(country, active_session_number)
 
-    if latest_group is None:
+    if latest_session_number is None:
         payload.update(
             {
                 "status": "no-sessions",
@@ -89,12 +88,11 @@ def capture_market_close(country: str | None, force: bool = False) -> Dict[str, 
         )
         return payload
 
-    payload["capture_group"] = latest_group
     payload["session_number"] = active_session_number
 
     already_closed = MarketSession.objects.filter(
         country=country,
-        capture_group=latest_group,
+        session_number=latest_session_number,
         market_close__isnull=False,
     ).exists()
 
@@ -126,7 +124,7 @@ def capture_market_close(country: str | None, force: bool = False) -> Dict[str, 
     ]
 
     try:
-        close_updated = MarketCloseMetric.update_for_country_on_close(country, country_rows, session_group=latest_group)
+        close_updated = MarketCloseMetric.update_for_country_on_close(country, country_rows, session_group=latest_session_number)
     except Exception as exc:
         logger.exception("MarketCloseMetric update failed for %s", country)
         payload.update(
@@ -138,7 +136,7 @@ def capture_market_close(country: str | None, force: bool = False) -> Dict[str, 
         return payload
 
     try:
-        range_updated = MarketRangeMetric.update_for_country_on_close(country, session_group=latest_group)
+        range_updated = MarketRangeMetric.update_for_country_on_close(country, session_group=latest_session_number)
     except Exception as exc:
         logger.exception("MarketRangeMetric update failed for %s", country)
         payload.update(
