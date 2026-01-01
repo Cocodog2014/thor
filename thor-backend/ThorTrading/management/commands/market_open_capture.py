@@ -7,7 +7,7 @@ from ThorTrading.studies.futures_total.services.session_capture import (
     _market_local_date,
 )
 from ThorTrading.models.MarketSession import MarketSession
-from ThorTrading.GlobalMarketGate.global_market_gate import (
+from ThorTrading.studies.futures_total.services.global_market_gate import (
     open_capture_allowed,
     session_tracking_allowed,
 )

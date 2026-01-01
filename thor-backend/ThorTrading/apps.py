@@ -90,7 +90,7 @@ class ThorTradingConfig(AppConfig):
         def _bootstrap_gate():
             # Import lazily inside the worker to keep ready() light/safe.
             try:
-                from ThorTrading.GlobalMarketGate import global_market_gate as gm_gate
+                from ThorTrading.studies.futures_total.services import global_market_gate as gm_gate
             except Exception:
                 logger.exception("❌ Failed to import ThorTrading GlobalMarketGate")
                 return
