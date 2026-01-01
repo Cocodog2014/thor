@@ -1,0 +1,1 @@
+"""Futures Total study package."""

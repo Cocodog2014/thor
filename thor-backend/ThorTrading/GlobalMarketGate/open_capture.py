@@ -24,7 +24,7 @@ from ThorTrading.models.rtd import TradingInstrument  # adjust path if needed
 from ThorTrading.services.analytics.backtest_stats import compute_backtest_stats_for_country_symbol
 from ThorTrading.services.config.country_codes import normalize_country_code
 from ThorTrading.services.indicators import compute_targets_for_symbol
-from ThorTrading.services.quotes import get_enriched_quotes_with_composite
+from ThorTrading.studies.futures_total.quotes import get_enriched_quotes_with_composite
 from ThorTrading.services.sessions.analytics.wndw_totals import CountrySymbolWndwTotalsService
 from ThorTrading.services.sessions.counters import CountrySymbolCounter
 from ThorTrading.services.sessions.metrics import MarketOpenMetric

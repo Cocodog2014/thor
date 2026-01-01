@@ -10,7 +10,7 @@ from rest_framework.views import APIView
 
 from ThorTrading.models import TradingInstrument
 from ThorTrading.models.extremes import Rolling52WeekStats
-from ThorTrading.services.quotes import get_enriched_quotes_with_composite
+from ThorTrading.studies.futures_total.quotes import get_enriched_quotes_with_composite
 
 logger = logging.getLogger(__name__)
 

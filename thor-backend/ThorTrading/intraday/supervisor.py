@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from typing import Any, Dict, Optional, Tuple
 
 from LiveData.shared.redis_client import live_data_redis
-from ThorTrading.services.quotes import get_enriched_quotes_with_composite
+from ThorTrading.studies.futures_total.quotes import get_enriched_quotes_with_composite
 
 from .flush import flush_closed_bars
 from .redis_gateway import get_active_sessions

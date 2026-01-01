@@ -74,7 +74,7 @@ def _run_open_capture_scan(ctx: Any) -> None:
 
 
 def _run_market_metrics(ctx: Any) -> None:
-    from ThorTrading.services.quotes import get_enriched_quotes_with_composite
+    from ThorTrading.studies.futures_total.quotes import get_enriched_quotes_with_composite
     from ThorTrading.services.sessions.metrics import MarketHighMetric
 
     active = set(_active_countries())
@@ -118,7 +118,7 @@ def _run_vwap_minute(ctx: Any) -> None:
 
 
 def _run_twentyfour(ctx: Any) -> None:
-    from ThorTrading.services.quotes import get_enriched_quotes_with_composite
+    from ThorTrading.studies.futures_total.quotes import get_enriched_quotes_with_composite
     from ThorTrading.services.indicators.twentyfour import update_24h_for_country
 
     active = set(_active_countries())

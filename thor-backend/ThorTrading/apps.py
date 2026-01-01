@@ -27,6 +27,8 @@ SERVER_PROCESS_MARKERS = (
     "daphne",
 )
 
+def ready(self):
+    from ThorTrading.studies import load  # noqa
 
 def _should_start_background_threads():
     argv = sys.argv or []
