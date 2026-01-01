@@ -260,12 +260,33 @@ python manage.py poll_tos_excel --interval 1
    # Use the repo-managed config (recommended):
    cloudflared tunnel --config A:\Thor\cloudflared\thor-dev.yml run
 
-   # If you still run from C:\Users\sutto\.cloudflared\thor-dev.yml, either copy the same settings
-   # over or launch with explicit overrides:
-   # cloudflared tunnel --config C:\Users\sutto\.cloudflared\thor-dev.yml --dns-resolver-addrs 1.1.1.1:53 --dns-resolver-addrs 1.0.0.1:53 --edge-ip-version auto run
+   cloudflared tunnel --config C:\Users\sutto\.cloudflared\thor-dev.yml run
 
-   # For troubleshooting DNS/edge selection:
-   # cloudflared tunnel --config A:\Thor\cloudflared\thor-dev.yml --loglevel debug run
+   cloudflared tunnel --config C:\Users\sutto\.cloudflared\thor-dev.yml run dev-thor
+
+Fix A: Force cloudflared to use stable DNS resolvers (recommended)
+
+      Run with explicit resolver overrides:
+
+      cloudflared tunnel --config C:\Users\sutto\.cloudflared\thor-dev.yml run --dns-resolver-addrs 1.1.1.1:53 --dns-resolver-addrs 8.8.8.8:53
+
+
+Fix B: Force IPv4 to Cloudflare edge (if IPv6 is flaky on your network)
+
+      Right now you’re connecting to edge via IPv6. If your ISP/router IPv6 is unstable, force IPv4:
+
+      cloudflared tunnel --config C:\Users\sutto\.cloudflared\thor-dev.yml run --edge-ip-version 4
+
+Fix C: You can also combine A + B:
+
+      cloudflared tunnel --config C:\Users\sutto\.cloudflared\thor-dev.yml run --edge-ip-version 4 --dns-resolver-addrs 1.1.1.1:53 --dns-resolver-addrs 8.8.8.8:53
+
+
+
+
+
+
+   
 
 
 
