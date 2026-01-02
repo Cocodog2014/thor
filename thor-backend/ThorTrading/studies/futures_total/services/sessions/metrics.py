@@ -8,6 +8,7 @@ from django.db import transaction
 from django.db.models import F
 
 from ThorTrading.models.MarketSession import MarketSession
+from GlobalMarkets.services.normalize import normalize_country_code
 
 logger = logging.getLogger(__name__)
 
@@ -19,6 +20,11 @@ def _safe_decimal(val):
         return Decimal(str(val))
     except (InvalidOperation, TypeError, ValueError):
         return None
+
+
+def _normalize_country(country: str) -> str:
+    normalized = normalize_country_code(country)
+    return normalized or country
 
 
 def _quantize_pct(pct: Decimal | None) -> Decimal | None:
@@ -51,6 +57,8 @@ def _resolve_session_number(country: str, session_number: int | None = None) -> 
     """
     if session_number is not None:
         return session_number
+
+    country = _normalize_country(country)
     return (
         MarketSession.objects
         .filter(country=country)
@@ -102,6 +110,7 @@ class MarketOpenMetric:
 
     @staticmethod
     def update_latest_for_country(country: str, *, session_number: int | None = None) -> int:
+        country = _normalize_country(country)
         session_number = _resolve_session_number(country, session_number)
         if session_number is None:
             logger.info("MarketOpenMetric → No session_number found for %s", country)
@@ -117,6 +126,8 @@ class MarketHighMetric:
     def update_from_quotes(country: str, enriched_rows, *, session_number: int | None = None) -> int:
         if not enriched_rows:
             return 0
+
+        country = _normalize_country(country)
 
         logger.info("MarketHighMetric → Updating %s", country)
 
@@ -201,6 +212,8 @@ class MarketLowMetric:
     def update_from_quotes(country: str, enriched_rows, *, session_number: int | None = None) -> int:
         if not enriched_rows:
             return 0
+
+        country = _normalize_country(country)
 
         logger.info("MarketLowMetric → Updating %s", country)
 
@@ -288,6 +301,7 @@ class MarketCloseMetric:
     @staticmethod
     def _neutralize_unhit_sessions(country: str, session_number: int) -> int:
         """Set wndw=NEUTRAL when no target/stop was hit during the session."""
+        country = _normalize_country(country)
         pending = (
             MarketSession.objects
             .filter(country=country, session_number=session_number, wndw="PENDING")
@@ -332,6 +346,8 @@ class MarketCloseMetric:
     def update_for_country_on_close(country: str, enriched_rows, *, session_number: int | None = None) -> int:
         if not enriched_rows:
             return 0
+
+        country = _normalize_country(country)
 
         logger.info(
             "MarketCloseMetric → Closing values for %s at %s",
@@ -433,6 +449,7 @@ class MarketRangeMetric:
     @staticmethod
     @transaction.atomic
     def update_for_country_on_close(country: str, *, session_number: int | None = None) -> int:
+        country = _normalize_country(country)
         logger.info(
             "MarketRangeMetric → Computing range for %s at %s",
             country, timezone.now(),
