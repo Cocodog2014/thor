@@ -361,12 +361,29 @@ class Command(BaseCommand):
             equities, futures = _group_subscriptions(rows)
 
             if not equities and not futures:
-                raise CommandError(
-                    f"No enabled SchwabSubscription rows found for user_id={user_id}.\n"
-                    "Add symbols in Admin → SchwabLiveData → Schwab subscriptions, or run with:\n"
-                    "  python manage.py schwab_stream --user-id 1 --equities NVDA,MSFT\n"
-                    "  python manage.py schwab_stream --user-id 1 --futures ES,NQ"
-                )
+                # Fall back to Instruments watchlist as the source of truth.
+                # This keeps the streamer usable even when SchwabSubscription is empty,
+                # and matches the product flow (watchlist drives subscriptions).
+                with contextlib.suppress(Exception):
+                    from Instruments.services.watchlist_sync import sync_watchlist_to_schwab
+
+                    sync_watchlist_to_schwab(int(user_id))
+
+                qs = SchwabSubscription.objects.filter(user_id=user_id, enabled=True)
+                if types_filter:
+                    qs = qs.filter(asset_type__in=list(types_filter))
+
+                rows = list(qs.values("symbol", "asset_type"))
+                equities, futures = _group_subscriptions(rows)
+
+                if not equities and not futures:
+                    raise CommandError(
+                        f"No enabled subscriptions found for user_id={user_id}.\n"
+                        "Add symbols to the Instruments watchlist (UI drawer or Admin → Instruments → User Instrument Watchlist Items), "
+                        "or add rows in Admin → SchwabLiveData → Schwab subscriptions, or run with:\n"
+                        "  python manage.py schwab_stream --user-id 1 --equities NVDA,MSFT\n"
+                        "  python manage.py schwab_stream --user-id 1 --futures ES,NQ"
+                    )
 
         # In-memory desired subscriptions (mutable via Redis control plane)
         desired_equities: set[str] = set([s.upper() for s in equities if s])

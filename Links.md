@@ -17,6 +17,8 @@ PS A:\Thor\thor-backend> python manage.py schwab_stream --user-id 1 --equities V
 cd A:\Thor\thor-backend
 python manage.py schwab_stream --user-id 1
 
+Note: `schwab_stream` auto-loads enabled symbols from the DB (and will fall back to the Instruments watchlist → auto-sync to SchwabSubscription). If you have no watchlist/subscriptions yet, pass `--equities` / `--futures`.
+
 python manage.py schwab_stream --user-id 1 --equities VFF --futures ""
 python manage.py schwab_stream --user-id 1 --equities GOOG
 python manage.py schwab_stream --user-id 1 --equities NFLX
