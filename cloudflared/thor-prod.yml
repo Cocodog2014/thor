@@ -9,7 +9,31 @@ originRequest:
   noHappyEyeballs: true
 
 ingress:
+  # Backend routes first (more specific rules must come first)
   - hostname: thor.360edu.org
+    path: /ws/.*
     service: http://nginx:80
 
+  - hostname: thor.360edu.org
+    path: /api/.*
+    service: http://nginx:80
+
+  - hostname: thor.360edu.org
+    path: /admin/.*
+    service: http://nginx:80
+
+  - hostname: thor.360edu.org
+    path: /static/.*
+    service: http://nginx:80
+
+  - hostname: thor.360edu.org
+    path: /media/.*
+    service: http://nginx:80
+
+  # Everything else goes to the React frontend
+  - hostname: thor.360edu.org
+    service: http://frontend:80
+
   - service: http_status:404
+
+
