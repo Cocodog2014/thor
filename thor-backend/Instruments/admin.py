@@ -51,7 +51,14 @@ class UserInstrumentWatchlistItemAdmin(admin.ModelAdmin):
     list_filter = ("enabled", "stream", "instrument__asset_type")
     search_fields = ("user__email", "instrument__symbol", "instrument__name")
 
+    def get_changeform_initial_data(self, request):  # pragma: no cover - admin
+        initial = super().get_changeform_initial_data(request)
+        initial.setdefault("user", request.user.id)
+        return initial
+
     def save_model(self, request, obj, form, change):  # pragma: no cover - admin
+        if not getattr(obj, "user_id", None):
+            obj.user = request.user
         super().save_model(request, obj, form, change)
         transaction.on_commit(lambda: sync_watchlist_to_schwab(int(obj.user_id)))
 

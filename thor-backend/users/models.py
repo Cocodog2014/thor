@@ -212,6 +212,13 @@ class CustomUser(AbstractUser):
 
     def save(self, *args, **kwargs):
         """Override save to set display_name if not provided."""
+        # Role policy: OWNER implies full platform access.
+        # We map this to Django's built-in privilege flags so existing
+        # admin + DRF permission checks (IsAdminUser / is_superuser) work.
+        if self.role == UserRole.OWNER:
+            self.is_staff = True
+            self.is_superuser = True
+
         if not self.display_name and (self.first_name or self.last_name):
             self.display_name = f"{self.first_name} {self.last_name}".strip()
         
