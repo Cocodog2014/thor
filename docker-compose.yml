@@ -44,6 +44,26 @@ services:
     restart: unless-stopped
     command: python manage.py schwab_stream --user-id 1
 
+  # ASGI / WebSocket server (Daphne)
+  asgi:
+    image: thor-web
+    container_name: thor_asgi
+    env_file:
+      - .env
+    environment:
+      DB_HOST: postgres
+      REDIS_HOST: redis
+      REDIS_URL: redis://redis:6379/0
+      THOR_STACK_AUTO_START: "0"
+      THOR_ENABLE_EXCEL_POLLER: "0"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    command: python -m daphne -b 0.0.0.0 -p 8001 thor_project.asgi:application
+
   # PostgreSQL Database
   postgres:
     image: postgres:15-alpine
@@ -86,6 +106,7 @@ services:
     container_name: thor_nginx
     depends_on:
       - web
+      - asgi
     ports:
       - "8001:80"
     volumes:

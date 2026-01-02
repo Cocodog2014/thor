@@ -1,6 +1,8 @@
 # Production tunnel config for thor.360edu.org (Docker)
 # cloudflared 'path' is a regex (RE2), so use /api/.* not /api/* when adding paths.
 
+origincert: /etc/cloudflared/cert.pem
+
 tunnel: thor-prod
 credentials-file: /etc/cloudflared-creds/524297cf-14d7-49a2-9f42-e0673c7fb20c.json
 protocol: http2
