@@ -112,9 +112,10 @@ services:
     image: cloudflare/cloudflared:latest
     container_name: thor_cloudflared
     restart: unless-stopped
-    environment:
-      - TUNNEL_TOKEN=${TUNNEL_TOKEN}
-    command: tunnel run
+    command: tunnel --no-autoupdate --config /etc/cloudflared/thor-prod.yml run
+    volumes:
+      - ./cloudflared:/etc/cloudflared:ro
+      - ${CLOUDFLARED_CREDS_DIR}:/etc/cloudflared-creds:ro
     depends_on:
       - nginx
 
