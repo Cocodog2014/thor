@@ -1,31 +1,58 @@
-# Dev tunnel config for dev-thor.360edu.org (host dev)
-# cloudflared 'path' is a regex (RE2), so use /api/.* not /api/*.
+# Dev tunnel config for dev-thor.360edu.org
+# NOTE: cloudflared 'path' is a regex (RE2), so use /api/.* not /api/*.
 
 tunnel: dev-thor
 credentials-file: C:\Users\sutto\.cloudflared\556698d2-2814-415f-a31e-4c3c49c1e120.json
 
-protocol: http2   # or auto/quic if you want
+# Cloudflared <-> Cloudflare edge
+protocol: http2
 
 originRequest:
+  # Networking stability (Windows-friendly)
   noHappyEyeballs: true
-  connectTimeout: 30s
-  tcpKeepAlive: 30s
   edgeIpVersion: 4
+
+  # Force reliable DNS for tunnel endpoint refresh
   dnsResolverAddrs:
     - 1.1.1.1:53
     - 8.8.8.8:53
 
+  # Timeouts / keepalive
+  connectTimeout: 30s
+  tcpKeepAlive: 30s
+
+  # IMPORTANT: Daphne + Vite are HTTP/1.1
+  http2Origin: false
+
 ingress:
+  # ======================
+  # Django / ASGI backend
+  # ======================
   - hostname: dev-thor.360edu.org
     path: /ws/.*
     service: http://127.0.0.1:8000
+
   - hostname: dev-thor.360edu.org
     path: /api/.*
     service: http://127.0.0.1:8000
+
   - hostname: dev-thor.360edu.org
-    path: /admin.*
+    path: /admin/.*
     service: http://127.0.0.1:8000
+
   - hostname: dev-thor.360edu.org
     path: /static/.*
     service: http://127.0.0.1:8000
+
+  - hostname: dev-thor.360edu.org
+    path: /media/.*
+    service: http://127.0.0.1:8000
+
+  # ======================
+  # Frontend (Vite dev)
+  # ======================
+  - hostname: dev-thor.360edu.org
+    service: http://127.0.0.1:5173
+
+  # Fallback
   - service: http_status:404

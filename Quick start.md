@@ -264,6 +264,9 @@ python manage.py poll_tos_excel --interval 1
 
    cloudflared tunnel --config C:\Users\sutto\.cloudflared\thor-dev.yml run dev-thor   (works)
 
+   cloudflared tunnel --config C:\Users\sutto\.cloudflared\thor-dev.yml run dev-thor ************************
+
+
 Fix A: Force cloudflared to use stable DNS resolvers (recommended)
 
       Run with explicit resolver overrides:
