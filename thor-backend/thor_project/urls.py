@@ -54,6 +54,7 @@ urlpatterns = [
     # path('admin/cloudflared/', cloudflared_control, name='admin_cloudflared_control'),
     path('admin/', admin.site.urls),
     path('api/', include('api.urls')),           # Thor APIs
+    path('api/instruments/', include('Instruments.urls')),
     path('api/accounts/balance/', account_balance_view, name='account-balance'),
     # ThorTrading APIs (routed through ThorTrading.api.urls)
     path('api/', include(('ThorTrading.api.urls', 'ThorTrading'), namespace='ThorTrading')),
