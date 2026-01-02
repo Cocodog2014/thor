@@ -18,7 +18,6 @@ Modes:
 from decimal import Decimal
 from django.db import models
 from django.core.exceptions import ValidationError
-from GlobalMarkets.models.constants import CONTROL_COUNTRY_CHOICES
 
 
 class TargetHighLowConfig(models.Model):
@@ -35,7 +34,6 @@ class TargetHighLowConfig(models.Model):
     # Align with TradingInstrument (country + symbol uniqueness)
     country = models.CharField(
         max_length=32,
-        choices=CONTROL_COUNTRY_CHOICES,
         db_index=True,
         null=False,
         blank=False,

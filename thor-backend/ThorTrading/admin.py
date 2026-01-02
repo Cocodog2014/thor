@@ -1,7 +1,7 @@
 from __future__ import annotations
 from django.contrib import admin
 from ThorTrading.config.global_markets import get_control_countries
-from ThorTrading.services.config.country_codes import normalize_country_code
+from GlobalMarkets.services.normalize import normalize_country_code
 from .models import (
     InstrumentCategory, TradingInstrument,
     SignalStatValue, ContractWeight, SignalWeight

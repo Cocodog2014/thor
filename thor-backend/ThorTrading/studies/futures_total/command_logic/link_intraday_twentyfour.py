@@ -7,7 +7,7 @@ from django.db import transaction
 from ThorTrading.models.Market24h import MarketTrading24Hour
 from ThorTrading.models.MarketIntraDay import MarketIntraday
 from ThorTrading.models.MarketSession import MarketSession
-from ThorTrading.services.config.country_codes import normalize_country_code
+from GlobalMarkets.services.normalize import normalize_country_code
 
 
 def run(

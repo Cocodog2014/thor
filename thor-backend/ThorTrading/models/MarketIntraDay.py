@@ -1,6 +1,5 @@
 from __future__ import annotations
 from django.db import models
-from GlobalMarkets.models.constants import CONTROL_COUNTRY_CHOICES
 
 
 class MarketIntraday(models.Model):
@@ -18,7 +17,6 @@ class MarketIntraday(models.Model):
 
     country = models.CharField(
         max_length=32,
-        choices=CONTROL_COUNTRY_CHOICES,
         db_index=True,
         help_text="Market region (canonical values only)",
     )

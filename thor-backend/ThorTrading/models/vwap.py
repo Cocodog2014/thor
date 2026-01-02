@@ -13,14 +13,12 @@ reads Redis every N seconds but only persists on minute boundaries.
 """
 
 from django.db import models
-from GlobalMarkets.models.constants import CONTROL_COUNTRY_CHOICES
 
 
 class VwapMinute(models.Model):
     # Market identity (aligns with MarketSession / MarketIntraday / MarketTrading24Hour)
     country = models.CharField(
         max_length=32,
-        choices=CONTROL_COUNTRY_CHOICES,
         db_index=True,
         help_text="Market region (canonical values only)",
     )

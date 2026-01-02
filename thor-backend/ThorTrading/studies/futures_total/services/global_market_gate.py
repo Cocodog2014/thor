@@ -24,7 +24,7 @@ from GlobalMarkets.models.market import Market
 from GlobalMarkets.signals import market_closed, market_opened
 
 from ThorTrading.config.global_markets import get_control_countries
-from ThorTrading.services.config.country_codes import normalize_country_code
+from GlobalMarkets.services.normalize import normalize_country_code
 
 # Capture implementations live in this study (import lazily inside functions)
 

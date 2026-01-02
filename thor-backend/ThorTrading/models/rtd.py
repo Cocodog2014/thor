@@ -8,7 +8,6 @@ Instrument-neutral: supports futures, equities, ETFs, crypto, FX, etc.
 
 from django.db import models
 from decimal import Decimal
-from GlobalMarkets.models.constants import CONTROL_COUNTRY_CHOICES
 
 
 class InstrumentCategory(models.Model):
@@ -41,7 +40,6 @@ class TradingInstrument(models.Model):
     # Market identity (aligns with MarketSession.country / MarketTrading24Hour.country / MarketIntraday.country)
     country = models.CharField(
         max_length=32,
-        choices=CONTROL_COUNTRY_CHOICES,
         db_index=True,
         help_text="Market region (canonical values only)",
     )

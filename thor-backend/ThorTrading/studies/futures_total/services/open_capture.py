@@ -17,7 +17,7 @@ from LiveData.shared.redis_client import live_data_redis
 from ThorTrading.models.MarketSession import MarketSession
 from ThorTrading.models import TradingInstrument
 from ThorTrading.services.analytics.backtest_stats import compute_backtest_stats_for_country_symbol
-from ThorTrading.services.config.country_codes import normalize_country_code
+from GlobalMarkets.services.normalize import normalize_country_code
 from ThorTrading.services.indicators import compute_targets_for_symbol
 from ThorTrading.services.sessions.analytics.wndw_totals import CountrySymbolWndwTotalsService
 from ThorTrading.services.sessions.counters import CountrySymbolCounter

@@ -5,7 +5,7 @@ import os
 
 from GlobalMarkets.models.constants import ALLOWED_CONTROL_COUNTRIES
 from GlobalMarkets.models.market import Market
-from ThorTrading.services.config.country_codes import normalize_country_code
+from GlobalMarkets.services.normalize import normalize_country_code
 
 
 def run(

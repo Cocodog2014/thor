@@ -22,7 +22,10 @@ from LiveData.shared.redis_client import live_data_redis
 from ThorTrading.config.global_markets import get_control_countries
 from ThorTrading.models import TradingInstrument
 from ThorTrading.models.extremes import Rolling52WeekStats
-from ThorTrading.services.config.country_codes import is_known_country, normalize_country_code
+from GlobalMarkets.services.normalize import (
+    is_known_market_key as is_known_country,
+    normalize_country_code,
+)
 
 from .classification import compute_composite, enrich_quote_row
 from .row_metrics import compute_row_metrics

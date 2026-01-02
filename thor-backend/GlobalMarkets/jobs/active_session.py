@@ -11,7 +11,7 @@ from typing import Optional
 from GlobalMarkets.services.active_markets import get_control_markets
 from LiveData.shared.redis_client import live_data_redis
 from ThorTrading.models.MarketSession import MarketSession
-from ThorTrading.services.config.country_codes import normalize_country_code
+from GlobalMarkets.services.normalize import normalize_country_code
 
 logger = logging.getLogger(__name__)
 

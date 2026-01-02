@@ -16,7 +16,7 @@ import redis
 from django.conf import settings
 from django.utils import timezone as dj_timezone
 
-from ThorTrading.services.config.country_codes import normalize_country_code
+from GlobalMarkets.services.normalize import normalize_country_code
 
 logger = logging.getLogger(__name__)
 

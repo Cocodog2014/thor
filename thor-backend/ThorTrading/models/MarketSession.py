@@ -10,8 +10,7 @@ Tracks trades based on TOTAL composite signals and grades outcomes.
 from django.db import models
 from django.utils import timezone
 
-from GlobalMarkets.models.constants import CONTROL_COUNTRY_CHOICES
-from ThorTrading.services.config.country_codes import normalize_country_code
+from GlobalMarkets.services.normalize import normalize_country_code
 
 
 class MarketSession(models.Model):
@@ -62,7 +61,6 @@ class MarketSession(models.Model):
     # =========================================================================
     country = models.CharField(
         max_length=32,
-        choices=CONTROL_COUNTRY_CHOICES,
         help_text="Market region (canonical control market key)",
     )
 
