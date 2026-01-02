@@ -22,6 +22,16 @@ python manage.py schwab_stream --user-id 1 --equities GOOG
 python manage.py schwab_stream --user-id 1 --equities NFLX
 python manage.py schwab_stream --user-id 1 --equities NVDA
 
+Delete data from Redis:
+
+cd A:\Thor\thor-backend
+$env:THOR_STACK_AUTO_START='0'; $env:DJANGO_LOG_LEVEL='ERROR';
+A:/Thor/.venv/Scripts/python.exe manage.py shell --verbosity 0 -c "from LiveData.shared.redis_client import live_data_redis as r; r.client.delete(r.LATEST_QUOTES_HASH); r.client.delete(r.ACTIVE_QUOTES_ZSET); print('cleared')"
+
+
+Check Redis Data Base:
+
+A:/Thor/.venv/Scripts/python.exe manage.py shell --verbosity 0 -c "from LiveData.shared.redis_client import live_data_redis as r; print(r.client.hlen(r.LATEST_QUOTES_HASH))"
 
 
 A) Check Redis has live data
