@@ -1,4 +1,4 @@
-import axios, { AxiosHeaders } from 'axios';
+import axios, { AxiosHeaders, type AxiosRequestConfig } from 'axios';
 import { AUTH_ACCESS_TOKEN_KEY, AUTH_REFRESH_TOKEN_KEY } from '../constants/storageKeys';
 
 /**
@@ -48,10 +48,8 @@ type RefreshQueueItem = {
   reject: (error: unknown) => void;
 };
 
-type RetriableRequestConfig = {
+type RetriableRequestConfig = AxiosRequestConfig & {
   _retry?: boolean;
-  url?: string;
-  headers?: unknown;
 };
 
 let isRefreshing = false;
@@ -112,8 +110,12 @@ api.interceptors.request.use(
       config.url?.startsWith(endpoint)
     );
 
-    if (isPublic && config.headers?.Authorization) {
-      delete config.headers.Authorization;
+    if (isPublic && config.headers) {
+      if (config.headers instanceof AxiosHeaders) {
+        config.headers.delete('Authorization');
+      } else if ('Authorization' in config.headers) {
+        delete (config.headers as Record<string, unknown>).Authorization;
+      }
     }
 
     return config;
