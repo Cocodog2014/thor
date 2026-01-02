@@ -8,7 +8,7 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from ThorTrading.models import TradingInstrument
+from Instruments.models import Instrument
 from ThorTrading.models.extremes import Rolling52WeekStats
 from ThorTrading.studies.futures_total.quotes import get_enriched_quotes_with_composite
 
@@ -43,18 +43,30 @@ class RibbonQuotesView(APIView):
 		try:
 			rows, _ = get_enriched_quotes_with_composite()
 
-			ribbon_instruments = (
-				TradingInstrument.objects.filter(is_active=True, show_in_ribbon=True)
-				.order_by("sort_order", "symbol")
+			# Source the ribbon universe from the master Instruments catalog.
+			# (Future hardening: add an explicit ribbon flag on Instrument or via a join model.)
+			ribbon_instruments = list(
+				Instrument.objects.filter(
+					is_active=True,
+					asset_type=Instrument.AssetType.FUTURE,
+				).order_by("symbol")
 			)
 
-			ribbon_symbols = set()
-			for instr in ribbon_instruments:
-				ribbon_symbols.add(instr.symbol)
-				if instr.symbol.startswith("/"):
-					ribbon_symbols.add(instr.symbol[1:])
-				else:
-					ribbon_symbols.add(f"/{instr.symbol}")
+			# Back-compat during migration: if the master catalog isn't populated yet,
+			# fall back to the legacy ThorTrading.TradingInstrument ribbon flag.
+			if not ribbon_instruments:
+				try:
+					from ThorTrading.models import TradingInstrument
+
+					ribbon_instruments = list(
+						TradingInstrument.objects.filter(is_active=True, show_in_ribbon=True).order_by(
+							"sort_order", "symbol"
+						)
+					)
+				except Exception:
+					ribbon_instruments = []
+
+			ribbon_symbols = {getattr(i, "symbol", "").lstrip("/").upper() for i in ribbon_instruments if getattr(i, "symbol", None)}
 
 			ribbon_data = []
 			for row in rows:

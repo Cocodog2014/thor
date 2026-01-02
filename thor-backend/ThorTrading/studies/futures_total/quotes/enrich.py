@@ -19,8 +19,8 @@ import logging
 from typing import Dict, List, Tuple
 
 from LiveData.shared.redis_client import live_data_redis
+from Instruments.models import Instrument
 from ThorTrading.config.global_markets import get_control_countries
-from ThorTrading.models import TradingInstrument
 from ThorTrading.models.extremes import Rolling52WeekStats
 from GlobalMarkets.services.normalize import is_known_country, normalize_country_code
 
@@ -92,12 +92,28 @@ def _fallback_country_from_clock(control_countries: list[str]) -> str | None:
     return normalize_country_code(getattr(chosen, "country", None)) or getattr(chosen, "country", None)
 
 
-def _tracked_instruments() -> List[TradingInstrument]:
-    """Return active/watchlist instruments in a stable order."""
+def _tracked_instruments() -> List[object]:
+    """Return tracked instruments for the Futures Total UI.
+
+    Primary source: Instruments.Instrument (master catalog), FUTURE + is_active.
+    Back-compat: if the master catalog is empty, fall back to ThorTrading.TradingInstrument
+    watchlist selection so existing deployments keep working during migration.
+    """
     try:
-        qs = TradingInstrument.objects.filter(is_active=True, is_watchlist=True)
-        instruments = list(qs.order_by("sort_order", "symbol")) if qs.model._meta.get_field("symbol") else list(qs)
-        return instruments
+        instruments = list(
+            Instrument.objects.filter(is_active=True, asset_type=Instrument.AssetType.FUTURE).order_by("symbol")
+        )
+        if instruments:
+            return instruments
+
+        try:
+            from ThorTrading.models import TradingInstrument
+
+            qs = TradingInstrument.objects.filter(is_active=True, is_watchlist=True)
+            return list(qs.order_by("sort_order", "symbol"))
+        except Exception:
+            logger.exception("Failed to load tracked instruments (legacy fallback)")
+            return []
     except Exception:
         logger.exception("Failed to load tracked instruments")
         return []
@@ -107,12 +123,18 @@ def fetch_raw_quotes() -> Dict[str, Dict]:
     """Fetch latest raw quotes from Redis for all tracked instruments."""
     out: Dict[str, Dict] = {}
     for inst in _tracked_instruments():
-        sym = inst.symbol.lstrip("/").upper()
-        key = inst.symbol  # use stored symbol as redis key
+        sym = (inst.symbol or "").lstrip("/").upper()
+        if not sym:
+            continue
+
+        # Redis keys may be published as "ES" or "/ES" depending on feed.
+        keys_to_try = [sym, f"/{sym}"]
         try:
-            data = live_data_redis.get_latest_quote(key)
-            if data:
-                out[sym] = data
+            for key in keys_to_try:
+                data = live_data_redis.get_latest_quote(key)
+                if data:
+                    out[sym] = data
+                    break
         except Exception as e:
             logger.error("Redis fetch failed for %s: %s", sym, e)
     return out
@@ -132,7 +154,9 @@ def build_enriched_rows(raw_quotes: Dict[str, Dict]) -> List[Dict]:
     fallback_country = _fallback_country_from_clock(control_countries)
 
     for idx, inst in enumerate(instruments):
-        sym = inst.symbol.lstrip("/").upper()
+        sym = (inst.symbol or "").lstrip("/").upper()
+        if not sym:
+            continue
         quote = raw_quotes.get(sym)
         if not quote:
             continue
