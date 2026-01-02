@@ -232,13 +232,13 @@ class LiveDataRedis:
         # 2) timestamp (UTC)
         ts_raw = tick.get("ts") or tick.get("timestamp") or tick.get("time") or tick.get("datetime")
         ts_epoch = _to_epoch_seconds_utc(ts_raw)
+        # Some providers round timestamps to the next minute (or clocks can skew),
+        # which can prematurely roll bars forward. Clamp to server time.
+        now_epoch = int(dj_timezone.now().timestamp())
+        if ts_epoch > now_epoch:
+            ts_epoch = now_epoch
 
-        # 3) minute bucket (UTC)
-        bucket = ts_epoch // 60
-        minute_epoch = bucket * 60
-        timestamp_minute = datetime.fromtimestamp(minute_epoch, tz=dt_timezone.utc).isoformat()
-
-        # 4) load existing bar
+        # 3) load existing bar
         closed_bar = None
         existing_raw = self.client.get(key)
         existing = None
@@ -247,6 +247,19 @@ class LiveDataRedis:
                 existing = json.loads(existing_raw)
             except Exception:
                 existing = None
+
+        # 4) minute bucket (UTC)
+        bucket = ts_epoch // 60
+        # Never allow time to go backwards for a given symbol's current bar.
+        if existing and existing.get("bucket") is not None:
+            try:
+                existing_bucket = int(existing.get("bucket"))
+                if bucket < existing_bucket:
+                    bucket = existing_bucket
+            except Exception:
+                pass
+        minute_epoch = bucket * 60
+        timestamp_minute = datetime.fromtimestamp(minute_epoch, tz=dt_timezone.utc).isoformat()
 
         # 5) rollover or update
         if not existing or existing.get("bucket") != bucket:
