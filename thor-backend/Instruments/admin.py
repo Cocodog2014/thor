@@ -4,11 +4,17 @@ from django.db import transaction
 from .models import Instrument
 from .models import UserInstrumentWatchlistItem
 from Instruments.services.watchlist_sync import sync_watchlist_to_schwab
+from Instruments.services.instrument_sync import (
+    ensure_owner_watchlist_for_instrument,
+    remove_owner_watchlist_for_instrument,
+    upsert_quote_source_map,
+    remove_quote_source_map,
+)
 
 
 @admin.register(Instrument)
 class InstrumentAdmin(admin.ModelAdmin):
-    list_display = ("symbol", "asset_type", "exchange", "is_active", "updated_at")
+    list_display = ("symbol", "asset_type", "quote_source", "exchange", "is_active", "updated_at")
     list_filter = ("asset_type", "exchange", "is_active")
     search_fields = ("symbol", "name", "exchange")
 
@@ -27,6 +33,13 @@ class InstrumentAdmin(admin.ModelAdmin):
 
     def save_model(self, request, obj, form, change):  # pragma: no cover - admin
         super().save_model(request, obj, form, change)
+
+        # Instruments is the symbol CRUD source of truth: keep owner watchlist aligned.
+        ensure_owner_watchlist_for_instrument(obj)
+
+        # Publish per-symbol quote source preference for fast gating.
+        upsert_quote_source_map(obj)
+
         self._sync_users_for_instrument(obj)
 
     def delete_model(self, request, obj):  # pragma: no cover - admin
@@ -36,7 +49,12 @@ class InstrumentAdmin(admin.ModelAdmin):
             .values_list("user_id", flat=True)
             .distinct()
         )
+        symbol = obj.symbol
         super().delete_model(request, obj)
+
+        # Remove from owner watchlist + source map.
+        remove_owner_watchlist_for_instrument(obj)
+        remove_quote_source_map(symbol)
 
         def _on_commit() -> None:
             for user_id in user_ids:

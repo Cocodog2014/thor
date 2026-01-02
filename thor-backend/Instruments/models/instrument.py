@@ -12,8 +12,20 @@ class Instrument(models.Model):
         FOREX = "FOREX", "Forex"
         CRYPTO = "CRYPTO", "Crypto"
 
+    class QuoteSource(models.TextChoices):
+        AUTO = "AUTO", "Auto"
+        SCHWAB = "SCHWAB", "Schwab"
+        TOS = "TOS", "ThinkOrSwim"
+
     symbol = models.CharField(max_length=32, unique=True, db_index=True)
     asset_type = models.CharField(max_length=16, choices=AssetType.choices)
+
+    quote_source = models.CharField(
+        max_length=16,
+        choices=QuoteSource.choices,
+        default=QuoteSource.AUTO,
+        help_text="Which feed should be treated as the source of truth for this symbol.",
+    )
 
     name = models.CharField(max_length=128, blank=True)
     exchange = models.CharField(max_length=32, blank=True)  # NASDAQ, NYSE, CME, etc

@@ -39,6 +39,12 @@ def sync_watchlist_to_schwab(user_id: int) -> None:
         symbol = (inst.symbol or "").strip().upper()
         if not symbol:
             continue
+
+        # Instruments can choose which feed owns the symbol.
+        # If a symbol is set to TOS, do not subscribe it via Schwab.
+        quote_source = (getattr(inst, "quote_source", None) or "AUTO").upper()
+        if quote_source not in {"AUTO", "SCHWAB"}:
+            continue
         if inst.asset_type == Instrument.AssetType.FUTURE:
             futures.append(symbol)
         else:

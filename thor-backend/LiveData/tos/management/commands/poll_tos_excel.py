@@ -100,7 +100,10 @@ class Command(BaseCommand):
                             symbol = q.get('symbol')
                             if not symbol:
                                 continue
-                            live_data_redis.publish_raw_quote(symbol, q)
+                            # Publish into the standard quote pipeline so callers that read
+                            # `live_data:latest:quotes` see TOS updates.
+                            q = {**q, "source": q.get("source") or "TOS"}
+                            live_data_redis.publish_quote(symbol, q, provider="TOS")
 
                         self.stdout.write(self.style.SUCCESS(
                             f'[{poll_count}] Published {len(quotes)} quotes to Redis '

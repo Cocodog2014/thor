@@ -81,6 +81,10 @@ class LiveDataRedis:
     LATEST_QUOTES_HASH = "live_data:latest:quotes"
     ACTIVE_QUOTES_ZSET = "live_data:active_symbols"
 
+    # --- Instrument quote-source preference map (symbol -> source) ---
+    # Values: AUTO | SCHWAB | TOS
+    INSTRUMENT_QUOTE_SOURCE_HASH = "instruments:quote_source"
+
     # --- Single-flight lock for Excel reads ---
     EXCEL_LOCK_KEY = "live_data:excel_lock"
     EXCEL_LOCK_TTL = 10  # seconds
@@ -481,6 +485,22 @@ class LiveDataRedis:
 
         sym = symbol.upper()
         channel = get_quotes_channel(sym)
+
+        # Enforce per-symbol quote source preference when we can identify the provider.
+        provider_norm = (
+            (provider or data.get("provider") or data.get("source") or "")
+            .strip()
+            .upper()
+        )
+        if provider_norm:
+            try:
+                desired = self.client.hget(self.INSTRUMENT_QUOTE_SOURCE_HASH, sym)
+            except Exception:
+                desired = None
+            desired_norm = (desired or "AUTO").strip().upper()
+            if desired_norm not in {"", "AUTO"} and provider_norm != desired_norm:
+                # Ignore ticks from non-selected feeds (prevents cross-feed overwrites).
+                return 0
 
         raw = data.get("country") or data.get("market") or self.DEFAULT_COUNTRY
         norm = self._norm_country(raw) or raw or self.DEFAULT_COUNTRY
