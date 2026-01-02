@@ -2,6 +2,11 @@ from __future__ import annotations
 
 from typing import Optional
 
+try:
+	from django.core.exceptions import SynchronousOnlyOperation
+except Exception:  # pragma: no cover
+	SynchronousOnlyOperation = None  # type: ignore[assignment]
+
 
 def normalize_market_key(raw: str | None) -> Optional[str]:
 	"""Normalize a market key/country code using GlobalMarkets.Market as source of truth.
@@ -17,10 +22,17 @@ def normalize_market_key(raw: str | None) -> Optional[str]:
 		return None
 
 	# Import lazily to avoid AppRegistryNotReady during Django startup.
-	from GlobalMarkets.models.market import Market
-
-	market = Market.objects.filter(country__iexact=s).only("country").first()
-	return market.country if market else None
+	try:
+		from GlobalMarkets.models.market import Market
+		market = Market.objects.filter(country__iexact=s).only("country").first()
+		return market.country if market else None
+	except Exception as exc:
+		# This helper is used in some async code paths (e.g. quote streaming) where
+		# synchronous ORM access is not allowed.
+		if SynchronousOnlyOperation is not None and isinstance(exc, SynchronousOnlyOperation):
+			return None
+		# Also tolerate early-startup/app-registry or DB connectivity issues.
+		return None
 
 
 def is_known_market_key(raw: str | None, **_ignored) -> bool:
