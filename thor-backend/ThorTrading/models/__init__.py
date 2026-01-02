@@ -36,5 +36,11 @@ except Exception:
     pass
 from .Instrument_Intraday import InstrumentIntraday  # noqa: F401
 
+# Study configuration models (join tables, instrument attachments)
+try:
+    from .study import *  # noqa: F401,F403
+except Exception:
+    pass
+
 __all__ = [name for name in globals().keys() if not name.startswith('_')]
 

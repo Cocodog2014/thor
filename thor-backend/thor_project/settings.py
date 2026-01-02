@@ -62,6 +62,7 @@ INSTALLED_APPS = [
     'users',  # Custom user management with identity & access
     'core',
     'api',
+    'Instruments',  # Master instrument catalog (shared across apps)
     'ActAndPos.apps.ActandposConfig',
     'Trades.apps.TradesConfig',
     'GlobalMarkets',  # WorldClock and Market data (renamed from 'timezones')
