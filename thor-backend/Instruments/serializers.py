@@ -67,6 +67,19 @@ class WatchlistReplaceSerializer(serializers.Serializer):
             elif item.get("symbol"):
                 symbol = str(item["symbol"]).strip().upper()
                 instrument = Instrument.objects.filter(symbol__iexact=symbol).first()
+                if instrument is None and symbol:
+                    inferred_asset_type = (
+                        Instrument.AssetType.FUTURE
+                        if symbol.startswith("/")
+                        else Instrument.AssetType.EQUITY
+                    )
+                    instrument, _created = Instrument.objects.get_or_create(
+                        symbol=symbol,
+                        defaults={
+                            "asset_type": inferred_asset_type,
+                            "is_active": True,
+                        },
+                    )
             if instrument is None:
                 raise serializers.ValidationError(f"Unknown instrument: {item.get('instrument_id') or item.get('symbol')}")
             resolved.append((instrument, item))

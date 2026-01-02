@@ -98,3 +98,77 @@
 .thor-drawer.closed .thor-nav-text {
   opacity: 0; /* hide labels in collapsed mode */
 }
+
+/* Watchlist section */
+.thor-watchlist-controls {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.thor-watchlist-add {
+  white-space: nowrap;
+}
+
+.thor-watchlist-error {
+  margin-top: 8px;
+  font-size: 0.75rem;
+  color: var(--text-danger);
+}
+
+.thor-watchlist-muted {
+  margin-top: 8px;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.thor-watchlist-suggestions {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.thor-watchlist-suggestion {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(0, 0, 0, 0.0);
+  color: var(--text-normal);
+  text-align: left;
+  cursor: pointer;
+}
+
+.thor-watchlist-suggestion:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.thor-watchlist-suggestion-name {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.thor-watchlist-items {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.thor-watchlist-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 0;
+}
+
+.thor-watchlist-symbol {
+  font-size: 0.85rem;
+  color: var(--text-normal);
+}
