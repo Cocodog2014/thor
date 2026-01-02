@@ -4,15 +4,14 @@ services:
     build:
       context: .                 # root: A:\Thor
       dockerfile: ./thor-backend/Dockerfile
+    image: thor-web
     container_name: thor_web
-    # Ports served via nginx proxy (see nginx service below)
     volumes:
       - static_volume:/app/thor-backend/staticfiles
       - media_volume:/app/thor-backend/media
     env_file:
-      - .env                     # reuse your existing env file
+      - .env
     environment:
-      # Override hosts for inside Docker
       DB_HOST: postgres
       REDIS_HOST: redis
       REDIS_URL: redis://redis:6379/0
@@ -25,7 +24,47 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
-  # PostgreSQL Database (for local development)
+  # Schwab Stream "worker" (separate long-running process)
+  schwab_stream:
+    image: thor-web
+    container_name: thor_schwab_stream
+    env_file:
+      - .env
+    environment:
+      DB_HOST: postgres
+      REDIS_HOST: redis
+      REDIS_URL: redis://redis:6379/0
+      THOR_STACK_AUTO_START: "0"
+      THOR_ENABLE_EXCEL_POLLER: "0"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    command: python manage.py schwab_stream --user-id 1
+
+  # ASGI / WebSocket server (Daphne)
+  asgi:
+    image: thor-web
+    container_name: thor_asgi
+    env_file:
+      - .env
+    environment:
+      DB_HOST: postgres
+      REDIS_HOST: redis
+      REDIS_URL: redis://redis:6379/0
+      THOR_STACK_AUTO_START: "0"
+      THOR_ENABLE_EXCEL_POLLER: "0"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    command: python -m daphne -b 0.0.0.0 -p 8001 thor_project.asgi:application
+
+  # PostgreSQL Database
   postgres:
     image: postgres:15-alpine
     container_name: thor_postgres
@@ -45,7 +84,7 @@ services:
       retries: 5
     restart: unless-stopped
 
-  # Redis Cache (for local development)
+  # Redis Cache
   redis:
     image: redis:7-alpine
     container_name: thor_redis
@@ -61,11 +100,13 @@ services:
       retries: 10
     restart: unless-stopped
 
+  # Backend reverse proxy (internal entrypoint for cloudflared)
   nginx:
     image: nginx:alpine
     container_name: thor_nginx
     depends_on:
       - web
+      - asgi
     ports:
       - "8001:80"
     volumes:
@@ -74,24 +115,28 @@ services:
       - media_volume:/app/thor-backend/media:ro
     restart: unless-stopped
 
+  # Frontend (static build served by its own nginx)
   frontend:
     build:
       context: .
       dockerfile: ./thor-frontend/Dockerfile
+    image: thor-frontend
     container_name: thor_frontend
     depends_on:
       - web
     ports:
-      - "8080:80"             # Optional local preview: http://localhost:8080
+      - "8080:80"   # Optional local preview: http://localhost:8080
     restart: unless-stopped
 
+  # Cloudflare Tunnel
   cloudflared:
     image: cloudflare/cloudflared:latest
     container_name: thor_cloudflared
     restart: unless-stopped
-    command: tunnel --config /etc/cloudflared/thor-prod.yml run
+    command: tunnel --no-autoupdate --config /etc/cloudflared/thor-prod.yml run
     volumes:
-      - ./cloudflared:/etc/cloudflared
+      - ./cloudflared:/etc/cloudflared:ro
+      - ${CLOUDFLARED_CREDS_DIR}:/etc/cloudflared-creds:ro
     depends_on:
       - nginx
 
@@ -99,4 +144,6 @@ volumes:
   postgres_data:
   static_volume:
   media_volume:
+
+
 

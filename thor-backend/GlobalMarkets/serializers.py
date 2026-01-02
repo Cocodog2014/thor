@@ -5,6 +5,8 @@ from .models import Market, USMarketStatus, MarketDataSnapshot, UserMarketWatchl
 class MarketSerializer(serializers.ModelSerializer):
     display_name = serializers.SerializerMethodField()
     sort_order = serializers.SerializerMethodField()
+    current_time = serializers.SerializerMethodField()
+    market_status = serializers.SerializerMethodField()
 
     class Meta:
         model = Market
@@ -21,6 +23,8 @@ class MarketSerializer(serializers.ModelSerializer):
             "enable_open_capture",
             "enable_close_capture",
             "sort_order",
+            "current_time",
+            "market_status",
             "created_at",
             "updated_at",
         ]
@@ -31,6 +35,18 @@ class MarketSerializer(serializers.ModelSerializer):
 
     def get_sort_order(self, obj):
         return obj.sort_order
+
+    def get_current_time(self, obj):
+        try:
+            return obj.get_current_market_time()
+        except Exception:
+            return None
+
+    def get_market_status(self, obj):
+        try:
+            return obj.get_market_status()
+        except Exception:
+            return None
 
 
 class TradingCalendarSerializer(serializers.ModelSerializer):

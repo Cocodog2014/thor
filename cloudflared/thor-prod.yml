@@ -1,15 +1,41 @@
 # Production tunnel config for thor.360edu.org (Docker)
 # cloudflared 'path' is a regex (RE2), so use /api/.* not /api/* when adding paths.
 
+origincert: /etc/cloudflared/cert.pem
+
 tunnel: thor-prod
-credentials-file: /etc/cloudflared/524297cf-14d7-49a2-9f42-e0673c7fb20c.json
+credentials-file: /etc/cloudflared-creds/524297cf-14d7-49a2-9f42-e0673c7fb20c.json
 protocol: http2
 
 originRequest:
   noHappyEyeballs: true
 
 ingress:
+  # Backend routes first (more specific rules must come first)
   - hostname: thor.360edu.org
+    path: /ws/.*
     service: http://nginx:80
 
+  - hostname: thor.360edu.org
+    path: /api/.*
+    service: http://nginx:80
+
+  - hostname: thor.360edu.org
+    path: /admin/.*
+    service: http://nginx:80
+
+  - hostname: thor.360edu.org
+    path: /static/.*
+    service: http://nginx:80
+
+  - hostname: thor.360edu.org
+    path: /media/.*
+    service: http://nginx:80
+
+  # Everything else goes to the React frontend
+  - hostname: thor.360edu.org
+    service: http://frontend:80
+
   - service: http_status:404
+
+

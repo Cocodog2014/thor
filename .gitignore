@@ -1,5 +1,8 @@
 # Root-level data + build artifacts to ignore
 
+# Cloudflare tunnel origin certificate (sensitive)
+cloudflared/cert.pem
+
 # Local Excel / data sources (do not version live RTD workbook)
 CleanData*.xlsm
 CleanData*.xlsx
