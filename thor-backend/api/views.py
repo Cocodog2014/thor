@@ -16,6 +16,10 @@ from ThorTrading.models.MarketIntraDay import MarketIntraday
 from GlobalMarkets.services.normalize import normalize_country_code
 from ThorTrading.services.indicators.vwap import vwap_service
 
+
+def _floor_to_minute(dt):
+    return dt.replace(second=0, microsecond=0)
+
 def _safe_float(value):
     """Convert DB numerics to float, skipping NaN/Inf payloads."""
     if value is None:
@@ -123,9 +127,11 @@ def intraday_health(request: HttpRequest):
             unique_markets.append(m)
 
     now_ts = now()
+    # Only count *completed* minutes. A bar stamped with the current minute is still in-progress.
+    cutoff = _floor_to_minute(now_ts)
     latest_by_market = (
         MarketIntraday.objects
-        .filter(country__in=unique_markets)
+        .filter(country__in=unique_markets, timestamp_minute__lt=cutoff)
         .values('country')
         .annotate(last_bar=Max('timestamp_minute'))
     )
@@ -198,10 +204,13 @@ def session(request: HttpRequest):
     lookup_codes = resolved_codes or [market_param]
 
     latest = None
+    # Only return the most recent *completed* minute.
+    # Example: at 13:53:xx, the 13:53 bar is in-progress; return 13:52.
+    cutoff = _floor_to_minute(now())
     try:
         row = (
             MarketIntraday.objects
-            .filter(country__in=lookup_codes, future=future)
+            .filter(country__in=lookup_codes, future=future, timestamp_minute__lt=cutoff)
             .order_by('-timestamp_minute')
             .values('open_1m', 'high_1m', 'low_1m', 'close_1m', 'volume_1m', 'spread_last', 'country')
             .first()
