@@ -14,7 +14,6 @@ except Exception:  # pragma: no cover - defensive for missing file
     SYMBOL_NORMALIZE_MAP: dict[str, str] = {}
 from ThorTrading.studies.futures_total.models.target_high_low import TargetHighLowConfig
 from Instruments.models import Instrument
-from ThorTrading.studies.futures_total.models.rtd import TradingInstrument
 
 logger = logging.getLogger(__name__)
 
@@ -23,25 +22,16 @@ logger = logging.getLogger(__name__)
 def _get_quant_for_symbol(symbol: str) -> Optional[Decimal]:
     base = symbol.lstrip("/").upper()
 
-    inst2 = Instrument.objects.filter(symbol__iexact=base, is_active=True).first()
+    inst2 = Instrument.objects.filter(
+        symbol__in=[base, f"/{base}"],
+        is_active=True,
+    ).first()
     if inst2:
         precision = int(getattr(inst2, "display_precision", 2) or 2)
         return Decimal("1").scaleb(-precision)
 
-    inst = (
-        TradingInstrument.objects.filter(symbol__iexact=base)
-        .first()
-        or TradingInstrument.objects.filter(symbol__iexact=f"/{base}").first()
-        or TradingInstrument.objects.filter(feed_symbol__iexact=symbol).first()
-        or TradingInstrument.objects.filter(feed_symbol__iexact=f"/{base}").first()
-    )
-
-    if not inst:
-        logger.warning("No TradingInstrument for %s; skipping quantization.", symbol)
-        return None
-
-    precision = inst.display_precision
-    return Decimal("1").scaleb(-precision)
+    logger.warning("No Instrument for %s; skipping quantization.", symbol)
+    return None
 
 
 def _compute_from_config(
@@ -77,7 +67,7 @@ def compute_targets_for_symbol(*args, **kwargs) -> Tuple[Optional[Decimal], Opti
     - compute_targets_for_symbol(symbol, entry_price, country=...)
     """
 
-    country = kwargs.get("country")  # currently unused but accepted for compatibility
+    country = kwargs.get("country")
 
     if len(args) == 2:
         symbol, entry_price = args
@@ -94,10 +84,11 @@ def compute_targets_for_symbol(*args, **kwargs) -> Tuple[Optional[Decimal], Opti
 
         quant = _get_quant_for_symbol(canonical)
 
-        cfg = TargetHighLowConfig.objects.filter(
-            symbol__iexact=canonical,
-            is_active=True,
-        ).first()
+        cfg_qs = TargetHighLowConfig.objects.filter(symbol__iexact=canonical, is_active=True)
+        if country:
+            cfg_qs = cfg_qs.filter(country__iexact=str(country))
+
+        cfg = cfg_qs.first()
 
         if not cfg:
             return None, None

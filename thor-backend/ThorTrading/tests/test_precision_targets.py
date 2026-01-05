@@ -2,49 +2,50 @@ from __future__ import annotations
 """
 Test precision-agnostic target computation.
 
-Verifies that targets respect TradingInstrument.display_precision
+Verifies that targets respect Instrument.display_precision
 without any hard-coded decimal places.
 """
 from decimal import Decimal
 from django.test import TestCase
 
-from ThorTrading.studies.futures_total.models.rtd import TradingInstrument, InstrumentCategory
+from Instruments.models import Instrument
 from ThorTrading.studies.futures_total.models.target_high_low import TargetHighLowConfig
 from ThorTrading.studies.futures_total.services.indicators import compute_targets_for_symbol
 
 
 class PrecisionTargetsTestCase(TestCase):
     def setUp(self):
-        # Create category
-        self.category = InstrumentCategory.objects.create(
-            name='futures',
-            display_name='Futures'
+        # Canonical instruments with different precisions
+        self.inst_2dec = Instrument.objects.create(
+            symbol="ES",
+            asset_type=Instrument.AssetType.FUTURE,
+            name="S&P 500 Futures",
+            country="USA",
+            display_precision=2,
+            is_active=True,
         )
-        
-        # Create instruments with different precisions
-        self.inst_2dec = TradingInstrument.objects.create(
-            symbol='ES',
-            name='S&P 500 Futures',
-            category=self.category,
-            display_precision=2
+
+        self.inst_3dec = Instrument.objects.create(
+            symbol="SI",
+            asset_type=Instrument.AssetType.FUTURE,
+            name="Silver Futures",
+            country="USA",
+            display_precision=3,
+            is_active=True,
         )
-        
-        self.inst_3dec = TradingInstrument.objects.create(
-            symbol='SI',
-            name='Silver Futures',
-            category=self.category,
-            display_precision=3
-        )
-        
-        self.inst_0dec = TradingInstrument.objects.create(
-            symbol='YM',
-            name='Dow Futures',
-            category=self.category,
-            display_precision=0
+
+        self.inst_0dec = Instrument.objects.create(
+            symbol="YM",
+            asset_type=Instrument.AssetType.FUTURE,
+            name="Dow Futures",
+            country="USA",
+            display_precision=0,
+            is_active=True,
         )
         
         # Create configs
         TargetHighLowConfig.objects.create(
+            country="USA",
             symbol='ES',
             mode=TargetHighLowConfig.MODE_POINTS,
             offset_high=Decimal('25'),
@@ -53,6 +54,7 @@ class PrecisionTargetsTestCase(TestCase):
         )
         
         TargetHighLowConfig.objects.create(
+            country="USA",
             symbol='SI',
             mode=TargetHighLowConfig.MODE_POINTS,
             offset_high=Decimal('0.500'),
@@ -61,6 +63,7 @@ class PrecisionTargetsTestCase(TestCase):
         )
         
         TargetHighLowConfig.objects.create(
+            country="USA",
             symbol='YM',
             mode=TargetHighLowConfig.MODE_POINTS,
             offset_high=Decimal('200'),
@@ -106,20 +109,23 @@ class PrecisionTargetsTestCase(TestCase):
     
     def test_percent_mode_respects_precision(self):
         """Percent mode should also respect display_precision"""
-        cfg = TargetHighLowConfig.objects.create(
+        TargetHighLowConfig.objects.create(
+            country="USA",
             symbol='NQ',
             mode=TargetHighLowConfig.MODE_PERCENT,
             percent_high=Decimal('0.50'),
             percent_low=Decimal('0.50'),
             is_active=True
         )
-        
+
         # Create NQ with 2 decimals
-        TradingInstrument.objects.create(
-            symbol='NQ',
-            name='Nasdaq Futures',
-            category=self.category,
-            display_precision=2
+        Instrument.objects.create(
+            symbol="NQ",
+            asset_type=Instrument.AssetType.FUTURE,
+            name="Nasdaq Futures",
+            country="USA",
+            display_precision=2,
+            is_active=True,
         )
         
         entry = Decimal('16000.00')
@@ -129,30 +135,28 @@ class PrecisionTargetsTestCase(TestCase):
         self.assertEqual(high, Decimal('16080.00'))
         self.assertEqual(low, Decimal('15920.00'))
     
-    def test_legacy_fallback_respects_precision(self):
-        """Legacy ±20 fallback should also respect precision"""
-        # Create instrument without config
-        TradingInstrument.objects.create(
-            symbol='CL',
-            name='Crude Oil',
-            category=self.category,
-            display_precision=2
-        )
-        
-        entry = Decimal('75.50')
-        high, low = compute_targets_for_symbol('CL', entry)
-        
-        # Legacy +/-20
-        self.assertEqual(high, Decimal('95.50'))
-        self.assertEqual(low, Decimal('55.50'))
+    def test_missing_config_returns_none(self):
+        """If no config exists, targets are not computed."""
+        entry = Decimal("75.50")
+        high, low = compute_targets_for_symbol("CL", entry)
+        self.assertIsNone(high)
+        self.assertIsNone(low)
     
     def test_missing_instrument_no_quantization(self):
         """If instrument missing, targets computed but not quantized"""
-        # No instrument for ZB
+        # Config exists but there is no Instrument row for ZB
+        TargetHighLowConfig.objects.create(
+            country="USA",
+            symbol="ZB",
+            mode=TargetHighLowConfig.MODE_POINTS,
+            offset_high=Decimal("20"),
+            offset_low=Decimal("20"),
+            is_active=True,
+        )
+
         entry = Decimal('115.15625')
         high, low = compute_targets_for_symbol('ZB', entry)
-        
-        # Fallback +/-20, but no quantization applied
+
         self.assertIsNotNone(high)
         self.assertIsNotNone(low)
         # Should be exact arithmetic without forced rounding

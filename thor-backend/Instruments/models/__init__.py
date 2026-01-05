@@ -7,7 +7,6 @@ from ThorTrading.studies.futures_total.models.rtd import (
     InstrumentCategory,
     SignalStatValue,
     SignalWeight,
-    TradingInstrument,
 )
 from .watchlist import UserInstrumentWatchlistItem
 
@@ -18,7 +17,6 @@ __all__ = [
     "Rolling52WeekStats",
     "week52_extreme_changed",
     "InstrumentCategory",
-    "TradingInstrument",
     "SignalStatValue",
     "SignalWeight",
     "ContractWeight",

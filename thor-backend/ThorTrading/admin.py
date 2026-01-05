@@ -7,7 +7,6 @@ from ThorTrading.studies.futures_total.models.rtd import (
     InstrumentCategory,
     SignalStatValue,
     SignalWeight,
-    TradingInstrument,
 )
 from ThorTrading.studies.futures_total.models.market_session import MarketSession
 from ThorTrading.studies.futures_total.models.target_high_low import TargetHighLowConfig
@@ -120,43 +119,10 @@ class InstrumentCategoryAdmin(admin.ModelAdmin):
     search_fields = ['name', 'display_name']
 
 
-@admin.register(TradingInstrument)
-class TradingInstrumentAdmin(admin.ModelAdmin):
-    list_display = [
-        'symbol', 'name', 'category', 'exchange', 'tick_value', 'margin_requirement', 
-        'is_active', 'is_watchlist', 'show_in_ribbon'
-    ]
-    list_filter = ['category', 'is_active', 'is_watchlist', 'show_in_ribbon', 'exchange']
-    list_editable = ['is_active', 'is_watchlist', 'show_in_ribbon']
-    search_fields = ['symbol', 'name']
-    inlines = [SignalStatValueInline, ContractWeightInline]
-    
-    fieldsets = (
-        ('Basic Information', {
-            'fields': ('symbol', 'name', 'description', 'category')
-        }),
-        ('Market Information', {
-            'fields': ('exchange', 'currency')
-        }),
-        ('Trading Configuration', {
-            'fields': ('is_active', 'is_watchlist', 'show_in_ribbon', 'sort_order')
-        }),
-        ('Display Configuration', {
-            'fields': ('display_precision', 'tick_size', 'contract_size')
-        }),
-        ('Trading Calculations', {
-            'fields': ('tick_value', 'margin_requirement')
-        }),
-        ('API Configuration', {
-            'fields': ('api_provider', 'api_symbol', 'update_frequency')
-        }),
-    )
-
-
 @admin.register(ThorTradingSignalStatValue)
 class SignalStatValueAdmin(admin.ModelAdmin):
     list_display = ['instrument', 'signal', 'value']
-    list_filter = ['signal', 'instrument__category']
+    list_filter = ['signal', 'instrument__country']
     search_fields = ['instrument__symbol', 'instrument__name']
     list_editable = ['value']
 
@@ -164,7 +130,7 @@ class SignalStatValueAdmin(admin.ModelAdmin):
 @admin.register(ContractWeight)
 class ContractWeightAdmin(admin.ModelAdmin):
     list_display = ['instrument', 'weight']
-    list_filter = ['instrument__category']
+    list_filter = ['instrument__country']
     search_fields = ['instrument__symbol', 'instrument__name']
     list_editable = ['weight']
 
