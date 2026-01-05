@@ -69,21 +69,32 @@ class Migration(migrations.Migration):
 DO $$
 BEGIN
     IF to_regclass('public."Instruments_instrumentintraday"') IS NOT NULL THEN
-        CREATE INDEX IF NOT EXISTS idx_intraday_instr_sym_ts
-            ON "Instruments_instrumentintraday" ("symbol", "timestamp_minute");
+        -- Be fully idempotent across dev DBs that may already have these objects.
+        -- (Postgres raises 42P07 "duplicate_table" for existing indexes.)
+        BEGIN
+            CREATE INDEX idx_intraday_instr_sym_ts
+                ON "Instruments_instrumentintraday" ("symbol", "timestamp_minute");
+        EXCEPTION
+            WHEN duplicate_table THEN
+                NULL;
+        END;
 
-        CREATE INDEX IF NOT EXISTS idx_intraday_instr_ts
-            ON "Instruments_instrumentintraday" ("timestamp_minute");
+        BEGIN
+            CREATE INDEX idx_intraday_instr_ts
+                ON "Instruments_instrumentintraday" ("timestamp_minute");
+        EXCEPTION
+            WHEN duplicate_table THEN
+                NULL;
+        END;
 
-        IF NOT EXISTS (
-            SELECT 1
-            FROM pg_constraint
-            WHERE conname = 'uniq_intraday_symbol_minute'
-        ) THEN
+        BEGIN
             ALTER TABLE "Instruments_instrumentintraday"
                 ADD CONSTRAINT uniq_intraday_symbol_minute
                 UNIQUE ("timestamp_minute", "symbol");
-        END IF;
+        EXCEPTION
+            WHEN duplicate_object THEN
+                NULL;
+        END;
     END IF;
 END $$;
 ''',

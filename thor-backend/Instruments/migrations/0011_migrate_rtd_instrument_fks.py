@@ -237,13 +237,37 @@ class Migration(migrations.Migration):
             name="signalstatvalue",
             unique_together={("instrument2", "signal")},
         ),
-        migrations.RemoveField(
-            model_name="signalstatvalue",
-            name="instrument",
+        # NOTE: This data migration is effectively irreversible (reverse_code=noop).
+        # When migrating backwards, Django would normally try to re-add the removed
+        # NOT NULL instrument_id columns, which fails on existing rows (NULLs).
+        # We keep state changes the same, but make the DB operations rollback-safe.
+        migrations.SeparateDatabaseAndState(
+            state_operations=[
+                migrations.RemoveField(
+                    model_name="signalstatvalue",
+                    name="instrument",
+                ),
+            ],
+            database_operations=[
+                migrations.RunSQL(
+                    sql='ALTER TABLE "Instruments_signalstatvalue" DROP COLUMN IF EXISTS "instrument_id";',
+                    reverse_sql='ALTER TABLE "Instruments_signalstatvalue" ADD COLUMN IF NOT EXISTS "instrument_id" BIGINT NULL;',
+                ),
+            ],
         ),
-        migrations.RemoveField(
-            model_name="contractweight",
-            name="instrument",
+        migrations.SeparateDatabaseAndState(
+            state_operations=[
+                migrations.RemoveField(
+                    model_name="contractweight",
+                    name="instrument",
+                ),
+            ],
+            database_operations=[
+                migrations.RunSQL(
+                    sql='ALTER TABLE "Instruments_contractweight" DROP COLUMN IF EXISTS "instrument_id";',
+                    reverse_sql='ALTER TABLE "Instruments_contractweight" ADD COLUMN IF NOT EXISTS "instrument_id" BIGINT NULL;',
+                ),
+            ],
         ),
         migrations.RenameField(
             model_name="signalstatvalue",

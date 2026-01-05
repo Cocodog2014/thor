@@ -11,11 +11,13 @@ Quick proof: does Redis have TSLA?
 python manage.py shell -c "import time; from LiveData.shared.redis_client import live_data_redis; q=live_data_redis.get_latest_quote('TSLA'); print(q); now=time.time(); ts=float((q or {}).get('timestamp') or 0); print('age_seconds=', None if not q else round(now-ts,1)); print('age_abs_seconds=', None if not q else round(abs(now-ts),1))"
 
 cd A:\Thor\thor-backend
-python manage.py schwab_stream --user-id <your_user_id> --equities VFF --futures ""
-PS A:\Thor\thor-backend> python manage.py schwab_stream --user-id 1 --equities VFF --futures ""
->
-cd A:\Thor\thor-backend
 python manage.py schwab_stream --user-id 1
+
+
+**If you want to see ticks for all instruments as they arrive, run:**
+
+cd A:\Thor\thor-backend
+python manage.py schwab_stream --user-id 1 --echo-ticks
 
 Note: `schwab_stream` auto-loads enabled symbols from the DB (and will fall back to the Instruments watchlist → auto-sync to SchwabSubscription). If you have no watchlist/subscriptions yet, pass `--equities` / `--futures`.
 
