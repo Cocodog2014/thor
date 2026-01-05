@@ -18,18 +18,10 @@ except Exception:
     # During initial scaffold there may be no MarketOpen models yet
     pass
 
-# 52-week tracking models
-try:
-    from .extremes import *  # noqa: F401,F403
-except Exception:
-    pass
-
-
 try:
     from .Market24h import *  # noqa: F401,F403
 except Exception:
     pass
-from .Instrument_Intraday import InstrumentIntraday  # noqa: F401
 
 # Study configuration models (join tables, instrument attachments)
 try:

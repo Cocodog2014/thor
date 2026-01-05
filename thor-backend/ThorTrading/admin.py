@@ -7,11 +7,9 @@ from .models import (
     SignalStatValue, ContractWeight, SignalWeight
 )
 from .models.MarketSession import MarketSession
-from .models.extremes import Rolling52WeekStats
 from .models.target_high_low import TargetHighLowConfig
 from .models.vwap import VwapMinute
 from .models.Market24h import MarketTrading24Hour
-from .models.Instrument_Intraday import InstrumentIntraday
 
 
 class ColumnSetFilter(admin.SimpleListFilter):
@@ -386,83 +384,6 @@ class MarketSessionAdmin(admin.ModelAdmin):
             'all': ('ThorTrading/admin/marketsession.css',)
         }
         js = ('ThorTrading/admin/marketsession.js',)
-
-
-# 52-Week High/Low Tracking Admin
-
-
-@admin.register(Rolling52WeekStats)
-class Rolling52WeekStatsAdmin(admin.ModelAdmin):
-    """
-    Admin interface for managing 52-week high/low extremes.
-    
-    Usage:
-    1. Seed initial values for each symbol (one-time setup)
-    2. System automatically updates when new highs/lows occur
-    3. Monitor last_price_checked to see if system is updating
-    """
-    list_display = [
-        'symbol', 
-        'high_52w', 'high_52w_date',
-        'low_52w', 'low_52w_date',
-        'last_price_checked',
-        'stale_hours_display',
-        'last_updated'
-    ]
-    list_filter = ['high_52w_date', 'low_52w_date']
-    search_fields = ['symbol']
-    readonly_fields = ['last_price_checked', 'last_updated', 'created_at']
-    ordering = ['symbol']
-    
-    fieldsets = (
-        ('Symbol', {
-            'fields': ('symbol',)
-        }),
-        ('52-Week High', {
-            'fields': ('high_52w', 'high_52w_date'),
-            'description': 'Enter initial 52-week high. System will auto-update when exceeded.'
-        }),
-        ('52-Week Low', {
-            'fields': ('low_52w', 'low_52w_date'),
-            'description': 'Enter initial 52-week low. System will auto-update when breached.'
-        }),
-        ('All-Time Extremes (Optional)', {
-            'fields': ('all_time_high', 'all_time_high_date', 'all_time_low', 'all_time_low_date'),
-            'classes': ('collapse',),
-            'description': 'Leave blank to track automatically, or enter known values.'
-        }),
-        ('System Tracking', {
-            'fields': ('last_price_checked', 'last_updated', 'created_at'),
-            'classes': ('collapse',)
-        }),
-    )
-    
-    def save_model(self, request, obj, form, change):
-        """When creating new record, set dates to today if not provided"""
-        if not change:  # New record
-            from django.utils import timezone
-            today = timezone.now().date()
-            if not obj.high_52w_date:
-                obj.high_52w_date = today
-            if not obj.low_52w_date:
-                obj.low_52w_date = today
-        super().save_model(request, obj, form, change)
-
-    def get_readonly_fields(self, request, obj=None):
-        ro = ['last_price_checked', 'last_updated', 'created_at']
-        if obj and not request.user.is_superuser:
-            ro.extend([
-                'high_52w', 'high_52w_date', 'low_52w', 'low_52w_date',
-                'all_time_high', 'all_time_high_date', 'all_time_low', 'all_time_low_date'
-            ])
-        return ro
-
-    def stale_hours_display(self, obj):
-        val = obj.stale_hours()
-        return f"{val:.2f}" if val is not None else '-'
-    stale_hours_display.short_description = 'Stale (h)'
-
-
 # Target High / Low Configuration Admin
 
 
@@ -522,7 +443,7 @@ class MarketTrading24HourAdmin(admin.ModelAdmin):
     readonly_fields = ("finalized",)
 
 
-@admin.register(InstrumentIntraday)
+# InstrumentIntraday admin moved to Instruments.admin
 class InstrumentIntradayAdmin(admin.ModelAdmin):
     list_display = (
         "timestamp_minute", "symbol",

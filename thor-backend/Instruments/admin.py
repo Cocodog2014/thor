@@ -2,6 +2,8 @@ from django.contrib import admin
 from django.db import transaction
 
 from .models import Instrument
+from .models import InstrumentIntraday
+from .models import Rolling52WeekStats
 from .models import UserInstrumentWatchlistItem
 from Instruments.services.watchlist_sync import sync_watchlist_to_schwab
 from Instruments.services.instrument_sync import (
@@ -117,3 +119,109 @@ class UserInstrumentWatchlistItemAdmin(admin.ModelAdmin):
         user_id = int(obj.user_id)
         super().delete_model(request, obj)
         transaction.on_commit(lambda: sync_watchlist_to_schwab(user_id))
+
+
+@admin.register(Rolling52WeekStats)
+class Rolling52WeekStatsAdmin(admin.ModelAdmin):
+    list_display = [
+        "symbol",
+        "high_52w",
+        "high_52w_date",
+        "low_52w",
+        "low_52w_date",
+        "last_price_checked",
+        "stale_hours_display",
+        "last_updated",
+    ]
+    list_filter = ["high_52w_date", "low_52w_date"]
+    search_fields = ["symbol"]
+    readonly_fields = ["last_price_checked", "last_updated", "created_at"]
+    ordering = ["symbol"]
+
+    fieldsets = (
+        ("Symbol", {"fields": ("symbol",)}),
+        (
+            "52-Week High",
+            {
+                "fields": ("high_52w", "high_52w_date"),
+                "description": "Enter initial 52-week high. System will auto-update when exceeded.",
+            },
+        ),
+        (
+            "52-Week Low",
+            {
+                "fields": ("low_52w", "low_52w_date"),
+                "description": "Enter initial 52-week low. System will auto-update when breached.",
+            },
+        ),
+        (
+            "All-Time Extremes (Optional)",
+            {
+                "fields": ("all_time_high", "all_time_high_date", "all_time_low", "all_time_low_date"),
+                "classes": ("collapse",),
+                "description": "Leave blank to track automatically, or enter known values.",
+            },
+        ),
+        (
+            "System Tracking",
+            {
+                "fields": ("last_price_checked", "last_updated", "created_at"),
+                "classes": ("collapse",),
+            },
+        ),
+    )
+
+    def save_model(self, request, obj, form, change):  # pragma: no cover - admin
+        if not change:
+            from django.utils import timezone
+
+            today = timezone.now().date()
+            if not obj.high_52w_date:
+                obj.high_52w_date = today
+            if not obj.low_52w_date:
+                obj.low_52w_date = today
+        super().save_model(request, obj, form, change)
+
+    def get_readonly_fields(self, request, obj=None):  # pragma: no cover - admin
+        ro = ["last_price_checked", "last_updated", "created_at"]
+        if obj and not request.user.is_superuser:
+            ro.extend(
+                [
+                    "high_52w",
+                    "high_52w_date",
+                    "low_52w",
+                    "low_52w_date",
+                    "all_time_high",
+                    "all_time_high_date",
+                    "all_time_low",
+                    "all_time_low_date",
+                ]
+            )
+        return ro
+
+    def stale_hours_display(self, obj):
+        val = obj.stale_hours()
+        return f"{val:.2f}" if val is not None else "-"
+
+    stale_hours_display.short_description = "Stale (h)"
+
+
+@admin.register(InstrumentIntraday)
+class InstrumentIntradayAdmin(admin.ModelAdmin):
+    list_display = (
+        "timestamp_minute",
+        "symbol",
+        "open_1m",
+        "high_1m",
+        "low_1m",
+        "close_1m",
+        "volume_1m",
+        "bid_last",
+        "ask_last",
+        "spread_last",
+    )
+    list_filter = ("symbol",)
+    search_fields = ("symbol",)
+    ordering = ("-timestamp_minute", "symbol")
+    date_hierarchy = "timestamp_minute"
+    readonly_fields = ("timestamp_minute",)

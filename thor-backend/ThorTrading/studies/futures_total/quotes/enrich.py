@@ -21,7 +21,7 @@ from typing import Dict, List, Tuple
 from LiveData.shared.redis_client import live_data_redis
 from Instruments.models import Instrument
 from GlobalMarkets.services.active_markets import get_control_countries
-from ThorTrading.models.extremes import Rolling52WeekStats
+from Instruments.models.market_52w import Rolling52WeekStats
 from GlobalMarkets.services.normalize import is_known_country, normalize_country_code
 
 from .classification import compute_composite, enrich_quote_row

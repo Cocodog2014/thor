@@ -21,7 +21,7 @@ class Week52ExtremesJob(Job):
 
     def run(self, ctx: Any) -> None:
         from LiveData.shared.redis_client import live_data_redis
-        from ThorTrading.models.extremes import Rolling52WeekStats
+        from Instruments.models.market_52w import Rolling52WeekStats
         from decimal import Decimal
 
         SYMBOLS = ["YM", "ES", "NQ", "RTY", "CL", "SI", "HG", "GC", "VX", "DX", "ZB"]

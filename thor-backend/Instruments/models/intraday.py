@@ -40,6 +40,11 @@ class InstrumentIntraday(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
+        # This model was historically owned by the ThorTrading app. We keep the
+        # existing table and mark it unmanaged so migrations don't attempt to
+        # create/alter it under the Instruments app.
+        managed = False
+        db_table = "ThorTrading_instrumentintraday"
         verbose_name = "Instrument Intraday Bar"
         verbose_name_plural = "Instrument Intraday Bars"
 

@@ -13,7 +13,7 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'thor_project.settings')
 django.setup()
 
 from ThorTrading.models.Market24h import MarketTrading24Hour
-from ThorTrading.models.Instrument_Intraday import InstrumentIntraday
+from Instruments.models.intraday import InstrumentIntraday
 
 
 def run():

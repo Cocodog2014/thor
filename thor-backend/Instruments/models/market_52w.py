@@ -143,6 +143,11 @@ class Rolling52WeekStats(models.Model):
     objects = Rolling52WeekStatsManager()
 
     class Meta:
+        # This model was historically owned by the ThorTrading app. We keep the
+        # existing table and mark it unmanaged so migrations don't attempt to
+        # create/alter it under the Instruments app.
+        managed = False
+        db_table = "ThorTrading_rolling52weekstats"
         verbose_name = "52-Week Stats"
         verbose_name_plural = "52-Week Stats"
         ordering = ["symbol"]

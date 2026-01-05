@@ -14,7 +14,7 @@ from .redis_client import get_redis, latest_key, unified_stream_key
 from LiveData.shared.redis_client import live_data_redis
 from GlobalMarkets.services.normalize import normalize_country_code
 from Instruments.models.instrument import Instrument
-from ThorTrading.models.Instrument_Intraday import InstrumentIntraday
+from Instruments.models.intraday import InstrumentIntraday
 from ThorTrading.studies.futures_total.services.indicators.vwap import vwap_service
 
 

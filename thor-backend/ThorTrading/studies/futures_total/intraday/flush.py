@@ -10,8 +10,8 @@ from django.db.models import Max, Min
 from django.utils import timezone
 
 from LiveData.shared.redis_client import live_data_redis
-from ThorTrading.models.Instrument_Intraday import InstrumentIntraday
-from ThorTrading.models.extremes import Rolling52WeekStats
+from Instruments.models.intraday import InstrumentIntraday
+from Instruments.models.market_52w import Rolling52WeekStats
 
 logger = logging.getLogger(__name__)
 
