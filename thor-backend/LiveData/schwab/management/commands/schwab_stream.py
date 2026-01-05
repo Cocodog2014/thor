@@ -495,10 +495,7 @@ class Command(BaseCommand):
 
                 control_queue: asyncio.Queue[dict] = asyncio.Queue()
                 _start_pubsub_thread(user_id, control_queue, asyncio.get_running_loop())
-                logger.warning(
-                    "Schwab control plane listening on %s (JSON: {action:add|remove|set, asset:EQUITY|FUTURE, symbols:[...]})",
-                    _control_channel(user_id),
-                )
+                logger.warning("Schwab control plane channel=%s", _control_channel(user_id))
 
                 current_equities: set[str] = set(desired_equities)
                 current_futures: set[str] = set(desired_futures)
