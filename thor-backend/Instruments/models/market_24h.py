@@ -21,11 +21,6 @@ class MarketTrading24Hour(models.Model):
     )
     session_date = models.DateField(db_index=True)
 
-    country = models.CharField(
-        max_length=32,
-        help_text="Market region (canonical values only)",
-    )
-
     symbol = models.CharField(
         max_length=32,
         db_index=True,
@@ -49,12 +44,12 @@ class MarketTrading24Hour(models.Model):
     class Meta:
         managed = True
         db_table = "Instruments_markettrading24hour"
-        unique_together = (("session_group", "country", "symbol"),)
+        unique_together = (("session_group", "symbol"),)
         indexes = [
-            models.Index(fields=["session_date", "country", "symbol"], name="idx_mkt24h_date_cty_sym"),
+            models.Index(fields=["session_date", "symbol"], name="idx_mkt24h_date_sym"),
         ]
         verbose_name = "24-Hour Stats"
         verbose_name_plural = "24-Hour Stats"
 
     def __str__(self):
-        return f"{self.country} {self.symbol} {self.session_date} (group={self.session_group})"
+        return f"{self.symbol} {self.session_date} (group={self.session_group})"

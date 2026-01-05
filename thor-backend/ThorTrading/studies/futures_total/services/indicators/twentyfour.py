@@ -48,7 +48,6 @@ def update_24h_for_country(country: str, enriched_rows: Iterable[dict]):
 
     latest_group = (
         MarketSession.objects
-        .filter(country=country)
         .order_by('-session_number')
         .values_list('session_number', flat=True)
         .first()
@@ -83,7 +82,6 @@ def update_24h_for_country(country: str, enriched_rows: Iterable[dict]):
             symbol=symbol,
             defaults={
                 'session_date': now_dt.date(),
-                'country': country,
                 'open_price_24h': safe_decimal(open_price),
                 'prev_close_24h': safe_decimal(prev_close),
             }

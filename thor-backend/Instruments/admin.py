@@ -216,7 +216,6 @@ class MarketTrading24HourAdmin(admin.ModelAdmin):
     list_display = (
         "session_group",
         "session_date",
-        "country",
         "symbol",
         "open_price_24h",
         "prev_close_24h",
@@ -229,13 +228,11 @@ class MarketTrading24HourAdmin(admin.ModelAdmin):
     )
     list_filter = (
         "session_date",
-        "country",
         "symbol",
         "finalized",
     )
     search_fields = (
         "symbol",
-        "country",
         "session_group",
     )
     ordering = ("-session_date", "symbol")
