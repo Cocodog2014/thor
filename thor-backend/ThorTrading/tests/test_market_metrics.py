@@ -2,7 +2,7 @@ from __future__ import annotations
 from decimal import Decimal
 from django.test import TestCase
 from ThorTrading.models.MarketSession import MarketSession
-from ThorTrading.services.sessions.metrics import (
+from ThorTrading.studies.futures_total.services.sessions.metrics import (
     MarketOpenMetric,
     MarketHighMetric,
     MarketLowMetric,

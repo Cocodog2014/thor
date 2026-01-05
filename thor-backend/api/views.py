@@ -14,7 +14,7 @@ from .redis_client import get_redis, latest_key, unified_stream_key
 from LiveData.shared.redis_client import live_data_redis
 from ThorTrading.models.MarketIntraDay import MarketIntraday
 from GlobalMarkets.services.normalize import normalize_country_code
-from ThorTrading.services.indicators.vwap import vwap_service
+from ThorTrading.studies.futures_total.services.indicators.vwap import vwap_service
 
 
 def _floor_to_minute(dt):
@@ -317,7 +317,7 @@ def api_overview(request):
         'Quotes Stream (SSE)': '/api/quotes/stream/',
         'Intraday Health': '/api/intraday/health/?markets=USA,Pre_USA&threshold_minutes=3',
         'Session': '/api/session/?market=Tokyo&future=YM',
-        'WorldClock': '/api/worldclock/',
+        'Global Markets': '/api/global-markets/',
         'Admin': '/admin/',
     }
     return Response(api_urls)

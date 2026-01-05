@@ -101,9 +101,6 @@ def _tracked_instruments() -> List[object]:
     Priority order:
       1) Studies mapping (StudyInstrument) for FUTURE_TOTAL
       2) Instruments master catalog (all active FUTURE)
-      3) Legacy fallback: ThorTrading.TradingInstrument watchlist
-
-    This keeps existing deployments working while you migrate to study-driven universes.
     """
     # 1) Study-driven universe (preferred)
     try:
@@ -140,50 +137,8 @@ def _tracked_instruments() -> List[object]:
     except Exception:
         logger.exception("Failed to load tracked instruments from Instruments catalog")
 
-    # 3) Legacy fallback
-    try:
-        from ThorTrading.models import TradingInstrument
 
-        qs = TradingInstrument.objects.filter(is_active=True, is_watchlist=True).order_by("sort_order", "symbol")
-        out: list[Instrument] = []
-        for ti in qs:
-            sym = (getattr(ti, "symbol", None) or "").strip().upper()
-            if not sym:
-                continue
-            inst, _created = Instrument.objects.get_or_create(
-                symbol=sym,
-                defaults={
-                    "asset_type": Instrument.AssetType.FUTURE,
-                    "is_active": bool(getattr(ti, "is_active", True)),
-                },
-            )
-            # Fill in missing canonical metadata without overwriting curated values.
-            changed = False
-            for field, value in {
-                "name": (getattr(ti, "name", "") or "").strip()[:128],
-                "exchange": (getattr(ti, "exchange", "") or "").strip()[:32],
-                "currency": (getattr(ti, "currency", "USD") or "USD").strip()[:8],
-                "country": (getattr(ti, "country", "") or "").strip()[:32],
-                "sort_order": int(getattr(ti, "sort_order", 0) or 0),
-                "display_precision": int(getattr(ti, "display_precision", 2) or 2),
-                "margin_requirement": getattr(ti, "margin_requirement", None),
-                "tick_size": getattr(ti, "tick_size", None),
-                "point_value": getattr(ti, "contract_size", None),
-            }.items():
-                cur = getattr(inst, field, None)
-                if cur in (None, "") and value not in (None, ""):
-                    setattr(inst, field, value)
-                    changed = True
-            if changed:
-                inst.save()
-            out.append(inst)
-
-        if out:
-            out.sort(key=lambda i: (getattr(i, "sort_order", 0) or 0, (i.symbol or "")))
-        return out
-    except Exception:
-        logger.exception("Failed to load tracked instruments (legacy fallback)")
-        return []
+    return []
 
 
 def fetch_raw_quotes() -> Dict[str, Dict]:

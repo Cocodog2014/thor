@@ -7,7 +7,7 @@ from GlobalMarkets.models.market import Market
 from LiveData.shared.redis_client import live_data_redis
 from ThorTrading.models.MarketSession import MarketSession
 from GlobalMarkets.services.normalize import normalize_country_code
-from ThorTrading.services.sessions.metrics import MarketCloseMetric, MarketRangeMetric
+from ThorTrading.studies.futures_total.services.sessions.metrics import MarketCloseMetric, MarketRangeMetric
 from ThorTrading.studies.futures_total.quotes import get_enriched_quotes_with_composite
 from ThorTrading.studies.futures_total.services.close_capture import capture_market_close
 from ThorTrading.studies.futures_total.services.open_capture import (  # re-export

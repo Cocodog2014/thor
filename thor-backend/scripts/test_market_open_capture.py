@@ -15,7 +15,7 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'thor_project.settings')
 django.setup()
 
 from GlobalMarkets.models.market import Market
-from ThorTrading.api.views.market_open import capture_market_open
+from ThorTrading.studies.futures_total.services.open_capture import capture_market_open
 from ThorTrading.models.MarketSession import MarketSession
 
 

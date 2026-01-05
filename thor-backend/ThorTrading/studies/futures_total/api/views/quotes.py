@@ -52,20 +52,6 @@ class RibbonQuotesView(APIView):
 				).order_by("symbol")
 			)
 
-			# Back-compat during migration: if the master catalog isn't populated yet,
-			# fall back to the legacy ThorTrading.TradingInstrument ribbon flag.
-			if not ribbon_instruments:
-				try:
-					from ThorTrading.models import TradingInstrument
-
-					ribbon_instruments = list(
-						TradingInstrument.objects.filter(is_active=True, show_in_ribbon=True).order_by(
-							"sort_order", "symbol"
-						)
-					)
-				except Exception:
-					ribbon_instruments = []
-
 			ribbon_symbols = {getattr(i, "symbol", "").lstrip("/").upper() for i in ribbon_instruments if getattr(i, "symbol", None)}
 
 			ribbon_data = []

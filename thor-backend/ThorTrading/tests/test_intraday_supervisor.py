@@ -6,7 +6,7 @@ from django.test import TestCase
 from django.utils import timezone
 
 from ThorTrading.models.MarketSession import MarketSession
-from ThorTrading.services.sessions.finalize_close import finalize_pending_sessions_at_close
+from ThorTrading.studies.futures_total.services.sessions.finalize_close import finalize_pending_sessions_at_close
 
 
 class DummyMarket:
@@ -38,7 +38,7 @@ class IntradayMarketSupervisorTests(TestCase):
 
     def test_manual_metric_flow_without_threads(self):
         """Deterministic metric progression without threads for reliability."""
-        from ThorTrading.services.sessions.metrics import (
+        from ThorTrading.studies.futures_total.services.sessions.metrics import (
             MarketHighMetric,
             MarketLowMetric,
             MarketCloseMetric,

@@ -19,12 +19,3 @@ SCHWAB_LEVEL_ONE_EQUITY_FIELDS: tuple[str, ...] = (
     "TRADE_TIME_MILLIS",
 )
 
-SCHWAB_LEVEL_ONE_FUTURES_FIELDS: tuple[str, ...] = (
-    "SYMBOL",
-    "BID_PRICE",
-    "ASK_PRICE",
-    "LAST_PRICE",
-    "TOTAL_VOLUME",
-    "QUOTE_TIME_MILLIS",
-    "TRADE_TIME_MILLIS",
-)

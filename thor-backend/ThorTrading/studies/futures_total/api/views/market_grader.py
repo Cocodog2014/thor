@@ -4,7 +4,7 @@ from __future__ import annotations
 Delegates grading logic to services.sessions.grading.
 """
 
-from ThorTrading.services.sessions.grading import (  # noqa: F401
+from ThorTrading.studies.futures_total.services.sessions.grading import (  # noqa: F401
     MarketGrader,
     grade_pending_once,
     grader,

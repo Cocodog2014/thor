@@ -29,7 +29,7 @@ from GlobalMarkets.services.normalize import normalize_country_code
 # Capture implementations live in this study (import lazily inside functions)
 
 # Optional grading service (only if NOT using heartbeat mode)
-from ThorTrading.services.sessions.grading import start_grading_service, stop_grading_service
+from ThorTrading.studies.futures_total.services.sessions.grading import start_grading_service, stop_grading_service
 
 logger = logging.getLogger(__name__)
 

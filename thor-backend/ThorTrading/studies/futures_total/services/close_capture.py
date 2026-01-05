@@ -7,7 +7,7 @@ from GlobalMarkets.models.market import Market
 from LiveData.shared.redis_client import live_data_redis
 from ThorTrading.models.MarketSession import MarketSession
 from GlobalMarkets.services.normalize import normalize_country_code
-from ThorTrading.services.sessions.metrics import MarketCloseMetric, MarketRangeMetric
+from ThorTrading.studies.futures_total.services.sessions.metrics import MarketCloseMetric, MarketRangeMetric
 from ThorTrading.studies.futures_total.quotes import get_enriched_quotes_with_composite
 
 logger = logging.getLogger(__name__)

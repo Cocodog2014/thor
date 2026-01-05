@@ -66,7 +66,7 @@ def _run_open_capture_scan(ctx: Any) -> None:
 
 def _run_market_metrics(ctx: Any) -> None:
     from ThorTrading.studies.futures_total.quotes import get_enriched_quotes_with_composite
-    from ThorTrading.services.sessions.metrics import MarketHighMetric
+    from ThorTrading.studies.futures_total.services.sessions.metrics import MarketHighMetric
 
     active = set(_active_countries())
     if not active:
@@ -92,7 +92,7 @@ def _run_market_metrics(ctx: Any) -> None:
 
 
 def _run_market_grader(ctx: Any) -> None:
-    from ThorTrading.services.sessions.grading import grade_pending_once
+    from ThorTrading.studies.futures_total.services.sessions.grading import grade_pending_once
 
     try:
         grade_pending_once()
@@ -101,7 +101,7 @@ def _run_market_grader(ctx: Any) -> None:
 
 
 def _run_vwap_minute(ctx: Any) -> None:
-    from ThorTrading.services.indicators.vwap_minute import capture_vwap_minute
+    from ThorTrading.studies.futures_total.services.indicators.vwap_minute import capture_vwap_minute
 
     samples, rows_created = capture_vwap_minute(ctx.shared_state)
     if samples or rows_created:
@@ -110,7 +110,7 @@ def _run_vwap_minute(ctx: Any) -> None:
 
 def _run_twentyfour(ctx: Any) -> None:
     from ThorTrading.studies.futures_total.quotes import get_enriched_quotes_with_composite
-    from ThorTrading.services.indicators.twentyfour import update_24h_for_country
+    from ThorTrading.studies.futures_total.services.indicators.twentyfour import update_24h_for_country
 
     active = set(_active_countries())
     if not active:
@@ -153,7 +153,7 @@ def register(registry: Any) -> list[str]:
             logger.exception("Failed to register job %s", job.name)
 
     try:
-        from ThorTrading.services.week52_extremes_job import Week52ExtremesJob
+        from ThorTrading.studies.futures_total.services.week52_extremes_job import Week52ExtremesJob
 
         week52_job = Week52ExtremesJob()
         registry.register(week52_job, interval_seconds=week52_job.interval_seconds)

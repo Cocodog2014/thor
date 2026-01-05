@@ -19,7 +19,6 @@ from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 from django.http import JsonResponse
-from django.views.generic import RedirectView
 from GlobalMarkets.views import api_test_page, debug_market_times, sync_markets
 from LiveData.schwab import views as schwab_views
 from ActAndPos.views.balances import account_balance_view
@@ -28,9 +27,6 @@ from ActAndPos.views.balances import account_balance_view
 admin.site.site_header = "Thor's Command Center"
 admin.site.site_title = "Thor Command Center"
 admin.site.index_title = "Thor Command Center"
-# Legacy import (can be removed after testing)
-# from SchwabLiveData.views import schwab_auth_callback
-# from SchwabLiveData.admin_views import cloudflared_control
 
 def api_root(request):
     """Simple API root that shows available endpoints"""
@@ -42,7 +38,7 @@ def api_root(request):
             'api': '/api/',
             'schwab': '/api/schwab/',
             'tos': '/api/feed/tos/',
-            'worldclock': '/api/worldclock/',
+            'global_markets': '/api/global-markets/',
             'futures': '/api/futures/',
         }
     })
@@ -56,8 +52,8 @@ urlpatterns = [
     path('api/', include('api.urls')),           # Thor APIs
     path('api/instruments/', include('Instruments.urls')),
     path('api/accounts/balance/', account_balance_view, name='account-balance'),
-    # ThorTrading APIs (routed through ThorTrading.api.urls)
-    path('api/', include(('ThorTrading.api.urls', 'ThorTrading'), namespace='ThorTrading')),
+    # ThorTrading APIs
+    path('api/futures/', include(('ThorTrading.studies.futures_total.api.urls', 'ThorTrading'), namespace='ThorTrading')),
     path('api/users/', include('users.urls')),   # User authentication
     # LiveData endpoints (new structure)
     path('api/schwab/', include(('LiveData.schwab.urls', 'schwab'), namespace='schwab')),
@@ -65,9 +61,7 @@ urlpatterns = [
     path('api/feed/tos/', include(('LiveData.tos.urls', 'tos'), namespace='tos')),
     path('api/actandpos/', include(('ActAndPos.urls', 'ActAndPos'), namespace='ActAndPos')),
     path('api/trades/', include(('Trades.urls', 'Trades'), namespace='Trades')),
-    path('api/worldclock/', include('GlobalMarkets.urls')),      # Legacy path (kept)
-    path('api/global-markets/', include('GlobalMarkets.urls')),  # Preferred path
-    path('api/world-markets/', include('GlobalMarkets.urls')),   # Friendly alias
+    path('api/global-markets/', include('GlobalMarkets.urls')),
     path('test/', api_test_page, name='api_test'),  # API test page
     path('debug/', debug_market_times, name='debug_market_times'),  # Debug endpoint
     path('sync/', sync_markets, name='sync_markets'),  # Sync markets endpoint

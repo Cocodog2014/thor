@@ -10,7 +10,7 @@ from django.test import TestCase
 
 from ThorTrading.models import TradingInstrument, InstrumentCategory
 from ThorTrading.models.target_high_low import TargetHighLowConfig
-from ThorTrading.services.indicators import compute_targets_for_symbol
+from ThorTrading.studies.futures_total.services.indicators import compute_targets_for_symbol
 
 
 class PrecisionTargetsTestCase(TestCase):
