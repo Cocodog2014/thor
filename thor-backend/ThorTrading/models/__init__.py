@@ -34,5 +34,11 @@ try:
 except Exception:
     pass
 
+# Futures-total study models
+try:
+    from ThorTrading.studies.futures_total.models.target_high_low import TargetHighLowConfig  # noqa: F401
+except Exception:
+    pass
+
 __all__ = [name for name in globals().keys() if not name.startswith('_')]
 

@@ -10,7 +10,7 @@ from Instruments.models.rtd import (
     SignalWeight,
 )
 from ThorTrading.studies.futures_total.models.market_session import MarketSession
-from .models.target_high_low import TargetHighLowConfig
+from ThorTrading.studies.futures_total.models.target_high_low import TargetHighLowConfig
 
 
 class ColumnSetFilter(admin.SimpleListFilter):

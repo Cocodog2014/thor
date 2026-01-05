@@ -12,7 +12,7 @@ try:
     from ThorTrading.config.symbols import SYMBOL_NORMALIZE_MAP  # type: ignore
 except Exception:  # pragma: no cover - defensive for missing file
     SYMBOL_NORMALIZE_MAP: dict[str, str] = {}
-from ThorTrading.models.target_high_low import TargetHighLowConfig
+from ThorTrading.studies.futures_total.models.target_high_low import TargetHighLowConfig
 from Instruments.models import Instrument
 from Instruments.models.rtd import TradingInstrument
 

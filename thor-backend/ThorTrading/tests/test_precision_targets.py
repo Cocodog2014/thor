@@ -9,7 +9,7 @@ from decimal import Decimal
 from django.test import TestCase
 
 from Instruments.models.rtd import TradingInstrument, InstrumentCategory
-from ThorTrading.models.target_high_low import TargetHighLowConfig
+from ThorTrading.studies.futures_total.models.target_high_low import TargetHighLowConfig
 from ThorTrading.studies.futures_total.services.indicators import compute_targets_for_symbol
 
 
