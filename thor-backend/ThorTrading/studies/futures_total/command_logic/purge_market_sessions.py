@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from ThorTrading.models.MarketSession import MarketSession
+from ThorTrading.studies.futures_total.models.market_session import MarketSession
 
 
 def run(*, dry_run: bool, yes_i_am_sure: bool, confirm: str | None, stdout, style) -> None:

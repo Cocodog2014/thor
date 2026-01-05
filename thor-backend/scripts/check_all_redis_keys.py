@@ -10,7 +10,7 @@ if PROJECT_ROOT not in sys.path:
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'thor_project.settings')
 django.setup()
 
-from ThorTrading.models.MarketSession import MarketSession
+from ThorTrading.studies.futures_total.models.market_session import MarketSession
 from LiveData.shared.redis_client import live_data_redis
 
 # Get latest session and check each future

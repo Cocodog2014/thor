@@ -15,7 +15,6 @@ from LiveData.shared.redis_client import live_data_redis
 from GlobalMarkets.services.normalize import normalize_country_code
 from Instruments.models.instrument import Instrument
 from Instruments.models.intraday import InstrumentIntraday
-from ThorTrading.studies.futures_total.services.indicators.vwap import vwap_service
 
 
 def _floor_to_minute(dt):
@@ -268,72 +267,6 @@ def session(request: HttpRequest):
     }
 
     return Response(payload, status=status.HTTP_200_OK)
-
-@api_view(['GET'])
-def vwap_today(request: HttpRequest):
-    """GET /api/vwap/today?symbols=ES,YM
-
-    Returns current session VWAP for requested comma-separated symbols.
-    If symbols param omitted returns empty list. VWAP values may be null
-    if insufficient data (no rows yet).
-    Response shape: [{symbol, vwap, as_of}] with vwap as string or null.
-    """
-    symbols_param = request.GET.get('symbols') or ''
-    symbols = [s.strip() for s in symbols_param.split(',') if s.strip()]
-    out = []
-    now_iso = now().isoformat()
-    for sym in symbols:
-        try:
-            val = vwap_service.get_today_vwap(sym)
-            out.append({
-                'symbol': sym,
-                'vwap': f"{val}" if val is not None else None,
-                'as_of': now_iso,
-            })
-        except Exception as e:
-            out.append({'symbol': sym, 'vwap': None, 'error': str(e), 'as_of': now_iso})
-    return Response(out, status=status.HTTP_200_OK)
-
-@api_view(['GET'])
-def vwap_rolling(request: HttpRequest):
-    """GET /api/vwap/rolling?symbols=ES,YM&minutes=30
-
-    Returns rolling VWAP for each symbol over the last `minutes` window.
-    If a precomputed Redis payload exists (written by IntradayMarketSupervisor)
-    it is used; otherwise falls back to on-demand calculation.
-    """
-    symbols_param = request.GET.get('symbols') or ''
-    minutes_param = request.GET.get('minutes') or '30'
-    try:
-        window_minutes = int(minutes_param)
-    except Exception:
-        window_minutes = 30
-    symbols = [s.strip() for s in symbols_param.split(',') if s.strip()]
-    out = []
-    now_iso = now().isoformat()
-    # Try precomputed hash
-    redis_key = f"rolling_vwap:{window_minutes}"
-    cached = live_data_redis.client.get(redis_key)
-    cached_payload = None
-    if cached:
-        try:
-            cached_payload = json.loads(cached)
-        except Exception:
-            cached_payload = None
-    for sym in symbols:
-        val = None
-        if cached_payload and cached_payload.get('values'):
-            val_str = cached_payload['values'].get(sym)
-            val = Decimal(val_str) if val_str is not None else None
-        if val is None:
-            # Fallback compute
-            try:
-                val = vwap_service.calculate_rolling_vwap(sym, window_minutes)
-            except Exception as e:
-                out.append({'symbol': sym, 'vwap': None, 'error': str(e), 'window_minutes': window_minutes, 'as_of': now_iso})
-                continue
-        out.append({'symbol': sym, 'vwap': f"{val}" if val is not None else None, 'window_minutes': window_minutes, 'as_of': now_iso})
-    return Response(out, status=status.HTTP_200_OK)
 
 # API Overview
 @api_view(['GET'])

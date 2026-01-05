@@ -3,6 +3,7 @@ from django.db import transaction
 
 from .models import Instrument
 from .models import InstrumentIntraday
+from .models import MarketTrading24Hour
 from .models import Rolling52WeekStats
 from .models import UserInstrumentWatchlistItem
 from Instruments.services.watchlist_sync import sync_watchlist_to_schwab
@@ -225,3 +226,35 @@ class InstrumentIntradayAdmin(admin.ModelAdmin):
     ordering = ("-timestamp_minute", "symbol")
     date_hierarchy = "timestamp_minute"
     readonly_fields = ("timestamp_minute",)
+
+
+@admin.register(MarketTrading24Hour)
+class MarketTrading24HourAdmin(admin.ModelAdmin):
+    list_display = (
+        "session_group",
+        "session_date",
+        "country",
+        "symbol",
+        "open_price_24h",
+        "prev_close_24h",
+        "low_24h",
+        "high_24h",
+        "range_diff_24h",
+        "range_pct_24h",
+        "close_24h",
+        "finalized",
+    )
+    list_filter = (
+        "session_date",
+        "country",
+        "symbol",
+        "finalized",
+    )
+    search_fields = (
+        "symbol",
+        "country",
+        "session_group",
+    )
+    ordering = ("-session_date", "symbol")
+    date_hierarchy = "session_date"
+    readonly_fields = ("finalized",)

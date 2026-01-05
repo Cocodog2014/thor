@@ -1,14 +1,20 @@
 from __future__ import annotations
+
 from django.db import models
 
 
 class MarketTrading24Hour(models.Model):
-    """
-    Rolling 24-hour global session stats (JP→US).
+    """Rolling 24-hour global session stats (JP→US).
+
     Continuously updated as ticks arrive; finalized at US close.
 
     Instrument-neutral: futures, equities, ETFs, indexes, etc.
+
+    Note: This table was historically owned by the ThorTrading app.
+    We keep the existing table and mark it unmanaged so migrations don't
+    attempt to create/alter it under the Instruments app.
     """
+
     session_group = models.IntegerField(
         db_index=True,
         help_text="Shared key with MarketSession.session_number",
@@ -41,6 +47,8 @@ class MarketTrading24Hour(models.Model):
     finalized = models.BooleanField(default=False, help_text="True when US close is reached")
 
     class Meta:
+        managed = False
+        db_table = "ThorTrading_markettrading24hour"
         unique_together = (("session_group", "country", "symbol"),)
         indexes = [
             models.Index(fields=["session_date", "country", "symbol"]),

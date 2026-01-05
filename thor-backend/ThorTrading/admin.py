@@ -6,10 +6,8 @@ from .models import (
     InstrumentCategory, TradingInstrument,
     SignalStatValue, ContractWeight, SignalWeight
 )
-from .models.MarketSession import MarketSession
+from ThorTrading.studies.futures_total.models.market_session import MarketSession
 from .models.target_high_low import TargetHighLowConfig
-from .models.vwap import VwapMinute
-from .models.Market24h import MarketTrading24Hour
 
 
 class ColumnSetFilter(admin.SimpleListFilter):
@@ -416,32 +414,6 @@ class TargetHighLowConfigAdmin(admin.ModelAdmin):
             'classes': ('collapse',)
         }),
     )
-
-@admin.register(VwapMinute)
-class VwapMinuteAdmin(admin.ModelAdmin):
-    list_display = ("symbol", "timestamp_minute", "last_price", "cumulative_volume", "captured_at")
-    list_filter = ("symbol",)
-    search_fields = ("symbol",)
-    ordering = ("-timestamp_minute", "symbol")
-
-
-@admin.register(MarketTrading24Hour)
-class MarketTrading24HourAdmin(admin.ModelAdmin):
-    list_display = (
-        "session_group", "session_date", "country", "symbol",
-        "open_price_24h", "prev_close_24h", "low_24h", "high_24h",
-        "range_diff_24h", "range_pct_24h", "close_24h", "finalized",
-    )
-    list_filter = (
-        "session_date", "country", "symbol", "finalized",
-    )
-    search_fields = (
-        "symbol", "country", "session_group",
-    )
-    ordering = ("-session_date", "symbol")
-    date_hierarchy = "session_date"
-    readonly_fields = ("finalized",)
-
 
 # InstrumentIntraday admin moved to Instruments.admin
 class InstrumentIntradayAdmin(admin.ModelAdmin):

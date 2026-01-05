@@ -100,14 +100,6 @@ def _run_market_grader(ctx: Any) -> None:
         logger.exception("market_grader: grading pass failed")
 
 
-def _run_vwap_minute(ctx: Any) -> None:
-    from ThorTrading.studies.futures_total.services.indicators.vwap_minute import capture_vwap_minute
-
-    samples, rows_created = capture_vwap_minute(ctx.shared_state)
-    if samples or rows_created:
-        logger.debug("VWAP capture: samples=%s rows=%s", samples, rows_created)
-
-
 def _run_twentyfour(ctx: Any) -> None:
     from ThorTrading.studies.futures_total.quotes import get_enriched_quotes_with_composite
     from ThorTrading.studies.futures_total.services.indicators.twentyfour import update_24h_for_country
@@ -139,7 +131,6 @@ def register(registry: Any) -> list[str]:
         InlineJob("gm.open_capture_scan", 5.0, _run_open_capture_scan),
         InlineJob("market_metrics", 10.0, _run_market_metrics),
         InlineJob("market_grader", 15.0, _run_market_grader),
-        InlineJob("vwap_minute", 60.0, _run_vwap_minute),
         InlineJob("twentyfour_hour", 30.0, _run_twentyfour),
     ]
 

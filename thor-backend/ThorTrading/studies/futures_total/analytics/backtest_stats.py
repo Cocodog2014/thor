@@ -9,7 +9,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Dict, Optional
 
-from ThorTrading.models.MarketSession import MarketSession
+from ThorTrading.studies.futures_total.models.market_session import MarketSession
 
 # Canonical signal/outcome values so callers avoid typos
 BHS_STRONG_BUY = "STRONG_BUY"

@@ -3,8 +3,8 @@ from __future__ import annotations
 from django.db import transaction
 from django.utils import timezone
 
-from ThorTrading.models.Market24h import MarketTrading24Hour
-from ThorTrading.models.MarketSession import MarketSession
+from Instruments.models.market_24h import MarketTrading24Hour
+from ThorTrading.studies.futures_total.models.market_session import MarketSession
 
 
 def run(

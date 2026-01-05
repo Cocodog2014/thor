@@ -8,8 +8,8 @@ from django.db import transaction
 from django.utils import timezone
 
 from LiveData.shared.redis_client import live_data_redis
-from ThorTrading.models.Market24h import MarketTrading24Hour
-from ThorTrading.models.MarketSession import MarketSession
+from Instruments.models.market_24h import MarketTrading24Hour
+from ThorTrading.studies.futures_total.models.market_session import MarketSession
 from ThorTrading.studies.futures_total.intraday.utils import safe_decimal
 
 logger = logging.getLogger(__name__)

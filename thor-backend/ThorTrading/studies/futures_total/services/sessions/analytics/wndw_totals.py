@@ -6,7 +6,7 @@ from typing import Dict, Iterable, Optional
 
 from django.db.models import Q
 
-from ThorTrading.models.MarketSession import MarketSession
+from ThorTrading.studies.futures_total.models.market_session import MarketSession
 
 
 class CountrySymbolWndwTotalsService:

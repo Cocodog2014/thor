@@ -12,7 +12,7 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'thor_project.settings')
 
 django.setup()
 
-from ThorTrading.models.MarketSession import MarketSession
+from ThorTrading.studies.futures_total.models.market_session import MarketSession
 
 latest_groups = (
     MarketSession.objects

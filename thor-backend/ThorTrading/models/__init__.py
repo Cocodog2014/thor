@@ -13,14 +13,9 @@ This __init__ re-exports models so imports like
 from .rtd import *  # noqa: F401,F403
 # Market open models (CamelCase filename per user's preference)
 try:
-    from .MarketSession import *  # noqa: F401,F403
+    from ThorTrading.studies.futures_total.models.market_session import MarketSession  # noqa: F401
 except Exception:
     # During initial scaffold there may be no MarketOpen models yet
-    pass
-
-try:
-    from .Market24h import *  # noqa: F401,F403
-except Exception:
     pass
 
 # Study configuration models (join tables, instrument attachments)

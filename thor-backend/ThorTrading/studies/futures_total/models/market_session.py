@@ -160,7 +160,6 @@ class MarketSession(models.Model):
     volume = models.BigIntegerField(null=True, blank=True)
     change = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True)
     change_percent = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True)
-    vwap = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True)
     market_open = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True)
     market_high_open = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True)
     market_high_pct_open = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True)

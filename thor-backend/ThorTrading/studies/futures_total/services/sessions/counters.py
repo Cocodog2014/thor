@@ -5,7 +5,7 @@ from decimal import Decimal
 import logging
 from typing import Iterable, Optional
 
-from ThorTrading.models.MarketSession import MarketSession
+from ThorTrading.studies.futures_total.models.market_session import MarketSession
 
 
 class CountrySymbolCounter:

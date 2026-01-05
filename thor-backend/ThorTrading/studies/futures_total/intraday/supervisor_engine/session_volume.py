@@ -6,7 +6,7 @@ from typing import Iterable
 from django.db import transaction
 
 from LiveData.shared.redis_client import live_data_redis
-from ThorTrading.models.MarketSession import MarketSession
+from ThorTrading.studies.futures_total.models.market_session import MarketSession
 
 logger = logging.getLogger(__name__)
 

@@ -10,7 +10,7 @@ if BASE_DIR not in sys.path:
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "thor_project.settings")
 django.setup()
 
-from ThorTrading.models.MarketSession import MarketSession
+from ThorTrading.studies.futures_total.models.market_session import MarketSession
 from django.db.models import Count
 
 print("=" * 60)

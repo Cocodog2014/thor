@@ -4,7 +4,7 @@ import logging
 from django.db import transaction
 from django.utils import timezone
 
-from ThorTrading.models.MarketSession import MarketSession
+from ThorTrading.studies.futures_total.models.market_session import MarketSession
 
 logger = logging.getLogger(__name__)
 
