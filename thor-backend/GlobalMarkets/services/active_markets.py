@@ -6,11 +6,12 @@ market IDs. Keep logic light and avoid domain cross-imports.
 from __future__ import annotations
 
 import logging
-from typing import Iterable
+from typing import Iterable, Optional
 
 from django.dispatch import receiver
 
 from GlobalMarkets.signals import market_closed, market_opened
+from GlobalMarkets.services.normalize import normalize_country_code
 from LiveData.shared.redis_client import live_data_redis
 
 logger = logging.getLogger(__name__)
@@ -73,6 +74,57 @@ def get_control_markets(statuses: Iterable[str] | None = None):
     except Exception:
         logger.exception("Failed to fetch control markets")
         return []
+
+
+def _country(m) -> Optional[str]:
+    raw = getattr(m, "country", None)
+    return (normalize_country_code(raw) or raw) if raw else None
+
+
+def _tz_sort_key(m) -> tuple:
+    """Try to sort markets east->west using whatever timezone info exists on Market.
+
+    Falls back safely if those fields don't exist.
+    """
+    off_min = getattr(m, "utc_offset_minutes", None)
+    if isinstance(off_min, int):
+        # East (positive) first, West (negative) later -> sort by descending
+        return (-off_min, _country(m) or "")
+
+    off_hr = getattr(m, "utc_offset", None)
+    if isinstance(off_hr, (int, float)):
+        return (-(float(off_hr) * 60.0), _country(m) or "")
+
+    return (0, _country(m) or "")
+
+
+def get_control_countries(
+    *,
+    require_session_capture: bool = False,
+    statuses: Iterable[str] | None = None,
+) -> list[str]:
+    """Return normalized control country codes, ordered and de-duped."""
+    qs = get_control_markets(statuses=statuses)
+
+    if require_session_capture and hasattr(qs, "filter"):
+        qs = qs.filter(enable_session_capture=True)
+
+    markets = list(qs)
+    markets.sort(key=_tz_sort_key)
+
+    countries: list[str] = []
+    for m in markets:
+        c = _country(m)
+        if c:
+            countries.append(c)
+
+    seen: set[str] = set()
+    ordered: list[str] = []
+    for c in countries:
+        if c not in seen:
+            seen.add(c)
+            ordered.append(c)
+    return ordered
 
 
 def has_active_markets() -> bool:

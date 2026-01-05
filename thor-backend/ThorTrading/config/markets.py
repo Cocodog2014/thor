@@ -1,7 +1,7 @@
 """Backward-compatible shim.
 
-Canonical implementation moved to `ThorTrading.config.global_markets`.
+Canonical implementation lives with the Market model in `GlobalMarkets`.
 """
 
-from ThorTrading.config.global_markets import *  # noqa: F401,F403
+from GlobalMarkets.services.active_markets import *  # noqa: F401,F403
 

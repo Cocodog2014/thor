@@ -9,7 +9,7 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from ThorTrading.config.global_markets import get_control_countries
+from GlobalMarkets.services.active_markets import get_control_countries
 from ThorTrading.models.MarketSession import MarketSession
 from ThorTrading.studies.futures_total.serializers.MarketSession import (
 	MarketOpenSessionDetailSerializer,
