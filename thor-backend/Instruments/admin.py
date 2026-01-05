@@ -9,6 +9,7 @@ from Instruments.services.instrument_sync import (
     remove_owner_watchlist_for_instrument,
     upsert_quote_source_map,
     remove_quote_source_map,
+    get_owner_user_id,
 )
 
 
@@ -19,7 +20,7 @@ class InstrumentAdmin(admin.ModelAdmin):
     search_fields = ("symbol", "name", "exchange")
 
     def _sync_users_for_instrument(self, instrument: Instrument) -> None:
-        user_ids = (
+        user_ids = list(
             UserInstrumentWatchlistItem.objects.filter(instrument=instrument)
             .values_list("user_id", flat=True)
             .distinct()
@@ -44,19 +45,51 @@ class InstrumentAdmin(admin.ModelAdmin):
 
     def delete_model(self, request, obj):  # pragma: no cover - admin
         # Capture affected users before delete.
-        user_ids = (
+        user_ids = list(
             UserInstrumentWatchlistItem.objects.filter(instrument=obj)
             .values_list("user_id", flat=True)
             .distinct()
         )
         symbol = obj.symbol
+        instrument_id = obj.id
+
+        # Remove from owner watchlist before the instrument row is deleted.
+        if instrument_id is not None:
+            remove_owner_watchlist_for_instrument(int(instrument_id))
         super().delete_model(request, obj)
 
-        # Remove from owner watchlist + source map.
-        remove_owner_watchlist_for_instrument(obj)
+        # Remove from source map.
         remove_quote_source_map(symbol)
 
         def _on_commit() -> None:
+            for user_id in user_ids:
+                sync_watchlist_to_schwab(int(user_id))
+
+        transaction.on_commit(_on_commit)
+
+    def delete_queryset(self, request, queryset):  # pragma: no cover - admin
+        # Bulk delete path ("delete selected") does NOT call delete_model.
+        symbols = list(queryset.values_list("symbol", flat=True))
+        instrument_ids = list(queryset.values_list("id", flat=True))
+        user_ids = list(
+            UserInstrumentWatchlistItem.objects.filter(instrument_id__in=instrument_ids)
+            .values_list("user_id", flat=True)
+            .distinct()
+        )
+
+        # Remove from owner watchlist before deletion (cascades will handle the rest).
+        if instrument_ids:
+            owner_user_id = get_owner_user_id()
+            UserInstrumentWatchlistItem.objects.filter(
+                user_id=int(owner_user_id),
+                instrument_id__in=instrument_ids,
+            ).delete()
+
+        super().delete_queryset(request, queryset)
+
+        def _on_commit() -> None:
+            for sym in symbols:
+                remove_quote_source_map(sym)
             for user_id in user_ids:
                 sync_watchlist_to_schwab(int(user_id))
 

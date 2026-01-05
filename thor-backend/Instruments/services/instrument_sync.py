@@ -51,9 +51,10 @@ def ensure_owner_watchlist_for_instrument(instrument: Instrument) -> None:
     )
 
 
-def remove_owner_watchlist_for_instrument(instrument: Instrument) -> None:
+def remove_owner_watchlist_for_instrument(instrument: Instrument | int) -> None:
     owner_user_id = get_owner_user_id()
-    UserInstrumentWatchlistItem.objects.filter(user_id=owner_user_id, instrument=instrument).delete()
+    instrument_id = instrument.id if isinstance(instrument, Instrument) else int(instrument)
+    UserInstrumentWatchlistItem.objects.filter(user_id=owner_user_id, instrument_id=instrument_id).delete()
 
 
 def upsert_quote_source_map(instrument: Instrument) -> None:
