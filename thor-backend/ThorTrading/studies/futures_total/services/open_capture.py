@@ -181,7 +181,7 @@ class MarketOpenCaptureService:
         country: str | None,
         composite_signal: str,
     ):
-        # Existing implementation lives in GlobalMarketGate.open_capture; kept as-is by moving.
+        # This logic is the canonical open-capture implementation.
         data = {
             "session_number": session_number,
             "capture_kind": "OPEN",
