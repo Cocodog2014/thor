@@ -2,7 +2,7 @@ from .instrument import Instrument
 from .intraday import InstrumentIntraday
 from .market_24h import MarketTrading24Hour
 from .market_52w import Rolling52WeekStats, week52_extreme_changed
-from .rtd import (
+from ThorTrading.studies.futures_total.models.rtd import (
     ContractWeight,
     InstrumentCategory,
     SignalStatValue,

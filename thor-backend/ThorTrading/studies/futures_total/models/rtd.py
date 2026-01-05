@@ -1,8 +1,7 @@
 from __future__ import annotations
 """RTD models.
 
-This module was moved from `Instruments.models.rtd` to live alongside the
-`futures_total` study code.
+These models live alongside the `futures_total` study code.
 
 Important: These models are still owned by the `Instruments` Django app.
 We keep `Meta.app_label = "Instruments"` so existing migrations, admin labels,

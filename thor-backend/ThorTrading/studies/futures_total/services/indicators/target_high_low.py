@@ -14,7 +14,7 @@ except Exception:  # pragma: no cover - defensive for missing file
     SYMBOL_NORMALIZE_MAP: dict[str, str] = {}
 from ThorTrading.studies.futures_total.models.target_high_low import TargetHighLowConfig
 from Instruments.models import Instrument
-from Instruments.models.rtd import TradingInstrument
+from ThorTrading.studies.futures_total.models.rtd import TradingInstrument
 
 logger = logging.getLogger(__name__)
 

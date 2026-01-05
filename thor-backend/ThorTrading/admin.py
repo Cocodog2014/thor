@@ -2,15 +2,19 @@ from __future__ import annotations
 from django.contrib import admin
 from GlobalMarkets.services.active_markets import get_control_countries
 from GlobalMarkets.services.normalize import normalize_country_code
-from Instruments.models.rtd import (
-    InstrumentCategory,
-    TradingInstrument,
-    SignalStatValue,
+from ThorTrading.studies.futures_total.models.rtd import (
     ContractWeight,
+    InstrumentCategory,
+    SignalStatValue,
     SignalWeight,
+    TradingInstrument,
 )
 from ThorTrading.studies.futures_total.models.market_session import MarketSession
 from ThorTrading.studies.futures_total.models.target_high_low import TargetHighLowConfig
+from ThorTrading.studies.futures_total.models.admin_proxies import (
+    ThorTradingSignalStatValue,
+    ThorTradingSignalWeight,
+)
 
 
 class ColumnSetFilter(admin.SimpleListFilter):
@@ -30,6 +34,7 @@ class ColumnSetFilter(admin.SimpleListFilter):
     def queryset(self, request, queryset):
         # Column set selection only influences list display
         return queryset
+
 
 
 class SignalStatValueInline(admin.TabularInline):
@@ -148,7 +153,7 @@ class TradingInstrumentAdmin(admin.ModelAdmin):
     )
 
 
-@admin.register(SignalStatValue)
+@admin.register(ThorTradingSignalStatValue)
 class SignalStatValueAdmin(admin.ModelAdmin):
     list_display = ['instrument', 'signal', 'value']
     list_filter = ['signal', 'instrument__category']
@@ -164,7 +169,7 @@ class ContractWeightAdmin(admin.ModelAdmin):
     list_editable = ['weight']
 
 
-@admin.register(SignalWeight)
+@admin.register(ThorTradingSignalWeight)
 class SignalWeightAdmin(admin.ModelAdmin):
     list_display = ['signal', 'weight']
     list_filter = ['signal']
