@@ -14,7 +14,7 @@ from decimal import Decimal
 from functools import lru_cache
 from typing import Dict, List, Optional, Tuple
 
-from ThorTrading.models import ContractWeight, SignalStatValue, SignalWeight
+from Instruments.models.rtd import ContractWeight, SignalStatValue, SignalWeight
 
 logger = logging.getLogger(__name__)
 

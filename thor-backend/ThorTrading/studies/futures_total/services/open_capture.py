@@ -16,7 +16,7 @@ from GlobalMarkets.services.market_clock import is_market_open_now
 from LiveData.shared.redis_client import live_data_redis
 from Instruments.models import Instrument
 from ThorTrading.studies.futures_total.models.market_session import MarketSession
-from ThorTrading.models import TradingInstrument
+from Instruments.models.rtd import TradingInstrument
 from ThorTrading.studies.futures_total.services.analytics.backtest_stats import compute_backtest_stats_for_country_symbol
 from GlobalMarkets.services.normalize import normalize_country_code
 from ThorTrading.studies.futures_total.services.indicators import compute_targets_for_symbol

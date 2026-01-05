@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from ThorTrading.models.rtd import TradingInstrument
+from Instruments.models.rtd import TradingInstrument
 
 
 def run(*, dry_run: bool, batch_size: int, verbose: bool, stdout, style) -> None:

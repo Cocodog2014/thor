@@ -8,7 +8,7 @@ without any hard-coded decimal places.
 from decimal import Decimal
 from django.test import TestCase
 
-from ThorTrading.models import TradingInstrument, InstrumentCategory
+from Instruments.models.rtd import TradingInstrument, InstrumentCategory
 from ThorTrading.models.target_high_low import TargetHighLowConfig
 from ThorTrading.studies.futures_total.services.indicators import compute_targets_for_symbol
 

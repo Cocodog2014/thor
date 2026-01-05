@@ -2,6 +2,13 @@ from .instrument import Instrument
 from .intraday import InstrumentIntraday
 from .market_24h import MarketTrading24Hour
 from .market_52w import Rolling52WeekStats, week52_extreme_changed
+from .rtd import (
+    ContractWeight,
+    InstrumentCategory,
+    SignalStatValue,
+    SignalWeight,
+    TradingInstrument,
+)
 from .watchlist import UserInstrumentWatchlistItem
 
 __all__ = [
@@ -10,5 +17,10 @@ __all__ = [
     "MarketTrading24Hour",
     "Rolling52WeekStats",
     "week52_extreme_changed",
+    "InstrumentCategory",
+    "TradingInstrument",
+    "SignalStatValue",
+    "SignalWeight",
+    "ContractWeight",
     "UserInstrumentWatchlistItem",
 ]

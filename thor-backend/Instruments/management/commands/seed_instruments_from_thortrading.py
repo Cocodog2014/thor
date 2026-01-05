@@ -48,7 +48,7 @@ class Command(BaseCommand):
         dry_run = bool(options.get("dry_run"))
         include_inactive = bool(options.get("include_inactive"))
 
-        from ThorTrading.models import TradingInstrument
+        from Instruments.models.rtd import TradingInstrument
 
         qs = TradingInstrument.objects.select_related("category")
         if not include_inactive:
