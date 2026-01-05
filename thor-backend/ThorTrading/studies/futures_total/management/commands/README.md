@@ -26,16 +26,6 @@ Four high-safety commands and their flags. Run from `A:\Thor\thor-backend` with 
   - `--batch-size` (default 1000)
   - `--verbose`
 
-## link_intraday_twentyfour
-- Purpose: link `MarketIntraday.twentyfour` to existing `MarketTrading24Hour` parents.
-- Safety: does **not** create parents unless asked.
-- Flags:
-  - `--batch-size` (default 500)
-  - `--max-rows` (optional cap)
-  - `--dry-run` (no writes)
-  - `--create-missing` (allow parent creation; otherwise skips)
-  - `--verbose`
-
 ## purge_market_sessions
 - Purpose: delete **all** `MarketSession` rows.
 - Safety: double confirmation required.

@@ -11,7 +11,6 @@ from .models.extremes import Rolling52WeekStats
 from .models.target_high_low import TargetHighLowConfig
 from .models.vwap import VwapMinute
 from .models.Market24h import MarketTrading24Hour
-from .models.MarketIntraDay import MarketIntraday
 from .models.Instrument_Intraday import InstrumentIntraday
 
 
@@ -521,23 +520,6 @@ class MarketTrading24HourAdmin(admin.ModelAdmin):
     ordering = ("-session_date", "symbol")
     date_hierarchy = "session_date"
     readonly_fields = ("finalized",)
-
-
-@admin.register(MarketIntraday)
-class MarketIntradayAdmin(admin.ModelAdmin):
-    list_display = (
-        "timestamp_minute", "country", "symbol",
-        "open_1m", "high_1m", "low_1m", "close_1m", "volume_1m",
-    )
-    list_filter = (
-        "country", "symbol",
-    )
-    search_fields = (
-        "symbol", "country",
-    )
-    ordering = ("-timestamp_minute", "symbol")
-    date_hierarchy = "timestamp_minute"
-    readonly_fields = ("timestamp_minute",)
 
 
 @admin.register(InstrumentIntraday)

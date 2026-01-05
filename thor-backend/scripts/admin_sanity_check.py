@@ -13,7 +13,7 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'thor_project.settings')
 django.setup()
 
 from ThorTrading.models.Market24h import MarketTrading24Hour
-from ThorTrading.models.MarketIntraDay import MarketIntraday
+from ThorTrading.models.Instrument_Intraday import InstrumentIntraday
 
 
 def run():
@@ -35,12 +35,10 @@ def run():
     )
     print(f"24h session: id={sess.id}, created={created}, symbol={sess.symbol}")
 
-    # Create a 1-minute bar linked to the 24h session
-    bar = MarketIntraday.objects.create(
+    # Create a 1-minute bar (instrument-scoped)
+    bar = InstrumentIntraday.objects.create(
         timestamp_minute=datetime.utcnow().replace(second=0, microsecond=0),
-        country='USA',
         symbol='ES',
-        twentyfour=sess,
         open_1m=5110.00,
         high_1m=5112.00,
         low_1m=5108.50,

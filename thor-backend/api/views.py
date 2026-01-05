@@ -12,8 +12,9 @@ from rest_framework.response import Response
 
 from .redis_client import get_redis, latest_key, unified_stream_key
 from LiveData.shared.redis_client import live_data_redis
-from ThorTrading.models.MarketIntraDay import MarketIntraday
 from GlobalMarkets.services.normalize import normalize_country_code
+from Instruments.models.instrument import Instrument
+from ThorTrading.models.Instrument_Intraday import InstrumentIntraday
 from ThorTrading.studies.futures_total.services.indicators.vwap import vwap_service
 
 
@@ -86,6 +87,24 @@ def _resolve_market_codes(raw: str | None) -> list[str]:
     return codes
 
 
+def _symbols_for_market(country: str) -> list[str]:
+    """Return known instrument symbols for a given market/country.
+
+    Uses the canonical Instruments catalog.
+    """
+    if not country:
+        return []
+    try:
+        return list(
+            Instrument.objects.filter(country=country)
+            .order_by()
+            .values_list("symbol", flat=True)
+            .distinct()
+        )
+    except Exception:
+        return []
+
+
 HEALTH_DEFAULT_MARKETS = [
     "Japan",
     "China",
@@ -129,14 +148,20 @@ def intraday_health(request: HttpRequest):
     now_ts = now()
     # Only count *completed* minutes. A bar stamped with the current minute is still in-progress.
     cutoff = _floor_to_minute(now_ts)
-    latest_by_market = (
-        MarketIntraday.objects
-        .filter(country__in=unique_markets, timestamp_minute__lt=cutoff)
-        .values('country')
-        .annotate(last_bar=Max('timestamp_minute'))
-    )
 
-    latest_map = {row['country']: row['last_bar'] for row in latest_by_market}
+    latest_map: dict[str, object] = {}
+    for market in unique_markets:
+        symbols = _symbols_for_market(market)
+        if not symbols:
+            latest_map[market] = None
+            continue
+        last_bar = (
+            InstrumentIntraday.objects
+            .filter(symbol__in=symbols, timestamp_minute__lt=cutoff)
+            .aggregate(last_bar=Max("timestamp_minute"))
+            .get("last_bar")
+        )
+        latest_map[market] = last_bar
 
     results = []
     for market in unique_markets:
@@ -208,13 +233,19 @@ def session(request: HttpRequest):
     # Example: at 13:53:xx, the 13:53 bar is in-progress; return 13:52.
     cutoff = _floor_to_minute(now())
     try:
-        row = (
-            MarketIntraday.objects
-            .filter(country__in=lookup_codes, future=future, timestamp_minute__lt=cutoff)
-            .order_by('-timestamp_minute')
-            .values('open_1m', 'high_1m', 'low_1m', 'close_1m', 'volume_1m', 'spread_last', 'country')
-            .first()
-        )
+        # Verify the symbol exists for this market in the canonical catalog.
+        requested_country = lookup_codes[0] if lookup_codes else market_param
+        exists = Instrument.objects.filter(country__in=lookup_codes, symbol=future).exists()
+        if not exists:
+            row = None
+        else:
+            row = (
+                InstrumentIntraday.objects
+                .filter(symbol=future, timestamp_minute__lt=cutoff)
+                .order_by('-timestamp_minute')
+                .values('open_1m', 'high_1m', 'low_1m', 'close_1m', 'volume_1m', 'spread_last')
+                .first()
+            )
     except Exception as exc:
         return Response({'detail': f'Database error: {exc}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
@@ -227,7 +258,7 @@ def session(request: HttpRequest):
             'volume': _safe_int(row['volume_1m']),
             'spread': _safe_float(row['spread_last']),
         }
-        market_param = row.get('country') or market_param
+        market_param = requested_country
 
     # Minimal payload; hooks exist to merge session tiles when available
     payload = {

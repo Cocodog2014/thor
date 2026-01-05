@@ -25,11 +25,6 @@ except Exception:
     pass
 
 
-# Register new models for intraday and 24h session
-try:
-    from .MarketIntraDay import *  # noqa: F401,F403
-except Exception:
-    pass
 try:
     from .Market24h import *  # noqa: F401,F403
 except Exception:
