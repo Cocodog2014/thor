@@ -30,7 +30,7 @@ except Exception:
 
 # Study configuration models (join tables, instrument attachments)
 try:
-    from .study import *  # noqa: F401,F403
+    from ThorTrading.studies.models.study import *  # noqa: F401,F403
 except Exception:
     pass
 
