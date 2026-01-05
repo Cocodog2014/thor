@@ -53,8 +53,8 @@ class MarketTrading24Hour(models.Model):
         indexes = [
             models.Index(fields=["session_date", "country", "symbol"], name="idx_mkt24h_date_cty_sym"),
         ]
-        verbose_name = "24-Hour Global Session"
-        verbose_name_plural = "24-Hour Global Sessions"
+        verbose_name = "24-Hour Stats"
+        verbose_name_plural = "24-Hour Stats"
 
     def __str__(self):
         return f"{self.country} {self.symbol} {self.session_date} (group={self.session_group})"
