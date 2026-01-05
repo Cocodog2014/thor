@@ -42,8 +42,8 @@ class InstrumentIntraday(models.Model):
     class Meta:
         managed = True
         db_table = "Instruments_instrumentintraday"
-        verbose_name = "Instrument Intraday Bar"
-        verbose_name_plural = "Instrument Intraday Bars"
+        verbose_name = "Intraday Bar"
+        verbose_name_plural = "Intraday Bars"
 
         constraints = [
             models.UniqueConstraint(
