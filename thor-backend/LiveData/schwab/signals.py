@@ -30,8 +30,6 @@ Safety/production notes
 """
 
 from __future__ import annotations
-
-import json
 import logging
 from typing import Any, Dict, Optional
 
@@ -39,14 +37,13 @@ from django.db import transaction
 from django.db.models.signals import post_delete, post_save, pre_save
 from django.dispatch import receiver
 
+from django.conf import settings
+
+from LiveData.schwab.control_plane import publish_symbol
 from LiveData.schwab.models import SchwabSubscription
-from LiveData.shared.redis_client import live_data_redis
+from LiveData.schwab.signal_control import signals_suppressed
 
 logger = logging.getLogger(__name__)
-
-
-def _control_channel(user_id: int) -> str:
-    return f"live_data:schwab:control:{user_id}"
 
 
 def _safe_symbol(value: Any) -> str:
@@ -59,31 +56,16 @@ def _safe_asset(value: Any) -> str:
 
 def _publish_control(*, user_id: int, action: str, asset: str, symbol: str) -> None:
     """Publish a single-symbol control message to the schwab streamer control plane."""
-
-    payload = {
-        "action": action,
-        "asset": asset,
-        "symbols": [symbol],
-    }
-
-    try:
-        live_data_redis.client.publish(_control_channel(int(user_id)), json.dumps(payload))
-    except Exception as exc:
-        # Don't break admin saves if Redis is down.
-        logger.warning(
-            "SchwabSubscription signal publish failed (user_id=%s action=%s asset=%s symbol=%s): %s",
-            user_id,
-            action,
-            asset,
-            symbol,
-            exc,
-            exc_info=True,
-        )
+    publish_symbol(user_id=user_id, action=action, asset=asset, symbol=symbol)
 
 
 @receiver(pre_save, sender=SchwabSubscription)
 def schwab_subscription_pre_save(sender, instance: SchwabSubscription, **kwargs) -> None:
     """Capture previous values so post_save can emit correct add/remove events."""
+
+    if signals_suppressed() or not bool(getattr(settings, "SCHWAB_SUBSCRIPTION_SIGNAL_PUBLISH", False)):
+        instance._schwab_prev = None  # type: ignore[attr-defined]
+        return
 
     if instance.pk is None:
         instance._schwab_prev = None  # type: ignore[attr-defined]
@@ -103,6 +85,9 @@ def schwab_subscription_post_save(
     **kwargs,
 ) -> None:
     """Publish Redis control messages when subscriptions change via Admin/API."""
+
+    if signals_suppressed() or not bool(getattr(settings, "SCHWAB_SUBSCRIPTION_SIGNAL_PUBLISH", False)):
+        return
 
     symbol = _safe_symbol(instance.symbol)
     asset = _safe_asset(instance.asset_type)
@@ -153,6 +138,9 @@ def schwab_subscription_post_save(
 @receiver(post_delete, sender=SchwabSubscription)
 def schwab_subscription_post_delete(sender, instance: SchwabSubscription, **kwargs) -> None:
     """Publish remove when a subscription row is deleted."""
+
+    if signals_suppressed() or not bool(getattr(settings, "SCHWAB_SUBSCRIPTION_SIGNAL_PUBLISH", False)):
+        return
 
     if not instance.enabled:
         return

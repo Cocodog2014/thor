@@ -14,6 +14,7 @@ from GlobalMarkets.models.market import Market
 from GlobalMarkets.services.active_markets import get_control_markets
 from GlobalMarkets.services.market_clock import is_market_open_now
 from LiveData.shared.redis_client import live_data_redis
+from Instruments.models import Instrument
 from ThorTrading.models.MarketSession import MarketSession
 from ThorTrading.models import TradingInstrument
 from ThorTrading.services.analytics.backtest_stats import compute_backtest_stats_for_country_symbol
@@ -156,15 +157,12 @@ class MarketOpenCaptureService:
         if not country:
             return set(), False
 
-        qs = TradingInstrument.objects.filter(is_active=True)
-        try:
+        qs = Instrument.objects.filter(is_active=True)
+        if country:
             qs = qs.filter(country__iexact=country)
-        except Exception:
-            # If TradingInstrument doesn't have a country field, just ignore.
-            pass
 
-        symbols = set()
-        for inst in qs:
+        symbols: set[str] = set()
+        for inst in qs.only("symbol"):
             sym = getattr(inst, "symbol", None)
             if sym:
                 symbols.add(str(sym).lstrip("/").upper())

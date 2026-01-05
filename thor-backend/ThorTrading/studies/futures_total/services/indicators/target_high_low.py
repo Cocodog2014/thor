@@ -13,6 +13,7 @@ try:
 except Exception:  # pragma: no cover - defensive for missing file
     SYMBOL_NORMALIZE_MAP: dict[str, str] = {}
 from ThorTrading.models.target_high_low import TargetHighLowConfig
+from Instruments.models import Instrument
 from ThorTrading.models import TradingInstrument
 
 logger = logging.getLogger(__name__)
@@ -21,6 +22,11 @@ logger = logging.getLogger(__name__)
 @lru_cache(maxsize=128)
 def _get_quant_for_symbol(symbol: str) -> Optional[Decimal]:
     base = symbol.lstrip("/").upper()
+
+    inst2 = Instrument.objects.filter(symbol__iexact=base, is_active=True).first()
+    if inst2:
+        precision = int(getattr(inst2, "display_precision", 2) or 2)
+        return Decimal("1").scaleb(-precision)
 
     inst = (
         TradingInstrument.objects.filter(symbol__iexact=base)

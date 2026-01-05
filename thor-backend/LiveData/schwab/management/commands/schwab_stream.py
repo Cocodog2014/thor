@@ -22,6 +22,10 @@ from LiveData.schwab.models import BrokerConnection, SchwabSubscription
 from LiveData.schwab.client.streaming import SchwabStreamingProducer
 from LiveData.schwab.client.tokens import ensure_valid_access_token
 from LiveData.shared.redis_client import live_data_redis
+from Instruments.services.schwab_fields import (
+    SCHWAB_LEVEL_ONE_EQUITY_FIELDS,
+    SCHWAB_LEVEL_ONE_FUTURES_FIELDS,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -559,13 +563,9 @@ class Command(BaseCommand):
                         return
 
                     fields = [
-                        StreamClient.LevelOneEquityFields.SYMBOL,
-                        StreamClient.LevelOneEquityFields.BID_PRICE,
-                        StreamClient.LevelOneEquityFields.ASK_PRICE,
-                        StreamClient.LevelOneEquityFields.LAST_PRICE,
-                        StreamClient.LevelOneEquityFields.TOTAL_VOLUME,
-                        StreamClient.LevelOneEquityFields.QUOTE_TIME_MILLIS,
-                        StreamClient.LevelOneEquityFields.TRADE_TIME_MILLIS,
+                        getattr(StreamClient.LevelOneEquityFields, name)
+                        for name in SCHWAB_LEVEL_ONE_EQUITY_FIELDS
+                        if hasattr(StreamClient.LevelOneEquityFields, name)
                     ]
 
                     if not desired_list:
@@ -595,13 +595,9 @@ class Command(BaseCommand):
                         return
 
                     fields = [
-                        StreamClient.LevelOneFuturesFields.SYMBOL,
-                        StreamClient.LevelOneFuturesFields.BID_PRICE,
-                        StreamClient.LevelOneFuturesFields.ASK_PRICE,
-                        StreamClient.LevelOneFuturesFields.LAST_PRICE,
-                        StreamClient.LevelOneFuturesFields.TOTAL_VOLUME,
-                        StreamClient.LevelOneFuturesFields.QUOTE_TIME_MILLIS,
-                        StreamClient.LevelOneFuturesFields.TRADE_TIME_MILLIS,
+                        getattr(StreamClient.LevelOneFuturesFields, name)
+                        for name in SCHWAB_LEVEL_ONE_FUTURES_FIELDS
+                        if hasattr(StreamClient.LevelOneFuturesFields, name)
                     ]
 
                     if not desired_list:

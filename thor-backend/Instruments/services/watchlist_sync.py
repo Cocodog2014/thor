@@ -4,22 +4,10 @@ import json
 
 from django.db import transaction
 
-from LiveData.shared.redis_client import live_data_redis
+from LiveData.schwab.control_plane import publish_set
 from LiveData.schwab.models import SchwabSubscription
+from LiveData.schwab.signal_control import suppress_schwab_subscription_signals
 from Instruments.models import Instrument, UserInstrumentWatchlistItem
-
-
-def _control_channel(user_id: int) -> str:
-    return f"live_data:schwab:control:{user_id}"
-
-
-def _publish_set(*, user_id: int, asset: str, symbols: list[str]) -> None:
-    payload = {
-        "action": "set",
-        "asset": asset,
-        "symbols": symbols,
-    }
-    live_data_redis.client.publish(_control_channel(int(user_id)), json.dumps(payload))
 
 
 def sync_watchlist_to_schwab(user_id: int) -> None:
@@ -46,9 +34,9 @@ def sync_watchlist_to_schwab(user_id: int) -> None:
         if quote_source not in {"AUTO", "SCHWAB"}:
             continue
         if inst.asset_type == Instrument.AssetType.FUTURE:
-            futures.append(symbol)
+            futures.append(symbol if symbol.startswith("/") else "/" + symbol.lstrip("/"))
         else:
-            equities.append(symbol)
+            equities.append(symbol.lstrip("/"))
 
     # De-dupe stable
     def _dedupe(xs: list[str]) -> list[str]:
@@ -64,7 +52,7 @@ def sync_watchlist_to_schwab(user_id: int) -> None:
     equities = _dedupe(equities)
     futures = _dedupe(futures)
 
-    with transaction.atomic():
+    with transaction.atomic(), suppress_schwab_subscription_signals():
         # Persist desired set in DB so streamer can bootstrap from DB.
         SchwabSubscription.objects.filter(user_id=user_id, asset_type=SchwabSubscription.ASSET_EQUITY).exclude(
             symbol__in=equities
@@ -90,7 +78,7 @@ def sync_watchlist_to_schwab(user_id: int) -> None:
 
         def _on_commit() -> None:
             # Push sets to streamer for immediate convergence.
-            _publish_set(user_id=user_id, asset="EQUITY", symbols=equities)
-            _publish_set(user_id=user_id, asset="FUTURE", symbols=futures)
+            publish_set(user_id=user_id, asset="EQUITY", symbols=equities)
+            publish_set(user_id=user_id, asset="FUTURE", symbols=futures)
 
         transaction.on_commit(_on_commit)

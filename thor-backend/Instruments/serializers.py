@@ -65,16 +65,22 @@ class WatchlistReplaceSerializer(serializers.Serializer):
             if item.get("instrument_id"):
                 instrument = Instrument.objects.filter(id=item["instrument_id"]).first()
             elif item.get("symbol"):
-                symbol = str(item["symbol"]).strip().upper()
-                instrument = Instrument.objects.filter(symbol__iexact=symbol).first()
-                if instrument is None and symbol:
+                raw_symbol = str(item["symbol"]).strip().upper()
+                canonical_symbol = raw_symbol.lstrip("/")
+
+                instrument = Instrument.objects.filter(symbol__iexact=canonical_symbol).first()
+                if instrument is None and raw_symbol.startswith("/"):
+                    # Back-compat: tolerate legacy Instrument symbols that include '/'.
+                    instrument = Instrument.objects.filter(symbol__iexact=raw_symbol).first()
+
+                if instrument is None and canonical_symbol:
                     inferred_asset_type = (
                         Instrument.AssetType.FUTURE
-                        if symbol.startswith("/")
+                        if raw_symbol.startswith("/")
                         else Instrument.AssetType.EQUITY
                     )
                     instrument, _created = Instrument.objects.get_or_create(
-                        symbol=symbol,
+                        symbol=canonical_symbol,
                         defaults={
                             "asset_type": inferred_asset_type,
                             "is_active": True,

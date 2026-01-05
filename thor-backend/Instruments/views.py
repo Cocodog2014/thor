@@ -35,13 +35,15 @@ class UserWatchlistView(APIView):
                     if not sym:
                         continue
 
+                    canonical_sym = sym.lstrip("/")
+
                     inferred_asset_type = (
                         Instrument.AssetType.FUTURE
                         if asset_type == SchwabSubscription.ASSET_FUTURE or sym.startswith("/")
                         else Instrument.AssetType.EQUITY
                     )
                     inst, _ = Instrument.objects.get_or_create(
-                        symbol=sym,
+                        symbol=(canonical_sym or sym),
                         defaults={"asset_type": inferred_asset_type, "is_active": True},
                     )
                     to_create.append(
