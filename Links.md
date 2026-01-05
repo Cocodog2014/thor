@@ -23,7 +23,8 @@ python manage.py schwab_stream --user-id 1 --equities VFF --futures ""
 python manage.py schwab_stream --user-id 1 --equities GOOG
 python manage.py schwab_stream --user-id 1 --equities NFLX
 python manage.py schwab_stream --user-id 1 --equities NVDA
-
+cls
+.
 Delete data from Redis:
 
 cd A:\Thor\thor-backend

@@ -29,6 +29,9 @@ from .row_metrics import compute_row_metrics
 
 logger = logging.getLogger(__name__)
 
+# Study code for this package.
+STUDY_CODE = "FUTURE_TOTAL"
+
 
 def _load_raw_quote(symbol: str) -> dict | None:
     key = f"raw:quote:{symbol.upper()}"
@@ -95,27 +98,54 @@ def _fallback_country_from_clock(control_countries: list[str]) -> str | None:
 def _tracked_instruments() -> List[object]:
     """Return tracked instruments for the Futures Total UI.
 
-    Primary source: Instruments.Instrument (master catalog), FUTURE + is_active.
-    Back-compat: if the master catalog is empty, fall back to ThorTrading.TradingInstrument
-    watchlist selection so existing deployments keep working during migration.
+    Priority order:
+      1) Studies mapping (StudyInstrument) for FUTURE_TOTAL
+      2) Instruments master catalog (all active FUTURE)
+      3) Legacy fallback: ThorTrading.TradingInstrument watchlist
+
+    This keeps existing deployments working while you migrate to study-driven universes.
     """
+    # 1) Study-driven universe (preferred)
+    try:
+        # Relative import keeps this stable regardless of app label/package name.
+        from ...models.study_instrument import StudyInstrument
+
+        qs = (
+            StudyInstrument.objects.select_related("study", "instrument")
+            .filter(
+                study__code=STUDY_CODE,
+                study__is_active=True,
+                enabled=True,
+                instrument__is_active=True,
+                instrument__asset_type=Instrument.AssetType.FUTURE,
+            )
+            .order_by("order", "instrument__symbol")
+        )
+        instruments = [row.instrument for row in qs]
+        if instruments:
+            return instruments
+    except Exception:
+        # Don't break the study if mapping isn't ready yet.
+        logger.exception("Failed to load tracked instruments via StudyInstrument for %s", STUDY_CODE)
+
+    # 2) Back-compat: Instruments catalog (current behavior)
     try:
         instruments = list(
             Instrument.objects.filter(is_active=True, asset_type=Instrument.AssetType.FUTURE).order_by("symbol")
         )
         if instruments:
             return instruments
-
-        try:
-            from ThorTrading.models import TradingInstrument
-
-            qs = TradingInstrument.objects.filter(is_active=True, is_watchlist=True)
-            return list(qs.order_by("sort_order", "symbol"))
-        except Exception:
-            logger.exception("Failed to load tracked instruments (legacy fallback)")
-            return []
     except Exception:
-        logger.exception("Failed to load tracked instruments")
+        logger.exception("Failed to load tracked instruments from Instruments catalog")
+
+    # 3) Legacy fallback
+    try:
+        from ThorTrading.models import TradingInstrument
+
+        qs = TradingInstrument.objects.filter(is_active=True, is_watchlist=True)
+        return list(qs.order_by("sort_order", "symbol"))
+    except Exception:
+        logger.exception("Failed to load tracked instruments (legacy fallback)")
         return []
 
 
