@@ -55,6 +55,11 @@ class ThorTradingConfig(AppConfig):
         import threading
         import time
 
+        # Ensure study models are registered with Django.
+        # (Models live under ThorTrading.studies.models.* and must be imported during app init.)
+        from ThorTrading.studies.models import study as _study_models  # noqa: F401
+        from ThorTrading.studies import load as _study_modules  # noqa: F401
+
         logger = logging.getLogger(__name__)
         argv = sys.argv or []
         lowered_args = [arg.lower() for arg in argv]

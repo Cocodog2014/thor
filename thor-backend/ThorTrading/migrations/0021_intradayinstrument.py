@@ -58,21 +58,6 @@ class Migration(migrations.Migration):
             options={
                 "verbose_name": "Intraday Instrument Bar",
                 "verbose_name_plural": "Intraday Instrument Bars",
-                "indexes": [
-                    models.Index(
-                        fields=["symbol", "timestamp_minute"],
-                        name="idx_intraday_instr_sym_ts",
-                    ),
-                    models.Index(
-                        fields=["timestamp_minute"], name="idx_intraday_instr_ts"
-                    ),
-                ],
-                "constraints": [
-                    models.UniqueConstraint(
-                        fields=("timestamp_minute", "symbol"),
-                        name="uniq_intraday_symbol_minute",
-                    )
-                ],
             },
         ),
     ]
