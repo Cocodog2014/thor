@@ -169,9 +169,18 @@ def _to_str(v):
 def build_enriched_rows(raw_quotes: Dict[str, Dict]) -> List[Dict]:
     """Return enriched row dicts (one per tracked instrument)."""
     control_countries = get_control_countries(require_session_capture=True)
-    stats_52w = {s.symbol: s for s in Rolling52WeekStats.objects.all()}
 
     instruments = _tracked_instruments()
+    tracked_symbols = [(getattr(inst, "symbol", "") or "").lstrip("/").upper() for inst in instruments]
+    tracked_symbols = [s for s in tracked_symbols if s]
+
+    stats_52w: dict[str, Rolling52WeekStats] = {}
+    try:
+        if tracked_symbols:
+            stats_52w = {s.symbol: s for s in Rolling52WeekStats.objects.filter(symbol__in=tracked_symbols)}
+    except Exception:
+        # If 52w stats table isn't ready yet, don't break quote rendering.
+        stats_52w = {}
     rows: List[Dict] = []
     fallback_country = _fallback_country_from_clock(control_countries)
 

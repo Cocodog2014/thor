@@ -11,7 +11,6 @@ import subprocess
 import sys
 
 TABLES = [
-    "FutureTrading_rolling52weekstats",
     "FutureTrading_contractweight",
     "FutureTrading_instrumentcategory",
     "FutureTrading_signalstatvalue",

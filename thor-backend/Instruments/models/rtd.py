@@ -1,11 +1,7 @@
 from __future__ import annotations
-"""Legacy RTD models (moved from ThorTrading).
+"""RTD models.
 
-These models back Thor's historical RTD configuration tables (instrument categories,
-trading instruments, signal weights).
-
-They are mapped to the existing ThorTrading_* tables and are unmanaged so the
-Instruments app does not try to create/alter the schema.
+These tables are owned by the Instruments app.
 """
 
 from decimal import Decimal
@@ -30,8 +26,8 @@ class InstrumentCategory(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        managed = False
-        db_table = "ThorTrading_instrumentcategory"
+        managed = True
+        db_table = "Instruments_instrumentcategory"
         ordering = ["sort_order", "name"]
         verbose_name = "Instrument Category"
         verbose_name_plural = "Instrument Categories"
@@ -77,8 +73,8 @@ class TradingInstrument(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        managed = False
-        db_table = "ThorTrading_tradinginstrument"
+        managed = True
+        db_table = "Instruments_tradinginstrument"
         ordering = ["sort_order", "country", "symbol"]
         unique_together = [("country", "symbol")]
         indexes = [
@@ -111,8 +107,8 @@ class SignalStatValue(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        managed = False
-        db_table = "ThorTrading_signalstatvalue"
+        managed = True
+        db_table = "Instruments_signalstatvalue"
         unique_together = [("instrument", "signal")]
         ordering = ["instrument__country", "instrument__symbol", "signal"]
         verbose_name = "Signal Statistical Value"
@@ -130,8 +126,8 @@ class SignalWeight(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        managed = False
-        db_table = "ThorTrading_signalweight"
+        managed = True
+        db_table = "Instruments_signalweight"
         ordering = ["-weight"]
         verbose_name = "Signal Weight"
         verbose_name_plural = "Signal Weights"
@@ -148,8 +144,8 @@ class ContractWeight(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        managed = False
-        db_table = "ThorTrading_contractweight"
+        managed = True
+        db_table = "Instruments_contractweight"
         ordering = ["instrument__country", "instrument__symbol"]
         verbose_name = "Contract Weight"
         verbose_name_plural = "Contract Weights"

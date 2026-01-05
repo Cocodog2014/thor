@@ -10,7 +10,6 @@ TABLES = [
     "FutureTrading_instrumentcategory",
     "FutureTrading_tradinginstrument",
     "FutureTrading_contractweight",
-    "FutureTrading_rolling52weekstats",
     "FutureTrading_signalstatvalue",
     "FutureTrading_targethighlowconfig",
 ]

@@ -47,11 +47,11 @@ class MarketTrading24Hour(models.Model):
     finalized = models.BooleanField(default=False, help_text="True when US close is reached")
 
     class Meta:
-        managed = False
-        db_table = "ThorTrading_markettrading24hour"
+        managed = True
+        db_table = "Instruments_markettrading24hour"
         unique_together = (("session_group", "country", "symbol"),)
         indexes = [
-            models.Index(fields=["session_date", "country", "symbol"]),
+            models.Index(fields=["session_date", "country", "symbol"], name="idx_mkt24h_date_cty_sym"),
         ]
         verbose_name = "24-Hour Global Session"
         verbose_name_plural = "24-Hour Global Sessions"

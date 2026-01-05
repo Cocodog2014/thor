@@ -20,9 +20,14 @@ class Week52ExtremesJob(Job):
         return last is None or (now - last) >= self.interval_seconds
 
     def run(self, ctx: Any) -> None:
+        from decimal import Decimal
+
+        from django.utils import timezone
+
         from LiveData.shared.redis_client import live_data_redis
         from Instruments.models.market_52w import Rolling52WeekStats
-        from decimal import Decimal
+
+        today = timezone.localdate()
 
         SYMBOLS = ["YM", "ES", "NQ", "RTY", "CL", "SI", "HG", "GC", "VX", "DX", "ZB"]
         SYMBOL_MAP = {
@@ -46,7 +51,9 @@ class Week52ExtremesJob(Job):
                     symbol=sym,
                     defaults={
                         "high_52w": last_price,
+                        "high_52w_date": today,
                         "low_52w": last_price,
+                        "low_52w_date": today,
                     },
                 )
 

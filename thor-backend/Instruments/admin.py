@@ -176,29 +176,12 @@ class Rolling52WeekStatsAdmin(admin.ModelAdmin):
         if not change:
             from django.utils import timezone
 
-            today = timezone.now().date()
+            today = timezone.localdate()
             if not obj.high_52w_date:
                 obj.high_52w_date = today
             if not obj.low_52w_date:
                 obj.low_52w_date = today
         super().save_model(request, obj, form, change)
-
-    def get_readonly_fields(self, request, obj=None):  # pragma: no cover - admin
-        ro = ["last_price_checked", "last_updated", "created_at"]
-        if obj and not request.user.is_superuser:
-            ro.extend(
-                [
-                    "high_52w",
-                    "high_52w_date",
-                    "low_52w",
-                    "low_52w_date",
-                    "all_time_high",
-                    "all_time_high_date",
-                    "all_time_low",
-                    "all_time_low_date",
-                ]
-            )
-        return ro
 
     def stale_hours_display(self, obj):
         val = obj.stale_hours()

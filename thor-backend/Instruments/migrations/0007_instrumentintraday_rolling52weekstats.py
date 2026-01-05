@@ -164,9 +164,9 @@ class Migration(migrations.Migration):
             options={
                 "verbose_name": "52-Week Stats",
                 "verbose_name_plural": "52-Week Stats",
-                "db_table": "ThorTrading_rolling52weekstats",
                 "ordering": ["symbol"],
-                "managed": False,
+                "db_table": "Instruments_rolling52weekstats",
+                "managed": True,
             },
         ),
     ]

@@ -3,7 +3,7 @@ from __future__ import annotations
 Rolling 52-Week (and optional All-Time) Extremes
 
 Tracks rolling 52-week highs/lows for any trading instrument identified by
-(country, symbol). Admin seeds initial values; the system auto-updates on
+(symbol). Admin seeds initial values; the system auto-updates on
 incoming LAST prices.
 
 This model is instrument-neutral and does not assume asset class.
@@ -143,11 +143,9 @@ class Rolling52WeekStats(models.Model):
     objects = Rolling52WeekStatsManager()
 
     class Meta:
-        # This model was historically owned by the ThorTrading app. We keep the
-        # existing table and mark it unmanaged so migrations don't attempt to
-        # create/alter it under the Instruments app.
-        managed = False
-        db_table = "ThorTrading_rolling52weekstats"
+        # This is now an Instruments-owned table (source of truth lives here).
+        managed = True
+        db_table = "Instruments_rolling52weekstats"
         verbose_name = "52-Week Stats"
         verbose_name_plural = "52-Week Stats"
         ordering = ["symbol"]
