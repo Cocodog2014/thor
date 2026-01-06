@@ -55,7 +55,14 @@ def _active_symbols(max_age_seconds: int = 60, limit: int = 5000) -> list[str]:
         return []
 
 
-def _make_tick(sym: str, row: Dict[str, Any], session_key: str, session_number: Optional[int]) -> Dict[str, Any]:
+def _make_tick(
+    sym: str,
+    row: Dict[str, Any],
+    *,
+    routing_key: str,
+    session_number: Optional[int],
+    session_date: Optional[str] = None,
+) -> Dict[str, Any]:
     return {
         "symbol": sym,
         "price": row.get("last"),
@@ -64,7 +71,9 @@ def _make_tick(sym: str, row: Dict[str, Any], session_key: str, session_number: 
         "ask": row.get("ask"),
         "ts": row.get("ts"),
         "timestamp": row.get("timestamp"),
-        "session_key": session_key,
+        # Keep the historical field name; it now carries the canonical routing id.
+        "session_key": routing_key,
+        **({"session_date": session_date} if session_date else {}),
         **({"session_number": session_number} if session_number is not None else {}),
     }
 
@@ -169,22 +178,29 @@ class IntradaySupervisor:
                     if not self.include_equities:
                         continue
 
-                session_key, session_number = _utc_day_session_from_timestamp(row.get("timestamp") or row.get("ts"))
-                session_keys_seen.add(session_key)
+                session_date, session_number = _utc_day_session_from_timestamp(row.get("timestamp") or row.get("ts"))
+                routing_key = str(session_number)
+                session_keys_seen.add(routing_key)
 
-                tick = _make_tick(sym, row, session_key=session_key, session_number=session_number)
+                tick = _make_tick(
+                    sym,
+                    row,
+                    routing_key=routing_key,
+                    session_number=session_number,
+                    session_date=session_date,
+                )
 
                 try:
-                    live_data_redis.set_tick(session_key, sym, tick, ttl=10)
+                    live_data_redis.set_tick(routing_key, sym, tick, ttl=10)
 
-                    closed_bar, _current_bar = live_data_redis.upsert_current_bar_1m(session_key, sym, tick)
+                    closed_bar, _current_bar = live_data_redis.upsert_current_bar_1m(routing_key, sym, tick)
                     if closed_bar:
-                        live_data_redis.enqueue_closed_bar(session_key, closed_bar)
+                        live_data_redis.enqueue_closed_bar(routing_key, closed_bar)
                         captured_closed += 1
 
                     captured_ticks += 1
                 except Exception:
-                    logger.exception("intraday_tick failed for %s (session=%s)", sym, session_key)
+                    logger.exception("intraday_tick failed for %s (session=%s)", sym, routing_key)
                     continue
 
             result["captured"]["ticks"] = captured_ticks
