@@ -100,38 +100,12 @@ def _run_market_grader(ctx: Any) -> None:
         logger.exception("market_grader: grading pass failed")
 
 
-def _run_twentyfour(ctx: Any) -> None:
-    from ThorTrading.studies.futures_total.quotes import get_enriched_quotes_with_composite
-    from ThorTrading.studies.futures_total.services.indicators.twentyfour import update_24h_for_country
-
-    active = set(_active_countries())
-    if not active:
-        return
-
-    try:
-        enriched, _ = get_enriched_quotes_with_composite()
-    except Exception:
-        logger.exception("twentyfour_hour: failed to load enriched quotes")
-        return
-
-    if not enriched:
-        return
-
-    enriched = [r for r in enriched if r.get("country") in active]
-    if not enriched:
-        return
-
-    for country in sorted(active):
-        update_24h_for_country(country, enriched)
-
-
 def register(registry: Any) -> list[str]:
     jobs = [
         InlineJob("intraday_tick", 1.0, _run_intraday_tick),
         InlineJob("gm.open_capture_scan", 5.0, _run_open_capture_scan),
         InlineJob("market_metrics", 10.0, _run_market_metrics),
         InlineJob("market_grader", 15.0, _run_market_grader),
-        InlineJob("twentyfour_hour", 30.0, _run_twentyfour),
     ]
 
     job_names: list[str] = []
@@ -142,15 +116,6 @@ def register(registry: Any) -> list[str]:
             job_names.append(job.name)
         except Exception:
             logger.exception("Failed to register job %s", job.name)
-
-    try:
-        from ThorTrading.studies.futures_total.services.week52_extremes_job import Week52ExtremesJob
-
-        week52_job = Week52ExtremesJob()
-        registry.register(week52_job, interval_seconds=week52_job.interval_seconds)
-        job_names.append(week52_job.name)
-    except Exception:
-        logger.exception("Failed to register Week52ExtremesJob")
 
     logger.info("ThorTrading jobs registered: %s", job_names)
     return job_names
