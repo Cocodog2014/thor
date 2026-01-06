@@ -15,7 +15,7 @@ class MarketTrading24Hour(models.Model):
     attempt to create/alter it under the Instruments app.
     """
 
-    session_group = models.IntegerField(
+    session_number = models.IntegerField(
         db_index=True,
         help_text="Shared key with MarketSession.session_number",
     )
@@ -44,7 +44,7 @@ class MarketTrading24Hour(models.Model):
     class Meta:
         managed = True
         db_table = "Instruments_markettrading24hour"
-        unique_together = (("session_group", "symbol"),)
+        unique_together = (("session_number", "symbol"),)
         indexes = [
             models.Index(fields=["session_date", "symbol"], name="idx_mkt24h_date_sym"),
         ]
@@ -52,4 +52,4 @@ class MarketTrading24Hour(models.Model):
         verbose_name_plural = "24-Hour Stats"
 
     def __str__(self):
-        return f"{self.symbol} {self.session_date} (group={self.session_group})"
+        return f"{self.symbol} {self.session_date} (session_number={self.session_number})"

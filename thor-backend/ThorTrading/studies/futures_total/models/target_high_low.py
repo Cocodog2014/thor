@@ -7,7 +7,7 @@ Per-instrument configurable offsets used to derive `target_high` and
 
 This version is aligned with the new instrument-neutral naming:
 - Uses `country` + `symbol` to match MarketSession / MarketIntraday / TargetHighLowConfig
-- MarketTrading24Hour is `session_group` + `symbol` (global, no country)
+- MarketTrading24Hour is `session_number` + `symbol` (global, no country)
 - Quantization is driven by TradingInstrument.display_precision (caller can pass quant or precision)
 
 Modes:

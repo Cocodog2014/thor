@@ -222,7 +222,7 @@ class InstrumentIntradayAdmin(admin.ModelAdmin):
 @admin.register(MarketTrading24Hour)
 class MarketTrading24HourAdmin(admin.ModelAdmin):
     list_display = (
-        "session_group",
+        "session_number",
         "session_date",
         "symbol",
         "open_price_24h",
@@ -241,7 +241,7 @@ class MarketTrading24HourAdmin(admin.ModelAdmin):
     )
     search_fields = (
         "symbol",
-        "session_group",
+        "session_number",
     )
     ordering = ("-session_date", "symbol")
     date_hierarchy = "session_date"

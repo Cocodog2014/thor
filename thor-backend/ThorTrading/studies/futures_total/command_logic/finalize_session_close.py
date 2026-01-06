@@ -39,10 +39,10 @@ def run(
         group = session.session_number
 
     try:
-        twentyfour = MarketTrading24Hour.objects.get(session_group=group, symbol=symbol)
+        twentyfour = MarketTrading24Hour.objects.get(session_number=group, symbol=symbol)
     except MarketTrading24Hour.DoesNotExist:
         raise ValueError(
-            f"No MarketTrading24Hour found for session_group={group} symbol={symbol}. Supervisor must populate it first."
+            f"No MarketTrading24Hour found for session_number={group} symbol={symbol}. Supervisor must populate it first."
         )
 
     close_val = twentyfour.close_24h

@@ -19,7 +19,7 @@ from Instruments.models.intraday import InstrumentIntraday
 def run():
     # Create or get a 24h session
     sess, created = MarketTrading24Hour.objects.get_or_create(
-        session_group=1,
+            session_number=1,
         symbol='ES',
         defaults={
             'session_date': date.today(),
