@@ -6,6 +6,7 @@ from .models import InstrumentIntraday
 from .models import MarketTrading24Hour
 from .models import Rolling52WeekStats
 from .models import UserInstrumentWatchlistItem
+from .models import UserInstrumentSubscription
 from Instruments.services.watchlist_sync import sync_watchlist_to_schwab
 from Instruments.services.instrument_sync import (
     ensure_owner_watchlist_for_instrument,
@@ -120,6 +121,31 @@ class UserInstrumentWatchlistItemAdmin(admin.ModelAdmin):
         user_id = int(obj.user_id)
         super().delete_model(request, obj)
         transaction.on_commit(lambda: sync_watchlist_to_schwab(user_id))
+
+
+@admin.register(UserInstrumentSubscription)
+class UserInstrumentSubscriptionAdmin(admin.ModelAdmin):
+    list_display = ("user", "symbol", "asset_type", "enabled", "updated_at")
+    list_editable = ("enabled",)
+    list_filter = ("asset_type", "enabled", "updated_at")
+    search_fields = ("user__email", "symbol")
+    ordering = ("user", "asset_type", "symbol")
+    readonly_fields = ("created_at", "updated_at")
+
+    fieldsets = (
+        ("Subscription", {"fields": ("user", "symbol", "asset_type", "enabled")}),
+        ("Timestamps", {"fields": ("created_at", "updated_at")}),
+    )
+
+    def get_changeform_initial_data(self, request):  # pragma: no cover - admin
+        initial = super().get_changeform_initial_data(request)
+        initial.setdefault("user", request.user.id)
+        return initial
+
+    def save_model(self, request, obj, form, change):  # pragma: no cover - admin
+        if not getattr(obj, "user_id", None):
+            obj.user = request.user
+        super().save_model(request, obj, form, change)
 
 
 @admin.register(Rolling52WeekStats)

@@ -6,8 +6,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from LiveData.schwab.models import SchwabSubscription
-from Instruments.models import Instrument, UserInstrumentWatchlistItem
+from Instruments.models import Instrument, UserInstrumentSubscription, UserInstrumentWatchlistItem
 from Instruments.serializers import InstrumentSummarySerializer, WatchlistItemSerializer, WatchlistReplaceSerializer
 from Instruments.services.watchlist_sync import sync_watchlist_to_schwab
 
@@ -18,11 +17,11 @@ class UserWatchlistView(APIView):
     def get(self, request):
         items = UserInstrumentWatchlistItem.objects.select_related("instrument").filter(user=request.user)
 
-        # Back-compat: if a user already has SchwabSubscription rows (older flow),
+        # Back-compat: if a user already has subscription rows (older flow),
         # seed the new watchlist once so the drawer reflects existing subscriptions.
         if not items.exists():
             subs = (
-                SchwabSubscription.objects.filter(user=request.user, enabled=True)
+                UserInstrumentSubscription.objects.filter(user=request.user, enabled=True)
                 .order_by("asset_type", "symbol")
                 .values_list("asset_type", "symbol")
             )
@@ -39,7 +38,7 @@ class UserWatchlistView(APIView):
 
                     inferred_asset_type = (
                         Instrument.AssetType.FUTURE
-                        if asset_type == SchwabSubscription.ASSET_FUTURE or sym.startswith("/")
+                        if asset_type == UserInstrumentSubscription.ASSET_FUTURE or sym.startswith("/")
                         else Instrument.AssetType.EQUITY
                     )
                     inst, _ = Instrument.objects.get_or_create(

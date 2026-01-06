@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.contrib import messages
 
-from .models import BrokerConnection, SchwabSubscription
+from .models import BrokerConnection
 from LiveData.schwab.client.tokens import ensure_valid_access_token
 
 
@@ -86,29 +86,4 @@ class BrokerConnectionAdmin(admin.ModelAdmin):
 
     refresh_access_tokens.short_description = "Force refresh Schwab token"
 
-
-@admin.register(SchwabSubscription)
-class SchwabSubscriptionAdmin(admin.ModelAdmin):
-    list_display = ("user", "symbol", "asset_type", "enabled", "updated_at")
-    list_editable = ("enabled",)
-    list_filter = ("asset_type", "enabled", "updated_at")
-    search_fields = ("user__email", "symbol")
-    ordering = ("user", "asset_type", "symbol")
-    readonly_fields = ("created_at", "updated_at")
-
-    fieldsets = (
-        ("Subscription", {"fields": ("user", "symbol", "asset_type", "enabled")}),
-        ("Timestamps", {"fields": ("created_at", "updated_at")}),
-    )
-
-    def get_changeform_initial_data(self, request):  # pragma: no cover - admin
-        initial = super().get_changeform_initial_data(request)
-        # Convenience: default to the currently logged-in admin user.
-        initial.setdefault("user", request.user.id)
-        return initial
-
-    def save_model(self, request, obj, form, change):  # pragma: no cover - admin
-        if not getattr(obj, "user_id", None):
-            obj.user = request.user
-        super().save_model(request, obj, form, change)
 

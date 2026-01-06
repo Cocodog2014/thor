@@ -9,6 +9,7 @@ from ThorTrading.studies.futures_total.models.rtd import (
     SignalWeight,
 )
 from .watchlist import UserInstrumentWatchlistItem
+from .subscription import UserInstrumentSubscription
 
 __all__ = [
     "Instrument",
@@ -21,4 +22,6 @@ __all__ = [
     "SignalWeight",
     "ContractWeight",
     "UserInstrumentWatchlistItem",
+    "UserInstrumentSubscription",
 ]
+

@@ -5,13 +5,12 @@ import json
 from django.db import transaction
 
 from LiveData.schwab.control_plane import publish_set
-from LiveData.schwab.models import SchwabSubscription
 from LiveData.schwab.signal_control import suppress_schwab_subscription_signals
-from Instruments.models import Instrument, UserInstrumentWatchlistItem
+from Instruments.models import Instrument, UserInstrumentSubscription, UserInstrumentWatchlistItem
 
 
 def sync_watchlist_to_schwab(user_id: int) -> None:
-    """Ensure SchwabSubscription rows match the user's watchlist and push a 'set' to the streamer."""
+    """Ensure subscription rows match the user's watchlist and push a 'set' to the streamer."""
 
     qs = (
         UserInstrumentWatchlistItem.objects.select_related("instrument")
@@ -54,25 +53,31 @@ def sync_watchlist_to_schwab(user_id: int) -> None:
 
     with transaction.atomic(), suppress_schwab_subscription_signals():
         # Persist desired set in DB so streamer can bootstrap from DB.
-        SchwabSubscription.objects.filter(user_id=user_id, asset_type=SchwabSubscription.ASSET_EQUITY).exclude(
+        UserInstrumentSubscription.objects.filter(
+            user_id=user_id,
+            asset_type=UserInstrumentSubscription.ASSET_EQUITY,
+        ).exclude(
             symbol__in=equities
         ).delete()
-        SchwabSubscription.objects.filter(user_id=user_id, asset_type=SchwabSubscription.ASSET_FUTURE).exclude(
+        UserInstrumentSubscription.objects.filter(
+            user_id=user_id,
+            asset_type=UserInstrumentSubscription.ASSET_FUTURE,
+        ).exclude(
             symbol__in=futures
         ).delete()
 
         for sym in equities:
-            SchwabSubscription.objects.update_or_create(
+            UserInstrumentSubscription.objects.update_or_create(
                 user_id=user_id,
                 symbol=sym,
-                asset_type=SchwabSubscription.ASSET_EQUITY,
+                asset_type=UserInstrumentSubscription.ASSET_EQUITY,
                 defaults={"enabled": True},
             )
         for sym in futures:
-            SchwabSubscription.objects.update_or_create(
+            UserInstrumentSubscription.objects.update_or_create(
                 user_id=user_id,
                 symbol=sym,
-                asset_type=SchwabSubscription.ASSET_FUTURE,
+                asset_type=UserInstrumentSubscription.ASSET_FUTURE,
                 defaults={"enabled": True},
             )
 

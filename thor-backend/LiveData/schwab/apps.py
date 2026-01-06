@@ -15,5 +15,6 @@ class SchwabConfig(AppConfig):
     
     def ready(self):
         """Called when Django starts up."""
-        # Register model signals (Admin add/edit/delete should update streaming instantly)
-        from . import signals  # noqa: F401
+        # LiveData no longer owns the subscription model/signals.
+        return
+
