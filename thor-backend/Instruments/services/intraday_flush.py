@@ -121,41 +121,24 @@ def _recompute_market_trading_24h_for_symbols(session_number: int, symbols: list
             except Exception:
                 open_prev_pct = None
 
-        obj, _created = MarketTrading24Hour.objects.get_or_create(
+        # Upsert keyed by (session_number, symbol): insert once, then only update.
+        # Intentionally do NOT write `finalized` here; rollover logic owns that.
+        MarketTrading24Hour.objects.update_or_create(
             session_number=session_number,
             symbol=symbol,
             defaults={
                 "session_date": session_date,
+                "prev_close_24h": prev_close,
+                "open_price_24h": first,
+                "open_prev_diff_24h": open_prev_diff,
+                "open_prev_pct_24h": open_prev_pct,
+                "low_24h": low_24h,
+                "high_24h": high_24h,
+                "range_diff_24h": range_diff,
+                "range_pct_24h": range_pct,
+                "close_24h": last,
+                "volume_24h": int(volume_24h or 0),
             },
-        )
-
-        obj.session_date = session_date
-        obj.prev_close_24h = prev_close
-        obj.open_price_24h = first
-        obj.close_24h = last
-        obj.high_24h = high_24h
-        obj.low_24h = low_24h
-        obj.volume_24h = int(volume_24h or 0)
-        obj.range_diff_24h = range_diff
-        obj.range_pct_24h = range_pct
-        obj.open_prev_diff_24h = open_prev_diff
-        obj.open_prev_pct_24h = open_prev_pct
-        obj.finalized = bool(obj.finalized)
-        obj.save(
-            update_fields=[
-                "session_date",
-                "prev_close_24h",
-                "open_price_24h",
-                "open_prev_diff_24h",
-                "open_prev_pct_24h",
-                "low_24h",
-                "high_24h",
-                "range_diff_24h",
-                "range_pct_24h",
-                "close_24h",
-                "volume_24h",
-                "finalized",
-            ]
         )
         updated += 1
 

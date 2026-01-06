@@ -11,6 +11,8 @@ from LiveData.shared.redis_client import live_data_redis
 from Instruments.services.intraday_flush import flush_closed_bars
 from Instruments.models.market_24h import MarketTrading24Hour
 
+from api.websocket.broadcast import broadcast_to_websocket_sync
+
 logger = logging.getLogger(__name__)
 
 
@@ -207,6 +209,26 @@ class IntradaySupervisor:
                 session_date, session_number = _utc_day_session_from_timestamp(row.get("timestamp") or row.get("ts"))
                 routing_key = str(session_number)
                 session_keys_seen.add(routing_key)
+
+                price = row.get("last")
+                if price is None:
+                    price = row.get("bid") or row.get("ask")
+
+                # Live 24h snapshot in Redis + WS broadcast for React.
+                try:
+                    snap = live_data_redis.upsert_live_24h_snapshot(
+                        session_number,
+                        sym,
+                        price=price,
+                        volume=row.get("volume"),
+                    )
+                    if snap:
+                        broadcast_to_websocket_sync(
+                            channel_layer=None,
+                            message={"type": "market.24h", "data": snap},
+                        )
+                except Exception:
+                    logger.debug("live24h update failed for %s", sym, exc_info=True)
 
                 tick = _make_tick(
                     sym,

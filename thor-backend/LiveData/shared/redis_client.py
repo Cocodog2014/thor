@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import logging
+import time
 from datetime import datetime, timezone as dt_timezone
 from typing import Dict, Any, Optional, Tuple, List
 
@@ -195,6 +196,147 @@ class LiveDataRedis:
     # -------------------------
     # Tick + bar capture primitives
     # -------------------------
+
+    # --- Live 24h snapshot (session_number + symbol) ---
+    def upsert_live_24h_snapshot(
+        self,
+        session_number: int,
+        symbol: str,
+        *,
+        price: Any,
+        volume: Any = None,
+        ttl_seconds: int = 60 * 60 * 48,
+    ) -> Dict[str, Any] | None:
+        """Upsert the live 24h snapshot in Redis.
+
+        Key: live:24h:{session_number}:{SYMBOL}
+        Stored as Redis HASH fields:
+          open_24h, high_24h, low_24h, close_24h, volume_24h, updated_at
+        """
+
+        try:
+            sn = int(session_number)
+        except Exception:
+            return None
+
+        sym = (symbol or "").strip().upper()
+        if not sym:
+            return None
+
+        try:
+            px = float(price)
+        except Exception:
+            return None
+
+        key = f"live:24h:{sn}:{sym}".lower()
+
+        try:
+            open_s, high_s, low_s, close_s, vol_s = self.client.hmget(
+                key, "open_24h", "high_24h", "low_24h", "close_24h", "volume_24h"
+            )
+        except Exception:
+            open_s = high_s = low_s = close_s = vol_s = None
+
+        def _to_float(v: Any) -> float | None:
+            if v in (None, ""):
+                return None
+            try:
+                return float(v)
+            except Exception:
+                return None
+
+        def _to_int(v: Any) -> int | None:
+            if v in (None, ""):
+                return None
+            try:
+                return int(float(v))
+            except Exception:
+                return None
+
+        open_v = _to_float(open_s)
+        high_v = _to_float(high_s)
+        low_v = _to_float(low_s)
+        close_v = _to_float(close_s)
+        vol_v = _to_int(vol_s) or 0
+
+        if open_v is None:
+            open_v = px
+        if high_v is None or px > high_v:
+            high_v = px
+        if low_v is None or px < low_v:
+            low_v = px
+        close_v = px
+
+        # Prefer a monotonic volume if we get a provider-supplied cumulative volume.
+        if volume not in (None, ""):
+            try:
+                incoming = int(float(volume))
+                if incoming >= vol_v:
+                    vol_v = incoming
+            except Exception:
+                pass
+
+        updated_at = float(time.time())
+
+        payload = {
+            "open": open_v,
+            "high": high_v,
+            "low": low_v,
+            "close": close_v,
+            "volume": int(vol_v or 0),
+            "updated_at": updated_at,
+            "session_number": sn,
+            "symbol": sym,
+        }
+
+        try:
+            self.client.hset(
+                key,
+                mapping={
+                    "open_24h": open_v,
+                    "high_24h": high_v,
+                    "low_24h": low_v,
+                    "close_24h": close_v,
+                    "volume_24h": int(vol_v or 0),
+                    "updated_at": updated_at,
+                },
+            )
+            self.client.expire(key, int(ttl_seconds))
+        except Exception:
+            logger.debug("Failed to upsert live 24h snapshot %s", key, exc_info=True)
+            return None
+
+        return payload
+
+    def get_live_24h_snapshot(self, session_number: int, symbol: str) -> Dict[str, Any] | None:
+        """Read the live 24h snapshot from Redis."""
+        try:
+            sn = int(session_number)
+        except Exception:
+            return None
+        sym = (symbol or "").strip().upper()
+        if not sym:
+            return None
+        key = f"live:24h:{sn}:{sym}".lower()
+        try:
+            data = self.client.hgetall(key)
+        except Exception:
+            return None
+        if not data:
+            return None
+        try:
+            return {
+                "session_number": sn,
+                "symbol": sym,
+                "open": float(data.get("open_24h")) if data.get("open_24h") is not None else None,
+                "high": float(data.get("high_24h")) if data.get("high_24h") is not None else None,
+                "low": float(data.get("low_24h")) if data.get("low_24h") is not None else None,
+                "close": float(data.get("close_24h")) if data.get("close_24h") is not None else None,
+                "volume": int(float(data.get("volume_24h") or 0)),
+                "updated_at": float(data.get("updated_at")) if data.get("updated_at") is not None else None,
+            }
+        except Exception:
+            return None
     def set_tick(self, routing_key: str, symbol: str, payload: Dict[str, Any], ttl: int = 10) -> None:
         """
         Cache latest tick for a symbol scoped by routing_key (session).

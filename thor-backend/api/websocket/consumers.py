@@ -120,6 +120,13 @@ class MarketDataConsumer(AsyncWebsocketConsumer):
             "type": "twenty_four_hour",
             "data": event.get("data")
         }))
+
+    async def market_24h(self, event):
+        """Broadcast live 24h snapshot update to client (event type 'market.24h')."""
+        await self.send(text_data=json.dumps({
+            "type": "market.24h",
+            "data": event.get("data"),
+        }))
     
     async def vwap_update(self, event):
         """Broadcast VWAP update to client."""
