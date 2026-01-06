@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from decimal import Decimal
 from datetime import datetime, timezone as dt_timezone
 from typing import Dict, List, Optional, Tuple
 
@@ -46,9 +47,21 @@ def _to_instrument_intraday_models(bars: List[dict]) -> List[InstrumentIntraday]
             ask = b.get("ask")
             spread = b.get("spread")
 
+            def _to_decimal(v):
+                if v is None:
+                    return None
+                try:
+                    return Decimal(str(v))
+                except Exception:
+                    return None
+
+            bid = _to_decimal(bid)
+            ask = _to_decimal(ask)
+            spread = _to_decimal(spread)
+
             if spread is None and bid is not None and ask is not None:
                 try:
-                    spread = float(ask) - float(bid)
+                    spread = _to_decimal(ask - bid)
                 except Exception:
                     spread = None
 

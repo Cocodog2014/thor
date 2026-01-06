@@ -62,6 +62,7 @@ def _make_tick(sym: str, row: Dict[str, Any], session_key: str, session_number: 
         "volume": row.get("volume"),
         "bid": row.get("bid"),
         "ask": row.get("ask"),
+        "ts": row.get("ts"),
         "timestamp": row.get("timestamp"),
         "session_key": session_key,
         **({"session_number": session_number} if session_number is not None else {}),
@@ -168,7 +169,7 @@ class IntradaySupervisor:
                     if not self.include_equities:
                         continue
 
-                session_key, session_number = _utc_day_session_from_timestamp(row.get("timestamp"))
+                session_key, session_number = _utc_day_session_from_timestamp(row.get("timestamp") or row.get("ts"))
                 session_keys_seen.add(session_key)
 
                 tick = _make_tick(sym, row, session_key=session_key, session_number=session_number)
