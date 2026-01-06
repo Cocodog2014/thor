@@ -1,3 +1,4 @@
+
 """Publish active session routing for LiveData consumers.
 
 Writes a small JSON blob to Redis so streaming producers can route
@@ -16,7 +17,10 @@ from GlobalMarkets.services.normalize import normalize_country_code
 logger = logging.getLogger(__name__)
 
 ACTIVE_SESSION_KEY_REDIS = "live_data:active_session"
-ACTIVE_SESSION_TTL_SECONDS = 10
+# This key is a heartbeat-style routing snapshot. Its TTL must be comfortably
+# longer than the scheduler interval for this job, otherwise LiveData producers
+# will intermittently fail to route ticks/bars to sessions.
+ACTIVE_SESSION_TTL_SECONDS = 60
 
 
 class PublishActiveSessionJob:

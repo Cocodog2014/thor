@@ -529,6 +529,16 @@ class Command(BaseCommand):
                     except Exception:
                         continue
 
+            # When debugging stream behavior, it helps to know whether we
+            # subscribed successfully and which services are actually producing
+            # messages. Keep this very low-noise and only when --echo-ticks.
+            first_service_seen: set[str] = set()
+
+            # Track last-seen message timestamps per service, so we can detect
+            # when a Schwab service silently stalls and re-apply subscriptions.
+            last_equity_msg_at: float = 0.0
+            last_futures_msg_at: float = 0.0
+
             async def _run() -> None:
                 backoff = 2
                 max_backoff = 60
@@ -542,6 +552,36 @@ class Command(BaseCommand):
 
                 applied_equities: set[str] = set()
                 applied_futures: set[str] = set()
+
+                def _echo_service_once(msg: object) -> None:
+                    if not echo_ticks:
+                        return
+                    if not isinstance(msg, dict):
+                        return
+                    service = (msg.get("service") or msg.get("serviceName") or msg.get("service_type") or "")
+                    if not service:
+                        return
+                    svc = str(service).strip().upper()
+                    if not svc or svc in first_service_seen:
+                        return
+                    first_service_seen.add(svc)
+                    with contextlib.suppress(Exception):
+                        keys = sorted([str(k) for k in msg.keys()])
+                        self.stdout.write(f"service={svc} keys={keys}")
+
+                def _mark_service_seen(msg: object) -> None:
+                    nonlocal last_equity_msg_at, last_futures_msg_at
+                    if not isinstance(msg, dict):
+                        return
+                    service = (msg.get("service") or msg.get("serviceName") or msg.get("service_type") or "")
+                    if not service:
+                        return
+                    svc = str(service).strip().upper()
+                    now = time.time()
+                    if "FUTURE" in svc:
+                        last_futures_msg_at = now
+                    elif "EQUITY" in svc:
+                        last_equity_msg_at = now
 
                 async def _wait_for_subscriptions() -> None:
                     nonlocal current_equities, current_futures
@@ -668,6 +708,8 @@ class Command(BaseCommand):
 
                         def _handler(msg: object) -> None:
                             producer.process_message(msg)
+                            _mark_service_seen(msg)
+                            _echo_service_once(msg)
                             _echo_message(msg)
                             with contextlib.suppress(Exception):
                                 first_message_seen.set()
@@ -710,6 +752,40 @@ class Command(BaseCommand):
                         except Exception:
                             keepalive_task = None
 
+                        async def _stall_watchdog() -> None:
+                            """Re-apply subscriptions if a service appears to stall.
+
+                            Observed behavior: Schwab level-one equities can sometimes stop
+                            delivering messages while futures continue. If we still desire
+                            equities and haven't seen an equity service message recently,
+                            re-issue the subscription request to recover.
+                            """
+                            nonlocal last_equity_msg_at, last_futures_msg_at
+                            while True:
+                                await asyncio.sleep(30)
+                                if lock_lost.is_set():
+                                    return
+                                now = time.time()
+
+                                # Only consider a stall once we've seen at least one message.
+                                have_any = bool(last_equity_msg_at or last_futures_msg_at)
+                                if not have_any:
+                                    continue
+
+                                # If futures are flowing but equities aren't, refresh equities.
+                                futures_recent = last_futures_msg_at and (now - last_futures_msg_at) < 90
+                                equities_stale = applied_equities and (not last_equity_msg_at or (now - last_equity_msg_at) > 90)
+                                if futures_recent and equities_stale:
+                                    logger.warning(
+                                        "Equity stream appears stalled; re-applying equity subs (equities=%s)",
+                                        sorted(list(current_equities)),
+                                    )
+                                    try:
+                                        await _apply_equity_subs(stream_client, current_equities)
+                                        last_equity_msg_at = now
+                                    except Exception:
+                                        logger.exception("Failed re-applying equity subscriptions")
+
                         async def _control_consumer() -> None:
                             nonlocal current_equities, current_futures
                             while True:
@@ -724,11 +800,25 @@ class Command(BaseCommand):
                                     await _apply_futures_subs(stream_client, current_futures)
 
                         control_task = asyncio.create_task(_control_consumer())
+                        watchdog_task = asyncio.create_task(_stall_watchdog())
 
                         try:
                             # initial apply
                             await _apply_equity_subs(stream_client, current_equities)
                             await _apply_futures_subs(stream_client, current_futures)
+
+                            now = time.time()
+                            # Prevent immediate watchdog triggers right after subscribing.
+                            if applied_equities:
+                                last_equity_msg_at = now
+                            if applied_futures:
+                                last_futures_msg_at = now
+
+                            if echo_ticks:
+                                with contextlib.suppress(Exception):
+                                    self.stdout.write(
+                                        f"subscribed_equities={sorted(applied_equities)} subscribed_futures={sorted(applied_futures)}"
+                                    )
 
                             logger.info("Listening for Schwab streaming messages")
                             while True:
@@ -745,6 +835,10 @@ class Command(BaseCommand):
                                 control_task.cancel()
                                 with contextlib.suppress(asyncio.CancelledError, Exception):
                                     await control_task
+                            with contextlib.suppress(Exception):
+                                watchdog_task.cancel()
+                                with contextlib.suppress(asyncio.CancelledError, Exception):
+                                    await watchdog_task
                             if keepalive_task is not None:
                                 keepalive_task.cancel()
                                 with contextlib.suppress(asyncio.CancelledError, Exception):
