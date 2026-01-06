@@ -102,8 +102,9 @@ def _load_watchlist_subscriptions(*, user_id: int, types_filter: set[str]) -> Tu
 
     for item in qs:
         inst = item.instrument
-        symbol = (inst.symbol or "").strip().upper()
-        if not symbol:
+        raw = (inst.symbol or "").strip().upper()
+        base = raw.lstrip("/")
+        if not base:
             continue
 
         quote_source = (getattr(inst, "quote_source", None) or "AUTO").upper()
@@ -111,9 +112,10 @@ def _load_watchlist_subscriptions(*, user_id: int, types_filter: set[str]) -> Tu
             continue
 
         if inst.asset_type == Instrument.AssetType.FUTURE:
-            futures.append(symbol if symbol.startswith("/") else "/" + symbol.lstrip("/"))
+            # Schwab requires futures with leading '/'
+            futures.append("/" + base)
         else:
-            equities.append(symbol.lstrip("/"))
+            equities.append(base)
 
     # De-dupe stable
     def _dedupe(xs: list[str]) -> list[str]:

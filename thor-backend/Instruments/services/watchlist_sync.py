@@ -6,6 +6,28 @@ from LiveData.schwab.control_plane import publish_set
 from Instruments.models import Instrument, UserInstrumentWatchlistItem
 
 
+def _format_for_schwab(inst: Instrument) -> tuple[str, str] | tuple[None, None]:
+        """Return (asset, symbol) formatted for Schwab streaming.
+
+        Canonical DB convention:
+            Instrument.symbol is stored without a leading '/'.
+
+        Schwab convention (required by streamer):
+            FUTURE symbols must be published with a leading '/'.
+        """
+
+        raw = (getattr(inst, "symbol", "") or "").strip().upper()
+        base = raw.lstrip("/")
+        if not base:
+                return None, None
+
+        if inst.asset_type == Instrument.AssetType.FUTURE:
+                return "FUTURE", "/" + base
+
+        # Everything else is treated as "equity" service for Schwab Level One.
+        return "EQUITY", base
+
+
 def sync_watchlist_to_schwab(user_id: int) -> None:
     """Publish an authoritative Schwab subscription *set* based on the user's watchlist.
 
@@ -26,19 +48,20 @@ def sync_watchlist_to_schwab(user_id: int) -> None:
 
     for item in qs:
         inst = item.instrument
-        symbol = (inst.symbol or "").strip().upper()
-        if not symbol:
-            continue
 
         # Instruments can choose which feed owns the symbol.
         # If a symbol is set to TOS, do not subscribe it via Schwab.
         quote_source = (getattr(inst, "quote_source", None) or "AUTO").upper()
         if quote_source not in {"AUTO", "SCHWAB"}:
             continue
-        if inst.asset_type == Instrument.AssetType.FUTURE:
-            futures.append(symbol if symbol.startswith("/") else "/" + symbol.lstrip("/"))
+
+        asset, sym = _format_for_schwab(inst)
+        if not asset or not sym:
+            continue
+        if asset == "FUTURE":
+            futures.append(sym)
         else:
-            equities.append(symbol.lstrip("/"))
+            equities.append(sym)
 
     # De-dupe stable
     def _dedupe(xs: list[str]) -> list[str]:

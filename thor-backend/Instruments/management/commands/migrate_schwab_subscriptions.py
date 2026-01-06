@@ -73,9 +73,7 @@ class Command(BaseCommand):
             return (s or "").strip().upper()
 
         def _to_instrument_symbol(sym: str, asset: str) -> str:
-            # Futures are canonical with leading '/', equities without.
-            if asset in {"FUTURE", "FUTURES"}:
-                return sym if sym.startswith("/") else "/" + sym.lstrip("/")
+            # Canonical DB convention: store without leading '/'
             return sym.lstrip("/")
 
         def _to_instrument_asset_type(asset: str, sym: str) -> str:
