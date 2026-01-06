@@ -117,6 +117,10 @@ class LiveDataRedis:
         raw = str(routing_key).lower()
         if raw.startswith("session:"):
             raw = raw.split(":", 1)[1]
+        # Support daily ISO session keys like "2026-01-06" by mapping to int 20260106.
+        # This keeps session_number compatible with existing int-based DB fields.
+        if len(raw) == 10 and raw[4] == "-" and raw[7] == "-":
+            raw = raw.replace("-", "")
         try:
             return int(raw)
         except Exception:

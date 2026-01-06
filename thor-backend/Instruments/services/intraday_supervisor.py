@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 
 import time
@@ -67,6 +68,66 @@ def _make_tick(sym: str, row: Dict[str, Any], session_key: str, session_number: 
     }
 
 
+def _utc_day_session(now: datetime | None = None) -> tuple[str, int]:
+    """Global intraday session keyed by UTC trading day.
+
+    Boundary: 00:00 UTC.
+    session_key: YYYY-MM-DD
+    session_number: YYYYMMDD (int)
+    """
+
+    dt = now.astimezone(timezone.utc) if now is not None else datetime.now(timezone.utc)
+    session_key = dt.date().isoformat()
+    session_number = int(dt.strftime("%Y%m%d"))
+    return session_key, session_number
+
+
+def _utc_day_session_from_timestamp(value: Any) -> tuple[str, int]:
+    """Compute UTC-day session key/number from a timestamp-like value.
+
+    Accepts epoch seconds/ms, ISO strings, or datetimes.
+    Falls back to server time when unparseable.
+    """
+
+    if isinstance(value, datetime):
+        dt = value
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return _utc_day_session(dt)
+
+    if isinstance(value, (int, float)):
+        ts = float(value)
+        # Heuristic: treat very large values as milliseconds.
+        if ts > 1e12:
+            ts = ts / 1000.0
+        try:
+            return _utc_day_session(datetime.fromtimestamp(ts, tz=timezone.utc))
+        except Exception:
+            return _utc_day_session()
+
+    if isinstance(value, str):
+        s = value.strip()
+        if s:
+            try:
+                if s.endswith("Z"):
+                    s = s[:-1] + "+00:00"
+                dt = datetime.fromisoformat(s)
+                if dt.tzinfo is None:
+                    dt = dt.replace(tzinfo=timezone.utc)
+                return _utc_day_session(dt)
+            except Exception:
+                pass
+            try:
+                ts = float(s)
+                if ts > 1e12:
+                    ts = ts / 1000.0
+                return _utc_day_session(datetime.fromtimestamp(ts, tz=timezone.utc))
+            except Exception:
+                pass
+
+    return _utc_day_session()
+
+
 @dataclass
 class IntradaySupervisor:
     """1-second tick supervisor that aggregates Redis quotes into 1-minute OHLCV.
@@ -87,19 +148,12 @@ class IntradaySupervisor:
         }
 
         try:
-            fut_key = live_data_redis.get_active_session_key(asset_type="futures")
-            eq_key = live_data_redis.get_active_session_key(asset_type="equities")
-            session_number = live_data_redis.get_active_session_number()
-
-            if (self.include_futures and not fut_key) and (self.include_equities and not eq_key):
-                result["skipped"].append({"reason": "no_active_sessions"})
-                return result
-
             symbols = _active_symbols(max_age_seconds=60, limit=5000)
             enriched = live_data_redis.get_latest_quotes(symbols) if symbols else []
 
             captured_ticks = 0
             captured_closed = 0
+            session_keys_seen: set[str] = set()
 
             for row in enriched or []:
                 sym = _normalize_symbol(row)
@@ -108,13 +162,14 @@ class IntradaySupervisor:
 
                 kind = _infer_asset_kind(row)
                 if kind == "futures":
-                    if not self.include_futures or not fut_key:
+                    if not self.include_futures:
                         continue
-                    session_key = fut_key
                 else:
-                    if not self.include_equities or not eq_key:
+                    if not self.include_equities:
                         continue
-                    session_key = eq_key
+
+                session_key, session_number = _utc_day_session_from_timestamp(row.get("timestamp"))
+                session_keys_seen.add(session_key)
 
                 tick = _make_tick(sym, row, session_key=session_key, session_number=session_number)
 
@@ -135,10 +190,14 @@ class IntradaySupervisor:
             result["captured"]["closed_bars"] = captured_closed
 
             try:
-                if self.include_futures and fut_key:
-                    result["flushed"]["futures"] = int(flush_closed_bars(fut_key, batch_size=500, max_batches=1) or 0)
-                if self.include_equities and eq_key:
-                    result["flushed"]["equities"] = int(flush_closed_bars(eq_key, batch_size=500, max_batches=1) or 0)
+                flushed_total = 0
+                for key in sorted(session_keys_seen):
+                    flushed_total += int(flush_closed_bars(key, batch_size=500, max_batches=1) or 0)
+
+                if self.include_futures:
+                    result["flushed"]["futures"] = flushed_total
+                if self.include_equities:
+                    result["flushed"]["equities"] = flushed_total
             except Exception:
                 logger.exception("intraday_flush failed")
 
