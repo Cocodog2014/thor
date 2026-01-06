@@ -4,10 +4,12 @@ from django.contrib.auth import get_user_model
 from django.db import models
 
 User = get_user_model()
+class SchwabSubscription(models.Model):
+    """User-scoped streaming subscription list (product state).
 
-
-class UserInstrumentSubscription(models.Model):
-    """User-scoped streaming subscription list (used by the Schwab streamer control plane)."""
+    LiveData consumes this model to decide what to subscribe to, but LiveData does not
+    *own* subscription state.
+    """
 
     ASSET_EQUITY = "EQUITY"
     ASSET_FUTURE = "FUTURE"
@@ -52,20 +54,21 @@ class UserInstrumentSubscription(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        # Keep the existing table name to avoid churn; this model is simply owned by Instruments now.
-        db_table = "schwab_subscription"
+        # Non-destructive: keep the legacy LiveData table intact; write new state into an Instruments-owned table.
+        db_table = "instrument_schwab_subscription"
         verbose_name = "Schwab Subscription"
         verbose_name_plural = "Schwab Subscriptions"
         constraints = [
             models.UniqueConstraint(
                 fields=("user", "symbol", "asset_type"),
-                name="uniq_schwab_subscription_user_symbol_asset",
+                name="uq_isub_usr_sym_ast",
             ),
         ]
         indexes = [
-            models.Index(fields=["user", "asset_type"], name="idx_schwab_sub_user_asset"),
-            models.Index(fields=["symbol"], name="idx_schwab_sub_symbol"),
+            models.Index(fields=["user", "asset_type"], name="ix_isub_usr_ast"),
+            models.Index(fields=["symbol"], name="ix_isub_sym"),
         ]
 
     def __str__(self) -> str:
         return f"{self.user_id}:{self.asset_type}:{self.symbol}"
+

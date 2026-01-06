@@ -6,7 +6,7 @@ from django.db import transaction
 
 from LiveData.schwab.control_plane import publish_set
 from LiveData.schwab.signal_control import suppress_schwab_subscription_signals
-from Instruments.models import Instrument, UserInstrumentSubscription, UserInstrumentWatchlistItem
+from Instruments.models import Instrument, SchwabSubscription, UserInstrumentWatchlistItem
 
 
 def sync_watchlist_to_schwab(user_id: int) -> None:
@@ -53,31 +53,31 @@ def sync_watchlist_to_schwab(user_id: int) -> None:
 
     with transaction.atomic(), suppress_schwab_subscription_signals():
         # Persist desired set in DB so streamer can bootstrap from DB.
-        UserInstrumentSubscription.objects.filter(
+        SchwabSubscription.objects.filter(
             user_id=user_id,
-            asset_type=UserInstrumentSubscription.ASSET_EQUITY,
+            asset_type=SchwabSubscription.ASSET_EQUITY,
         ).exclude(
             symbol__in=equities
         ).delete()
-        UserInstrumentSubscription.objects.filter(
+        SchwabSubscription.objects.filter(
             user_id=user_id,
-            asset_type=UserInstrumentSubscription.ASSET_FUTURE,
+            asset_type=SchwabSubscription.ASSET_FUTURE,
         ).exclude(
             symbol__in=futures
         ).delete()
 
         for sym in equities:
-            UserInstrumentSubscription.objects.update_or_create(
+            SchwabSubscription.objects.update_or_create(
                 user_id=user_id,
                 symbol=sym,
-                asset_type=UserInstrumentSubscription.ASSET_EQUITY,
+                asset_type=SchwabSubscription.ASSET_EQUITY,
                 defaults={"enabled": True},
             )
         for sym in futures:
-            UserInstrumentSubscription.objects.update_or_create(
+            SchwabSubscription.objects.update_or_create(
                 user_id=user_id,
                 symbol=sym,
-                asset_type=UserInstrumentSubscription.ASSET_FUTURE,
+                asset_type=SchwabSubscription.ASSET_FUTURE,
                 defaults={"enabled": True},
             )
 

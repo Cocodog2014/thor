@@ -22,7 +22,7 @@ from LiveData.schwab.models import BrokerConnection
 from LiveData.schwab.client.streaming import SchwabStreamingProducer
 from LiveData.schwab.client.tokens import ensure_valid_access_token
 from LiveData.shared.redis_client import live_data_redis
-from Instruments.models import UserInstrumentSubscription
+from Instruments.models import SchwabSubscription
 from Instruments.services.schwab_fields import (
     SCHWAB_LEVEL_ONE_EQUITY_FIELDS,
     SCHWAB_LEVEL_ONE_FUTURES_FIELDS,
@@ -330,7 +330,7 @@ class Command(BaseCommand):
 
             if not equities and not futures:
                 types_filter = set([t.strip().upper() for t in _parse_csv(options.get("types")) if t.strip()])
-                qs = UserInstrumentSubscription.objects.filter(user_id=user_id, enabled=True)
+                qs = SchwabSubscription.objects.filter(user_id=user_id, enabled=True)
                 if types_filter:
                     qs = qs.filter(asset_type__in=list(types_filter))
 
@@ -343,7 +343,7 @@ class Command(BaseCommand):
                         from Instruments.services.watchlist_sync import sync_watchlist_to_schwab
                         sync_watchlist_to_schwab(int(user_id))
 
-                    qs = UserInstrumentSubscription.objects.filter(user_id=user_id, enabled=True)
+                    qs = SchwabSubscription.objects.filter(user_id=user_id, enabled=True)
                     if types_filter:
                         qs = qs.filter(asset_type__in=list(types_filter))
 

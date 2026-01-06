@@ -6,7 +6,7 @@ from .models import InstrumentIntraday
 from .models import MarketTrading24Hour
 from .models import Rolling52WeekStats
 from .models import UserInstrumentWatchlistItem
-from .models import UserInstrumentSubscription
+from .models import SchwabSubscription
 from Instruments.services.watchlist_sync import sync_watchlist_to_schwab
 from Instruments.services.instrument_sync import (
     ensure_owner_watchlist_for_instrument,
@@ -123,8 +123,8 @@ class UserInstrumentWatchlistItemAdmin(admin.ModelAdmin):
         transaction.on_commit(lambda: sync_watchlist_to_schwab(user_id))
 
 
-@admin.register(UserInstrumentSubscription)
-class UserInstrumentSubscriptionAdmin(admin.ModelAdmin):
+@admin.register(SchwabSubscription)
+class SchwabSubscriptionAdmin(admin.ModelAdmin):
     list_display = ("user", "symbol", "asset_type", "enabled", "updated_at")
     list_editable = ("enabled",)
     list_filter = ("asset_type", "enabled", "updated_at")

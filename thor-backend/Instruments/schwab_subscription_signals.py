@@ -15,7 +15,7 @@ from django.db import transaction
 from django.db.models.signals import post_delete, post_save, pre_save
 from django.dispatch import receiver
 
-from Instruments.models import UserInstrumentSubscription
+from Instruments.models import SchwabSubscription
 from LiveData.schwab.control_plane import publish_symbol
 from LiveData.schwab.signal_control import signals_suppressed
 
@@ -32,8 +32,8 @@ def _publish_control(*, user_id: int, action: str, asset: str, symbol: str) -> N
     publish_symbol(user_id=user_id, action=action, asset=asset, symbol=symbol)
 
 
-@receiver(pre_save, sender=UserInstrumentSubscription)
-def schwab_subscription_pre_save(sender, instance: UserInstrumentSubscription, **kwargs) -> None:
+@receiver(pre_save, sender=SchwabSubscription)
+def schwab_subscription_pre_save(sender, instance: SchwabSubscription, **kwargs) -> None:
     if signals_suppressed() or not bool(getattr(settings, "SCHWAB_SUBSCRIPTION_SIGNAL_PUBLISH", False)):
         instance._schwab_prev = None  # type: ignore[attr-defined]
         return
@@ -48,10 +48,10 @@ def schwab_subscription_pre_save(sender, instance: UserInstrumentSubscription, *
     instance._schwab_prev = prev  # type: ignore[attr-defined]
 
 
-@receiver(post_save, sender=UserInstrumentSubscription)
+@receiver(post_save, sender=SchwabSubscription)
 def schwab_subscription_post_save(
     sender,
-    instance: UserInstrumentSubscription,
+    instance: SchwabSubscription,
     created: bool,
     **kwargs,
 ) -> None:
@@ -101,8 +101,8 @@ def schwab_subscription_post_save(
     transaction.on_commit(on_commit_publish)
 
 
-@receiver(post_delete, sender=UserInstrumentSubscription)
-def schwab_subscription_post_delete(sender, instance: UserInstrumentSubscription, **kwargs) -> None:
+@receiver(post_delete, sender=SchwabSubscription)
+def schwab_subscription_post_delete(sender, instance: SchwabSubscription, **kwargs) -> None:
     if signals_suppressed() or not bool(getattr(settings, "SCHWAB_SUBSCRIPTION_SIGNAL_PUBLISH", False)):
         return
     if not instance.enabled:
