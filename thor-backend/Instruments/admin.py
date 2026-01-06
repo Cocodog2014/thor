@@ -82,15 +82,19 @@ class InstrumentAdmin(admin.ModelAdmin):
             .distinct()
         )
 
-        # Remove from owner watchlist before deletion (cascades will handle the rest).
-        if instrument_ids:
-            owner_user_id = get_owner_user_id()
-            UserInstrumentWatchlistItem.objects.filter(
-                user_id=int(owner_user_id),
-                instrument_id__in=instrument_ids,
-            ).delete()
+        # If signals are ever enabled, bulk deletes could otherwise trigger per-row publish spam
+        # (including cascaded deletes). Suppress during the delete, then publish one authoritative
+        # sync per affected user on commit.
+        with suppress_schwab_subscription_signals():
+            # Remove from owner watchlist before deletion (cascades will handle the rest).
+            if instrument_ids:
+                owner_user_id = get_owner_user_id()
+                UserInstrumentWatchlistItem.objects.filter(
+                    user_id=int(owner_user_id),
+                    instrument_id__in=instrument_ids,
+                ).delete()
 
-        super().delete_queryset(request, queryset)
+            super().delete_queryset(request, queryset)
 
         def _on_commit() -> None:
             for sym in symbols:

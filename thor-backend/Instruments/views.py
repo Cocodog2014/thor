@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from django.db.models import Q
-from LiveData.schwab.signal_control import suppress_schwab_subscription_signals
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -23,10 +22,7 @@ class UserWatchlistView(APIView):
     def put(self, request):
         serializer = WatchlistReplaceSerializer(data=request.data, context={"request": request})
         serializer.is_valid(raise_exception=True)
-        # Always publish once per "replace watchlist" request.
-        # Even if someone enables signal publishing, avoid per-row spam here.
-        with suppress_schwab_subscription_signals():
-            serializer.save()
+        serializer.save()
 
         sync_watchlist_to_schwab(int(request.user.id))
 

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.db import transaction
 
 from Instruments.models import Instrument, UserInstrumentWatchlistItem
 from LiveData.schwab.signal_control import suppress_schwab_subscription_signals
