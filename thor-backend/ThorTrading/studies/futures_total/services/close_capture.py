@@ -120,7 +120,9 @@ def capture_market_close(country: str | None, force: bool = False) -> Dict[str, 
 
     try:
         close_updated = MarketCloseMetric.update_for_country_on_close(
-            country, country_rows, session_group=latest_session_number
+            country,
+            country_rows,
+            session_number=latest_session_number,
         )
     except Exception as exc:
         logger.exception("MarketCloseMetric update failed for %s", country)
@@ -134,7 +136,8 @@ def capture_market_close(country: str | None, force: bool = False) -> Dict[str, 
 
     try:
         range_updated = MarketRangeMetric.update_for_country_on_close(
-            country, session_group=latest_session_number
+            country,
+            session_number=latest_session_number,
         )
     except Exception as exc:
         logger.exception("MarketRangeMetric update failed for %s", country)

@@ -6,8 +6,8 @@ publishes to Redis, updates 1m bars, and broadcasts WebSocket events.
 
 IMPORTANT:
 - No country logic.
-- Routing is via session_key.
-- session_key MUST be provided by GlobalMarkets via Redis.
+- Routing is via session_number.
+- session_number MUST be provided by GlobalMarkets via Redis.
 """
 
 from __future__ import annotations
@@ -124,8 +124,8 @@ class SchwabStreamingProducer:
 
     Session routing:
       - We do NOT use country.
-      - We route bars/ticks using session_key.
-      - session_key is fetched from Redis (written by GlobalMarkets heartbeat).
+            - We route bars/ticks using session_number.
+            - session_number is fetched from Redis (written by GlobalMarkets heartbeat).
     """
 
     def __init__(self, channel_layer: Any | None = None):
@@ -140,39 +140,9 @@ class SchwabStreamingProducer:
         self._logged_first_redis_snapshot: bool = False
 
     @staticmethod
-    def _to_session_key(value: Any) -> Optional[str]:
-        """Coerce routing snapshot values into Redis session keys.
-
-        Accepts:
-        - "session:44" (pass-through)
-        - 44 / "44" (converted)
-        - legacy tokens like "USA:20251228:44" (converted)
-        Returns:
-        - "session:<n>" or None
-        """
-        if value is None:
-            return None
-
-        s = str(value).strip()
-        if not s:
-            return None
-
-        lower = s.lower()
-        if lower.startswith("session:"):
-            num = lower.split(":", 1)[1].strip()
-            if num.isdigit():
-                return f"session:{int(num)}"
-            return None
-
-        # If it's just a number
-        if s.isdigit():
-            return f"session:{int(s)}"
-
-        # Legacy tokens like "USA:YYYYMMDD:44" -> take last segment if numeric
-        last = s.split(":")[-1].strip()
-        if last.isdigit():
-            return f"session:{int(last)}"
-        return None
+    def _to_session_number(value: Any) -> Optional[int]:
+        """Coerce routing snapshot values into an int session_number."""
+        return live_data_redis._parse_session_number(value)  # internal helper
 
     # ------------------------------------------------------------------
     # Session routing (THIS is where session numbers belong)
@@ -181,11 +151,12 @@ class SchwabStreamingProducer:
         """
         Reads active session routing from Redis.
 
-        Expected Redis JSON structure (example):
+                Expected Redis JSON structure (example):
         {
-          "default": "USA:20251228:44",
-          "equities": "USA:20251228:44",
-          "futures": "USA:20251228:44",
+                    "default": "20251228",
+                    "equities": "20251228",
+                    "futures": "20251228",
+                    "session_number": 20251228,
           "updated_at": 1735412345
         }
         """
@@ -206,7 +177,7 @@ class SchwabStreamingProducer:
         self._session_cache_until = now + 2.0  # 2s cache
         return data
 
-    def _resolve_session_key(self, payload: Dict[str, Any]) -> Optional[str]:
+    def _resolve_session_number(self, payload: Dict[str, Any]) -> Optional[int]:
         snap = self._get_active_session_snapshot()
         if not snap:
             return None
@@ -214,11 +185,11 @@ class SchwabStreamingProducer:
         main = (payload.get("assetMainType") or payload.get("assetType") or "").upper()
 
         if "FUTURE" in main:
-            return self._to_session_key(snap.get("futures") or snap.get("default"))
+            return self._to_session_number(snap.get("futures") or snap.get("default"))
         if "EQUITY" in main or "STOCK" in main:
-            return self._to_session_key(snap.get("equities") or snap.get("default"))
+            return self._to_session_number(snap.get("equities") or snap.get("default"))
 
-        return self._to_session_key(snap.get("default"))
+        return self._to_session_number(snap.get("default"))
 
     # ------------------------------------------------------------------
     # Payload normalization
@@ -374,30 +345,27 @@ class SchwabStreamingProducer:
                 except Exception:
                     logger.exception("Failed reading back latest quote after publish")
 
-            session_key = self._resolve_session_key(payload)
-            if not session_key:
+            session_number = self._resolve_session_number(payload)
+            if session_number is None:
                 # No routing available: don't write bars/ticks to session namespaces
                 # (and don't spam warnings)
                 return
 
-            payload["session_key"] = session_key
-            session_number = live_data_redis._parse_session_number(session_key)  # internal helper
-            if session_number is not None:
-                payload["session_number"] = session_number
+            routing_key = str(session_number)
+            payload["session_number"] = session_number
 
             # Short TTL tick cache (keyed by session)
-            live_data_redis.set_tick(session_key, payload["symbol"], payload, ttl=10)
+            live_data_redis.set_tick(routing_key, payload["symbol"], payload, ttl=10)
 
             # Update 1m bar (keyed by session)
             bar_tick = self._build_bar_tick(payload)
             if bar_tick:
-                if session_number is not None:
-                    bar_tick["session_number"] = session_number
+                bar_tick["session_number"] = session_number
                 closed_bar, _cur = live_data_redis.upsert_current_bar_1m(
-                    session_key, payload["symbol"], bar_tick
+                    routing_key, payload["symbol"], bar_tick
                 )
                 if closed_bar:
-                    live_data_redis.enqueue_closed_bar(session_key, closed_bar)
+                    live_data_redis.enqueue_closed_bar(routing_key, closed_bar)
 
         except Exception:
             logger.exception(

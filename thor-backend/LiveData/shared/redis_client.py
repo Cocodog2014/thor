@@ -71,8 +71,8 @@ class LiveDataRedis:
     All broker feeds publish through this client to ensure consistent
     channel naming and data formatting.
 
-    Updated to route by `routing_key` (session-based). The caller must
-    supply the active session key; there is no GLOBAL fallback for bars.
+    Updated to route by `routing_key` (session_number-based). The caller must
+    supply the active routing key; there is no GLOBAL fallback for bars.
     """
 
     DEFAULT_COUNTRY = "GLOBAL"
@@ -141,31 +141,30 @@ class LiveDataRedis:
             logger.debug("Failed to parse %s payload", self.ACTIVE_SESSION_KEY_REDIS, exc_info=True)
             return None
 
-    def get_active_session_key(self, asset_type: str | None = None) -> str | None:
-        """Fetch session routing key from GlobalMarkets heartbeat snapshot."""
+    def get_active_session_number(self, asset_type: str | None = None) -> int | None:
+        """Fetch active session_number from GlobalMarkets heartbeat snapshot."""
         snap = self._get_active_session_snapshot() or {}
-        if not snap:
+        if not snap or not isinstance(snap, dict):
             return None
 
-        asset = (asset_type or "").upper()
-        if asset in {"FUTURE", "FUTURES"}:
-            return snap.get("futures") or snap.get("default")
-        if asset in {"EQUITY", "EQUITIES", "STOCK"}:
-            return snap.get("equities") or snap.get("default")
-        return snap.get("default")
-
-    def get_active_session_number(self) -> int | None:
-        """Return session_number from the active session snapshot when available."""
-        snap = self._get_active_session_snapshot() or {}
-        num = snap.get("session_number") if isinstance(snap, dict) else None
+        num = snap.get("session_number")
         if num is not None:
             try:
                 return int(num)
             except Exception:
                 return None
 
-        key = self.get_active_session_key()
-        return self._parse_session_number(key)
+        asset = (asset_type or "").upper()
+        if asset in {"FUTURE", "FUTURES"}:
+            return self._parse_session_number(snap.get("futures") or snap.get("default"))
+        if asset in {"EQUITY", "EQUITIES", "STOCK"}:
+            return self._parse_session_number(snap.get("equities") or snap.get("default"))
+        return self._parse_session_number(snap.get("default"))
+
+    def get_active_session_key(self, asset_type: str | None = None) -> str | None:
+        """Backward-compatible alias: returns the active session_number as a string."""
+        num = self.get_active_session_number(asset_type=asset_type)
+        return str(num) if num is not None else None
 
     # -------------------------
     # Country normalization
@@ -288,6 +287,8 @@ class LiveDataRedis:
         timestamp_minute = datetime.fromtimestamp(minute_epoch, tz=dt_timezone.utc).isoformat()
 
         # 5) rollover or update
+        session_number = self._parse_session_number(routing_key)
+
         if not existing or existing.get("bucket") != bucket:
             # if we had a previous bucket, that bar is now closed
             if existing and existing.get("bucket") is not None:
@@ -297,8 +298,7 @@ class LiveDataRedis:
                         existing["timestamp_minute"] = datetime.fromtimestamp(t_epoch, tz=dt_timezone.utc).isoformat()
                     except Exception:
                         pass
-                closed_bar = {**existing, "session_key": routing_key}
-                session_number = self._parse_session_number(routing_key)
+                closed_bar = {**existing, "routing_key": routing_key}
                 if session_number is not None:
                     closed_bar["session_number"] = session_number
 
@@ -316,7 +316,8 @@ class LiveDataRedis:
                 "spread": spread,
                 "country": tick.get("country"),
                 "symbol": symbol,
-                "session_key": routing_key,
+                "routing_key": routing_key,
+                **({"session_number": session_number} if session_number is not None else {}),
             }
         else:
             current_bar = existing
@@ -335,7 +336,9 @@ class LiveDataRedis:
             current_bar["timestamp_minute"] = current_bar.get("timestamp_minute") or timestamp_minute
             current_bar["t"] = current_bar.get("t") or minute_epoch
 
-        current_bar["session_key"] = routing_key
+        current_bar["routing_key"] = routing_key
+        if session_number is not None:
+            current_bar["session_number"] = session_number
         self.client.set(key, json.dumps(current_bar, default=str))
         return closed_bar, current_bar
 
@@ -347,7 +350,7 @@ class LiveDataRedis:
         prefix = self._routing_prefix(routing_key)
         key = f"q:bars:1m:{prefix}"
         session_number = self._parse_session_number(routing_key)
-        meta = {"session_key": routing_key}
+        meta = {"routing_key": routing_key}
         if session_number is not None:
             meta["session_number"] = session_number
 

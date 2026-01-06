@@ -2,7 +2,7 @@
 """Publish active session routing for LiveData consumers.
 
 Writes a small JSON blob to Redis so streaming producers can route
-ticks/bars by session_key without guessing country defaults.
+ticks/bars by `session_number` without guessing country defaults.
 """
 from __future__ import annotations
 
@@ -28,7 +28,7 @@ class PublishActiveSessionJob:
 
     name = "gm.publish_active_session"
 
-    def _build_session_key(self, session: MarketSession, country: str) -> Optional[tuple[str, int]]:
+    def _build_session_number(self, session: MarketSession, country: str) -> Optional[tuple[str, int]]:
         if not session or session.session_number is None:
             return None
 
@@ -36,12 +36,12 @@ class PublishActiveSessionJob:
 
         try:
             sn = int(session.session_number)
-            return (f"session:{sn}", sn)
+            return (str(sn), sn)
         except Exception:
-            logger.debug("Failed to format session_key for %s", normalized_country, exc_info=True)
+            logger.debug("Failed to format session_number for %s", normalized_country, exc_info=True)
             return None
 
-    def _latest_session_key(self, country: str) -> Optional[tuple[str, int]]:
+    def _latest_session_number(self, country: str) -> Optional[tuple[str, int]]:
         if not country:
             return None
 
@@ -57,7 +57,7 @@ class PublishActiveSessionJob:
             logger.debug("Failed to query MarketSession for %s", country, exc_info=True)
             return None
 
-        return self._build_session_key(session, country)
+        return self._build_session_number(session, country)
 
     def _clear(self) -> None:
         try:
@@ -78,7 +78,7 @@ class PublishActiveSessionJob:
             if not getattr(market, "enable_session_capture", True):
                 continue
 
-            session_info = self._latest_session_key(getattr(market, "country", None))
+            session_info = self._latest_session_number(getattr(market, "country", None))
             if session_info:
                 break
 

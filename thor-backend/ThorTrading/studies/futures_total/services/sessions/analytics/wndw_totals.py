@@ -31,25 +31,25 @@ class CountrySymbolWndwTotalsService:
         self.model = model
         self.logger = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
 
-    def update_for_session_group(self, session_group: int, country: str) -> int:
-        """Populate snapshots for all new rows in a session_group (session_number)."""
-        if session_group in (None, "") or not country:
+    def update_for_session_number(self, session_number: int, country: str) -> int:
+        """Populate snapshots for all new rows in a session_number."""
+        if session_number in (None, "") or not country:
             self.logger.warning(
-                "update_for_session_group requires session_group and country; nothing to do.",
+                "update_for_session_number requires session_number and country; nothing to do.",
             )
             return 0
 
         pending_rows = (
             self.model.objects.filter(
-                session_number=session_group,
+                session_number=session_number,
                 country=country,
             ).filter(Q(country_symbol_wndw_total__isnull=True) | Q(country_symbol_wndw_total=0))
         )
 
         if not pending_rows.exists():
             self.logger.info(
-                "No pending MarketSession rows found for session_group %s and country %s; nothing to update.",
-                session_group,
+                "No pending MarketSession rows found for session_number %s and country %s; nothing to update.",
+                session_number,
                 country,
             )
             return 0
@@ -70,9 +70,9 @@ class CountrySymbolWndwTotalsService:
             )
 
         self.logger.info(
-            "Set %s WNDW snapshots for session_group %s, country %s.",
+            "Set %s WNDW snapshots for session_number %s, country %s.",
             updated,
-            session_group,
+            session_number,
             country,
         )
         return updated
@@ -137,17 +137,12 @@ class CountrySymbolWndwTotalsService:
 _service = CountrySymbolWndwTotalsService()
 
 
-def update_country_symbol_wndw_total(session_group: int, country: str) -> int:
+def update_country_symbol_wndw_total(session_number: int, country: str) -> int:
     """Wrapper around the service."""
-    return _service.update_for_session_group(session_group=session_group, country=country)
-
-
-def update_country_future_wndw_total(session_group: int, country: str) -> int:  # Backward compatibility
-    return update_country_symbol_wndw_total(session_group=session_group, country=country)
+    return _service.update_for_session_number(session_number=session_number, country=country)
 
 
 __all__ = [
     "CountrySymbolWndwTotalsService",
     "update_country_symbol_wndw_total",
-    "update_country_future_wndw_total",
 ]

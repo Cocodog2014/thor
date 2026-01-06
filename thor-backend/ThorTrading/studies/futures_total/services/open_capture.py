@@ -461,7 +461,7 @@ class MarketOpenCaptureService:
                     skipped.append("TOTAL")
 
             try:
-                MarketOpenMetric.update_for_session_group(session_number)
+                MarketOpenMetric.update_for_session_number(session_number)
             except Exception as metrics_error:  # noqa: BLE001
                 logger.warning(
                     "market_open refresh failed for session %s: %s",
@@ -471,8 +471,8 @@ class MarketOpenCaptureService:
                 )
 
             try:
-                _country_symbol_wndw_service.update_for_session_group(
-                    session_group=session_number,
+                _country_symbol_wndw_service.update_for_session_number(
+                    session_number=session_number,
                     country=country_code or display_country,
                 )
             except Exception as stats_error:  # noqa: BLE001

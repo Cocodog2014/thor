@@ -71,8 +71,7 @@ def _make_tick(
         "ask": row.get("ask"),
         "ts": row.get("ts"),
         "timestamp": row.get("timestamp"),
-        # Keep the historical field name; it now carries the canonical routing id.
-        "session_key": routing_key,
+        "routing_key": routing_key,
         **({"session_date": session_date} if session_date else {}),
         **({"session_number": session_number} if session_number is not None else {}),
     }
@@ -82,7 +81,7 @@ def _utc_day_session(now: datetime | None = None) -> tuple[str, int]:
     """Global intraday session keyed by UTC trading day.
 
     Boundary: 00:00 UTC.
-    session_key: YYYY-MM-DD
+    session_date: YYYY-MM-DD
     session_number: YYYYMMDD (int)
     """
 
