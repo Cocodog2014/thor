@@ -237,6 +237,24 @@ class LiveDataRedis:
         except Exception:
             volume = 0
 
+        # 1b) bid/ask/spread (optional)
+        bid = tick.get("bid")
+        ask = tick.get("ask")
+
+        try:
+            bid = float(bid) if bid is not None else None
+        except Exception:
+            bid = None
+
+        try:
+            ask = float(ask) if ask is not None else None
+        except Exception:
+            ask = None
+
+        spread = None
+        if bid is not None and ask is not None:
+            spread = ask - bid
+
         # 2) timestamp (UTC)
         ts_raw = tick.get("ts") or tick.get("timestamp") or tick.get("time") or tick.get("datetime")
         ts_epoch = _to_epoch_seconds_utc(ts_raw)
@@ -293,6 +311,9 @@ class LiveDataRedis:
                 "l": price,
                 "c": price,
                 "v": volume,
+                "bid": bid,
+                "ask": ask,
+                "spread": spread,
                 "country": tick.get("country"),
                 "symbol": symbol,
                 "session_key": routing_key,
@@ -303,6 +324,14 @@ class LiveDataRedis:
             current_bar["l"] = min(float(current_bar["l"]), price)
             current_bar["c"] = price
             current_bar["v"] = float(current_bar.get("v") or 0) + volume
+
+            if bid is not None:
+                current_bar["bid"] = bid
+            if ask is not None:
+                current_bar["ask"] = ask
+            if bid is not None and ask is not None:
+                current_bar["spread"] = ask - bid
+
             current_bar["timestamp_minute"] = current_bar.get("timestamp_minute") or timestamp_minute
             current_bar["t"] = current_bar.get("t") or minute_epoch
 

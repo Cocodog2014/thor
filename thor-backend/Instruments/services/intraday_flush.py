@@ -42,6 +42,16 @@ def _to_instrument_intraday_models(bars: List[dict]) -> List[InstrumentIntraday]
                 continue
             symbol = symbol.upper()
 
+            bid = b.get("bid")
+            ask = b.get("ask")
+            spread = b.get("spread")
+
+            if spread is None and bid is not None and ask is not None:
+                try:
+                    spread = float(ask) - float(bid)
+                except Exception:
+                    spread = None
+
             rows.append(
                 InstrumentIntraday(
                     timestamp_minute=ts,
@@ -51,9 +61,9 @@ def _to_instrument_intraday_models(bars: List[dict]) -> List[InstrumentIntraday]
                     low_1m=b.get("l"),
                     close_1m=b.get("c"),
                     volume_1m=int(b.get("v") or 0),
-                    bid_last=None,
-                    ask_last=None,
-                    spread_last=None,
+                    bid_last=bid,
+                    ask_last=ask,
+                    spread_last=spread,
                 )
             )
         except Exception:
