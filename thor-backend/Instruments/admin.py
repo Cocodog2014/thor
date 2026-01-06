@@ -246,3 +246,20 @@ class MarketTrading24HourAdmin(admin.ModelAdmin):
     ordering = ("-session_date", "symbol")
     date_hierarchy = "session_date"
     readonly_fields = ("finalized",)
+
+    fields = (
+        "session_number",
+        "session_date",
+        "symbol",
+        "prev_close_24h",
+        "open_prev_diff_24h",
+        "open_prev_pct_24h",
+        "open_price_24h",
+        "low_24h",
+        "high_24h",
+        "range_diff_24h",
+        "range_pct_24h",
+        "close_24h",
+        "volume_24h",
+        "finalized",
+    )
