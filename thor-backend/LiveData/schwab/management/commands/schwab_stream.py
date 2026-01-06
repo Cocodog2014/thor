@@ -22,7 +22,7 @@ from LiveData.schwab.models import BrokerConnection
 from LiveData.schwab.client.streaming import SchwabStreamingProducer
 from LiveData.schwab.client.tokens import ensure_valid_access_token
 from LiveData.shared.redis_client import live_data_redis
-from Instruments.models import SchwabSubscription
+from Instruments.models import Instrument, UserInstrumentWatchlistItem
 from Instruments.services.schwab_fields import (
     SCHWAB_LEVEL_ONE_EQUITY_FIELDS,
     SCHWAB_LEVEL_ONE_FUTURES_FIELDS,
@@ -72,6 +72,61 @@ def _group_subscriptions(rows: List[Dict[str, Any]]) -> Tuple[List[str], List[st
                 s = "/" + s.lstrip("/")
             futures.append(s)
     return equities, futures
+
+
+def _load_watchlist_subscriptions(*, user_id: int, types_filter: set[str]) -> Tuple[List[str], List[str]]:
+    qs = (
+        UserInstrumentWatchlistItem.objects.select_related("instrument")
+        .filter(user_id=user_id, enabled=True, stream=True, instrument__is_active=True)
+        .order_by("order", "instrument__symbol")
+    )
+
+    # --types is a legacy CLI filter; interpret in terms of Schwab stream "assets"
+    want_equities = False
+    want_futures = False
+    if types_filter:
+        for t in types_filter:
+            tt = (t or "").strip().upper()
+            if tt in {"FUTURE", "FUTURES"}:
+                want_futures = True
+            elif tt in {"EQUITY", "EQUITIES", "STOCK", "STOCKS", "INDEX"}:
+                want_equities = True
+
+        if want_futures and not want_equities:
+            qs = qs.filter(instrument__asset_type=Instrument.AssetType.FUTURE)
+        elif want_equities and not want_futures:
+            qs = qs.exclude(instrument__asset_type=Instrument.AssetType.FUTURE)
+
+    equities: list[str] = []
+    futures: list[str] = []
+
+    for item in qs:
+        inst = item.instrument
+        symbol = (inst.symbol or "").strip().upper()
+        if not symbol:
+            continue
+
+        quote_source = (getattr(inst, "quote_source", None) or "AUTO").upper()
+        if quote_source not in {"AUTO", "SCHWAB"}:
+            continue
+
+        if inst.asset_type == Instrument.AssetType.FUTURE:
+            futures.append(symbol if symbol.startswith("/") else "/" + symbol.lstrip("/"))
+        else:
+            equities.append(symbol.lstrip("/"))
+
+    # De-dupe stable
+    def _dedupe(xs: list[str]) -> list[str]:
+        seen = set()
+        out: list[str] = []
+        for x in xs:
+            if x in seen:
+                continue
+            seen.add(x)
+            out.append(x)
+        return out
+
+    return _dedupe(equities), _dedupe(futures)
 
 
 # ---------------------------
@@ -330,31 +385,13 @@ class Command(BaseCommand):
 
             if not equities and not futures:
                 types_filter = set([t.strip().upper() for t in _parse_csv(options.get("types")) if t.strip()])
-                qs = SchwabSubscription.objects.filter(user_id=user_id, enabled=True)
-                if types_filter:
-                    qs = qs.filter(asset_type__in=list(types_filter))
-
-                rows = list(qs.values("symbol", "asset_type"))
-                equities, futures = _group_subscriptions(rows)
+                equities, futures = _load_watchlist_subscriptions(user_id=user_id, types_filter=types_filter)
 
                 if not equities and not futures:
-                    # Fall back: Instruments watchlist sync
-                    with contextlib.suppress(Exception):
-                        from Instruments.services.watchlist_sync import sync_watchlist_to_schwab
-                        sync_watchlist_to_schwab(int(user_id))
-
-                    qs = SchwabSubscription.objects.filter(user_id=user_id, enabled=True)
-                    if types_filter:
-                        qs = qs.filter(asset_type__in=list(types_filter))
-
-                    rows = list(qs.values("symbol", "asset_type"))
-                    equities, futures = _group_subscriptions(rows)
-
-                    if not equities and not futures:
-                        logger.warning(
-                            "No enabled Schwab subscriptions for user_id=%s; starting in IDLE mode (control-plane only).",
-                            user_id,
-                        )
+                    logger.warning(
+                        "No enabled stream watchlist items for user_id=%s; starting in IDLE mode (control-plane only).",
+                        user_id,
+                    )
 
             desired_equities: set[str] = set([s.upper().lstrip("/") for s in equities if s])
             desired_futures: set[str] = set([s.upper() if s.startswith("/") else "/" + s.upper().lstrip("/") for s in futures if s])

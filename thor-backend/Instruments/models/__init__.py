@@ -9,7 +9,6 @@ from ThorTrading.studies.futures_total.models.rtd import (
     SignalWeight,
 )
 from .watchlist import UserInstrumentWatchlistItem
-from .subscription import SchwabSubscription
 
 __all__ = [
     "Instrument",
@@ -22,6 +21,5 @@ __all__ = [
     "SignalWeight",
     "ContractWeight",
     "UserInstrumentWatchlistItem",
-    "SchwabSubscription",
 ]
 

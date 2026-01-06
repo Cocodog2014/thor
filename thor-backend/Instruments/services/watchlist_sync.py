@@ -1,16 +1,19 @@
 from __future__ import annotations
 
-import json
-
 from django.db import transaction
 
 from LiveData.schwab.control_plane import publish_set
-from LiveData.schwab.signal_control import suppress_schwab_subscription_signals
-from Instruments.models import Instrument, SchwabSubscription, UserInstrumentWatchlistItem
+from Instruments.models import Instrument, UserInstrumentWatchlistItem
 
 
 def sync_watchlist_to_schwab(user_id: int) -> None:
-    """Ensure subscription rows match the user's watchlist and push a 'set' to the streamer."""
+    """Publish an authoritative Schwab subscription *set* based on the user's watchlist.
+
+    Canonical source of truth is:
+        UserInstrumentWatchlistItem(enabled=True, stream=True)
+
+    This function does not write SchwabSubscription rows.
+    """
 
     qs = (
         UserInstrumentWatchlistItem.objects.select_related("instrument")
@@ -51,39 +54,9 @@ def sync_watchlist_to_schwab(user_id: int) -> None:
     equities = _dedupe(equities)
     futures = _dedupe(futures)
 
-    with transaction.atomic(), suppress_schwab_subscription_signals():
-        # Persist desired set in DB so streamer can bootstrap from DB.
-        SchwabSubscription.objects.filter(
-            user_id=user_id,
-            asset_type=SchwabSubscription.ASSET_EQUITY,
-        ).exclude(
-            symbol__in=equities
-        ).delete()
-        SchwabSubscription.objects.filter(
-            user_id=user_id,
-            asset_type=SchwabSubscription.ASSET_FUTURE,
-        ).exclude(
-            symbol__in=futures
-        ).delete()
+    def _on_commit() -> None:
+        # Push sets to streamer for immediate convergence.
+        publish_set(user_id=user_id, asset="EQUITY", symbols=equities)
+        publish_set(user_id=user_id, asset="FUTURE", symbols=futures)
 
-        for sym in equities:
-            SchwabSubscription.objects.update_or_create(
-                user_id=user_id,
-                symbol=sym,
-                asset_type=SchwabSubscription.ASSET_EQUITY,
-                defaults={"enabled": True},
-            )
-        for sym in futures:
-            SchwabSubscription.objects.update_or_create(
-                user_id=user_id,
-                symbol=sym,
-                asset_type=SchwabSubscription.ASSET_FUTURE,
-                defaults={"enabled": True},
-            )
-
-        def _on_commit() -> None:
-            # Push sets to streamer for immediate convergence.
-            publish_set(user_id=user_id, asset="EQUITY", symbols=equities)
-            publish_set(user_id=user_id, asset="FUTURE", symbols=futures)
-
-        transaction.on_commit(_on_commit)
+    transaction.on_commit(_on_commit)

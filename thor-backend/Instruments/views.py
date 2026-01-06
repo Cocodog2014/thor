@@ -1,12 +1,11 @@
 from __future__ import annotations
 
 from django.db.models import Q
-from django.db import transaction
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from Instruments.models import Instrument, SchwabSubscription, UserInstrumentWatchlistItem
+from Instruments.models import Instrument, UserInstrumentWatchlistItem
 from Instruments.serializers import InstrumentSummarySerializer, WatchlistItemSerializer, WatchlistReplaceSerializer
 from Instruments.services.watchlist_sync import sync_watchlist_to_schwab
 
@@ -16,53 +15,6 @@ class UserWatchlistView(APIView):
 
     def get(self, request):
         items = UserInstrumentWatchlistItem.objects.select_related("instrument").filter(user=request.user)
-
-        # Back-compat: if a user already has subscription rows (older flow),
-        # seed the new watchlist once so the drawer reflects existing subscriptions.
-        if not items.exists():
-            subs = (
-                SchwabSubscription.objects.filter(user=request.user, enabled=True)
-                .order_by("asset_type", "symbol")
-                .values_list("asset_type", "symbol")
-            )
-
-            to_create: list[UserInstrumentWatchlistItem] = []
-            order = 0
-            with transaction.atomic():
-                for asset_type, symbol in subs:
-                    sym = (symbol or "").strip().upper()
-                    if not sym:
-                        continue
-
-                    canonical_sym = sym.lstrip("/")
-
-                    inferred_asset_type = (
-                        Instrument.AssetType.FUTURE
-                        if asset_type == SchwabSubscription.ASSET_FUTURE or sym.startswith("/")
-                        else Instrument.AssetType.EQUITY
-                    )
-                    inst, _ = Instrument.objects.get_or_create(
-                        symbol=(canonical_sym or sym),
-                        defaults={"asset_type": inferred_asset_type, "is_active": True},
-                    )
-                    to_create.append(
-                        UserInstrumentWatchlistItem(
-                            user=request.user,
-                            instrument=inst,
-                            enabled=True,
-                            stream=True,
-                            order=order,
-                        )
-                    )
-                    order += 1
-
-                if to_create:
-                    UserInstrumentWatchlistItem.objects.bulk_create(
-                        to_create,
-                        ignore_conflicts=True,
-                    )
-
-            items = UserInstrumentWatchlistItem.objects.select_related("instrument").filter(user=request.user)
 
         items = items.order_by("order", "instrument__symbol")
         return Response({"items": WatchlistItemSerializer(items, many=True).data})

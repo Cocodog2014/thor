@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from django.core.management.base import BaseCommand
 from django.db import connection, transaction
 
-from Instruments.models import SchwabSubscription
+from Instruments.models import Instrument, UserInstrumentWatchlistItem
 
 
 @dataclass(frozen=True)
@@ -17,7 +17,7 @@ class _Row:
 
 
 class Command(BaseCommand):
-    help = "One-time copy of legacy LiveData schwab_subscription rows into Instruments-owned SchwabSubscription."  # noqa: E501
+    help = "One-time migrate legacy LiveData schwab_subscription rows into the canonical user watchlist."  # noqa: E501
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -63,7 +63,8 @@ class Command(BaseCommand):
         self.stdout.write(f"Found {len(rows)} legacy row(s) in {src_table}.")
 
         created = 0
-        updated = 0
+        created_instruments = 0
+        created_watchlist = 0
 
         def _normalize_symbol(s: str) -> str:
             return (s or "").strip().upper()
@@ -71,36 +72,71 @@ class Command(BaseCommand):
         def _normalize_asset(s: str) -> str:
             return (s or "").strip().upper()
 
+        def _to_instrument_symbol(sym: str, asset: str) -> str:
+            # Futures are canonical with leading '/', equities without.
+            if asset in {"FUTURE", "FUTURES"}:
+                return sym if sym.startswith("/") else "/" + sym.lstrip("/")
+            return sym.lstrip("/")
+
+        def _to_instrument_asset_type(asset: str, sym: str) -> str:
+            if asset in {"FUTURE", "FUTURES"} or sym.startswith("/"):
+                return Instrument.AssetType.FUTURE
+            return Instrument.AssetType.EQUITY
+
         if dry_run:
             self.stdout.write(self.style.WARNING("Dry-run: no changes written."))
 
+        # Deterministic ordering + per-user order field
+        rows_sorted = sorted(rows, key=lambda rr: (rr.user_id, _normalize_asset(rr.asset_type), _normalize_symbol(rr.symbol)))
+
         with transaction.atomic():
-            for r in rows:
+            current_user_id: int | None = None
+            order = 0
+
+            for r in rows_sorted:
                 sym = _normalize_symbol(r.symbol)
-                asset = _normalize_asset(r.asset_type) or SchwabSubscription.ASSET_EQUITY
+                asset = _normalize_asset(r.asset_type)
                 if not sym:
                     continue
 
+                if current_user_id != int(r.user_id):
+                    current_user_id = int(r.user_id)
+                    order = 0
+
+                inst_symbol = _to_instrument_symbol(sym, asset)
+                inst_asset_type = _to_instrument_asset_type(asset, sym)
+
                 if dry_run:
+                    order += 1
                     continue
 
-                obj, was_created = SchwabSubscription.objects.update_or_create(
-                    user_id=r.user_id,
-                    symbol=sym,
-                    asset_type=asset,
-                    defaults={"enabled": bool(r.enabled)},
+                inst, inst_created = Instrument.objects.get_or_create(
+                    symbol=inst_symbol,
+                    defaults={"asset_type": inst_asset_type, "is_active": True},
                 )
-                if was_created:
-                    created += 1
-                else:
-                    # update_or_create returns an updated object even if nothing changed
-                    updated += 1
+                if inst_created:
+                    created_instruments += 1
+
+                _, wl_created = UserInstrumentWatchlistItem.objects.get_or_create(
+                    user_id=int(r.user_id),
+                    instrument=inst,
+                    defaults={
+                        "enabled": bool(r.enabled),
+                        "stream": bool(r.enabled),
+                        "order": int(order),
+                    },
+                )
+                if wl_created:
+                    created_watchlist += 1
+
+                order += 1
 
             if dry_run:
                 transaction.set_rollback(True)
 
         self.stdout.write(
             self.style.SUCCESS(
-                f"Migrated legacy subscriptions → Instruments.SchwabSubscription. created={created} updated={updated}"
+                "Migrated legacy subscriptions → Instruments.UserInstrumentWatchlistItem. "
+                f"created_instruments={created_instruments} created_watchlist={created_watchlist}"
             )
         )
