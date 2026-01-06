@@ -1,5 +1,8 @@
 from __future__ import annotations
 
-from .supervisor import IntradaySupervisor
+"""Intraday package.
 
-__all__ = ["IntradaySupervisor"]
+`IntradaySupervisor` lives in Instruments (product-state persistence), not here.
+"""
+
+__all__: list[str] = []

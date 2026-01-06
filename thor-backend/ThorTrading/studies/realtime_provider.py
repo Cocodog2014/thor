@@ -44,7 +44,7 @@ def _active_countries() -> list[str]:
 
 def _run_intraday_tick(ctx: Any) -> None:
     """1-second tick: build ticks + bars + flush closed bars to DB."""
-    from ThorTrading.studies.futures_total.intraday.supervisor import IntradaySupervisor
+    from Instruments.services.intraday_supervisor import IntradaySupervisor
 
     IntradaySupervisor().tick()
 
