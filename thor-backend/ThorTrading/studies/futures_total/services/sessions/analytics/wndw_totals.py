@@ -142,7 +142,12 @@ def update_country_symbol_wndw_total(session_number: int, country: str) -> int:
     return _service.update_for_session_number(session_number=session_number, country=country)
 
 
+def update_country_future_wndw_total(session_number: int, country: str) -> int:  # Backward compatibility
+    return update_country_symbol_wndw_total(session_number=session_number, country=country)
+
+
 __all__ = [
     "CountrySymbolWndwTotalsService",
     "update_country_symbol_wndw_total",
+    "update_country_future_wndw_total",
 ]

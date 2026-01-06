@@ -9,8 +9,34 @@ import time
 
 from LiveData.shared.redis_client import live_data_redis
 from Instruments.services.intraday_flush import flush_closed_bars
+from Instruments.models.market_24h import MarketTrading24Hour
 
 logger = logging.getLogger(__name__)
+
+
+_LAST_UTC_SESSION_NUMBER_KEY = "intraday:last_utc_session_number"
+
+
+def _finalize_previous_session_if_rolled_over() -> None:
+    """Finalize MarketTrading24Hour for the previous UTC day when day rolls over."""
+
+    current_sn = int(datetime.now(timezone.utc).strftime("%Y%m%d"))
+    try:
+        raw_prev = live_data_redis.client.get(_LAST_UTC_SESSION_NUMBER_KEY)
+        prev_sn = int(raw_prev) if raw_prev not in (None, "") else None
+    except Exception:
+        prev_sn = None
+
+    if prev_sn is not None and prev_sn != current_sn:
+        try:
+            MarketTrading24Hour.objects.filter(session_number=prev_sn, finalized=False).update(finalized=True)
+        except Exception:
+            logger.exception("Failed finalizing MarketTrading24Hour for session_number=%s", prev_sn)
+
+    try:
+        live_data_redis.client.set(_LAST_UTC_SESSION_NUMBER_KEY, str(current_sn), ex=7 * 24 * 3600)
+    except Exception:
+        logger.debug("Failed to set %s", _LAST_UTC_SESSION_NUMBER_KEY, exc_info=True)
 
 
 def _infer_asset_kind(row: Dict[str, Any]) -> str:
@@ -157,6 +183,7 @@ class IntradaySupervisor:
         }
 
         try:
+            _finalize_previous_session_if_rolled_over()
             symbols = _active_symbols(max_age_seconds=60, limit=5000)
             enriched = live_data_redis.get_latest_quotes(symbols) if symbols else []
 
