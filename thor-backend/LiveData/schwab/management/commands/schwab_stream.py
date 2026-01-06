@@ -636,6 +636,7 @@ class Command(BaseCommand):
                     desired_list = sorted([s.upper().lstrip("/") for s in desired if s])
                     unsubs = getattr(stream_client, "level_one_equity_unsubs", None)
                     subs = getattr(stream_client, "level_one_equity_subs", None)
+                    add = getattr(stream_client, "level_one_equity_add", None)
                     if not callable(subs):
                         return
 
@@ -651,15 +652,26 @@ class Command(BaseCommand):
                         applied_equities = set()
                         return
 
+                    # schwab-py exposes both *_subs and *_add. In practice, *_subs may
+                    # replace the entire subscription list. So for incremental updates
+                    # we prefer *_add when available, and only use *_subs with the full
+                    # desired set.
                     if callable(unsubs):
                         to_remove = sorted([s for s in applied_equities if s not in desired_list])
                         if to_remove:
                             await unsubs(to_remove)
-                        to_add = sorted([s for s in desired_list if s not in applied_equities])
-                        if to_add:
-                            await subs(to_add, fields=fields)
+
+                    # Ensure desired symbols are subscribed.
+                    to_add = sorted([s for s in desired_list if s not in applied_equities])
+                    if to_add:
+                        if callable(add):
+                            await add(to_add, fields=fields)
+                        else:
+                            await subs(desired_list, fields=fields)
                     else:
-                        await subs(desired_list, fields=fields)
+                        # If we couldn't unsubscribe but the desired set shrank, force a full re-subscribe.
+                        if not callable(unsubs) and applied_equities and set(desired_list) != set(applied_equities):
+                            await subs(desired_list, fields=fields)
 
                     applied_equities = set(desired_list)
 
@@ -668,6 +680,7 @@ class Command(BaseCommand):
                     desired_list = sorted([s.upper() if s.startswith("/") else "/" + s.upper().lstrip("/") for s in desired if s])
                     unsubs = getattr(stream_client, "level_one_futures_unsubs", None)
                     subs = getattr(stream_client, "level_one_futures_subs", None)
+                    add = getattr(stream_client, "level_one_futures_add", None)
                     if not callable(subs):
                         return
 
@@ -687,11 +700,16 @@ class Command(BaseCommand):
                         to_remove = sorted([s for s in applied_futures if s not in desired_list])
                         if to_remove:
                             await unsubs(to_remove)
-                        to_add = sorted([s for s in desired_list if s not in applied_futures])
-                        if to_add:
-                            await subs(to_add, fields=fields)
+
+                    to_add = sorted([s for s in desired_list if s not in applied_futures])
+                    if to_add:
+                        if callable(add):
+                            await add(to_add, fields=fields)
+                        else:
+                            await subs(desired_list, fields=fields)
                     else:
-                        await subs(desired_list, fields=fields)
+                        if not callable(unsubs) and applied_futures and set(desired_list) != set(applied_futures):
+                            await subs(desired_list, fields=fields)
 
                     applied_futures = set(desired_list)
 
@@ -795,9 +813,15 @@ class Command(BaseCommand):
                                 if (cmd.get("asset") or "").strip().upper() in ("EQUITY", "EQUITIES", "STOCK", "INDEX"):
                                     logger.warning("Schwab control => equities=%s", sorted(current_equities))
                                     await _apply_equity_subs(stream_client, current_equities)
+                                    if echo_ticks:
+                                        with contextlib.suppress(Exception):
+                                            self.stdout.write(f"subscribed_equities={sorted(applied_equities)}")
                                 elif (cmd.get("asset") or "").strip().upper() in ("FUTURE", "FUTURES"):
                                     logger.warning("Schwab control => futures=%s", sorted(current_futures))
                                     await _apply_futures_subs(stream_client, current_futures)
+                                    if echo_ticks:
+                                        with contextlib.suppress(Exception):
+                                            self.stdout.write(f"subscribed_futures={sorted(applied_futures)}")
 
                         control_task = asyncio.create_task(_control_consumer())
                         watchdog_task = asyncio.create_task(_stall_watchdog())
