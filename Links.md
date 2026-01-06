@@ -84,9 +84,6 @@ python manage.py shell -c "import json; from LiveData.shared.redis_client import
 python manage.py shell -c "import json; from LiveData.shared.redis_client import live_data_redis; live_data_redis.client.publish('live_data:subscriptions:schwab:1', json.dumps({'action':'set','asset':'FUTURE','symbols':['/ES']}))"
 
 # Unsubscribe all equities:
-python manage.py shell -c "import json; from LiveData.shared.redis_client import live_data_redis; live_data_redis.client.publish('live_data:schwab:control:1', json.dumps({'action':'set','asset':'EQUITY','symbols':[]}))"
-
-# Unsubscribe all equities:
 python manage.py shell -c "import json; from LiveData.shared.redis_client import live_data_redis; live_data_redis.client.publish('live_data:subscriptions:schwab:1', json.dumps({'action':'set','asset':'EQUITY','symbols':[]}))"
 
 clean tokens cd A:\Thor\thor-backend
