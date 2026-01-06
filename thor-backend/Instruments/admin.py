@@ -1,6 +1,8 @@
 from django.contrib import admin
 from django.db import transaction
 
+from LiveData.schwab.signal_control import suppress_schwab_subscription_signals
+
 from .models import Instrument
 from .models import InstrumentIntraday
 from .models import MarketTrading24Hour
@@ -113,12 +115,14 @@ class UserInstrumentWatchlistItemAdmin(admin.ModelAdmin):
     def save_model(self, request, obj, form, change):  # pragma: no cover - admin
         if not getattr(obj, "user_id", None):
             obj.user = request.user
-        super().save_model(request, obj, form, change)
+        with suppress_schwab_subscription_signals():
+            super().save_model(request, obj, form, change)
         transaction.on_commit(lambda: sync_watchlist_to_schwab(int(obj.user_id)))
 
     def delete_model(self, request, obj):  # pragma: no cover - admin
         user_id = int(obj.user_id)
-        super().delete_model(request, obj)
+        with suppress_schwab_subscription_signals():
+            super().delete_model(request, obj)
         transaction.on_commit(lambda: sync_watchlist_to_schwab(user_id))
 
 

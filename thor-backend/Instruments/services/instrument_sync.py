@@ -5,6 +5,7 @@ from django.contrib.auth import get_user_model
 from django.db import transaction
 
 from Instruments.models import Instrument, UserInstrumentWatchlistItem
+from LiveData.schwab.signal_control import suppress_schwab_subscription_signals
 
 
 def get_owner_user_id() -> int:
@@ -23,7 +24,8 @@ def ensure_owner_watchlist_for_instrument(instrument: Instrument) -> None:
     owner_user_id = get_owner_user_id()
 
     if not instrument.is_active:
-        UserInstrumentWatchlistItem.objects.filter(user_id=owner_user_id, instrument=instrument).delete()
+        with suppress_schwab_subscription_signals():
+            UserInstrumentWatchlistItem.objects.filter(user_id=owner_user_id, instrument=instrument).delete()
         return
 
     defaults = {"enabled": True, "stream": True}
@@ -32,7 +34,8 @@ def ensure_owner_watchlist_for_instrument(instrument: Instrument) -> None:
     existing = UserInstrumentWatchlistItem.objects.filter(user_id=owner_user_id, instrument=instrument).first()
     if existing:
         if existing.enabled != defaults["enabled"] or existing.stream != defaults["stream"]:
-            UserInstrumentWatchlistItem.objects.filter(id=existing.id).update(**defaults)
+            with suppress_schwab_subscription_signals():
+                UserInstrumentWatchlistItem.objects.filter(id=existing.id).update(**defaults)
         return
 
     max_order = (
@@ -43,18 +46,20 @@ def ensure_owner_watchlist_for_instrument(instrument: Instrument) -> None:
     )
     next_order = int(max_order or 0) + 1
 
-    UserInstrumentWatchlistItem.objects.create(
-        user_id=owner_user_id,
-        instrument=instrument,
-        order=next_order,
-        **defaults,
-    )
+    with suppress_schwab_subscription_signals():
+        UserInstrumentWatchlistItem.objects.create(
+            user_id=owner_user_id,
+            instrument=instrument,
+            order=next_order,
+            **defaults,
+        )
 
 
 def remove_owner_watchlist_for_instrument(instrument: Instrument | int) -> None:
     owner_user_id = get_owner_user_id()
     instrument_id = instrument.id if isinstance(instrument, Instrument) else int(instrument)
-    UserInstrumentWatchlistItem.objects.filter(user_id=owner_user_id, instrument_id=instrument_id).delete()
+    with suppress_schwab_subscription_signals():
+        UserInstrumentWatchlistItem.objects.filter(user_id=owner_user_id, instrument_id=instrument_id).delete()
 
 
 def upsert_quote_source_map(instrument: Instrument) -> None:
