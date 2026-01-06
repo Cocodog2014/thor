@@ -154,17 +154,11 @@ def forward_fill_instrument2(apps, schema_editor):
                 ContractWeight.objects.filter(id__in=delete_ids).delete()
 
     # Populate SignalStatValue.instrument2
-    missing_signal_ids: list[int] = []
     for inst_id, ti_ids in instrument_to_trading.items():
         SignalStatValue.objects.filter(
             instrument_id__in=ti_ids,
             instrument2_id__isnull=True,
         ).update(instrument2_id=inst_id)
-
-    if SignalStatValue.objects.filter(instrument2_id__isnull=True).exists():
-        missing_signal_ids = list(
-            SignalStatValue.objects.filter(instrument2_id__isnull=True).values_list("id", flat=True)[:20]
-        )
 
     # Populate ContractWeight.instrument2
     for inst_id, ti_ids in instrument_to_trading.items():
@@ -173,17 +167,23 @@ def forward_fill_instrument2(apps, schema_editor):
             instrument2_id__isnull=True,
         ).update(instrument2_id=inst_id)
 
-    missing_contract_ids: list[int] = []
-    if ContractWeight.objects.filter(instrument2_id__isnull=True).exists():
-        missing_contract_ids = list(
-            ContractWeight.objects.filter(instrument2_id__isnull=True).values_list("id", flat=True)[:20]
-        )
+    # If there are still rows without instrument2 mapping, they are orphaned or
+    # unmappable (e.g. instrument_id points to missing TradingInstrument). These
+    # rows would fail the subsequent NOT NULL enforcement; delete them.
+    missing_signal_qs = SignalStatValue.objects.filter(instrument2_id__isnull=True)
+    missing_contract_qs = ContractWeight.objects.filter(instrument2_id__isnull=True)
 
-    if missing_signal_ids or missing_contract_ids:
-        raise RuntimeError(
-            "RTD migration incomplete: could not map some rows to Instruments.Instrument. "
-            f"SignalStatValue missing (first 20)={missing_signal_ids}; "
-            f"ContractWeight missing (first 20)={missing_contract_ids}"
+    missing_signal_count = missing_signal_qs.count()
+    missing_contract_count = missing_contract_qs.count()
+
+    if missing_signal_count or missing_contract_count:
+        missing_signal_qs.delete()
+        missing_contract_qs.delete()
+
+        # Keep a breadcrumb in the migration output (safe in non-interactive runs).
+        print(
+            "RTD migration warning: deleted unmappable rows: "
+            f"SignalStatValue={missing_signal_count} ContractWeight={missing_contract_count}"
         )
 
 

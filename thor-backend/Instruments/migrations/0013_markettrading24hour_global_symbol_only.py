@@ -62,8 +62,8 @@ BEGIN
           AND con.contype = 'u'
           AND EXISTS (
               SELECT 1
-              FROM unnest(con.conkey) AS attnum
-              JOIN pg_attribute a ON a.attrelid = rel.oid AND a.attnum = attnum
+              FROM unnest(con.conkey) AS u(attnum)
+              JOIN pg_attribute a ON a.attrelid = rel.oid AND a.attnum = u.attnum
               WHERE a.attname = 'country'
           )
     LOOP
@@ -88,9 +88,9 @@ BEGIN
         WHERE rel.relname = 'Instruments_markettrading24hour'
           AND con.contype = 'u'
           AND (
-              SELECT array_agg(a.attname ORDER BY a.attname)
-              FROM unnest(con.conkey) AS attnum
-              JOIN pg_attribute a ON a.attrelid = rel.oid AND a.attnum = attnum
+              SELECT array_agg(a.attname::text ORDER BY a.attname::text)
+              FROM unnest(con.conkey) AS u(attnum)
+              JOIN pg_attribute a ON a.attrelid = rel.oid AND a.attnum = u.attnum
           ) = ARRAY['session_group','symbol']
     ) INTO has_uq;
 
