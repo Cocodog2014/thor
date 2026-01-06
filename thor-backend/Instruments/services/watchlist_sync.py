@@ -28,7 +28,7 @@ def _format_for_schwab(inst: Instrument) -> tuple[str, str] | tuple[None, None]:
         return "EQUITY", base
 
 
-def sync_watchlist_to_schwab(user_id: int) -> None:
+def sync_watchlist_to_schwab(user_id: int, *, publish_on_commit: bool = True) -> None:
     """Publish an authoritative Schwab subscription *set* based on the user's watchlist.
 
     Canonical source of truth is:
@@ -77,9 +77,12 @@ def sync_watchlist_to_schwab(user_id: int) -> None:
     equities = _dedupe(equities)
     futures = _dedupe(futures)
 
-    def _on_commit() -> None:
+    def _publish() -> None:
         # Push sets to streamer for immediate convergence.
         publish_set(user_id=user_id, asset="EQUITY", symbols=equities)
         publish_set(user_id=user_id, asset="FUTURE", symbols=futures)
 
-    transaction.on_commit(_on_commit)
+    if publish_on_commit:
+        transaction.on_commit(_publish)
+    else:
+        _publish()
