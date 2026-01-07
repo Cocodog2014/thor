@@ -77,6 +77,70 @@ const getWsUrl = () => {
   return `${protocol}//${host}/ws/market-data/`;
 };
 
+const WatchlistItemRow: React.FC<{
+  symbol: string;
+  data: MarketData;
+  onRemove: (sym: string) => void;
+}> = ({ symbol, data, onRemove }) => {
+  const [flash, setFlash] = useState<'up' | 'down' | null>(null);
+  const prevLast = useRef<number | undefined>(undefined);
+
+  useEffect(() => {
+    if (data.last !== undefined && prevLast.current !== undefined) {
+      if (data.last > prevLast.current) {
+        setFlash('up');
+      } else if (data.last < prevLast.current) {
+        setFlash('down');
+      }
+      const timer = setTimeout(() => setFlash(null), 500);
+      return () => clearTimeout(timer);
+    }
+    prevLast.current = data.last;
+  }, [data.last]);
+
+  const priceColor = flash === 'up' ? '#4caf50' : flash === 'down' ? '#f44336' : 'text.primary';
+
+  return (
+    <Box className="thor-watchlist-item" sx={{ flexDirection: 'column', alignItems: 'flex-start', py: 1, gap: 0.5, height: 'auto' }}>
+      <Box sx={{ display: 'flex', width: '100%', justifyContent: 'space-between', alignItems: 'center' }}>
+        <span className="thor-watchlist-symbol">{symbol}</span>
+        <IconButton size="small" onClick={() => onRemove(symbol)} aria-label={`Remove ${symbol}`}>
+          <CloseIcon fontSize="small" />
+        </IconButton>
+      </Box>
+      <Grid container spacing={0.5} sx={{ fontSize: '0.7rem', color: 'text.secondary' }}>
+        <Grid size={3} title="Last Price">
+          <Box component="span" sx={{ display: 'block', fontWeight: 'bold', color: priceColor, transition: 'color 0.3s ease' }}>
+            {data.last?.toFixed(2) ?? '-'}
+          </Box>
+        </Grid>
+        <Grid size={3} title="Bid">
+          B: {data.bid?.toFixed(2) ?? '-'}
+        </Grid>
+        <Grid size={3} title="Ask">
+          A: {data.ask?.toFixed(2) ?? '-'}
+        </Grid>
+        <Grid size={3} title="Volume">
+          V: {data.volume ? (data.volume > 1000 ? (data.volume / 1000).toFixed(1) + 'k' : data.volume) : '-'}
+        </Grid>
+
+        <Grid size={3} title="Open">
+          O: {data.open?.toFixed(2) ?? '-'}
+        </Grid>
+        <Grid size={3} title="High">
+          H: {data.high?.toFixed(2) ?? '-'}
+        </Grid>
+        <Grid size={3} title="Low">
+          L: {data.low?.toFixed(2) ?? '-'}
+        </Grid>
+        <Grid size={3} title="Prev Close">
+          C: {data.close?.toFixed(2) ?? '-'}
+        </Grid>
+      </Grid>
+    </Box>
+  );
+};
+
 const CollapsibleDrawer: React.FC<CollapsibleDrawerProps> = ({
   open,
   onToggle,
@@ -101,18 +165,18 @@ const CollapsibleDrawer: React.FC<CollapsibleDrawerProps> = ({
   useEffect(() => {
     if (lastJsonMessage) {
       const msg = lastJsonMessage as any;
-      if (msg.type === 'quote_tick' && msg.data) {
-        const { symbol, bid, ask, last, volume } = msg.data;
-        if (symbol) {
+      const symbolRaw = msg.data?.symbol;
+      if (symbolRaw) {
+        const symbol = symbolRaw.toUpperCase();
+        if (msg.type === 'quote_tick' && msg.data) {
+          const { bid, ask, last, volume } = msg.data;
           setMarketData((prev) => ({
             ...prev,
             [symbol]: { ...prev[symbol], bid, ask, last, volume },
           }));
-        }
-      } else if (msg.type === 'market.24h' && msg.data) {
-        const { symbol, open, high, low, close, volume } = msg.data;
-        if (symbol) {
-          setMarketData((prev) => ({
+        } else if (msg.type === 'market.24h' && msg.data) {
+          const { open, high, low, close, volume } = msg.data;
+           setMarketData((prev) => ({
             ...prev,
             [symbol]: { ...prev[symbol], open, high, low, close, volume },
           }));
@@ -322,7 +386,7 @@ const CollapsibleDrawer: React.FC<CollapsibleDrawerProps> = ({
                 size="small"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Add symbol (e.g. VFF)"
+                placeholder="Add symbol"
                 fullWidth
                 InputProps={{
                   endAdornment: suggestionsLoading ? <CircularProgress size={16} /> : undefined,
@@ -374,45 +438,12 @@ const CollapsibleDrawer: React.FC<CollapsibleDrawerProps> = ({
                   const sym = (w.instrument?.symbol ?? '').toUpperCase();
                   const data = marketData[sym] || {};
                   return (
-                    <Box key={sym} className="thor-watchlist-item" sx={{ flexDirection: 'column', alignItems: 'flex-start', py: 1, gap: 0.5, height: 'auto' }}>
-                      <Box sx={{ display: 'flex', width: '100%', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span className="thor-watchlist-symbol">{sym}</span>
-                        <IconButton
-                          size="small"
-                          onClick={() => void removeSymbol(sym)}
-                          aria-label={`Remove ${sym}`}
-                        >
-                          <CloseIcon fontSize="small" />
-                        </IconButton>
-                      </Box>
-                      <Grid container spacing={0.5} sx={{ fontSize: '0.7rem', color: 'text.secondary' }}>
-                        <Grid size={3} title="Last Price">
-                          <Box component="span" sx={{ display: 'block', fontWeight: 'bold', color: 'text.primary' }}>{data.last?.toFixed(2) ?? '-'}</Box>
-                        </Grid>
-                        <Grid size={3} title="Bid">
-                          B: {data.bid?.toFixed(2) ?? '-'}
-                        </Grid>
-                        <Grid size={3} title="Ask">
-                          A: {data.ask?.toFixed(2) ?? '-'}
-                        </Grid>
-                        <Grid size={3} title="Volume">
-                          V: {data.volume ? (data.volume > 1000 ? (data.volume / 1000).toFixed(1) + 'k' : data.volume) : '-'}
-                        </Grid>
-                        
-                        <Grid size={3} title="Open">
-                          O: {data.open?.toFixed(2) ?? '-'}
-                        </Grid>
-                        <Grid size={3} title="High">
-                          H: {data.high?.toFixed(2) ?? '-'}
-                        </Grid>
-                        <Grid size={3} title="Low">
-                          L: {data.low?.toFixed(2) ?? '-'}
-                        </Grid>
-                        <Grid size={3} title="Prev Close">
-                          C: {data.close?.toFixed(2) ?? '-'}
-                        </Grid>
-                      </Grid>
-                    </Box>
+                    <WatchlistItemRow
+                      key={sym}
+                      symbol={sym}
+                      data={data}
+                      onRemove={(s) => void removeSymbol(s)}
+                    />
                   );
                 })
               )}
