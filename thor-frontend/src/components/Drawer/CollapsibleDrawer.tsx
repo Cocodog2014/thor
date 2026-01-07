@@ -15,7 +15,6 @@ import {
   TextField,
   Button,
   CircularProgress,
-  Grid,
 } from '@mui/material';
 import {
   ChevronLeft as ChevronLeftIcon,
@@ -87,6 +86,20 @@ const WatchlistItemRow: React.FC<{
   const [flash, setFlash] = useState<'up' | 'down' | null>(null);
   const prevLast = useRef<number | undefined>(undefined);
 
+  const formatPrice = (value: number | undefined) =>
+    value === undefined || value === null ? '-' : value.toFixed(2);
+
+  const formatVolume = (value: number | undefined) => {
+    if (value === undefined || value === null) return '-';
+    if (Math.abs(value) >= 1_000_000) {
+      return `${(value / 1_000_000).toFixed(1)}m`;
+    }
+    if (Math.abs(value) >= 1_000) {
+      return `${(value / 1_000).toFixed(1)}k`;
+    }
+    return value.toString();
+  };
+
   useEffect(() => {
     if (data.last !== undefined && prevLast.current !== undefined) {
       if (data.last > prevLast.current) {
@@ -102,6 +115,53 @@ const WatchlistItemRow: React.FC<{
 
   const priceColor = flash === 'up' ? '#4caf50' : flash === 'down' ? '#f44336' : 'text.primary';
 
+  const metrics = useMemo(
+    () => [
+      {
+        key: 'last',
+        label: 'Last',
+        value: formatPrice(data.last),
+        highlight: true,
+      },
+      {
+        key: 'bid',
+        label: 'Bid',
+        value: formatPrice(data.bid),
+      },
+      {
+        key: 'ask',
+        label: 'Ask',
+        value: formatPrice(data.ask),
+      },
+      {
+        key: 'volume',
+        label: 'Volume',
+        value: formatVolume(data.volume),
+      },
+      {
+        key: 'open',
+        label: 'Open',
+        value: formatPrice(data.open),
+      },
+      {
+        key: 'high',
+        label: 'High',
+        value: formatPrice(data.high),
+      },
+      {
+        key: 'low',
+        label: 'Low',
+        value: formatPrice(data.low),
+      },
+      {
+        key: 'close',
+        label: 'Prev Close',
+        value: formatPrice(data.close),
+      },
+    ],
+    [data.close, data.high, data.last, data.low, data.ask, data.bid, data.open, data.volume]
+  );
+
   return (
     <Box className="thor-watchlist-item" sx={{ flexDirection: 'column', alignItems: 'flex-start', py: 1, gap: 0.5, height: 'auto' }}>
       <Box sx={{ display: 'flex', width: '100%', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -110,35 +170,35 @@ const WatchlistItemRow: React.FC<{
           <CloseIcon fontSize="small" />
         </IconButton>
       </Box>
-      <Grid container spacing={0.5} sx={{ fontSize: '0.7rem', color: 'text.secondary' }}>
-        <Grid size={3} title="Last Price">
-          <Box component="span" sx={{ display: 'block', fontWeight: 'bold', color: priceColor, transition: 'color 0.3s ease' }}>
-            {data.last?.toFixed(2) ?? '-'}
+      <Box
+        sx={{
+          width: '100%',
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(88px, 1fr))',
+          gap: 0.5,
+          fontSize: '0.72rem',
+          color: 'text.secondary',
+        }}
+      >
+        {metrics.map(({ key, label, value, highlight }) => (
+          <Box key={key} sx={{ display: 'flex', flexDirection: 'column', gap: 0.25 }}>
+            <Box component="span" sx={{ textTransform: 'uppercase', letterSpacing: 0.4 }}>
+              {label}
+            </Box>
+            <Box
+              component="span"
+              sx={{
+                fontWeight: highlight ? 600 : 500,
+                color: highlight ? priceColor : 'text.primary',
+                fontSize: highlight ? '0.9rem' : '0.78rem',
+                transition: 'color 0.3s ease',
+              }}
+            >
+              {value}
+            </Box>
           </Box>
-        </Grid>
-        <Grid size={3} title="Bid">
-          B: {data.bid?.toFixed(2) ?? '-'}
-        </Grid>
-        <Grid size={3} title="Ask">
-          A: {data.ask?.toFixed(2) ?? '-'}
-        </Grid>
-        <Grid size={3} title="Volume">
-          V: {data.volume ? (data.volume > 1000 ? (data.volume / 1000).toFixed(1) + 'k' : data.volume) : '-'}
-        </Grid>
-
-        <Grid size={3} title="Open">
-          O: {data.open?.toFixed(2) ?? '-'}
-        </Grid>
-        <Grid size={3} title="High">
-          H: {data.high?.toFixed(2) ?? '-'}
-        </Grid>
-        <Grid size={3} title="Low">
-          L: {data.low?.toFixed(2) ?? '-'}
-        </Grid>
-        <Grid size={3} title="Prev Close">
-          C: {data.close?.toFixed(2) ?? '-'}
-        </Grid>
-      </Grid>
+        ))}
+      </Box>
     </Box>
   );
 };
@@ -395,6 +455,14 @@ const CollapsibleDrawer: React.FC<CollapsibleDrawerProps> = ({
 
   const currentWidth = open ? drawerWidth : widthClosed;
 
+  const drawerVars = useMemo(
+    () => ({
+      '--drawer-open': `${drawerWidth}px`,
+      '--drawer-closed': `${widthClosed}px`,
+    }) as React.CSSProperties,
+    [drawerWidth, widthClosed]
+  );
+
   return (
     <Drawer
       variant="permanent"
@@ -410,6 +478,7 @@ const CollapsibleDrawer: React.FC<CollapsibleDrawerProps> = ({
           transition: isResizing ? 'none' : 'width 0.2s ease',
         },
       }}
+      style={drawerVars}
     >
       {open && (
         <Box
