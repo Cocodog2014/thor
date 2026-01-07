@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import useWebSocket from 'react-use-websocket';
 import {
   Drawer,
@@ -38,6 +38,8 @@ export interface CollapsibleDrawerProps {
 
 export const DEFAULT_WIDTH_OPEN = 240;
 export const DEFAULT_WIDTH_CLOSED = 72;
+export const MIN_DRAWER_WIDTH = 220;
+export const MAX_DRAWER_WIDTH = 440;
 
 const navigationItems = [
   { text: 'Django Admin', icon: <AdminPanelSettingsIcon />, path: 'http://127.0.0.1:8000/admin/', external: true },
@@ -144,12 +146,78 @@ const WatchlistItemRow: React.FC<{
 const CollapsibleDrawer: React.FC<CollapsibleDrawerProps> = ({
   open,
   onToggle,
-  // widthOpen = DEFAULT_WIDTH_OPEN,
-  // widthClosed = DEFAULT_WIDTH_CLOSED,
+  widthOpen = DEFAULT_WIDTH_OPEN,
+  widthClosed = DEFAULT_WIDTH_CLOSED,
 }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { logout } = useAuth();
+
+  const [drawerWidth, setDrawerWidth] = useState(() => {
+    const initial = Number(widthOpen) || DEFAULT_WIDTH_OPEN;
+    return Math.min(MAX_DRAWER_WIDTH, Math.max(MIN_DRAWER_WIDTH, initial));
+  });
+  const [isResizing, setIsResizing] = useState(false);
+  const resizeState = useRef({ startX: 0, startWidth: drawerWidth });
+
+  const clampWidth = useCallback(
+    (value: number) => Math.min(MAX_DRAWER_WIDTH, Math.max(MIN_DRAWER_WIDTH, value)),
+    []
+  );
+
+  useEffect(() => {
+    setDrawerWidth((prev) => {
+      const target = Number(widthOpen) || prev;
+      return clampWidth(target);
+    });
+  }, [widthOpen, clampWidth]);
+
+  useEffect(() => {
+    if (!isResizing) {
+      return;
+    }
+
+    const handleMouseMove = (event: MouseEvent) => {
+      const delta = event.clientX - resizeState.current.startX;
+      const nextWidth = clampWidth(resizeState.current.startWidth + delta);
+      setDrawerWidth(nextWidth);
+    };
+
+    const endResize = () => {
+      setIsResizing(false);
+    };
+
+    const previousCursor = document.body.style.cursor;
+    const previousUserSelect = document.body.style.userSelect;
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', endResize);
+
+    return () => {
+      document.body.style.cursor = previousCursor;
+      document.body.style.userSelect = previousUserSelect;
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', endResize);
+    };
+  }, [isResizing, clampWidth]);
+
+  useEffect(() => {
+    if (!open) return;
+    setDrawerWidth((prev) => clampWidth(prev));
+  }, [open, clampWidth]);
+
+  const handleResizeMouseDown = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (!open) {
+      return;
+    }
+    resizeState.current = {
+      startX: event.clientX,
+      startWidth: drawerWidth,
+    };
+    setIsResizing(true);
+    event.preventDefault();
+  };
 
   const [watchlist, setWatchlist] = useState<WatchlistItem[]>([]);
   const [watchlistLoading, setWatchlistLoading] = useState(false);
@@ -164,6 +232,7 @@ const CollapsibleDrawer: React.FC<CollapsibleDrawerProps> = ({
 
   useEffect(() => {
     if (lastJsonMessage) {
+      console.log("WS Frame:", lastJsonMessage);
       const msg = lastJsonMessage as any;
       const symbolRaw = msg.data?.symbol;
       if (symbolRaw) {
@@ -324,12 +393,45 @@ const CollapsibleDrawer: React.FC<CollapsibleDrawerProps> = ({
     navigate('/auth/login');
   };
 
+  const currentWidth = open ? drawerWidth : widthClosed;
+
   return (
     <Drawer
       variant="permanent"
       anchor="left"
       className={`thor-drawer ${open ? 'open' : 'closed'}`}
+      sx={{
+        width: currentWidth,
+        flexShrink: 0,
+        '& .MuiDrawer-paper': {
+          width: currentWidth,
+          overflow: 'hidden',
+          position: 'relative',
+          transition: isResizing ? 'none' : 'width 0.2s ease',
+        },
+      }}
     >
+      {open && (
+        <Box
+          role="separator"
+          aria-orientation="vertical"
+          onMouseDown={handleResizeMouseDown}
+          sx={{
+            position: 'absolute',
+            top: 0,
+            right: 0,
+            width: 8,
+            height: '100%',
+            cursor: 'col-resize',
+            zIndex: 2,
+            backgroundColor: isResizing ? 'rgba(255,255,255,0.12)' : 'transparent',
+            transition: 'background-color 0.2s ease',
+            '&:hover': {
+              backgroundColor: 'rgba(255,255,255,0.12)',
+            },
+          }}
+        />
+      )}
       <Toolbar sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', px: 1 }}>
         <IconButton onClick={onToggle} className="thor-drawer-toggle" aria-label={open ? 'Collapse menu' : 'Expand menu'}>
           {open ? <ChevronLeftIcon /> : <ChevronRightIcon />}
