@@ -10,6 +10,8 @@ import time
 from LiveData.shared.redis_client import live_data_redis
 from Instruments.services.intraday_flush import flush_closed_bars
 from Instruments.models.market_24h import MarketTrading24Hour
+from Instruments.services.market_52w_live import finalize_live_52w_to_db, seed_live_52w_all_symbols
+from Instruments.services.market_52w_live import upsert_live_52w_on_price
 
 from api.websocket.broadcast import broadcast_to_websocket_sync
 
@@ -29,11 +31,28 @@ def _finalize_previous_session_if_rolled_over() -> None:
     except Exception:
         prev_sn = None
 
+    if prev_sn is None:
+        # First boot (or Redis got cleared): ensure 52w working copy exists for today.
+        try:
+            seed_live_52w_all_symbols(session_number=current_sn)
+        except Exception:
+            logger.exception("Failed seeding live 52w snapshot for session_number=%s", current_sn)
+
     if prev_sn is not None and prev_sn != current_sn:
         try:
             MarketTrading24Hour.objects.filter(session_number=prev_sn, finalized=False).update(finalized=True)
         except Exception:
             logger.exception("Failed finalizing MarketTrading24Hour for session_number=%s", prev_sn)
+
+        # Finalize 52w once per session_number (DB write only for dirty symbols), then seed new session.
+        try:
+            finalize_live_52w_to_db(session_number=prev_sn)
+        except Exception:
+            logger.exception("Failed finalizing live 52w to DB for session_number=%s", prev_sn)
+        try:
+            seed_live_52w_all_symbols(session_number=current_sn)
+        except Exception:
+            logger.exception("Failed seeding live 52w snapshot for session_number=%s", current_sn)
 
     try:
         live_data_redis.client.set(_LAST_UTC_SESSION_NUMBER_KEY, str(current_sn), ex=7 * 24 * 3600)
@@ -213,6 +232,22 @@ class IntradaySupervisor:
                 price = row.get("last")
                 if price is None:
                     price = row.get("bid") or row.get("ask")
+
+                # Live 52w extremes in Redis + WS broadcast for React.
+                try:
+                    snap_52w = upsert_live_52w_on_price(
+                        session_number=session_number,
+                        symbol=sym,
+                        price=price,
+                        asof_ts=row.get("timestamp") or row.get("ts"),
+                    )
+                    if snap_52w:
+                        broadcast_to_websocket_sync(
+                            channel_layer=None,
+                            message={"type": "market.52w", "data": snap_52w},
+                        )
+                except Exception:
+                    logger.debug("live52w update failed for %s", sym, exc_info=True)
 
                 # Live 24h snapshot in Redis + WS broadcast for React.
                 try:
