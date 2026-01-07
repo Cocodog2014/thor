@@ -335,7 +335,7 @@ class SchwabStreamingProducer:
 
         try:
             # Always publish quotes (session-agnostic)
-            live_data_redis.publish_quote(payload["symbol"], payload)
+            live_data_redis.publish_quote(payload["symbol"], payload, broadcast_ws=True)
 
             if not self._logged_first_redis_snapshot:
                 self._logged_first_redis_snapshot = True
