@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useWsMessage } from "../../../../realtime";
+import { INSTRUMENT_QUOTES_LATEST_ENDPOINT } from "../../../../constants/endpoints";
 import type { ApiResponse, MarketData } from "../types";
 
 type QuoteTick = {
@@ -137,11 +138,12 @@ export function useFuturesQuotes(): UseFuturesQuotesResult {
 
     try {
       console.log(
-        "useFuturesQuotes: fetching /api/quotes/latest",
+        "useFuturesQuotes: fetching",
+        INSTRUMENT_QUOTES_LATEST_ENDPOINT,
         new Date().toISOString(),
         `(${reason})`
       );
-      const response = await fetch("/api/quotes/latest?consumer=futures_trading");
+      const response = await fetch(`${INSTRUMENT_QUOTES_LATEST_ENDPOINT}?consumer=futures_trading`);
       if (!response.ok) {
         throw new Error(`Quote request failed (${response.status})`);
       }

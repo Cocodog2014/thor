@@ -27,6 +27,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { HOME_WELCOME_DISMISSED_KEY } from '../../constants/storageKeys';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
+import { WS_BASE_PATH } from '../../constants/endpoints';
 
 export interface CollapsibleDrawerProps {
   open: boolean;
@@ -72,10 +73,24 @@ type MarketData = {
   close?: number;
 };
 
+const normalizeWsSymbol = (value: unknown): string =>
+  typeof value === 'string' ? value.replace(/^\//, '').toUpperCase() : '';
+
+const toNumeric = (value: unknown): number | undefined => {
+  if (value === null || value === undefined || value === '') return undefined;
+  if (typeof value === 'number') return Number.isFinite(value) ? value : undefined;
+  if (typeof value === 'string') {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : undefined;
+  }
+  return undefined;
+};
+
 const getWsUrl = () => {
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
   const host = window.location.hostname === 'localhost' ? 'localhost:8000' : window.location.host;
-  return `${protocol}//${host}/ws/market-data/`;
+  const path = WS_BASE_PATH.endsWith('/') ? WS_BASE_PATH : `${WS_BASE_PATH}/`;
+  return `${protocol}//${host}${path}`;
 };
 
 const WatchlistItemRow: React.FC<{
@@ -290,29 +305,81 @@ const CollapsibleDrawer: React.FC<CollapsibleDrawerProps> = ({
     share: true,
   });
 
+  const applyMarketPatch = useCallback((symbolRaw: unknown, patch: Partial<MarketData>) => {
+    const symbol = normalizeWsSymbol(symbolRaw);
+    if (!symbol) return;
+
+    setMarketData((prev) => {
+      const next = { ...prev[symbol] } as MarketData;
+      (Object.keys(patch) as Array<keyof MarketData>).forEach((key) => {
+        const incoming = patch[key];
+        const numeric = toNumeric(incoming);
+        if (numeric !== undefined) {
+          next[key] = numeric;
+        }
+      });
+
+      if (!Object.keys(next).length) {
+        return prev;
+      }
+
+      return {
+        ...prev,
+        [symbol]: next,
+      };
+    });
+  }, []);
+
   useEffect(() => {
     if (lastJsonMessage) {
-      console.log("WS Frame:", lastJsonMessage);
-      const msg = lastJsonMessage as any;
-      const symbolRaw = msg.data?.symbol;
-      if (symbolRaw) {
-        const symbol = symbolRaw.toUpperCase();
-        if (msg.type === 'quote_tick' && msg.data) {
-          const { bid, ask, last, volume } = msg.data;
-          setMarketData((prev) => ({
-            ...prev,
-            [symbol]: { ...prev[symbol], bid, ask, last, volume },
-          }));
-        } else if (msg.type === 'market.24h' && msg.data) {
-          const { open, high, low, close, volume } = msg.data;
-           setMarketData((prev) => ({
-            ...prev,
-            [symbol]: { ...prev[symbol], open, high, low, close, volume },
-          }));
+      const msg = lastJsonMessage as { type?: string; data?: any };
+
+      switch (msg?.type) {
+        case 'quote_tick': {
+          const data = msg.data || {};
+          applyMarketPatch(data.symbol, {
+            bid: data.bid,
+            ask: data.ask,
+            last: data.last ?? data.price,
+            volume: data.volume ?? data.lastSize,
+          });
+          break;
         }
+        case 'market.24h': {
+          const data = msg.data || {};
+          applyMarketPatch(data.symbol, {
+            open: data.open,
+            high: data.high,
+            low: data.low,
+            close: data.close,
+            volume: data.volume,
+          });
+          break;
+        }
+        case 'market_data': {
+          const quotes = msg.data?.quotes;
+          if (Array.isArray(quotes)) {
+            quotes.forEach((quote) => {
+              const q = quote || {};
+              applyMarketPatch(q.symbol ?? q.SYMBOL, {
+                bid: q.bid ?? q.Bid,
+                ask: q.ask ?? q.Ask,
+                last: q.last ?? q.price ?? q.Last,
+                open: q.open ?? q.open_price ?? q.Open,
+                high: q.high ?? q.high_price ?? q.High,
+                low: q.low ?? q.low_price ?? q.Low,
+                close: q.close ?? q.close_price ?? q.Close,
+                volume: q.volume ?? q.Volume,
+              });
+            });
+          }
+          break;
+        }
+        default:
+          break;
       }
     }
-  }, [lastJsonMessage]);
+  }, [lastJsonMessage, applyMarketPatch]);
 
   const [query, setQuery] = useState('');
   const [suggestions, setSuggestions] = useState<InstrumentSummary[]>([]);

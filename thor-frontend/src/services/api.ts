@@ -99,7 +99,9 @@ export const setAuthHeader = (token: string | null) => {
 const PUBLIC_ENDPOINTS = [
   '/global-markets/markets',
   '/global-markets/stats',
-  '/quotes',
+  '/futures/quotes',
+  '/futures/quotes/latest',
+  '/futures/quotes/ribbon',
   '/vwap',
 ];
 

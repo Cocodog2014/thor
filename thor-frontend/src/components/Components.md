@@ -117,7 +117,7 @@ Optionally shows child tabs under each parent (e.g., “Activity & Positions”)
 
 Key responsibilities
 
-Polls the quotes API (e.g. /api/quotes/latest) to determine connection state and last update.
+Polls the quotes API (e.g. /api/futures/quotes/latest) to determine connection state and last update.
 
 Fetches all accounts from /api/actandpos/accounts and exposes a dropdown:
 
@@ -406,7 +406,7 @@ Intended to mirror a professional trading platform’s tape/ribbon.
 
 Key responsibilities
 
-Fetches data from /api/quotes/ribbon on mount and every 2 seconds.
+Fetches data from /api/futures/quotes/ribbon on mount and every 2 seconds.
 
 Displays:
 

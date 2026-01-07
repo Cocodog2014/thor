@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import './FooterRibbon.css';
+import { INSTRUMENT_QUOTES_RIBBON_ENDPOINT } from '../../constants/endpoints';
 
 interface RibbonSymbol {
   symbol: string;
@@ -24,11 +25,13 @@ const buildRibbonUrls = () => {
   const explicit = import.meta.env.VITE_RIBBON_API_URL;
   const base = import.meta.env.VITE_API_BASE_URL;
   const fallbackBase = import.meta.env.VITE_FALLBACK_API_BASE_URL || import.meta.env.VITE_BACKEND_BASE_URL;
+  const join = (root: string, path: string) => `${trimSlash(root)}${path.startsWith('/') ? path : `/${path}`}`;
+  const ribbonPathWithoutApiPrefix = INSTRUMENT_QUOTES_RIBBON_ENDPOINT.replace(/^\/api/, '');
 
   if (explicit) urls.push(trimSlash(explicit));
-  if (base) urls.push(`${trimSlash(base)}/quotes/ribbon`);
-  if (fallbackBase) urls.push(`${trimSlash(fallbackBase)}/api/quotes/ribbon`);
-  urls.push('/api/quotes/ribbon'); // final relative fallback (Vite proxy/nginx)
+  if (base) urls.push(join(base, ribbonPathWithoutApiPrefix));
+  if (fallbackBase) urls.push(join(fallbackBase, INSTRUMENT_QUOTES_RIBBON_ENDPOINT));
+  urls.push(INSTRUMENT_QUOTES_RIBBON_ENDPOINT); // final relative fallback (Vite proxy/nginx)
 
   // Deduplicate while preserving order
   const seen = new Set<string>();

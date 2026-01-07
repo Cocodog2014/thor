@@ -3,6 +3,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom';
 import './GlobalBanner.css';
 import api from '../../services/api';
+import { INSTRUMENT_QUOTES_LATEST_ENDPOINT } from '../../constants/endpoints';
 import type { AccountSummary, ParentTab, ChildTab, SchwabHealth } from './bannerTypes';
 import TopRow from './TopRow';
 import BalanceRow from './BalanceRow';
@@ -41,7 +42,7 @@ const GlobalBanner: React.FC = () => {
 
     const checkConnection = async () => {
       try {
-        const response = await fetch('/api/quotes/latest?consumer=futures_trading', {
+        const response = await fetch(`${INSTRUMENT_QUOTES_LATEST_ENDPOINT}?consumer=futures_trading`, {
           cache: 'no-store',
         });
 

@@ -29,7 +29,7 @@ The **GlobalBanner** is the Thinkorswim-style banner that sits directly under th
 
 The banner pings the quotes API every **5 seconds** to decide whether to show **Connected** or **Disconnected**.
 
-- **Endpoint:** `GET /api/quotes/latest?consumer=futures_trading`
+- **Endpoint:** `GET /api/futures/quotes/latest?consumer=futures_trading`
 - **Connected logic:** response JSON contains `rows` array with length > 0
 - **UI values:**
   - `connectionLabel`: `"Connected"` / `"Disconnected"`
