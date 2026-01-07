@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import useWebSocket from 'react-use-websocket';
 import {
   Drawer,
   Toolbar,
@@ -14,6 +15,7 @@ import {
   TextField,
   Button,
   CircularProgress,
+  Grid,
 } from '@mui/material';
 import {
   ChevronLeft as ChevronLeftIcon,
@@ -58,6 +60,23 @@ type WatchlistItem = {
   order: number;
 };
 
+type MarketData = {
+  bid?: number;
+  ask?: number;
+  last?: number;
+  volume?: number;
+  open?: number;
+  high?: number;
+  low?: number;
+  close?: number;
+};
+
+const getWsUrl = () => {
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const host = window.location.hostname === 'localhost' ? 'localhost:8000' : window.location.host;
+  return `${protocol}//${host}/ws/market-data/`;
+};
+
 const CollapsibleDrawer: React.FC<CollapsibleDrawerProps> = ({
   open,
   onToggle,
@@ -71,6 +90,36 @@ const CollapsibleDrawer: React.FC<CollapsibleDrawerProps> = ({
   const [watchlist, setWatchlist] = useState<WatchlistItem[]>([]);
   const [watchlistLoading, setWatchlistLoading] = useState(false);
   const [watchlistError, setWatchlistError] = useState<string | null>(null);
+  
+  const [marketData, setMarketData] = useState<Record<string, MarketData>>({});
+  
+  const { lastJsonMessage } = useWebSocket(getWsUrl(), {
+    shouldReconnect: () => true,
+    share: true,
+  });
+
+  useEffect(() => {
+    if (lastJsonMessage) {
+      const msg = lastJsonMessage as any;
+      if (msg.type === 'quote_tick' && msg.data) {
+        const { symbol, bid, ask, last, volume } = msg.data;
+        if (symbol) {
+          setMarketData((prev) => ({
+            ...prev,
+            [symbol]: { ...prev[symbol], bid, ask, last, volume },
+          }));
+        }
+      } else if (msg.type === 'market.24h' && msg.data) {
+        const { symbol, open, high, low, close, volume } = msg.data;
+        if (symbol) {
+          setMarketData((prev) => ({
+            ...prev,
+            [symbol]: { ...prev[symbol], open, high, low, close, volume },
+          }));
+        }
+      }
+    }
+  }, [lastJsonMessage]);
 
   const [query, setQuery] = useState('');
   const [suggestions, setSuggestions] = useState<InstrumentSummary[]>([]);
@@ -323,16 +372,46 @@ const CollapsibleDrawer: React.FC<CollapsibleDrawerProps> = ({
               ) : (
                 watchlist.map((w) => {
                   const sym = (w.instrument?.symbol ?? '').toUpperCase();
+                  const data = marketData[sym] || {};
                   return (
-                    <Box key={sym} className="thor-watchlist-item">
-                      <span className="thor-watchlist-symbol">{sym}</span>
-                      <IconButton
-                        size="small"
-                        onClick={() => void removeSymbol(sym)}
-                        aria-label={`Remove ${sym}`}
-                      >
-                        <CloseIcon fontSize="small" />
-                      </IconButton>
+                    <Box key={sym} className="thor-watchlist-item" sx={{ flexDirection: 'column', alignItems: 'flex-start', py: 1, gap: 0.5, height: 'auto' }}>
+                      <Box sx={{ display: 'flex', width: '100%', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span className="thor-watchlist-symbol">{sym}</span>
+                        <IconButton
+                          size="small"
+                          onClick={() => void removeSymbol(sym)}
+                          aria-label={`Remove ${sym}`}
+                        >
+                          <CloseIcon fontSize="small" />
+                        </IconButton>
+                      </Box>
+                      <Grid container spacing={0.5} sx={{ fontSize: '0.7rem', color: 'text.secondary' }}>
+                        <Grid size={3} title="Last Price">
+                          <Box component="span" sx={{ display: 'block', fontWeight: 'bold', color: 'text.primary' }}>{data.last?.toFixed(2) ?? '-'}</Box>
+                        </Grid>
+                        <Grid size={3} title="Bid">
+                          B: {data.bid?.toFixed(2) ?? '-'}
+                        </Grid>
+                        <Grid size={3} title="Ask">
+                          A: {data.ask?.toFixed(2) ?? '-'}
+                        </Grid>
+                        <Grid size={3} title="Volume">
+                          V: {data.volume ? (data.volume > 1000 ? (data.volume / 1000).toFixed(1) + 'k' : data.volume) : '-'}
+                        </Grid>
+                        
+                        <Grid size={3} title="Open">
+                          O: {data.open?.toFixed(2) ?? '-'}
+                        </Grid>
+                        <Grid size={3} title="High">
+                          H: {data.high?.toFixed(2) ?? '-'}
+                        </Grid>
+                        <Grid size={3} title="Low">
+                          L: {data.low?.toFixed(2) ?? '-'}
+                        </Grid>
+                        <Grid size={3} title="Prev Close">
+                          C: {data.close?.toFixed(2) ?? '-'}
+                        </Grid>
+                      </Grid>
                     </Box>
                   );
                 })
