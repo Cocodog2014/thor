@@ -18,6 +18,7 @@ let connected = false;
 let shouldReconnect = true;
 const messageQueue: string[] = [];
 const connectionHandlers = new Set<ConnectionHandler>();
+let missedPongs = 0;
 
 function ensureTrailingSlash(url: string): string {
   return url.endsWith('/') ? url : `${url}/`;
@@ -59,7 +60,8 @@ function scheduleHeartbeatTimeout() {
   clearHeartbeat();
   heartbeatTimeout = setTimeout(() => {
     // If we go idle, ping the server. The backend consumer responds with pong.
-    // Only close the socket if it stays silent after the ping.
+    // Don't immediately kill the connection on a single missed pong; in dev
+    // the backend may legitimately be quiet for long stretches.
     if (!socket || socket.readyState !== WebSocket.OPEN) return;
     try {
       socket.send(JSON.stringify({ type: 'ping', timestamp: Date.now() }));
@@ -70,7 +72,12 @@ function scheduleHeartbeatTimeout() {
     }
 
     pongTimeout = setTimeout(() => {
-      socket?.close();
+      missedPongs += 1;
+      if (missedPongs >= 3) {
+        socket?.close();
+        return;
+      }
+      scheduleHeartbeatTimeout();
     }, PONG_GRACE_MS);
   }, IDLE_PING_AFTER_MS);
 }
@@ -129,12 +136,14 @@ export function connectSocket(urlOverride?: string): void {
   currentSocket.onopen = () => {
     connected = true;
     retryCount = 0;
+    missedPongs = 0;
     flushQueue();
     scheduleHeartbeatTimeout();
     notifyConnection(true);
   };
 
   currentSocket.onmessage = (event) => {
+    missedPongs = 0;
     scheduleHeartbeatTimeout();
     try {
       const msg = JSON.parse(event.data) as WsMessage;
@@ -151,6 +160,7 @@ export function connectSocket(urlOverride?: string): void {
   currentSocket.onclose = () => {
     connected = false;
     clearHeartbeat();
+    missedPongs = 0;
     notifyConnection(false);
     if (socket === currentSocket) {
       socket = null;
@@ -169,6 +179,7 @@ export function disconnectSocket(): void {
     retryTimeout = null;
   }
   retryCount = 0;
+  missedPongs = 0;
   if (socket) {
     socket.close();
     socket = null;

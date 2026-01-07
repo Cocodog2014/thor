@@ -1,6 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import useWebSocket from 'react-use-websocket';
+// 1. Remove the 'react-use-websocket' import
+// import useWebSocket from 'react-use-websocket'; 
+import { useWsMessage } from '../../realtime'; // <--- Use this instead
+import type { WsEnvelope } from '../../realtime/types';
 import {
   Drawer,
   Toolbar,
@@ -14,15 +17,16 @@ import {
   Typography,
   Divider,
   TextField,
- 
   CircularProgress,
   Grid,
+  Button,
 } from '@mui/material';
 import {
   ChevronLeft as ChevronLeftIcon,
   ChevronRight as ChevronRightIcon,
   Logout as LogoutIcon,
   Close as CloseIcon,
+  AdminPanelSettings as AdminPanelSettingsIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
@@ -34,43 +38,29 @@ export const DEFAULT_WIDTH_CLOSED = 72;
 const MIN_DRAWER_WIDTH = 200;
 const MAX_DRAWER_WIDTH = 600;
 
-const getWsUrl = () => {
-  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const host = window.location.hostname === 'localhost' ? 'localhost:8000' : window.location.host;
-  return `${protocol}//${host}/ws/`;
-};
+const navigationItems = [
+  { text: 'Django Admin', icon: <AdminPanelSettingsIcon />, path: 'http://127.0.0.1:8000/admin/', external: true },
+];
 
 const normalizeWsSymbol = (s: unknown) => {
   if (typeof s !== 'string') return '';
   return s.replace(/^\/+/, '').toUpperCase().trim();
 };
+
 const toNumeric = (value: unknown): number | undefined => {
-  if (value === null || value === undefined || value === '') {
-    return undefined;
-  }
-  if (typeof value === 'number') {
-    return Number.isFinite(value) ? value : undefined;
-  }
+  if (value === null || value === undefined || value === '') return undefined;
+  if (typeof value === 'number') return Number.isFinite(value) ? value : undefined;
   if (typeof value === 'string') {
     const trimmed = value.trim();
     if (!trimmed) return undefined;
-
     const suffix = trimmed.slice(-1).toLowerCase();
     let multiplier = 1;
     let numericPortion = trimmed;
-
-    if (suffix === 'k' || suffix === 'm' || suffix === 'b') {
-      numericPortion = trimmed.slice(0, -1);
-      if (suffix === 'k') multiplier = 1e3;
-      if (suffix === 'm') multiplier = 1e6;
-      if (suffix === 'b') multiplier = 1e9;
-    }
-
+    if (suffix === 'k') { multiplier = 1e3; numericPortion = trimmed.slice(0, -1); }
+    else if (suffix === 'm') { multiplier = 1e6; numericPortion = trimmed.slice(0, -1); }
+    else if (suffix === 'b') { multiplier = 1e9; numericPortion = trimmed.slice(0, -1); }
     const parsed = Number(numericPortion);
-    if (Number.isNaN(parsed)) {
-      return undefined;
-    }
-    return parsed * multiplier;
+    return Number.isNaN(parsed) ? undefined : parsed * multiplier;
   }
   return undefined;
 };
@@ -78,132 +68,36 @@ const toNumeric = (value: unknown): number | undefined => {
 const formatPrice = (v?: number) => (v !== undefined ? v.toFixed(2) : '-');
 const formatVolume = (v?: number) => {
   if (v === undefined) return '-';
-  if (v >= 1_000_000_000) return `${(v / 1_000_000_000).toFixed(1)}b`;
-  if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}m`;
-  if (v >= 1_000) return `${(v / 1_000).toFixed(1)}k`;
+  if (v >= 1e9) return `${(v / 1e9).toFixed(1)}b`;
+  if (v >= 1e6) return `${(v / 1e6).toFixed(1)}m`;
+  if (v >= 1e3) return `${(v / 1e3).toFixed(1)}k`;
   return v.toString();
 };
 
 type MetricKey = 'last' | 'bid' | 'ask' | 'volume' | 'open' | 'high' | 'low' | 'close';
-type Direction = 'up' | 'down' | null;
-
-type QuoteMetrics = Partial<Record<MetricKey, number>>;
-type MarketDataMap = Record<string, QuoteMetrics>;
-
-type WatchlistItem = {
-  instrument?: {
-    symbol?: string;
-  };
-};
-
-const METRIC_CONFIG: Array<{
-  key: MetricKey;
-  label: string;
-  formatter: (value?: number) => string;
-  highlight?: boolean;
-}> = [
-  { key: 'last', label: 'Last', formatter: formatPrice, highlight: true },
-  { key: 'bid', label: 'Bid', formatter: formatPrice },
-  { key: 'ask', label: 'Ask', formatter: formatPrice },
-  { key: 'volume', label: 'Vol', formatter: formatVolume },
-  { key: 'open', label: 'Open', formatter: formatPrice },
-  { key: 'high', label: 'High', formatter: formatPrice },
-  { key: 'low', label: 'Low', formatter: formatPrice },
-  { key: 'close', label: 'Close', formatter: formatPrice },
-];
-
-const METRIC_KEYS: MetricKey[] = METRIC_CONFIG.map((cfg) => cfg.key);
-
-// --- Sub-components ---
+type MarketDataMap = Record<string, Partial<Record<MetricKey, number>>>;
 
 interface WatchlistItemRowProps {
   symbol: string;
-  data?: QuoteMetrics;
+  data?: Partial<Record<MetricKey, number>>;
   onRemove: (symbol: string) => void;
 }
 
 const WatchlistItemRow: React.FC<WatchlistItemRowProps> = ({ symbol, data, onRemove }) => {
-  const prevValues = useRef<Record<MetricKey, number | undefined>>(
-    METRIC_KEYS.reduce(
-      (acc, key) => ({ ...acc, [key]: undefined }),
-      {} as Record<MetricKey, number | undefined>
-    )
-  );
-  const resetTimers = useRef<Record<MetricKey, number | undefined>>(
-    METRIC_KEYS.reduce(
-      (acc, key) => ({ ...acc, [key]: undefined }),
-      {} as Record<MetricKey, number | undefined>
-    )
-  );
-  const [directions, setDirections] = useState<Record<MetricKey, Direction>>(
-    METRIC_KEYS.reduce((acc, key) => ({ ...acc, [key]: null }), {} as Record<MetricKey, Direction>)
-  );
+  const prevLast = useRef<number | undefined>(undefined);
+  const [flash, setFlash] = useState<'up' | 'down' | null>(null);
 
   useEffect(() => {
-    const pendingUpdates: MetricKey[] = [];
-    setDirections((prev) => {
-      const next = { ...prev };
-      METRIC_KEYS.forEach((key) => {
-        const raw = data?.[key];
-        const current = typeof raw === 'number' ? raw : undefined;
-        const previous = prevValues.current[key];
+    const current = data?.last;
+    if (current !== undefined && prevLast.current !== undefined && current !== prevLast.current) {
+      setFlash(current > prevLast.current ? 'up' : 'down');
+      const timer = setTimeout(() => setFlash(null), 800);
+      return () => clearTimeout(timer);
+    }
+    if (current !== undefined) prevLast.current = current;
+  }, [data?.last]);
 
-        if (current === undefined) {
-          next[key] = null;
-          return;
-        }
-
-        if (previous !== undefined) {
-          if (current > previous) {
-            next[key] = 'up';
-            pendingUpdates.push(key);
-          } else if (current < previous) {
-            next[key] = 'down';
-            pendingUpdates.push(key);
-          }
-        }
-
-        prevValues.current[key] = current;
-      });
-      return next;
-    });
-
-    pendingUpdates.forEach((key) => {
-      const existing = resetTimers.current[key];
-      if (existing !== undefined) {
-        window.clearTimeout(existing);
-      }
-      resetTimers.current[key] = window.setTimeout(() => {
-        setDirections((prev) => ({ ...prev, [key]: null }));
-        resetTimers.current[key] = undefined;
-      }, 800);
-    });
-  }, [data]);
-
-  useEffect(() => () => {
-    METRIC_KEYS.forEach((key) => {
-      const timer = resetTimers.current[key];
-      if (timer !== undefined) {
-        window.clearTimeout(timer);
-      }
-    });
-  }, []);
-
-  const metrics = useMemo(
-    () =>
-      METRIC_CONFIG.map(({ key, label, formatter, highlight }) => {
-        const raw = data?.[key];
-        const numeric = typeof raw === 'number' ? raw : undefined;
-        return {
-          key,
-          label,
-          value: formatter(numeric),
-          highlight: Boolean(highlight),
-          direction: directions[key],
-        };
-      }),
-    [directions, data]
-  );
+  const priceColor = flash === 'up' ? '#4caf50' : flash === 'down' ? '#f44336' : 'inherit';
 
   return (
     <Box className="thor-watchlist-item" sx={{ p: 1.5, borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
@@ -212,19 +106,24 @@ const WatchlistItemRow: React.FC<WatchlistItemRowProps> = ({ symbol, data, onRem
         <IconButton size="small" onClick={() => onRemove(symbol)}><CloseIcon fontSize="inherit" /></IconButton>
       </Box>
       <Grid container spacing={1}>
-        {metrics.map((m) => (
-          <Grid item xs={3} key={m.key}>
-            <Typography sx={{ fontSize: '0.65rem', color: 'text.secondary', textTransform: 'uppercase' }}>{m.label}</Typography>
-            <Typography sx={{ 
-              fontSize: '0.75rem', 
-              fontWeight: m.highlight ? 'bold' : 'normal',
-              color: m.direction === 'up' ? 'success.main' : m.direction === 'down' ? 'error.main' : 'text.primary',
-              transition: 'color 0.3s'
-            }}>
-              {m.value}
-            </Typography>
-          </Grid>
-        ))}
+        <Grid item xs={3}>
+          <Typography sx={{ fontSize: '0.65rem', color: 'text.secondary' }}>LAST</Typography>
+          <Typography sx={{ fontSize: '0.75rem', fontWeight: 'bold', color: priceColor, transition: 'color 0.3s' }}>
+            {formatPrice(data?.last)}
+          </Typography>
+        </Grid>
+        <Grid item xs={3}>
+          <Typography sx={{ fontSize: '0.65rem', color: 'text.secondary' }}>BID</Typography>
+          <Typography sx={{ fontSize: '0.75rem' }}>{formatPrice(data?.bid)}</Typography>
+        </Grid>
+        <Grid item xs={3}>
+          <Typography sx={{ fontSize: '0.65rem', color: 'text.secondary' }}>ASK</Typography>
+          <Typography sx={{ fontSize: '0.75rem' }}>{formatPrice(data?.ask)}</Typography>
+        </Grid>
+        <Grid item xs={3}>
+          <Typography sx={{ fontSize: '0.65rem', color: 'text.secondary' }}>VOL</Typography>
+          <Typography sx={{ fontSize: '0.75rem' }}>{formatVolume(data?.volume)}</Typography>
+        </Grid>
       </Grid>
     </Box>
   );
@@ -252,23 +151,23 @@ const CollapsibleDrawer: React.FC<CollapsibleDrawerProps> = ({
   const [isResizing, setIsResizing] = useState(false);
   const resizeState = useRef({ startX: 0, startWidth: drawerWidth });
 
-  const [watchlist, setWatchlist] = useState<WatchlistItem[]>([]);
+  const [watchlist, setWatchlist] = useState<any[]>([]);
   const [watchlistLoading, setWatchlistLoading] = useState(false);
   const [marketData, setMarketData] = useState<MarketDataMap>({});
   const [query, setQuery] = useState('');
 
-  const { lastJsonMessage } = useWebSocket(getWsUrl(), { shouldReconnect: () => true, share: true });
-
-  // WebSocket Logic
-  const applyMarketPatch = useCallback((symbolRaw: unknown, patch: Record<string, unknown>) => {
+  // ---------------------------------------------------------------------------
+  // 2. UNIFIED WEBSOCKET LOGIC (Stable!)
+  // ---------------------------------------------------------------------------
+  const applyMarketPatch = useCallback((symbolRaw: unknown, patch: Partial<Record<MetricKey, unknown>>) => {
     const symbol = normalizeWsSymbol(symbolRaw);
     if (!symbol) return;
     setMarketData((prev) => {
       const current = prev[symbol] || {};
       const next = { ...current };
       let changed = false;
-      Object.keys(patch).forEach((key) => {
-        const val = toNumeric(patch[key]);
+      (Object.entries(patch) as Array<[MetricKey, unknown]>).forEach(([key, raw]) => {
+        const val = toNumeric(raw);
         if (val !== undefined && next[key] !== val) {
           next[key] = val;
           changed = true;
@@ -278,48 +177,29 @@ const CollapsibleDrawer: React.FC<CollapsibleDrawerProps> = ({
     });
   }, []);
 
-  useEffect(() => {
-    if (!lastJsonMessage) return;
-    const msg = lastJsonMessage as { type?: unknown; data?: unknown };
-    const msgType = typeof msg.type === 'string' ? msg.type : '';
-    const msgData = (msg.data && typeof msg.data === 'object') ? (msg.data as Record<string, unknown>) : undefined;
-    switch (msgType) {
-      case 'quote_tick':
-        applyMarketPatch(msgData?.symbol, {
-          bid: msgData?.bid,
-          ask: msgData?.ask,
-          last: msgData?.last ?? msgData?.price,
-          volume: msgData?.volume,
-        });
-        break;
-      case 'market.24h':
-        if (msgData) {
-          applyMarketPatch(msgData.symbol, msgData);
-        }
-        break;
-      case 'market_data': {
-        const quotesRaw = msgData?.quotes;
-        const quotes = Array.isArray(quotesRaw) ? quotesRaw : [];
-        quotes.forEach((quote) => {
-          if (!quote || typeof quote !== 'object') return;
-          const q = quote as Record<string, unknown>;
-          applyMarketPatch(q.symbol ?? q.SYMBOL, {
-            bid: q.bid ?? q.Bid,
-            ask: q.ask ?? q.Ask,
-            last: q.last ?? q.price ?? q.Last,
-            open: q.open ?? q.open_price ?? q.Open,
-            high: q.high ?? q.high_price ?? q.High,
-            low: q.low ?? q.low_price ?? q.Low,
-            close: q.close ?? q.close_price ?? q.Close,
-            volume: q.volume ?? q.Volume,
-          });
-        });
-        break;
-      }
-    }
-  }, [lastJsonMessage, applyMarketPatch]);
+  // Use the shared global socket connection
+  useWsMessage('quote_tick', (msg: WsEnvelope<any>) => {
+    applyMarketPatch(msg.data?.symbol, {
+      bid: msg.data?.bid,
+      ask: msg.data?.ask,
+      last: msg.data?.last ?? msg.data?.price,
+      volume: msg.data?.volume,
+    });
+  });
 
-  // Resize Logic
+  useWsMessage('market.24h', (msg: WsEnvelope<any>) => {
+    applyMarketPatch(msg.data?.symbol, {
+      open: msg.data?.open ?? msg.data?.open_price,
+      high: msg.data?.high ?? msg.data?.high_price,
+      low: msg.data?.low ?? msg.data?.low_price,
+      close: msg.data?.close ?? msg.data?.close_price,
+      volume: msg.data?.volume,
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // RESIZE & DRAWER LOGIC
+  // ---------------------------------------------------------------------------
   const handleResizeMouseDown = (e: React.MouseEvent) => {
     setIsResizing(true);
     resizeState.current = { startX: e.clientX, startWidth: drawerWidth };
@@ -343,15 +223,26 @@ const CollapsibleDrawer: React.FC<CollapsibleDrawerProps> = ({
     try {
       const res = await api.get('/instruments/watchlist/');
       setWatchlist(res.data?.items || []);
-    } catch (err: unknown) {
-      console.error('Failed to load watchlist', err);
-      setWatchlist([]);
-    }
-    finally { setWatchlistLoading(false); }
+    } catch (err) {
+      console.error(err);
+    } finally { setWatchlistLoading(false); }
+  };
+
+  const addSymbol = async (symbolRaw: string) => {
+    if (!symbolRaw) return;
+    // Optimistic UI update
+    const sym = symbolRaw.toUpperCase();
+    const next = [...watchlist, { instrument: { symbol: sym } }];
+    setWatchlist(next);
+    setQuery('');
+    try {
+      await api.put('/instruments/watchlist/', { items: next.map((item, i) => ({ symbol: item.instrument.symbol, order: i })) });
+      loadWatchlist(); 
+    } catch (e) { console.error(e); }
   };
 
   const removeSymbol = async (symbol: string) => {
-    const next = watchlist.filter((w) => (w.instrument?.symbol || '').toUpperCase() !== symbol);
+    const next = watchlist.filter(w => w.instrument?.symbol.toUpperCase() !== symbol);
     setWatchlist(next);
     await api.put('/instruments/watchlist/', { items: next.map((item, i) => ({ symbol: item.instrument.symbol, order: i })) });
   };
@@ -359,7 +250,6 @@ const CollapsibleDrawer: React.FC<CollapsibleDrawerProps> = ({
   useEffect(() => { if (open) loadWatchlist(); }, [open]);
 
   const signOut = () => { logout(); sessionStorage.removeItem(HOME_WELCOME_DISMISSED_KEY); navigate('/auth/login'); };
-
   const currentWidth = open ? drawerWidth : widthClosed;
 
   return (
@@ -382,7 +272,6 @@ const CollapsibleDrawer: React.FC<CollapsibleDrawerProps> = ({
 
       {open && (
         <Box sx={{ flexGrow: 1, overflowY: 'auto', px: 2 }}>
-          {/* Account Info */}
           <Typography variant="subtitle2" sx={{ color: 'primary.main', mb: 1 }}>Account Info</Typography>
           <Box sx={{ fontSize: '0.75rem', color: 'text.secondary', mb: 2 }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
@@ -392,21 +281,21 @@ const CollapsibleDrawer: React.FC<CollapsibleDrawerProps> = ({
           </Box>
           <Divider sx={{ mb: 2 }} />
 
-          {/* Watchlist */}
           <Typography variant="subtitle2" sx={{ mb: 1 }}>Watchlist</Typography>
-          <TextField 
-            size="small" fullWidth placeholder="Add symbol" 
-            value={query} onChange={(e) => setQuery(e.target.value)}
-            sx={{ mb: 2 }}
-          />
+          <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
+            <TextField 
+              size="small" fullWidth placeholder="Add symbol" 
+              value={query} onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') addSymbol(query); }}
+            />
+            <Button variant="outlined" size="small" onClick={() => addSymbol(query)} disabled={!query.trim()}>Add</Button>
+          </Box>
           
           <Box>
             {watchlistLoading ? <CircularProgress size={20} /> : 
               watchlist.map((w) => {
-                const rawSymbol = (w.instrument?.symbol || '').toUpperCase();
-                const key = normalizeWsSymbol(rawSymbol);
-                const data = marketData[key];
-                return <WatchlistItemRow key={rawSymbol} symbol={rawSymbol} data={data} onRemove={removeSymbol} />;
+                const sym = (w.instrument?.symbol || '').toUpperCase();
+                return <WatchlistItemRow key={sym} symbol={sym} data={marketData[sym]} onRemove={removeSymbol} />;
               })
             }
           </Box>
@@ -416,6 +305,14 @@ const CollapsibleDrawer: React.FC<CollapsibleDrawerProps> = ({
       <Box sx={{ mt: 'auto' }}>
         <Divider />
         <List>
+          {navigationItems.map((item) => (
+             <ListItem key={item.text} disablePadding>
+               <ListItemButton onClick={() => window.open(item.path, '_blank')}>
+                 <ListItemIcon>{item.icon}</ListItemIcon>
+                 {open && <ListItemText primary={item.text} />}
+               </ListItemButton>
+             </ListItem>
+          ))}
           <ListItem disablePadding>
             <ListItemButton onClick={signOut}>
               <ListItemIcon><LogoutIcon /></ListItemIcon>
