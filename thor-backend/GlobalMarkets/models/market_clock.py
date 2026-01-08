@@ -1,0 +1,65 @@
+from __future__ import annotations
+
+from django.db import models
+from django.utils import timezone
+
+
+class Market(models.Model):
+    """
+    One 'global market clock' configured in Admin.
+    Persisted status is updated ONLY on transitions (not every second).
+    """
+
+    class Status(models.TextChoices):
+        CLOSED = "CLOSED", "Closed"
+        PREMARKET = "PREMARKET", "Premarket"
+        OPEN = "OPEN", "Open"
+
+    key = models.SlugField(
+        max_length=40,
+        unique=True,
+        help_text="Stable identifier used by API/WS. Example: 'new_york', 'london', 'tokyo'.",
+    )
+    name = models.CharField(max_length=80)
+    timezone_name = models.CharField(
+        max_length=64,
+        help_text="IANA timezone. Example: 'America/New_York', 'Europe/London'.",
+    )
+
+    is_active = models.BooleanField(default=True)
+    sort_order = models.IntegerField(default=0)
+
+    status = models.CharField(max_length=12, choices=Status.choices, default=Status.CLOSED)
+    status_changed_at = models.DateTimeField(null=True, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["sort_order", "name"]
+        indexes = [
+            models.Index(fields=["is_active", "sort_order"]),
+            models.Index(fields=["status"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.name} ({self.key})"
+
+    def mark_status(self, new_status: str, when=None) -> bool:
+        """
+        Update persisted status only when it changes.
+        Returns True if a change was saved.
+        """
+        if new_status == self.status:
+            return False
+
+        self.status = new_status
+        self.status_changed_at = when or timezone.now()
+        self.save(update_fields=["status", "status_changed_at", "updated_at"])
+        return True
+
+
+# IMPORTANT:
+# Import the other model modules so Django registers them.
+from .market_session import MarketSession  # noqa: E402,F401
+from .market_holiday import MarketHoliday  # noqa: E402,F401
