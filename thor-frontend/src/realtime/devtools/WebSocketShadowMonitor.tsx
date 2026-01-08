@@ -1,22 +1,16 @@
-/**
- * Shadow Mode Monitor - WebSocket Testing
- *
- * Shows phased cutover status:
- * - Green features = using WebSocket
- * - Gray features = still using REST (shadow mode logs)
- */
-
 import { useEffect, useState } from 'react';
-import { useWsConnection, useWsMessage } from '..';
+import { useWsConnection, useWsMessage, wsEnabled } from '..';
 import type { WsEnvelope } from '../types';
 
 export function WebSocketShadowMonitor() {
-  const connected = useWsConnection();
+  // If WS is disabled, render nothing and never connect
+  if (!wsEnabled()) return null;
+
+  const connected = useWsConnection(true);
   const [messageCount, setMessageCount] = useState(0);
   const [lastMessageTime, setLastMessageTime] = useState<string>('Never');
   const [lastMessageType, setLastMessageType] = useState<string>('none');
 
-  // Track all messages flowing through the new realtime router
   useWsMessage<unknown>('all', (msg: WsEnvelope) => {
     setMessageCount((c) => c + 1);
     setLastMessageTime(new Date().toLocaleTimeString());
@@ -26,9 +20,7 @@ export function WebSocketShadowMonitor() {
   useEffect(() => {
     if (connected) {
       console.log('🟢 WebSocket monitor: CONNECTED');
-      return () => {
-        console.log('🔴 WebSocket monitor: DISCONNECTED');
-      };
+      return () => console.log('🔴 WebSocket monitor: DISCONNECTED');
     }
   }, [connected]);
 
@@ -50,18 +42,13 @@ export function WebSocketShadowMonitor() {
       }}
       title="WebSocket monitor - logs basic realtime stats"
     >
-      <div style={{ fontWeight: 'bold', marginBottom: '8px' }}>
-        🔌 WS Monitor
-      </div>
-
+      <div style={{ fontWeight: 'bold', marginBottom: '8px' }}>🔌 WS Monitor</div>
       <div style={{ marginBottom: '6px' }}>
         Connection: {connected ? '✅ Connected' : '❌ Disconnected'}
       </div>
-
       <div style={{ fontSize: '10px', color: '#d1d5db', marginBottom: '4px' }}>
         Messages: {messageCount}
       </div>
-
       <div style={{ fontSize: '10px', color: '#9ca3af' }}>
         Last: {lastMessageTime} ({lastMessageType})
       </div>

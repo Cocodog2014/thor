@@ -1,12 +1,30 @@
 import { dispatch } from './router';
 import type { ConnectionHandler, WsMessage } from './types';
 
+// WS hard gate (OFF by default)
+// Enable by setting: VITE_WS_ENABLED=1 (or true)
+function isWsEnabled(): boolean {
+  // If you ever want a runtime toggle in DevTools:
+  // window.__THOR_WS_ENABLED__ = true
+  const w = typeof window !== 'undefined' ? (window as any) : undefined;
+  if (w?.__THOR_WS_ENABLED__ === true) return true;
+
+  const env = String((import.meta as any).env?.VITE_WS_ENABLED ?? '').toLowerCase();
+  return env === '1' || env === 'true' || env === 'yes';
+}
+
+// AUTH-ONLY MODE: Never connect on /auth routes
+function isAuthRoute(): boolean {
+  if (typeof window === 'undefined') return false;
+  return window.location.pathname.startsWith('/auth');
+}
+
 const MAX_RETRIES = 10;
 const INITIAL_DELAY = 1000;
 const MAX_DELAY = 30000;
-// If we don't receive any WS messages for this long, send a ping.
+
+// Heartbeat / idle detection
 const IDLE_PING_AFTER_MS = 15000;
-// If we still don't receive anything after ping, consider the socket dead.
 const PONG_GRACE_MS = 5000;
 
 let socket: WebSocket | null = null;
@@ -25,19 +43,24 @@ function ensureTrailingSlash(url: string): string {
 }
 
 function resolveUrl(): string {
-  const explicit = import.meta.env.VITE_WS_URL;
+  const explicit = (import.meta as any).env?.VITE_WS_URL;
   if (explicit) return ensureTrailingSlash(explicit);
 
-  const protocol = typeof window !== 'undefined' && window.location.protocol === 'https:' ? 'wss' : 'ws';
+  const protocol =
+    typeof window !== 'undefined' && window.location.protocol === 'https:' ? 'wss' : 'ws';
+
   if (typeof window !== 'undefined') {
     const host = window.location.hostname;
     const port = window.location.port;
+
     if (host === 'localhost' || host === '127.0.0.1') {
       return `${protocol}://localhost:8000/ws/`;
     }
+
     const base = `${host}${port ? `:${port}` : ''}`;
     return `${protocol}://${base}/ws/`;
   }
+
   return `${protocol}://localhost:8000/ws/`;
 }
 
@@ -58,15 +81,13 @@ function clearHeartbeat() {
 
 function scheduleHeartbeatTimeout() {
   clearHeartbeat();
+
   heartbeatTimeout = setTimeout(() => {
-    // If we go idle, ping the server. The backend consumer responds with pong.
-    // Don't immediately kill the connection on a single missed pong; in dev
-    // the backend may legitimately be quiet for long stretches.
     if (!socket || socket.readyState !== WebSocket.OPEN) return;
+
     try {
       socket.send(JSON.stringify({ type: 'ping', timestamp: Date.now() }));
     } catch {
-      // If send fails, just close to trigger reconnect.
       socket.close();
       return;
     }
@@ -84,8 +105,10 @@ function scheduleHeartbeatTimeout() {
 
 function scheduleReconnect(url: string) {
   if (retryTimeout || retryCount >= MAX_RETRIES) return;
+
   const delay = Math.min(INITIAL_DELAY * Math.pow(2, retryCount), MAX_DELAY);
   retryCount += 1;
+
   retryTimeout = setTimeout(() => {
     retryTimeout = null;
     connectSocket(url);
@@ -96,20 +119,23 @@ function flushQueue() {
   if (!socket || socket.readyState !== WebSocket.OPEN) return;
   while (messageQueue.length) {
     const payload = messageQueue.shift();
-    if (payload) {
-      socket.send(payload);
-    }
+    if (payload) socket.send(payload);
   }
 }
 
 export function connectSocket(urlOverride?: string): void {
-  // If a socket already exists and is OPEN or CONNECTING, don't create another.
-  // React effects/rerenders can call connectSocket multiple times before onopen.
+  // HARD GATE: never connect unless explicitly enabled
+  if (!isWsEnabled()) return;
+
+  // AUTH ROUTES: never connect
+  if (isAuthRoute()) return;
+
+  // Already open/connecting? Don't create another
   if (socket && (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING)) {
     return;
   }
 
-  // If we have a stale/closed socket reference, drop it.
+  // Drop stale closed socket
   if (socket && socket.readyState === WebSocket.CLOSED) {
     socket = null;
   }
@@ -162,10 +188,10 @@ export function connectSocket(urlOverride?: string): void {
     clearHeartbeat();
     missedPongs = 0;
     notifyConnection(false);
-    if (socket === currentSocket) {
-      socket = null;
-    }
-    if (shouldReconnect) {
+
+    if (socket === currentSocket) socket = null;
+
+    if (shouldReconnect && isWsEnabled() && !isAuthRoute()) {
       scheduleReconnect(url);
     }
   };
@@ -174,12 +200,15 @@ export function connectSocket(urlOverride?: string): void {
 export function disconnectSocket(): void {
   shouldReconnect = false;
   clearHeartbeat();
+
   if (retryTimeout) {
     clearTimeout(retryTimeout);
     retryTimeout = null;
   }
+
   retryCount = 0;
   missedPongs = 0;
+
   if (socket) {
     socket.close();
     socket = null;
@@ -187,11 +216,18 @@ export function disconnectSocket(): void {
 }
 
 export function sendMessage(message: object): void {
+  // HARD GATE: never send unless enabled
+  if (!isWsEnabled()) return;
+
+  if (isAuthRoute()) return;
+
   const payload = JSON.stringify(message);
+
   if (socket && socket.readyState === WebSocket.OPEN && connected) {
     socket.send(payload);
     return;
   }
+
   messageQueue.push(payload);
   connectSocket();
 }
@@ -203,4 +239,9 @@ export function onConnectionChange(handler: ConnectionHandler): () => void {
 
 export function isConnected(): boolean {
   return connected;
+}
+
+// Export gate so hooks/UI can respect it too
+export function wsEnabled(): boolean {
+  return isWsEnabled();
 }
