@@ -40,3 +40,4 @@ class MarketAdmin(admin.ModelAdmin):
     ordering = ("sort_order", "name")
 
     inlines = [MarketSessionInline, MarketHolidayInline]
+
