@@ -38,7 +38,6 @@ def api_root(request):
             'schwab': '/api/schwab/',
             'tos': '/api/feed/tos/',
             'global_markets': '/api/global-markets/',
-            'futures': '/api/futures/',
         }
     })
 
