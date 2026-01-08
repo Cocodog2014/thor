@@ -15,7 +15,16 @@ from typing import Optional
 from django.utils import timezone
 
 from GlobalMarkets.models import Market
-from GlobalMarkets.services import compute_market_status  # <-- this is YOUR new engine
+
+
+def compute_market_status(market: Market, *, now_utc: Optional[datetime] = None):
+    """
+    Minimal engine to unblock startup / migrations.
+
+    For now we return the stored market.status.
+    We can expand later to real session/time logic without changing call sites.
+    """
+    return market
 
 
 def is_market_open_now(market: Market, *, now_utc: Optional[datetime] = None) -> bool:
