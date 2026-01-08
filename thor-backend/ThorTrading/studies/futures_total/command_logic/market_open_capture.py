@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 
 from GlobalMarkets.models.market_clock import Market
-from GlobalMarkets.services.market_clock import is_market_open_now
+from GlobalMarkets.services.market_clock import compute_market_status
 from ThorTrading.studies.futures_total.models.market_session import MarketSession
 from ThorTrading.studies.futures_total.services.global_market_gate import (
     open_capture_allowed,
@@ -51,7 +51,7 @@ def run(*, country: str | None, force: bool, stdout, style) -> None:
         if not open_capture_allowed(market):
             stdout.write(f"⏭️  {country_val}: open capture disabled; skipping")
             continue
-        if not is_market_open_now(market):
+        if compute_market_status(market).status != Market.Status.OPEN:
             stdout.write(f"🔒 {country_val}: market not open right now; skipping")
             continue
 

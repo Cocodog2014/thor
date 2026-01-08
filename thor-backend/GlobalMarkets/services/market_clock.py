@@ -5,7 +5,6 @@
 # What this file does:
 #   - Computes the current market status (CLOSED / PREMARKET / OPEN)
 #   - Computes the next_transition_utc (when the status will change next)
-#   - Provides legacy helper functions (is_market_open_now, etc.) used by older code.
 #
 # What this file does NOT do:
 #   - No loops / timers / heartbeats
@@ -183,20 +182,3 @@ def compute_market_status(market: Market, *, now_utc: Optional[datetime] = None)
     start_t = earliest_start_time(tomorrow_session)
     next_utc = _as_utc(_dt_local(tomorrow, start_t)) if start_t else None
     return MarketComputation(status=Market.Status.CLOSED, next_transition_utc=next_utc, reason="after_close")
-
-
-# ---- Legacy helper names (used by older code) ----
-
-def is_market_open_now(market: Market, *, now_utc: Optional[datetime] = None) -> bool:
-    computed = compute_market_status(market, now_utc=now_utc)
-    return computed.status == Market.Status.OPEN
-
-
-def is_market_closed_now(market: Market, *, now_utc: Optional[datetime] = None) -> bool:
-    computed = compute_market_status(market, now_utc=now_utc)
-    return computed.status == Market.Status.CLOSED
-
-
-def is_market_premarket_now(market: Market, *, now_utc: Optional[datetime] = None) -> bool:
-    computed = compute_market_status(market, now_utc=now_utc)
-    return computed.status == Market.Status.PREMARKET

@@ -12,7 +12,7 @@ from django.utils import timezone
 
 from GlobalMarkets.models.market_clock import Market
 from GlobalMarkets.services.active_markets import get_control_markets
-from GlobalMarkets.services.market_clock import is_market_open_now
+from GlobalMarkets.services.market_clock import compute_market_status
 from LiveData.shared.redis_client import live_data_redis
 from Instruments.models import Instrument
 from ThorTrading.studies.futures_total.models.market_session import MarketSession
@@ -599,7 +599,7 @@ def _scan_and_capture_once() -> int:
             continue
 
         try:
-            if not is_market_open_now(market):
+            if compute_market_status(market).status != Market.Status.OPEN:
                 continue
         except Exception:
             logger.exception("OpenCapture scan: failed open check for %s", country_code)
