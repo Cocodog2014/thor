@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 // 1. Remove the 'react-use-websocket' import
 // import useWebSocket from 'react-use-websocket'; 
@@ -77,6 +77,34 @@ const formatVolume = (v?: number) => {
 type MetricKey = 'last' | 'bid' | 'ask' | 'volume' | 'open' | 'high' | 'low' | 'close';
 type MarketDataMap = Record<string, Partial<Record<MetricKey, number>>>;
 
+type WatchlistItem = {
+  instrument?: {
+    symbol?: string;
+  };
+};
+
+type QuoteTickPayload = {
+  symbol?: unknown;
+  bid?: unknown;
+  ask?: unknown;
+  last?: unknown;
+  price?: unknown;
+  volume?: unknown;
+};
+
+type Market24hPayload = {
+  symbol?: unknown;
+  open?: unknown;
+  open_price?: unknown;
+  high?: unknown;
+  high_price?: unknown;
+  low?: unknown;
+  low_price?: unknown;
+  close?: unknown;
+  close_price?: unknown;
+  volume?: unknown;
+};
+
 interface WatchlistItemRowProps {
   symbol: string;
   data?: Partial<Record<MetricKey, number>>;
@@ -106,21 +134,21 @@ const WatchlistItemRow: React.FC<WatchlistItemRowProps> = ({ symbol, data, onRem
         <IconButton size="small" onClick={() => onRemove(symbol)}><CloseIcon fontSize="inherit" /></IconButton>
       </Box>
       <Grid container spacing={1}>
-        <Grid item xs={3}>
+        <Grid size={3}>
           <Typography sx={{ fontSize: '0.65rem', color: 'text.secondary' }}>LAST</Typography>
           <Typography sx={{ fontSize: '0.75rem', fontWeight: 'bold', color: priceColor, transition: 'color 0.3s' }}>
             {formatPrice(data?.last)}
           </Typography>
         </Grid>
-        <Grid item xs={3}>
+        <Grid size={3}>
           <Typography sx={{ fontSize: '0.65rem', color: 'text.secondary' }}>BID</Typography>
           <Typography sx={{ fontSize: '0.75rem' }}>{formatPrice(data?.bid)}</Typography>
         </Grid>
-        <Grid item xs={3}>
+        <Grid size={3}>
           <Typography sx={{ fontSize: '0.65rem', color: 'text.secondary' }}>ASK</Typography>
           <Typography sx={{ fontSize: '0.75rem' }}>{formatPrice(data?.ask)}</Typography>
         </Grid>
-        <Grid item xs={3}>
+        <Grid size={3}>
           <Typography sx={{ fontSize: '0.65rem', color: 'text.secondary' }}>VOL</Typography>
           <Typography sx={{ fontSize: '0.75rem' }}>{formatVolume(data?.volume)}</Typography>
         </Grid>
@@ -151,7 +179,7 @@ const CollapsibleDrawer: React.FC<CollapsibleDrawerProps> = ({
   const [isResizing, setIsResizing] = useState(false);
   const resizeState = useRef({ startX: 0, startWidth: drawerWidth });
 
-  const [watchlist, setWatchlist] = useState<any[]>([]);
+  const [watchlist, setWatchlist] = useState<WatchlistItem[]>([]);
   const [watchlistLoading, setWatchlistLoading] = useState(false);
   const [marketData, setMarketData] = useState<MarketDataMap>({});
   const [query, setQuery] = useState('');
@@ -178,7 +206,7 @@ const CollapsibleDrawer: React.FC<CollapsibleDrawerProps> = ({
   }, []);
 
   // Use the shared global socket connection
-  useWsMessage('quote_tick', (msg: WsEnvelope<any>) => {
+  useWsMessage('quote_tick', (msg: WsEnvelope<QuoteTickPayload>) => {
     applyMarketPatch(msg.data?.symbol, {
       bid: msg.data?.bid,
       ask: msg.data?.ask,
@@ -187,7 +215,7 @@ const CollapsibleDrawer: React.FC<CollapsibleDrawerProps> = ({
     });
   });
 
-  useWsMessage('market.24h', (msg: WsEnvelope<any>) => {
+  useWsMessage('market.24h', (msg: WsEnvelope<Market24hPayload>) => {
     applyMarketPatch(msg.data?.symbol, {
       open: msg.data?.open ?? msg.data?.open_price,
       high: msg.data?.high ?? msg.data?.high_price,
@@ -222,7 +250,8 @@ const CollapsibleDrawer: React.FC<CollapsibleDrawerProps> = ({
     setWatchlistLoading(true);
     try {
       const res = await api.get('/instruments/watchlist/');
-      setWatchlist(res.data?.items || []);
+      const items = Array.isArray(res.data?.items) ? (res.data.items as WatchlistItem[]) : [];
+      setWatchlist(items);
     } catch (err) {
       console.error(err);
     } finally { setWatchlistLoading(false); }
@@ -236,15 +265,15 @@ const CollapsibleDrawer: React.FC<CollapsibleDrawerProps> = ({
     setWatchlist(next);
     setQuery('');
     try {
-      await api.put('/instruments/watchlist/', { items: next.map((item, i) => ({ symbol: item.instrument.symbol, order: i })) });
+      await api.put('/instruments/watchlist/', { items: next.map((item, i) => ({ symbol: item.instrument?.symbol ?? '', order: i })) });
       loadWatchlist(); 
     } catch (e) { console.error(e); }
   };
 
   const removeSymbol = async (symbol: string) => {
-    const next = watchlist.filter(w => w.instrument?.symbol.toUpperCase() !== symbol);
+    const next = watchlist.filter(w => w.instrument?.symbol?.toUpperCase() !== symbol);
     setWatchlist(next);
-    await api.put('/instruments/watchlist/', { items: next.map((item, i) => ({ symbol: item.instrument.symbol, order: i })) });
+    await api.put('/instruments/watchlist/', { items: next.map((item, i) => ({ symbol: item.instrument?.symbol ?? '', order: i })) });
   };
 
   useEffect(() => { if (open) loadWatchlist(); }, [open]);

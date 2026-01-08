@@ -1,12 +1,13 @@
 // src/App.tsx
-import { useState } from 'react';
 import { Routes, Route, useLocation, Navigate } from 'react-router-dom';
 import { Container } from '@mui/material';
 
 // GlobalHeader is used inside AppLayout only
-import GlobalMarkets from './pages/GlobalMarkets/GlobalMarkets';
+// SAFE MODE: keep GlobalMarkets unmounted to prevent background live hooks.
+// import GlobalMarkets from './pages/GlobalMarkets/GlobalMarkets';
 // NOTE: MarketSessions removed – no longer used on the home page
-import FutureRTD from './pages/Futures';
+// SAFE MODE: keep Futures RTD unmounted to prevent background live hooks.
+// import FutureRTD from './pages/Futures';
 import FutureHome from './pages/Futures/FuturesHome/FutureHome';
 import ActivityPositions from './pages/ActivityPositions';
 import Trades from './pages/Trade/Trades';
@@ -29,16 +30,10 @@ import Home from './pages/Home/Home';
 function App() {
   const location = useLocation();
 
-  const [showMarketOpenDashboard, setShowMarketOpenDashboard] = useState(false); // Market Open Dashboard toggle
-
   // Routes that should have full-width layout (no Container)
   // Only /app/home needs to be full-width for the Schwab-style dashboard.
   const fullWidthRoutes = ['/app/home', '/app/futures'];
   const isFullWidth = fullWidthRoutes.includes(location.pathname);
-
-  const toggleMarketOpenDashboard = () => {
-    setShowMarketOpenDashboard((prev) => !prev);
-  };
 
   return (
     <Routes>
@@ -83,6 +78,8 @@ function App() {
                       <Route path="home" element={<Home />} />
                       <Route path="account-statement" element={<AccountStatement />} />
                       <Route path="futures" element={<FutureHome />} />
+                      {/* SAFE MODE: Temporarily disable always-live routes */}
+                      {/**
                       <Route
                         path="futures/rtd"
                         element={
@@ -92,7 +89,8 @@ function App() {
                           />
                         }
                       />
-                      <Route path="global" element={<GlobalMarkets />} />
+                      */}
+                      {/** <Route path="global" element={<GlobalMarkets />} /> */}
                       <Route path="trade" element={<Trades />} />
                       <Route path="activity" element={<ActivityPositions />} />
                       {/* Stock trading removed */}
