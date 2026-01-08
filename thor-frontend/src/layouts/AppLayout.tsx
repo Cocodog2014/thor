@@ -2,7 +2,8 @@ import React from 'react';
 import GlobalHeader from '../components/Header/GlobalHeader';
 // SAFE MODE: disable GlobalBanner to stop background fetches + WebSocket subscriptions
 // import GlobalBanner from '../components/Banners/GlobalBanner';
-import { FooterRibbon } from '../components/Ribbons';
+// SAFE MODE: disable FooterRibbon to remove background ticker
+// import { FooterRibbon } from '../components/Ribbons';
 
 type AppLayoutProps = {
   children: React.ReactNode;
@@ -19,7 +20,8 @@ const AppLayout: React.FC<AppLayoutProps>
       <div className="app-content-scroll">
         {children}
       </div>
-      <FooterRibbon />
+      {/* SAFE MODE: disable FooterRibbon to remove background ticker */}
+      {/* <FooterRibbon /> */}
     </GlobalHeader>
   );
 };
