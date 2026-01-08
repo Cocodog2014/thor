@@ -34,6 +34,7 @@ class MarketAdmin(admin.ModelAdmin):
         "status",
         "status_changed_at",
     )
+    list_display_links = ("key", "name")
     list_editable = ("sort_order", "is_active")
     search_fields = ("key", "name", "timezone_name")
     list_filter = ("is_active", "status", "timezone_name")
