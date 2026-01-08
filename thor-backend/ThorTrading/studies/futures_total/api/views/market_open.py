@@ -24,7 +24,7 @@ class MarketOpenCaptureView(APIView):
 	"""
 
 	def post(self, request):
-		from GlobalMarkets.models.market import Market
+		from GlobalMarkets.models.market_clock import Market
 
 		country = request.data.get("country")
 		if not country:

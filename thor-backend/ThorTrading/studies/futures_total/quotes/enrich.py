@@ -60,7 +60,7 @@ def _fallback_country_from_clock(control_countries: list[str]) -> str | None:
     to provide a deterministic fallback.
     """
     try:
-        from GlobalMarkets.models.market import Market
+        from GlobalMarkets.models.market_clock import Market
 
         markets = list(Market.objects.filter(is_active=True))
     except Exception:

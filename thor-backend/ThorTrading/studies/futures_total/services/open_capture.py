@@ -10,7 +10,7 @@ from django.conf import settings
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 
-from GlobalMarkets.models.market import Market
+from GlobalMarkets.models.market_clock import Market
 from GlobalMarkets.services.active_markets import get_control_markets
 from GlobalMarkets.services.market_clock import is_market_open_now
 from LiveData.shared.redis_client import live_data_redis

@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict
 
-from GlobalMarkets.models.market import Market
+from GlobalMarkets.models.market_clock import Market
 from LiveData.shared.redis_client import live_data_redis
 from ThorTrading.studies.futures_total.models.market_session import MarketSession
 from GlobalMarkets.services.normalize import normalize_country_code

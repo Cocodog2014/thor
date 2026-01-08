@@ -20,7 +20,7 @@ from typing import Set
 
 from django.dispatch import receiver
 
-from GlobalMarkets.models.market import Market
+from GlobalMarkets.models.market_clock import Market
 from GlobalMarkets.signals import market_closed, market_opened
 
 from GlobalMarkets.services.active_markets import get_control_countries

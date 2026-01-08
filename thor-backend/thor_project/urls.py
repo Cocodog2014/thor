@@ -19,7 +19,6 @@ from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 from django.http import JsonResponse
-from GlobalMarkets.views import api_test_page, debug_market_times, sync_markets
 from LiveData.schwab import views as schwab_views
 from ActAndPos.views.balances import account_balance_view
 
@@ -62,9 +61,7 @@ urlpatterns = [
     path('api/actandpos/', include(('ActAndPos.urls', 'ActAndPos'), namespace='ActAndPos')),
     path('api/trades/', include(('Trades.urls', 'Trades'), namespace='Trades')),
     path('api/global-markets/', include('GlobalMarkets.urls')),
-    path('test/', api_test_page, name='api_test'),  # API test page
-    path('debug/', debug_market_times, name='debug_market_times'),  # Debug endpoint
-    path('sync/', sync_markets, name='sync_markets'),  # Sync markets endpoint
+    # Removed test/debug endpoints (GlobalMarkets is minimal - no test views)
     # Public Schwab OAuth callback paths (support with/without trailing slash)
     path('schwab/callback', schwab_views.oauth_callback, name='schwab_callback_public_root'),
     path('schwab/callback/', schwab_views.oauth_callback, name='schwab_callback_public'),
