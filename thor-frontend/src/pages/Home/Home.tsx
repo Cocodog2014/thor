@@ -1,7 +1,8 @@
 // src/pages/Home/Home.tsx
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import GlobalMarkets from "../GlobalMarkets/GlobalMarkets";
+// SAFE MODE: disable GlobalMarkets tile to prevent background live hooks
+// import GlobalMarkets from "../GlobalMarkets/GlobalMarkets";
 import TwoByThreeGridSortable from "../../components/Grid2x3/TwoByThreeGridSortable";
 import type { DashboardTile } from "../../components/Grid2x3/TwoByThreeGrid";
 import { useDragAndDropTiles } from "../../hooks/DragAndDrop";
@@ -65,8 +66,18 @@ const Home: React.FC = () => {
 
   const enhancedTiles = useMemo(() => {
     return tiles.map((tile) => {
+      // SAFE MODE: disable GlobalMarkets tile
       if (tile.id === "global") {
-        return { ...tile, children: <GlobalMarkets /> };
+        return {
+          ...tile,
+          children: (
+            <TileCTA
+              description="Global Markets temporarily disabled in safe mode."
+              buttonLabel="(Safe Mode)"
+              disabled={true}
+            />
+          ),
+        };
       }
 
       if (tile.id === "activity") {

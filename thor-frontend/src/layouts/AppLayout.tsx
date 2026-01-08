@@ -1,6 +1,7 @@
 import React from 'react';
 import GlobalHeader from '../components/Header/GlobalHeader';
-import GlobalBanner from '../components/Banners/GlobalBanner';
+// SAFE MODE: disable GlobalBanner to stop background fetches + WebSocket subscriptions
+// import GlobalBanner from '../components/Banners/GlobalBanner';
 import { FooterRibbon } from '../components/Ribbons';
 
 type AppLayoutProps = {
@@ -13,7 +14,8 @@ const AppLayout: React.FC<AppLayoutProps>
     <GlobalHeader 
     >
       {/* Layout: banner (top), scrollable content, ribbon (bottom) */}
-      <GlobalBanner />
+      {/* SAFE MODE: disable GlobalBanner to stop background fetches + WebSocket subscriptions */}
+      {/* <GlobalBanner /> */}
       <div className="app-content-scroll">
         {children}
       </div>
