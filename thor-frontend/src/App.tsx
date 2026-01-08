@@ -1,39 +1,32 @@
 // src/App.tsx
-import { Routes, Route, useLocation, Navigate } from 'react-router-dom';
-import { Container } from '@mui/material';
+import { Routes, Route, Navigate } from 'react-router-dom';
 
 // GlobalHeader is used inside AppLayout only
-// SAFE MODE: keep GlobalMarkets unmounted to prevent background live hooks.
-// import GlobalMarkets from './pages/GlobalMarkets/GlobalMarkets';
+import GlobalMarkets from './pages/GlobalMarkets/GlobalMarkets';
 // NOTE: MarketSessions removed – no longer used on the home page
 // SAFE MODE: keep Futures RTD unmounted to prevent background live hooks.
 // import FutureRTD from './pages/Futures';
-import FutureHome from './pages/Futures/FuturesHome/FutureHome';
-import ActivityPositions from './pages/ActivityPositions';
-import Trades from './pages/Trade/Trades';
-import AccountStatement from './pages/AccountStatement/AccountStatement';
+// Minimal app re-enable: only GlobalMarkets route is active
+// import FutureHome from './pages/Futures/FuturesHome/FutureHome';
+// import ActivityPositions from './pages/ActivityPositions';
+// import Trades from './pages/Trade/Trades';
+// import AccountStatement from './pages/AccountStatement/AccountStatement';
 import ProtectedRoute from './components/ProtectedRoute';
 import AuthLayout from './layouts/AuthLayout';
 import AppLayout from './layouts/AppLayout';
 import Register from './pages/User/Register';
-import User, { Login as UserLogin } from './pages/User';
+import { Login as UserLogin } from './pages/User';
 import { TradingModeProvider } from './context/TradingModeContext';
-import BrokersPage from './pages/User/Brokers/BrokersPage';
-import SchwabCallbackPage from './pages/User/Brokers/SchwabCallbackPage';
+// import BrokersPage from './pages/User/Brokers/BrokersPage';
+// import SchwabCallbackPage from './pages/User/Brokers/SchwabCallbackPage';
 
 // New Schwab-style homepage
-import Home from './pages/Home/Home';
+// import Home from './pages/Home/Home';
 
 // NOTE: This App.tsx is the top-level router.
 // The visual home page is handled by src/pages/Home/Home.tsx.
 
 function App() {
-  const location = useLocation();
-
-  // Routes that should have full-width layout (no Container)
-  // Only /app/home needs to be full-width for the Schwab-style dashboard.
-  const fullWidthRoutes = ['/app/home', '/app/futures'];
-  const isFullWidth = fullWidthRoutes.includes(location.pathname);
 
   return (
     <Routes>
@@ -55,64 +48,26 @@ function App() {
         }
       />
 
-      {/* Protected app routes with app chrome */}
+      {/* MINIMAL APP: Global Markets only */}
       <Route
         path="/app/*"
         element={
           <ProtectedRoute>
             <TradingModeProvider>
               <AppLayout>
-                {isFullWidth ? (
-                  // Full-width routes (no MUI Container)
-                  <Routes>
-                    <Route path="home" element={<Home />} />
-                    <Route path="futures" element={<FutureHome />} />
-                    {/* Stock trading removed */}
-                    <Route path="user" element={<User />} />
-                    <Route path="*" element={<Navigate to="home" replace />} />
-                  </Routes>
-                ) : (
-                  // Standard routes wrapped in Container
-                  <Container maxWidth={false} sx={{ p: 0 }}>
-                    <Routes>
-                      <Route path="home" element={<Home />} />
-                      <Route path="account-statement" element={<AccountStatement />} />
-                      <Route path="futures" element={<FutureHome />} />
-                      {/* SAFE MODE: Temporarily disable always-live routes */}
-                      {/**
-                      <Route
-                        path="futures/rtd"
-                        element={
-                          <FutureRTD
-                            onToggleMarketOpen={toggleMarketOpenDashboard}
-                            showMarketOpen={showMarketOpenDashboard}
-                          />
-                        }
-                      />
-                      */}
-                      {/** <Route path="global" element={<GlobalMarkets />} /> */}
-                      <Route path="trade" element={<Trades />} />
-                      <Route path="activity" element={<ActivityPositions />} />
-                      {/* Stock trading removed */}
-                      <Route path="user" element={<User />} />
-                      <Route path="user/brokers" element={<BrokersPage />} />
-                      <Route
-                        path="user/brokers/schwab/callback"
-                        element={<SchwabCallbackPage />}
-                      />
-                      <Route path="*" element={<Navigate to="home" replace />} />
-                    </Routes>
-                  </Container>
-                )}
+                <Routes>
+                  <Route path="global" element={<GlobalMarkets />} />
+                  <Route path="*" element={<Navigate to="global" replace />} />
+                </Routes>
               </AppLayout>
             </TradingModeProvider>
           </ProtectedRoute>
         }
       />
 
-      {/* Default redirect: root to /app/home */}
-      <Route path="/" element={<Navigate to="/app/home" replace />} />
-      <Route path="*" element={<Navigate to="/app/home" replace />} />
+      {/* Default */}
+      <Route path="/" element={<Navigate to="/auth/login" replace />} />
+      <Route path="*" element={<Navigate to="/auth/login" replace />} />
     </Routes>
   );
 }
