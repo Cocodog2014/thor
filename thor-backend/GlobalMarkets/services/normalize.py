@@ -39,8 +39,29 @@ def normalize_country_code(country: Optional[str]) -> Optional[str]:
     return COUNTRY_CODE_MAP.get(code, None)
 
 
-def is_known_country(country: Optional[str]) -> bool:
+def is_known_country(country: Optional[str], controlled=None, **kwargs) -> bool:
+    """
+    Check if a country code is known/valid.
+    
+    Args:
+        country: Country code or name to check
+        controlled: Optional set/list of allowed country codes. If provided,
+                   country must be in this set. If None, checks against KNOWN_COUNTRIES.
+        **kwargs: Accept additional kwargs for compatibility with varying call sites.
+    
+    Returns:
+        True if country is valid (and in controlled set if provided)
+    """
     if not country:
         return False
+    
     normalized = normalize_country_code(country)
-    return normalized is not None and normalized in KNOWN_COUNTRIES
+    if normalized is None:
+        return False
+    
+    # If controlled set provided, check against it
+    if controlled is not None:
+        return normalized in set(controlled)
+    
+    # Otherwise check against known countries
+    return normalized in KNOWN_COUNTRIES
