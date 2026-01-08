@@ -44,11 +44,12 @@ def on_market_status_change(sender, instance: Market, **kwargs):
         return
 
     logger.info(
-        "Market %s status changed: %s → %s",
-        instance.country,
-        prev_status,
-        new_status,
-    )
+    "Market %s status changed: %s → %s",
+    instance.key,
+    prev_status,
+    new_status,
+)
+
 
     # Emit generic status-changed signal
     market_status_changed.send(

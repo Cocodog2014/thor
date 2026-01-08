@@ -58,8 +58,3 @@ class Market(models.Model):
         self.save(update_fields=["status", "status_changed_at", "updated_at"])
         return True
 
-
-# IMPORTANT:
-# Import the other model modules so Django registers them.
-from .market_session import MarketSession  # noqa: E402,F401
-from .market_holiday import MarketHoliday  # noqa: E402,F401
