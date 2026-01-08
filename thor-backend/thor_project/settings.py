@@ -67,7 +67,7 @@ INSTALLED_APPS = [
     'Trades.apps.TradesConfig',
     'GlobalMarkets',  # WorldClock and Market data (renamed from 'timezones')
     'thordata',   # Large Excel import app
-    'ThorTrading.apps.ThorTradingConfig',  # Modern real-time market data system (keeps legacy DB tables)
+    # 'ThorTrading.apps.ThorTradingConfig',  # Legacy market data system (temporarily disabled)
     # LiveData - Multi-broker live data pipeline
     'LiveData.schwab.apps.SchwabConfig',  # Schwab OAuth + Trading API
     'LiveData.tos.apps.TosConfig',        # Thinkorswim streaming
@@ -297,7 +297,7 @@ CHANNEL_LAYERS = {
 
 # Realtime job providers (plugins loaded by thor_project.realtime.registry)
 REALTIME_JOB_PROVIDERS = [
-    "ThorTrading.studies.realtime_provider",  # Temporarily disabled to pause ThorTrading jobs
+    # "ThorTrading.studies.realtime_provider",  # Temporarily disabled to pause ThorTrading jobs
     "LiveData.schwab.realtime.provider",
 ]
 
