@@ -6,6 +6,7 @@
 
 from dataclasses import dataclass
 from datetime import datetime, time, timedelta
+from datetime import timezone as dt_timezone
 from typing import Optional
 
 from django.utils import timezone
@@ -27,11 +28,12 @@ class MarketComputation:
     reason: str = ""
 
 
-def _as_utc(dt: datetime) -> datetime:
-    """Ensure an aware UTC datetime."""
+def _as_utc(dt):
+    if dt is None:
+        return None
     if timezone.is_naive(dt):
-        dt = timezone.make_aware(dt, timezone=timezone.utc)
-    return dt.astimezone(timezone.utc)
+        dt = timezone.make_aware(dt, dt_timezone.utc)
+    return dt.astimezone(dt_timezone.utc)
 
 
 def _localize(market: Market, now_utc: datetime) -> datetime:
