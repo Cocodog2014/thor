@@ -345,6 +345,9 @@ if DEBUG and CLOUDFLARE_TUNNEL_URL:
         CSRF_TRUSTED_ORIGINS.append(CLOUDFLARE_TUNNEL_URL)
 
 # Structured logging for background supervisors and services
+DJANGO_LOG_LEVEL = config('DJANGO_LOG_LEVEL', default='INFO')
+THORTRADING_LOG_LEVEL = config('THORTRADING_LOG_LEVEL', default=DJANGO_LOG_LEVEL)
+
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -362,17 +365,23 @@ LOGGING = {
     'loggers': {
         'ThorTrading': {
             'handlers': ['console'],
-            'level': 'INFO',
+            'level': THORTRADING_LOG_LEVEL,
+            'propagate': False,
+        },
+        # Allow selectively silencing specific noisy sub-loggers.
+        'ThorTrading.studies.futures_total.quotes.classification': {
+            'handlers': ['console'],
+            'level': config('THORTRADING_CLASSIFICATION_LOG_LEVEL', default=THORTRADING_LOG_LEVEL),
             'propagate': False,
         },
         'thor_project': {
             'handlers': ['console'],
-            'level': 'INFO',
+            'level': DJANGO_LOG_LEVEL,
             'propagate': False,
         },
         'heartbeat': {
             'handlers': ['console'],
-            'level': 'INFO',
+            'level': DJANGO_LOG_LEVEL,
             'propagate': False,
         },
     },
