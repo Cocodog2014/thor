@@ -1,5 +1,7 @@
-from django.urls import path
+# GlobalMarkets/urls.py
+from django.urls import path, include
 
 urlpatterns = [
-    # GlobalMarkets endpoints temporarily disabled during rebuild.
+    path("", include("GlobalMarkets.api_urls")),
 ]
+

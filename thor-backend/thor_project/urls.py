@@ -1,19 +1,4 @@
-"""
-URL configuration for thor_project project.
-
-The `urlpatterns` list routes URLs to views. For more information please see:
-    https://docs.djangoproject.com/en/5.2/topics/http/urls/
-Examples:
-Function views
-    1. Add an import:  from my_app import views
-    2. Add a URL to urlpatterns:  path('', views.home, name='home')
-Class-based views
-    1. Add an import:  from other_app.views import Home
-    2. Add a URL to urlpatterns:  path('', Home.as_view(), name='home')
-Including another URLconf
-    1. Import the include() function: from django.urls import include, path
-    2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
-"""
+#THOR/thor-backend/thor_project/urls.py
 from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
@@ -22,13 +7,12 @@ from django.http import JsonResponse
 from LiveData.schwab import views as schwab_views
 from ActAndPos.views.balances import account_balance_view
 
-
 admin.site.site_header = "Thor's Command Center"
 admin.site.site_title = "Thor Command Center"
 admin.site.index_title = "Thor Command Center"
 
+
 def api_root(request):
-    """Simple API root that shows available endpoints"""
     return JsonResponse({
         'message': 'Thor API Server',
         'version': '1.0',
@@ -41,36 +25,37 @@ def api_root(request):
         }
     })
 
+
 urlpatterns = [
-    # Root endpoint
+    # Root
     path('', api_root, name='api_root'),
-    # Custom admin utility views (TODO: migrate from old SchwabLiveData)
-    # path('admin/cloudflared/', cloudflared_control, name='admin_cloudflared_control'),
+
+    # Admin
     path('admin/', admin.site.urls),
-    path('api/', include('api.urls')),           # Thor APIs
+
+    # ===== CORE MARKET INFRASTRUCTURE =====
+    path('api/global-markets/', include('GlobalMarkets.urls')),
+
+    # ===== CORE API APPS =====
+    path('api/', include('api.urls')),  # Generic Thor APIs
+    path('api/users/', include('users.urls')),
     path('api/instruments/', include('Instruments.urls')),
     path('api/accounts/balance/', account_balance_view, name='account-balance'),
-    # ThorTrading APIs (temporarily disabled)
-    # path('api/futures/', include(('ThorTrading.studies.futures_total.api.urls', 'ThorTrading'), namespace='ThorTrading')),
-    path('api/users/', include('users.urls')),   # User authentication
-    # LiveData endpoints (new structure)
+
+    # ===== LIVE DATA / FEEDS =====
     path('api/schwab/', include(('LiveData.schwab.urls', 'schwab'), namespace='schwab')),
     path('api/feed/', include(('LiveData.shared.urls', 'feed'), namespace='feed')),
     path('api/feed/tos/', include(('LiveData.tos.urls', 'tos'), namespace='tos')),
+
+    # ===== TRADING / POSITIONS =====
     path('api/actandpos/', include(('ActAndPos.urls', 'ActAndPos'), namespace='ActAndPos')),
     path('api/trades/', include(('Trades.urls', 'Trades'), namespace='Trades')),
-    path('api/global-markets/', include('GlobalMarkets.urls')),
-    # Removed test/debug endpoints (GlobalMarkets is minimal - no test views)
-    # Public Schwab OAuth callback paths (support with/without trailing slash)
+
+    # ===== OAUTH CALLBACKS =====
     path('schwab/callback', schwab_views.oauth_callback, name='schwab_callback_public_root'),
     path('schwab/callback/', schwab_views.oauth_callback, name='schwab_callback_public'),
-    # TODO: Migrate OAuth callbacks after testing
-    # Root-level OAuth callback placeholder if Schwab portal requires a different path
-    # path('auth/callback', schwab_auth_callback, name='schwab_auth_callback_root'),
-    # Alternate root-level path if your Schwab portal uses /schwab/callback
-    # path('schwab/callback', schwab_auth_callback, name='schwab_auth_callback_alt'),
 ]
 
-# Serve media files during development
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+

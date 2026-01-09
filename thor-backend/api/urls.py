@@ -10,6 +10,5 @@ urlpatterns = [
     path('intraday/health/', views.intraday_health, name='intraday-health'),
     # Market session intraday latest
     path('session/', views.session, name='session'),
-    # App-level API delegates
-    path('global-markets/', include('GlobalMarkets.api_urls')),
+   
 ]

@@ -4,7 +4,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from django.http import HttpRequest
 
-from GlobalMarkets.models.market_clock import Market
+from GlobalMarkets.models import Market
 
 
 @api_view(['GET'])
