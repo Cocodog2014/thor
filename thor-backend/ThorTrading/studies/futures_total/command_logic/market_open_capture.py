@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 
 from GlobalMarkets.models.market_clock import Market
-from GlobalMarkets.services.market_clock import compute_market_status
+from GlobalMarkets.services import compute_market_status
 from ThorTrading.studies.futures_total.models.market_session import MarketSession
 from ThorTrading.studies.futures_total.services.global_market_gate import (
     open_capture_allowed,

@@ -12,7 +12,7 @@ from django.utils import timezone
 
 from GlobalMarkets.models.market_clock import Market
 from GlobalMarkets.services import get_control_markets
-from GlobalMarkets.services.market_clock import compute_market_status
+from GlobalMarkets.services import compute_market_status
 from LiveData.shared.redis_client import live_data_redis
 from Instruments.models import Instrument
 from ThorTrading.studies.futures_total.models.market_session import MarketSession
