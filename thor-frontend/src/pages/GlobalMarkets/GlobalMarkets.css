@@ -88,13 +88,9 @@
   border: 1px solid var(--border-1);
 }
 
-.col-market { width: 18%; }
-.col-tz { width: 18%; }
-.col-local { width: 18%; }
-.col-open { width: 8%; }
-.col-close { width: 8%; }
-.col-status { width: 10%; }
-.col-next { width: 20%; }
+.col-country { width: 55%; }
+.col-tz { width: 30%; }
+.col-status { width: 15%; }
 
 .markets-table thead th {
   position: sticky;
@@ -190,14 +186,6 @@
   font-weight: 600;
   color: var(--green);
   font-size: 1.1em;
-}
-
-.market-next,
-.market-changed {
-  font-family: 'Courier New', monospace;
-  font-variant-numeric: tabular-nums;
-  color: var(--text-normal);
-  font-size: 0.9rem;
 }
 
 .market-tz,

@@ -20,42 +20,6 @@ const GlobalMarkets: React.FC = () => {
     );
   }
 
-  const formatUtc = (iso: string | null | undefined) => {
-    if (!iso) return '—';
-    const d = new Date(iso);
-    if (Number.isNaN(d.getTime())) return '—';
-    return d.toLocaleString('en-US', {
-      timeZone: 'UTC',
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hour12: false,
-    });
-  };
-
-  const formatLocal = (tz: string | null | undefined) => {
-    if (!tz) return '—';
-    const now = new Date();
-    try {
-      return new Intl.DateTimeFormat('en-US', {
-        timeZone: tz,
-        weekday: 'short',
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        hour12: false,
-      }).format(now);
-    } catch {
-      return '—';
-    }
-  };
-
   const formatUtcTime = (d: Date | null) =>
     d
       ? d.toLocaleTimeString('en-US', {
@@ -69,6 +33,29 @@ const GlobalMarkets: React.FC = () => {
 
   const activeCount = markets.filter((m: Market) => String(m.status).toUpperCase() === 'OPEN').length;
   const totalCount = markets.length;
+
+  const COUNTRY_BY_KEY: Record<string, string> = {
+    tokyo: 'Japan',
+    shanghai: 'China',
+    bombay: 'India',
+    london: 'United Kingdom',
+  };
+
+  const countryLabel = (m: Market) => {
+    const explicit = (m.country ?? '').trim();
+    if (explicit) return explicit;
+
+    const key = (m.key ?? '').trim().toLowerCase();
+    if (key && COUNTRY_BY_KEY[key]) return COUNTRY_BY_KEY[key];
+
+    const fallback = (m.display_name ?? m.name ?? '').trim();
+    if (!fallback) return '—';
+    return fallback
+      .replace(/\bstock exchange\b/gi, '')
+      .replace(/\bexchange\b/gi, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+  };
 
   return (
     <div className="timezone-container">
@@ -91,23 +78,15 @@ const GlobalMarkets: React.FC = () => {
         </div>
         <table className="markets-table">
           <colgroup>
-            <col className="col-market" />
+            <col className="col-country" />
             <col className="col-tz" />
-            <col className="col-local" />
-            <col className="col-open" />
-            <col className="col-close" />
             <col className="col-status" />
-            <col className="col-next" />
           </colgroup>
           <thead>
             <tr>
-              <th>MARKET</th>
+              <th>COUNTRY</th>
               <th>TZ</th>
-              <th>LOCAL</th>
-              <th>OPEN</th>
-              <th>CLOSE</th>
               <th>STATUS</th>
-              <th>NEXT (UTC)</th>
             </tr>
           </thead>
           <tbody>
@@ -116,7 +95,7 @@ const GlobalMarkets: React.FC = () => {
               const isOpen = status === 'OPEN';
               const statusColor = isOpen ? 'open' : 'closed';
               const title = market.key ? `${market.key} • ${market.timezone_name ?? ''}` : market.timezone_name ?? '';
-              const displayName = market.display_name ?? market.name ?? '—';
+              const displayName = countryLabel(market);
               return (
                 <tr
                   key={market.id ?? market.key ?? displayName}
@@ -125,13 +104,9 @@ const GlobalMarkets: React.FC = () => {
                 >
                   <td className="market-name">{displayName}</td>
                   <td className="market-tz">{market.timezone_name ?? '—'}</td>
-                  <td className="market-local">{formatLocal(market.timezone_name)}</td>
-                  <td className="market-open">{market.market_open_time ?? '—'}</td>
-                  <td className="market-close">{market.market_close_time ?? '—'}</td>
                   <td className="market-status">
                     <span className={`status-indicator ${statusColor}`}>{status}</span>
                   </td>
-                  <td className="market-next">{formatUtc(market.next_transition_utc)}</td>
                 </tr>
               );
             })}
