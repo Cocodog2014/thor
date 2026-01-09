@@ -66,15 +66,15 @@ const Home: React.FC = () => {
 
   const enhancedTiles = useMemo(() => {
     return tiles.map((tile) => {
-      // SAFE MODE: disable GlobalMarkets tile
       if (tile.id === "global") {
         return {
           ...tile,
           children: (
             <TileCTA
-              description="Global Markets temporarily disabled in safe mode."
-              buttonLabel="(Safe Mode)"
-              disabled={true}
+              description="Monitor global market indices, futures, and sector trends."
+              buttonLabel="Open Global Markets"
+              onClick={() => navigate("/app/global")}
+              disabled={false}
             />
           ),
         };
