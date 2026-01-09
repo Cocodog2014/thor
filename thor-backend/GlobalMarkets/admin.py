@@ -1,19 +1,6 @@
 from django.contrib import admin
 
-from .models import Market, MarketSession, MarketHoliday
-
-
-class MarketSessionInline(admin.TabularInline):
-    model = MarketSession
-    extra = 0
-    fields = (
-        "weekday",
-        "is_closed",
-        "premarket_open_time",
-        "open_time",
-        "close_time",
-    )
-    ordering = ("weekday",)
+from .models import Market, MarketHoliday
 
 
 @admin.register(Market)
@@ -38,17 +25,19 @@ class MarketAdmin(admin.ModelAdmin):
         (None, {
             "fields": ("key", "name", "timezone_name", "sort_order", "is_active")
         }),
-        ("Trading Hours", {
+        ("Trading Hours (Monday-Friday)", {
             "fields": ("open_time", "close_time"),
-            "description": "Default trading hours (local time). Sessions can override for specific weekdays."
+            "description": "Trading hours in local time. Automatically applies Monday-Friday. Weekends are closed automatically."
         }),
         ("Status", {
             "fields": ("status", "status_changed_at"),
             "classes": ("collapse",)
         }),
     )
-
-    inlines = [MarketSessionInline]
+    
+    # Sessions removed - not needed for simple Monday-Friday schedules
+    # Markets automatically trade Monday-Friday using open_time/close_time
+    # Weekends (Sat/Sun) are automatically closed
 
 
 @admin.register(MarketHoliday)

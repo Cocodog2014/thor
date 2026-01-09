@@ -11,7 +11,6 @@ from typing import Optional
 from django.utils import timezone
 
 from GlobalMarkets.models import Market
-from GlobalMarkets.models.market_session import MarketSession
 from GlobalMarkets.models.market_holiday import MarketHoliday
 
 try:
@@ -52,10 +51,6 @@ def _next_day(local_now: datetime) -> datetime:
     return (local_now + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
 
 
-def _get_session(market: Market, weekday: int) -> Optional[MarketSession]:
-    return MarketSession.objects.filter(market=market, weekday=weekday).first()
-
-
 def _get_holiday(local_date) -> Optional[MarketHoliday]:
     """Get US holiday for given date (applies to all markets)."""
     return MarketHoliday.objects.filter(date=local_date).first()
@@ -68,8 +63,7 @@ def compute_market_status(market: Market, *, now_utc: Optional[datetime] = None)
     Simplified Rules:
       1) Weekends (Sat/Sun) = CLOSED automatically
       2) US Holiday = CLOSED (or early close) - applies to all markets
-      3) Use Market.open_time and Market.close_time directly (no sessions needed for simple Monday-Friday)
-      4) Sessions can override for specific weekdays if configured
+      3) Use Market.open_time and Market.close_time for Monday-Friday trading
     """
     now_utc = now_utc or timezone.now()
     now_utc = _as_utc(now_utc)
@@ -99,22 +93,9 @@ def compute_market_status(market: Market, *, now_utc: Optional[datetime] = None)
         next_utc = _as_utc(_dt_local(tomorrow, market.open_time)) if market.open_time else None
         return MarketComputation(status=Market.Status.CLOSED, next_transition_utc=next_utc, reason="weekend")
 
-    # Check for session override
-    session = _get_session(market, weekday)
-    if session and session.is_closed:
-        tomorrow = _next_day(local_now)
-        next_utc = _as_utc(_dt_local(tomorrow, market.open_time)) if market.open_time else None
-        return MarketComputation(status=Market.Status.CLOSED, next_transition_utc=next_utc, reason="weekday_closed")
-
-    # Use session times if available, otherwise use market defaults
-    if session:
-        pre_t = session.premarket_open_time
-        open_t = session.open_time or market.open_time
-        close_t = session.close_time or market.close_time
-    else:
-        pre_t = None
-        open_t = market.open_time
-        close_t = market.close_time
+    # Use market's default open/close times
+    open_t = market.open_time
+    close_t = market.close_time
 
     # Apply early close override if present
     if holiday and (not holiday.is_closed) and holiday.early_close_time:
@@ -128,24 +109,18 @@ def compute_market_status(market: Market, *, now_utc: Optional[datetime] = None)
 
     dt_open = _dt_local(local_now, open_t)
     dt_close = _dt_local(local_now, close_t)
-    dt_pre = _dt_local(local_now, pre_t) if pre_t else None
 
     # Determine status + next transition
-    if dt_pre and local_now < dt_pre:
+    if local_now < dt_open:
+        # Before market open
         return MarketComputation(
             status=Market.Status.CLOSED,
-            next_transition_utc=_as_utc(dt_pre),
-            reason="before_premarket",
-        )
-
-    if dt_pre and dt_pre <= local_now < dt_open:
-        return MarketComputation(
-            status=Market.Status.PREMARKET,
             next_transition_utc=_as_utc(dt_open),
-            reason="premarket",
+            reason="before_open",
         )
 
     if dt_open <= local_now < dt_close:
+        # Market is open
         return MarketComputation(
             status=Market.Status.OPEN,
             next_transition_utc=_as_utc(dt_close),
