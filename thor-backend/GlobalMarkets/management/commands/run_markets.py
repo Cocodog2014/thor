@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import logging
 import time
 from datetime import datetime, timedelta
@@ -100,6 +101,9 @@ class Command(BaseCommand):
         max_sleep: float = options["max_sleep"]
         broadcast_enabled: bool = not options["no_broadcast"]
 
+        self.stdout.write(self.style.SUCCESS(f"✅ run_markets starting pid={os.getpid()} once={once} poll={poll_seconds}s"))
+        self.stdout.flush()
+
         logger.info(
             "GlobalMarkets runner started (once=%s poll=%ss min_sleep=%ss max_sleep=%ss broadcast=%s)",
             once,
@@ -111,6 +115,9 @@ class Command(BaseCommand):
 
         while True:
             loop_started = _utcnow()
+
+            self.stdout.write(f"tick utc={loop_started.isoformat()}")
+            self.stdout.flush()
 
             # Fetch active markets once per loop
             markets = list(Market.objects.filter(is_active=True).order_by("sort_order", "name"))
@@ -160,6 +167,11 @@ class Command(BaseCommand):
                 changed,
                 earliest_next.isoformat() if earliest_next else None,
             )
+
+            self.stdout.write(
+                f"loop complete checked={checked} changed={changed} next={earliest_next.isoformat() if earliest_next else None}"
+            )
+            self.stdout.flush()
 
             if once:
                 return
