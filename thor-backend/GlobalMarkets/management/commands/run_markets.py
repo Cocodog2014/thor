@@ -153,6 +153,11 @@ class Command(BaseCommand):
                         changed += 1
                         logger.info("Market %s status %s -> %s", market.key, old_status, new_status)
 
+                        self.stdout.write(
+                            f"changed {market.key}: {old_status} -> {computed.status} reason={computed.reason} next={computed.next_transition_utc}"
+                        )
+                        self.stdout.flush()
+
                         if broadcast_enabled:
                             _broadcast_status_change(market, old_status, new_status, loop_started)
 
