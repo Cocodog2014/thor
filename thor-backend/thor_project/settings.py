@@ -67,7 +67,7 @@ INSTALLED_APPS = [
     'Trades.apps.TradesConfig',
     'GlobalMarkets',  # WorldClock and Market data (renamed from 'timezones')
     'thordata',   # Large Excel import app
-    # 'ThorTrading.apps.ThorTradingConfig',  # Legacy market data system (temporarily disabled)
+    'ThorTrading.apps.ThorTradingConfig',  # ThorTrading studies + futures_total
     # LiveData - Multi-broker live data pipeline
     'LiveData.schwab.apps.SchwabConfig',  # Schwab OAuth + Trading API
     'LiveData.tos.apps.TosConfig',        # Thinkorswim streaming
