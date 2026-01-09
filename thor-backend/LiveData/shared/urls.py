@@ -1,8 +1,7 @@
-from django.urls import path
-from .views import get_quotes_snapshot
-
-app_name = 'feed'
+# GlobalMarkets/urls.py
+from django.urls import path, include
 
 urlpatterns = [
-    path('quotes/snapshot/', get_quotes_snapshot, name='quotes_snapshot'),
+    # Expose the GlobalMarkets HTTP API endpoints
+    path("", include("GlobalMarkets.api_urls")),
 ]

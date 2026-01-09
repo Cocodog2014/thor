@@ -24,7 +24,7 @@ from GlobalMarkets.models.market_clock import Market
 from GlobalMarkets.signals import market_closed, market_opened
 
 from GlobalMarkets.services.active_markets import get_control_countries
-from GlobalMarkets.services.normalize import normalize_country_code
+from GlobalMarkets.services import normalize_country_code
 
 # Capture implementations live in this study (import lazily inside functions)
 

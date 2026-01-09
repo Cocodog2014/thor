@@ -10,7 +10,7 @@ Tracks trades based on TOTAL composite signals and grades outcomes.
 from django.db import models
 from django.utils import timezone
 
-from GlobalMarkets.services.normalize import normalize_country_code
+from GlobalMarkets.services import normalize_country_code
 
 
 class MarketSession(models.Model):

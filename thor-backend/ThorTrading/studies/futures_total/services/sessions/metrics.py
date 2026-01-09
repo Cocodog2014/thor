@@ -8,7 +8,7 @@ from django.db import transaction
 from django.db.models import F
 
 from ThorTrading.studies.futures_total.models.market_session import MarketSession
-from GlobalMarkets.services.normalize import normalize_country_code
+from GlobalMarkets.services import normalize_country_code
 
 logger = logging.getLogger(__name__)
 

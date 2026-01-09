@@ -22,7 +22,7 @@ from LiveData.shared.redis_client import live_data_redis
 from Instruments.models import Instrument
 from GlobalMarkets.services.active_markets import get_control_countries
 from Instruments.models.market_52w import Rolling52WeekStats
-from GlobalMarkets.services.normalize import is_known_country, normalize_country_code
+from GlobalMarkets.services import is_known_country, normalize_country_code
 
 from .classification import compute_composite, enrich_quote_row
 from .row_metrics import compute_row_metrics
