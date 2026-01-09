@@ -12,7 +12,7 @@ from rest_framework.response import Response
 
 from .redis_client import get_redis, latest_key, unified_stream_key
 from LiveData.shared.redis_client import live_data_redis
-from GlobalMarkets.services import normalize_country_code
+from GlobalMarkets.normalize import normalize_country_code
 from Instruments.models.instrument import Instrument
 from Instruments.models.intraday import InstrumentIntraday
 
