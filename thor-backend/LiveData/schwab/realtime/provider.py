@@ -17,6 +17,7 @@ from core.infra.jobs import Job
 from LiveData.schwab.models import BrokerConnection
 from LiveData.schwab.client.tokens import ensure_valid_access_token
 from LiveData.shared.redis_client import live_data_redis
+from thor_project.realtime.broadcaster import maybe_push_global_markets
 
 logger = logging.getLogger(__name__)
 
@@ -189,12 +190,33 @@ class SchwabHealthJob(Job):
             logger.info("schwab_health: refreshed Schwab tokens for %s connection(s)", refreshed_count)
 
 
+class GlobalMarketsMaybePushJob(Job):
+    """Compute market status periodically and broadcast ONLY on change."""
+
+    name = "global_markets_status_maybe_push"
+
+    def __init__(self, interval_seconds: float = 1.0):
+        self.interval_seconds = float(interval_seconds)
+
+    def should_run(self, now: float, state: dict[str, Any]) -> bool:
+        last = state.get("last_run", {}).get(self.name)
+        return last is None or (now - last) >= self.interval_seconds
+
+    def run(self, ctx: Any) -> None:
+        try:
+            maybe_push_global_markets()
+        except Exception:
+            logger.debug("global_markets_status_maybe_push: failed", exc_info=True)
+
+
 def register(registry):
     job = SchwabHealthJob()
     registry.register(job, interval_seconds=job.interval_seconds)
     snapshot_job = MarketDataSnapshotJob(interval_seconds=1.0)
     registry.register(snapshot_job, interval_seconds=snapshot_job.interval_seconds)
-    return [job.name, snapshot_job.name]
+    gm_job = GlobalMarketsMaybePushJob(interval_seconds=1.0)
+    registry.register(gm_job, interval_seconds=gm_job.interval_seconds)
+    return [job.name, snapshot_job.name, gm_job.name]
 
 
-__all__ = ["register", "SchwabHealthJob", "MarketDataSnapshotJob"]
+__all__ = ["register", "SchwabHealthJob", "MarketDataSnapshotJob", "GlobalMarketsMaybePushJob"]
