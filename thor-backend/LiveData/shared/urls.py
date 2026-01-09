@@ -1,7 +1,16 @@
-# GlobalMarkets/urls.py
-from django.urls import path, include
+"""URL routes for shared LiveData HTTP endpoints.
+
+Mounted at `/api/feed/` by `thor_project.urls`.
+"""
+
+from django.urls import path
+
+from . import views
+
+
+app_name = "feed"
+
 
 urlpatterns = [
-    # Expose the GlobalMarkets HTTP API endpoints
-    path("", include("GlobalMarkets.api_urls")),
+    path("quotes/snapshot/", views.get_quotes_snapshot, name="quotes_snapshot"),
 ]
