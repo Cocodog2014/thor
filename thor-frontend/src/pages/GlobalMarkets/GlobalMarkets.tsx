@@ -55,6 +55,56 @@ const GlobalMarkets: React.FC = () => {
     }
   };
 
+  const isWeekendInTz = (tz: string | null | undefined, when: Date) => {
+    if (!tz) return false;
+    try {
+      const weekday = new Intl.DateTimeFormat('en-US', { timeZone: tz, weekday: 'short' }).format(when);
+      return weekday === 'Sat' || weekday === 'Sun';
+    } catch {
+      return false;
+    }
+  };
+
+  const formatCountdown = (targetIso: string | null | undefined, when: Date) => {
+    if (!targetIso) return null;
+    const target = new Date(targetIso);
+    if (Number.isNaN(target.getTime())) return null;
+
+    const ms = target.getTime() - when.getTime();
+    if (ms <= 0) return null;
+
+    const totalSeconds = Math.floor(ms / 1000);
+    const days = Math.floor(totalSeconds / 86400);
+    const hours = Math.floor((totalSeconds % 86400) / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+
+    const hh = String(hours).padStart(2, '0');
+    const mm = String(minutes).padStart(2, '0');
+    const ss = String(seconds).padStart(2, '0');
+    return days > 0 ? `${days}d ${hh}:${mm}:${ss}` : `${hh}:${mm}:${ss}`;
+  };
+
+  const openCell = (m: Market, when: Date) => {
+    if (isWeekendInTz(m.timezone_name, when)) return 'Weekend';
+
+    const status = String(m.status ?? '').toUpperCase();
+    if (status === 'OPEN') return m.market_open_time ?? '—';
+
+    const countdown = formatCountdown(m.next_transition_utc, when);
+    return countdown ? `Opens in ${countdown}` : (m.market_open_time ?? '—');
+  };
+
+  const closeCell = (m: Market, when: Date) => {
+    if (isWeekendInTz(m.timezone_name, when)) return 'Weekend';
+
+    const status = String(m.status ?? '').toUpperCase();
+    if (status !== 'OPEN') return m.market_close_time ?? '—';
+
+    const countdown = formatCountdown(m.next_transition_utc, when);
+    return countdown ? `Closes in ${countdown}` : (m.market_close_time ?? '—');
+  };
+
   const activeCount = markets.filter((m: Market) => String(m.status).toUpperCase() === 'OPEN').length;
   const totalCount = markets.length;
 
@@ -132,8 +182,8 @@ const GlobalMarkets: React.FC = () => {
                 >
                   <td className="market-name">{displayName}</td>
                   <td className="market-local">{formatLocal(market.timezone_name, now)}</td>
-                  <td className="market-open">{market.market_open_time ?? '—'}</td>
-                  <td className="market-close">{market.market_close_time ?? '—'}</td>
+                  <td className="market-open">{openCell(market, now)}</td>
+                  <td className="market-close">{closeCell(market, now)}</td>
                   <td className="market-status">
                     <span className={`status-indicator ${statusColor}`}>{status}</span>
                   </td>

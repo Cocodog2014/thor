@@ -13,6 +13,7 @@ type GlobalMarketsTickPayload = {
     key: string;
     name?: string;
     status?: string;
+    next_transition_utc?: string | null;
   }>;
 };
 
@@ -62,6 +63,11 @@ export function useGlobalMarkets() {
 
         if (incoming.status && incoming.status !== m.status) {
           updated.status = incoming.status;
+          changed = true;
+        }
+
+        if (incoming.next_transition_utc !== undefined && incoming.next_transition_utc !== m.next_transition_utc) {
+          updated.next_transition_utc = incoming.next_transition_utc ?? null;
           changed = true;
         }
 

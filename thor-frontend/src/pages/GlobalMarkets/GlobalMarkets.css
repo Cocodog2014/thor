@@ -90,8 +90,8 @@
 
 .col-country { width: 30%; }
 .col-local { width: 26%; }
-.col-open { width: 10%; }
-.col-close { width: 10%; }
+.col-open { width: 18%; }
+.col-close { width: 18%; }
 .col-status { width: 12%; }
 
 .markets-table thead th {
