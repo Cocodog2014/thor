@@ -31,7 +31,7 @@ export function useGlobalMarkets() {
     queryFn: fetchMarkets,
     // If the WebSocket drops, keep the UI moving via REST until it reconnects.
     // This prevents the "works for a few seconds then freezes" symptom.
-    refetchInterval: wsConnected ? false : 1000,
+    refetchInterval: wsConnected ? false : 5000,
     refetchOnWindowFocus: false,
     refetchOnMount: false,
     staleTime: Infinity,
@@ -77,7 +77,8 @@ export function useGlobalMarkets() {
 
   return {
     markets: marketsQuery.data ?? [],
-    loading: marketsQuery.isLoading || marketsQuery.isFetching,
+    // Avoid flashing the whole table during background refetches.
+    loading: marketsQuery.isLoading,
     error: marketsQuery.isError ? 'Lost connection to global markets' : error,
     lastUpdate,
     isStale: !wsConnected,

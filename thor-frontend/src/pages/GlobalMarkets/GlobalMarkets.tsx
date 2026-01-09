@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useGlobalMarkets } from '../../features/globalMarkets/useGlobalMarkets';
 import './GlobalMarkets.css';
 
@@ -6,6 +6,12 @@ import type { Market } from '../../types';
 
 const GlobalMarkets: React.FC = () => {
   const { markets, loading, error, lastUpdate, isStale } = useGlobalMarkets();
+  const [now, setNow] = useState(() => new Date());
+
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(new Date()), 1000);
+    return () => window.clearInterval(id);
+  }, []);
 
   if (loading) {
     return (
@@ -31,9 +37,8 @@ const GlobalMarkets: React.FC = () => {
         })
       : '—';
 
-  const formatLocal = (tz: string | null | undefined) => {
+  const formatLocal = (tz: string | null | undefined, when: Date) => {
     if (!tz) return '—';
-    const now = new Date();
     try {
       return new Intl.DateTimeFormat('en-US', {
         timeZone: tz,
@@ -44,7 +49,7 @@ const GlobalMarkets: React.FC = () => {
         minute: '2-digit',
         second: '2-digit',
         hour12: false,
-      }).format(now);
+      }).format(when);
     } catch {
       return '—';
     }
@@ -86,7 +91,7 @@ const GlobalMarkets: React.FC = () => {
               {isStale ? '🟡' : '🟢'}
             </span>
             {' '}
-            UTC time: {formatUtcTime(lastUpdate)}
+            UTC time: {formatUtcTime(now)}
             {' • '}Last update: {formatUtcTime(lastUpdate)}
           </div>
           <div className="markets-table-status">
@@ -126,7 +131,7 @@ const GlobalMarkets: React.FC = () => {
                   title={title}
                 >
                   <td className="market-name">{displayName}</td>
-                  <td className="market-local">{formatLocal(market.timezone_name)}</td>
+                  <td className="market-local">{formatLocal(market.timezone_name, now)}</td>
                   <td className="market-open">{market.market_open_time ?? '—'}</td>
                   <td className="market-close">{market.market_close_time ?? '—'}</td>
                   <td className="market-status">
