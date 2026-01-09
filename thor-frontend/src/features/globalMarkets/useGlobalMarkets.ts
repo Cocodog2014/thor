@@ -1,18 +1,20 @@
 import { useCallback, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import type { Market } from '../../types';
 import marketsService from '../../services/markets';
 import { useWsConnection, useWsMessage } from '../../realtime';
 import type { WsEnvelope } from '../../realtime/types';
 import { qk } from '../../realtime/queryKeys';
 
-type TickMarket = {
-  market_id?: number;
-  current_time?: Partial<NonNullable<Market['current_time']>>;
-  market_status?: Partial<Market['market_status']>;
-  status?: Market['status'];
-  market_open_time?: string;
-  market_close_time?: string;
+import type { Market } from '../../types';
+
+type GlobalMarketsTickPayload = {
+  server_time_utc?: string;
+  markets?: Array<{
+    key: string;
+    name?: string;
+    status?: string;
+    next_transition_utc?: string | null;
+  }>;
 };
 
 export function useGlobalMarkets() {
@@ -22,8 +24,7 @@ export function useGlobalMarkets() {
   const wsConnected = useWsConnection();
 
   const fetchMarkets = useCallback(async () => {
-    const data = await marketsService.getAll();
-    return data.results;
+    return await marketsService.getAll();
   }, []);
 
   const marketsQuery = useQuery({
@@ -38,51 +39,35 @@ export function useGlobalMarkets() {
     retry: 1,
   });
 
-  useWsMessage<{ markets?: TickMarket[]; timestamp?: number }>('global_markets_tick', (msg: WsEnvelope<{ markets?: TickMarket[]; timestamp?: number }>) => {
-    const { data, ts } = msg;
+  useWsMessage<GlobalMarketsTickPayload>('global_markets_tick', (msg: WsEnvelope<GlobalMarketsTickPayload>) => {
+    const data = msg.data;
     const marketsPayload = data?.markets ?? [];
     if (!marketsPayload.length) return;
 
     queryClient.setQueryData<Market[] | undefined>(qk.globalMarkets(), (prev) => {
       if (!prev) return prev;
-      let changed = false;
-      const byId = new Map<number, TickMarket>();
+      const byKey = new Map<string, (typeof marketsPayload)[number]>();
       for (const m of marketsPayload) {
-        if (m.market_id != null) byId.set(m.market_id, m);
+        if (m?.key) byKey.set(m.key, m);
       }
-      if (!byId.size) return prev;
+      if (!byKey.size) return prev;
 
+      let changed = false;
       const next = prev.map((m) => {
-        const incoming = byId.get(m.id);
+        const incoming = m?.key ? byKey.get(m.key) : undefined;
         if (!incoming) return m;
 
-        const updated: Market = { ...m } as Market;
+        const updated: Market = { ...m };
+        if (incoming.name && incoming.name !== m.name) updated.name = incoming.name;
+        if (incoming.name && incoming.name !== m.display_name) updated.display_name = incoming.name;
 
-        if (incoming.market_open_time) {
-          updated.market_open_time = incoming.market_open_time;
-        }
-        if (incoming.market_close_time) {
-          updated.market_close_time = incoming.market_close_time;
-        }
-
-        if (incoming.current_time) {
-          changed = true;
-          updated.current_time = { ...m.current_time, ...incoming.current_time };
-        }
-
-        if (incoming.market_status) {
-          changed = true;
-          updated.market_status = {
-            ...m.market_status,
-            ...incoming.market_status,
-            current_time:
-              (incoming.market_status.current_time as Market['market_status']['current_time']) ?? m.market_status.current_time,
-          } as Market['market_status'];
-        }
-
-        if (incoming.status) {
-          changed = true;
+        if (incoming.status && incoming.status !== m.status) {
           updated.status = incoming.status;
+          changed = true;
+        }
+        if (incoming.next_transition_utc !== undefined && incoming.next_transition_utc !== m.next_transition_utc) {
+          updated.next_transition_utc = incoming.next_transition_utc ?? null;
+          changed = true;
         }
 
         return updated;
@@ -91,8 +76,7 @@ export function useGlobalMarkets() {
       return changed ? next : prev;
     });
 
-    const stamp = ts ?? (data?.timestamp as number | undefined);
-    setLastUpdate(stamp ? new Date(stamp * 1000) : new Date());
+    setLastUpdate(data?.server_time_utc ? new Date(data.server_time_utc) : new Date());
     setError(null);
   });
 

@@ -30,20 +30,30 @@ export interface MarketStatus {
 
 export interface Market {
   id: number;
-  country: string;
-  display_name: string;
-  timezone_name: string;
-  market_open_time: string; // HH:mm:ss
-  market_close_time: string; // HH:mm:ss
-  status: string; // 'OPEN' | 'CLOSED'
-  is_active: boolean;
-  currency: string;
+  // Stable identifier for GlobalMarkets + websockets
+  key?: string;
+
+  // Back-compat: some endpoints use "name", some use "display_name"
+  name?: string;
+  display_name?: string;
+
+  country?: string;
+  timezone_name?: string;
+  market_open_time?: string | null; // HH:mm:ss
+  market_close_time?: string | null; // HH:mm:ss
+
+  status?: string; // 'OPEN' | 'CLOSED'
+  status_changed_at?: string | null; // ISO datetime
+  next_transition_utc?: string | null; // ISO datetime
+
+  is_active?: boolean;
+  currency?: string;
   // New optional fields from backend
   weight?: number; // 0.00 - 1.00
   is_control_market?: boolean;
-  current_time: MarketCurrentTime;
-  market_status: MarketStatus;
-  sort_order: number;
+  current_time?: MarketCurrentTime;
+  market_status?: MarketStatus;
+  sort_order?: number;
 }
 
 export interface PaginatedResponse<T> {

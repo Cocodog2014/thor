@@ -1,8 +1,8 @@
 import React from 'react';
-import type { Market } from '../../types';
 import { useGlobalMarkets } from '../../features/globalMarkets/useGlobalMarkets';
-import { displayNameForMarket } from '../../constants/markets';
 import './GlobalMarkets.css';
+
+import type { Market } from '../../types';
 
 const GlobalMarkets: React.FC = () => {
   const { markets, loading, error, lastUpdate, isStale } = useGlobalMarkets();
@@ -20,39 +20,40 @@ const GlobalMarkets: React.FC = () => {
     );
   }
 
-  const formatHms = (totalSeconds: number) => {
-    const s = Math.max(0, totalSeconds);
-    const hours = Math.floor(s / 3600);
-    const minutes = Math.floor((s % 3600) / 60);
-    const seconds = s % 60;
-    return `${hours.toString().padStart(2, '0')}:${minutes
-      .toString()
-      .padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+  const formatUtc = (iso: string | null | undefined) => {
+    if (!iso) return '—';
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return '—';
+    return d.toLocaleString('en-US', {
+      timeZone: 'UTC',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false,
+    });
   };
 
-  const isWeekend = (m: Market) => m.current_time.day === 'Sat' || m.current_time.day === 'Sun';
-
-  const openCellText = (m: Market): string => {
-    const ms = m.market_status ?? { next_event: 'open', seconds_to_next_event: 0 };
-    const secs: number = (ms.seconds_to_next_event as number | undefined) ?? 0;
-    const hours = Math.floor(secs / 3600);
-
-    if (ms.next_event === 'open' && secs > 0) {
-      if (hours >= 24) {
-        const days = Math.max(1, Math.ceil(secs / 86400));
-        return `${days} day${days > 1 ? 's' : ''}`;
-      }
-      return formatHms(secs);
+  const formatLocal = (tz: string | null | undefined) => {
+    if (!tz) return '—';
+    const now = new Date();
+    try {
+      return new Intl.DateTimeFormat('en-US', {
+        timeZone: tz,
+        weekday: 'short',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false,
+      }).format(now);
+    } catch {
+      return '—';
     }
-
-    return m.market_open_time;
-  };
-
-  const closeCellText = (m: Market): string => {
-    const state: string | undefined = m.market_status?.current_state;
-    if (isWeekend(m)) return 'WEEKEND';
-    if (state === 'HOLIDAY_CLOSED') return 'HOLIDAY';
-    return m.market_close_time;
   };
 
   const formatUtcTime = (d: Date | null) =>
@@ -66,10 +67,7 @@ const GlobalMarkets: React.FC = () => {
         })
       : '—';
 
-  const activeCount = markets.filter((m) => {
-    const s = m.market_status?.current_state;
-    return s === 'OPEN' || s === 'PRECLOSE';
-  }).length;
+  const activeCount = markets.filter((m: Market) => String(m.status).toUpperCase() === 'OPEN').length;
   const totalCount = markets.length;
 
   return (
@@ -94,54 +92,46 @@ const GlobalMarkets: React.FC = () => {
         <table className="markets-table">
           <colgroup>
             <col className="col-market" />
-            <col className="col-year" />
-            <col className="col-month" />
-            <col className="col-date" />
-            <col className="col-day" />
+            <col className="col-tz" />
+            <col className="col-local" />
             <col className="col-open" />
             <col className="col-close" />
-            <col className="col-time" />
             <col className="col-status" />
+            <col className="col-next" />
           </colgroup>
           <thead>
             <tr>
               <th>MARKET</th>
-              <th>YEAR</th>
-              <th>MONTH</th>
-              <th>DATE</th>
-              <th>DAY</th>
+              <th>TZ</th>
+              <th>LOCAL</th>
               <th>OPEN</th>
               <th>CLOSE</th>
-              <th>CURRENT TIME</th>
               <th>STATUS</th>
+              <th>NEXT (UTC)</th>
             </tr>
           </thead>
           <tbody>
-            {markets
-              .filter((market) => market.market_status && market.current_time)
-              .map((market) => {
-              const state = market.market_status?.current_state ?? 'UNKNOWN';
-              const isOpen = state === 'OPEN' || state === 'PRECLOSE';
+            {markets.map((market: Market) => {
+              const status = String(market.status ?? 'UNKNOWN').toUpperCase();
+              const isOpen = status === 'OPEN';
               const statusColor = isOpen ? 'open' : 'closed';
-              const displayName = displayNameForMarket(market.display_name || market.country);
-
+              const title = market.key ? `${market.key} • ${market.timezone_name ?? ''}` : market.timezone_name ?? '';
+              const displayName = market.display_name ?? market.name ?? '—';
               return (
                 <tr
-                  key={market.id}
+                  key={market.id ?? market.key ?? displayName}
                   className={statusColor}
-                  title={`${displayName} - ${market.timezone_name} (${market.currency})`}
+                  title={title}
                 >
                   <td className="market-name">{displayName}</td>
-                  <td className="market-year">{market.current_time.year}</td>
-                  <td className="market-month">{market.current_time.month}</td>
-                  <td className="market-date">{market.current_time.date}</td>
-                  <td className="market-day">{market.current_time.day}</td>
-                  <td className="market-open">{openCellText(market)}</td>
-                  <td className="market-close">{closeCellText(market)}</td>
-                  <td className="market-time">{market.current_time.formatted_24h}</td>
+                  <td className="market-tz">{market.timezone_name ?? '—'}</td>
+                  <td className="market-local">{formatLocal(market.timezone_name)}</td>
+                  <td className="market-open">{market.market_open_time ?? '—'}</td>
+                  <td className="market-close">{market.market_close_time ?? '—'}</td>
                   <td className="market-status">
-                    <span className={`status-indicator ${statusColor}`}>{state ?? 'UNKNOWN'}</span>
+                    <span className={`status-indicator ${statusColor}`}>{status}</span>
                   </td>
+                  <td className="market-next">{formatUtc(market.next_transition_utc)}</td>
                 </tr>
               );
             })}

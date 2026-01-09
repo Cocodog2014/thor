@@ -74,7 +74,7 @@
   display: flex;
   flex-direction: column;
   overflow-y: auto;      /* Enable vertical scroll for table */
-  overflow-x: hidden;    /* Prevent horizontal scroll */
+  overflow-x: auto;      /* Allow horizontal scroll if needed */
   width: 100%;           /* Respect container width */
 }
 
@@ -88,15 +88,13 @@
   border: 1px solid var(--border-1);
 }
 
-.col-market { width: 12%; }
-.col-year { width: 7%; }
-.col-month { width: 7%; }
-.col-date { width: 7%; }
-.col-day { width: 8%; }
-.col-open { width: 13%; }
-.col-close { width: 13%; }
-.col-time { width: 18%; }
-.col-status { width: 7%; }
+.col-market { width: 18%; }
+.col-tz { width: 18%; }
+.col-local { width: 18%; }
+.col-open { width: 8%; }
+.col-close { width: 8%; }
+.col-status { width: 10%; }
+.col-next { width: 20%; }
 
 .markets-table thead th {
   position: sticky;
@@ -192,6 +190,22 @@
   font-weight: 600;
   color: var(--green);
   font-size: 1.1em;
+}
+
+.market-next,
+.market-changed {
+  font-family: 'Courier New', monospace;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-normal);
+  font-size: 0.9rem;
+}
+
+.market-tz,
+.market-local {
+  font-family: 'Courier New', monospace;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-normal);
+  font-size: 0.85rem;
 }
 
 .status-indicator {

@@ -3,19 +3,22 @@ import { useWsConnection, useWsMessage, wsEnabled } from '..';
 import type { WsEnvelope } from '../types';
 
 export function WebSocketShadowMonitor() {
-  // If WS is disabled, render nothing and never connect
-  if (!wsEnabled()) return null;
+  const enabled = wsEnabled();
 
-  const connected = useWsConnection(true);
+  const connected = useWsConnection(enabled);
   const [messageCount, setMessageCount] = useState(0);
   const [lastMessageTime, setLastMessageTime] = useState<string>('Never');
   const [lastMessageType, setLastMessageType] = useState<string>('none');
 
-  useWsMessage<unknown>('all', (msg: WsEnvelope) => {
+  useWsMessage<unknown>(
+    'all',
+    (msg: WsEnvelope) => {
     setMessageCount((c) => c + 1);
     setLastMessageTime(new Date().toLocaleTimeString());
     if (msg?.type) setLastMessageType(msg.type);
-  });
+    },
+    enabled
+  );
 
   useEffect(() => {
     if (connected) {
@@ -23,6 +26,9 @@ export function WebSocketShadowMonitor() {
       return () => console.log('🔴 WebSocket monitor: DISCONNECTED');
     }
   }, [connected]);
+
+  // If WS is disabled, render nothing and never connect
+  if (!enabled) return null;
 
   return (
     <div

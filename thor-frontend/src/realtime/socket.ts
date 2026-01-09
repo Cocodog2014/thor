@@ -6,10 +6,12 @@ import type { ConnectionHandler, WsMessage } from './types';
 function isWsEnabled(): boolean {
   // If you ever want a runtime toggle in DevTools:
   // window.__THOR_WS_ENABLED__ = true
-  const w = typeof window !== 'undefined' ? (window as any) : undefined;
+  const w = typeof window !== 'undefined'
+    ? (window as unknown as { __THOR_WS_ENABLED__?: boolean })
+    : undefined;
   if (w?.__THOR_WS_ENABLED__ === true) return true;
 
-  const env = String((import.meta as any).env?.VITE_WS_ENABLED ?? '').toLowerCase();
+  const env = String(import.meta.env?.VITE_WS_ENABLED ?? '').toLowerCase();
   return env === '1' || env === 'true' || env === 'yes';
 }
 
@@ -43,7 +45,7 @@ function ensureTrailingSlash(url: string): string {
 }
 
 function resolveUrl(): string {
-  const explicit = (import.meta as any).env?.VITE_WS_URL;
+  const explicit = import.meta.env?.VITE_WS_URL;
   if (explicit) return ensureTrailingSlash(explicit);
 
   const protocol =
