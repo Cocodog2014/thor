@@ -21,7 +21,7 @@ import { TradingModeProvider } from './context/TradingModeContext';
 // import SchwabCallbackPage from './pages/User/Brokers/SchwabCallbackPage';
 
 // New Schwab-style homepage
-// import Home from './pages/Home/Home';
+import Home from './pages/Home/Home';
 
 // NOTE: This App.tsx is the top-level router.
 // The visual home page is handled by src/pages/Home/Home.tsx.
@@ -56,8 +56,10 @@ function App() {
             <TradingModeProvider>
               <AppLayout>
                 <Routes>
+                  <Route index element={<Navigate to="/app/home" replace />} />
+                  <Route path="home" element={<Home />} />
                   <Route path="global" element={<GlobalMarkets />} />
-                  <Route path="*" element={<Navigate to="global" replace />} />
+                  <Route path="*" element={<Navigate to="/app/home" replace />} />
                 </Routes>
               </AppLayout>
             </TradingModeProvider>

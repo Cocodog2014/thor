@@ -1,19 +1,12 @@
-/**
- * DashboardTile - Type definitions and behavior for Home dashboard tiles
- */
+import type React from 'react';
 
-export interface DashboardTile {
+export type DashboardTile = {
   id: string;
   title: string;
-  content: React.ReactNode;
-  order: number;
-  size?: 'small' | 'large';
-}
-
-export interface TilePosition {
-  id: string;
-  order: number;
-}
+  slotLabel?: string;
+  hint?: string;
+  children?: React.ReactNode;
+};
 
 /**
  * Grid layout configuration
@@ -25,24 +18,3 @@ export const GRID_CONFIG = {
   maxTiles: 6,
   gapSize: 16,
 } as const;
-
-/**
- * Helper to validate tile order
- */
-export const isValidTileOrder = (tiles: DashboardTile[]): boolean => {
-  return tiles.every((tile, idx) => tile.order === idx);
-};
-
-/**
- * Helper to reorder tiles after drag-drop
- */
-export const reorderTiles = (
-  tiles: DashboardTile[],
-  fromIndex: number,
-  toIndex: number
-): DashboardTile[] => {
-  const result = Array.from(tiles);
-  const [removed] = result.splice(fromIndex, 1);
-  result.splice(toIndex, 0, removed);
-  return result.map((tile, idx) => ({ ...tile, order: idx }));
-};

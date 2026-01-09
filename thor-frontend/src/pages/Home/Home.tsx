@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 // SAFE MODE: disable GlobalMarkets tile to prevent background live hooks
 // import GlobalMarkets from "../GlobalMarkets/GlobalMarkets";
+import GlobalMarkets from "../GlobalMarkets/GlobalMarkets";
 import TwoByThreeGridSortable from "../../components/Grid2x3/TwoByThreeGridSortable";
 import type { DashboardTile } from "../../components/Grid2x3/TwoByThreeGrid";
 import { useDragAndDropTiles } from "../../hooks/DragAndDrop";
@@ -40,6 +41,7 @@ const STORAGE_KEY = "thor.home.tiles.order";
 const Home: React.FC = () => {
   const [showWelcome, setShowWelcome] = useState<boolean>(false);
   const [hasLoadedPreference, setHasLoadedPreference] = useState(false);
+  const [showGlobalMarkets, setShowGlobalMarkets] = useState(false);
   const { tiles, setTiles } = useDragAndDropTiles(BASE_TILES, { storageKey: STORAGE_KEY });
   const navigate = useNavigate();
 
@@ -70,12 +72,20 @@ const Home: React.FC = () => {
         return {
           ...tile,
           children: (
-            <TileCTA
-              description="Monitor global market indices, futures, and sector trends."
-              buttonLabel="Open Global Markets"
-              onClick={() => navigate("/app/global")}
-              disabled={false}
-            />
+            <>
+              <TileCTA
+                description="Monitor global market indices, futures, and sector trends."
+                buttonLabel={showGlobalMarkets ? "Hide Global Markets" : "Open Global Markets"}
+                onClick={() => setShowGlobalMarkets((v) => !v)}
+                disabled={false}
+                helperText="Loads live market hooks only when opened."
+              />
+              {showGlobalMarkets ? (
+                <div className="home-global-markets-embed">
+                  <GlobalMarkets />
+                </div>
+              ) : null}
+            </>
           ),
         };
       }
@@ -108,7 +118,7 @@ const Home: React.FC = () => {
 
       return tile;
     });
-  }, [tiles, navigate]);
+  }, [tiles, navigate, showGlobalMarkets]);
 
   return (
     <div className="home-screen">
