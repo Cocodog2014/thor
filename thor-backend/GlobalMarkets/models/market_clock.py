@@ -25,6 +25,18 @@ class Market(models.Model):
         max_length=64,
         help_text="IANA timezone. Example: 'America/New_York', 'Europe/London'.",
     )
+    
+    # Default trading hours (used if no sessions defined)
+    open_time = models.TimeField(
+        null=True, 
+        blank=True, 
+        help_text="Default market open time (local timezone). Example: 09:00"
+    )
+    close_time = models.TimeField(
+        null=True, 
+        blank=True, 
+        help_text="Default market close time (local timezone). Example: 16:00"
+    )
 
     is_active = models.BooleanField(default=True)
     sort_order = models.IntegerField(default=0)
