@@ -50,6 +50,13 @@ def maybe_broadcast_global_market_status() -> None:
         computed = compute_market_status(market, now_utc=now)
         current_status = computed.status
 
+        # Persist status transitions to the DB so admin + REST stay correct.
+        # This remains transition-only: Market.mark_status is a no-op if unchanged.
+        try:
+            market.mark_status(current_status, when=now)
+        except Exception:
+            logger.debug("Failed to persist market status for %s", getattr(market, "key", market.pk), exc_info=True)
+
         # Detect change
         if _LAST_MARKET_STATUS.get(market.key) != current_status:
             _LAST_MARKET_STATUS[market.key] = current_status
