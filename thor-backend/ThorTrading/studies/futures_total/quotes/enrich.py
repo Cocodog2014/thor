@@ -169,6 +169,13 @@ def _to_str(v):
 def build_enriched_rows(raw_quotes: Dict[str, Dict]) -> List[Dict]:
     """Return enriched row dicts (one per tracked instrument)."""
     control_countries = get_control_countries(require_session_capture=True)
+    normalized_control = [normalize_country_code(c) or c for c in control_countries]
+    primary_control_country = normalized_control[0] if normalized_control else None
+    global_default_country = (
+        ("USA" if "USA" in normalized_control else None)
+        or ("US" if "US" in normalized_control else None)
+        or primary_control_country
+    )
 
     instruments = _tracked_instruments()
     tracked_symbols = [(getattr(inst, "symbol", "") or "").lstrip("/").upper() for inst in instruments]
@@ -184,6 +191,11 @@ def build_enriched_rows(raw_quotes: Dict[str, Dict]) -> List[Dict]:
     rows: List[Dict] = []
     fallback_country = _fallback_country_from_clock(control_countries)
 
+    # Some upstream quote sources use placeholder countries like "GLOBAL".
+    # In ThorTrading we treat those as missing and fall back to instrument metadata
+    # or the active control market from GlobalMarkets.
+    _provider_unknown_countries = {"GLOBAL"}
+
     for idx, inst in enumerate(instruments):
         sym = (inst.symbol or "").lstrip("/").upper()
         if not sym:
@@ -197,9 +209,13 @@ def build_enriched_rows(raw_quotes: Dict[str, Dict]) -> List[Dict]:
         inst_country = normalize_country_code(getattr(inst, "country", None))
         raw_country = quote.get("country") or quote.get("market")
 
+        provider_country = normalize_country_code(raw_country)
+        if provider_country and provider_country.upper() in _provider_unknown_countries:
+            provider_country = global_default_country
+
         # Prefer instrument-level country tagging so cloned instruments remain scoped to their market,
         # falling back to provider country or the control-country clock when missing.
-        row_country = inst_country or normalize_country_code(raw_country) or fallback_country
+        row_country = inst_country or provider_country or fallback_country
         if not row_country:
             logger.error("Dropping quote for %s missing country: %s", sym, quote)
             continue
