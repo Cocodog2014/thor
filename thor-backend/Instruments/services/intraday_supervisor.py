@@ -24,7 +24,17 @@ _LAST_UTC_SESSION_NUMBER_KEY = "intraday:last_utc_session_number"
 def _finalize_previous_session_if_rolled_over() -> None:
     """Finalize MarketTrading24Hour for the previous UTC day when day rolls over."""
 
-    current_sn = int(datetime.now(timezone.utc).strftime("%Y%m%d"))
+    # Prefer the shared session_number published by GlobalMarkets -> LiveData.
+    current_sn = None
+    try:
+        current_sn = live_data_redis.get_active_session_number()
+    except Exception:
+        current_sn = None
+
+    if current_sn is None:
+        current_sn = int(datetime.now(timezone.utc).strftime("%Y%m%d"))
+    else:
+        current_sn = int(current_sn)
     try:
         raw_prev = live_data_redis.client.get(_LAST_UTC_SESSION_NUMBER_KEY)
         prev_sn = int(raw_prev) if raw_prev not in (None, "") else None
@@ -225,7 +235,24 @@ class IntradaySupervisor:
                     if not self.include_equities:
                         continue
 
-                session_date, session_number = _utc_day_session_from_timestamp(row.get("timestamp") or row.get("ts"))
+                # Prefer the shared session routing snapshot so Schwab streaming + intraday supervisor
+                # write to the same namespaces. Fall back to timestamp-based UTC day.
+                session_number = None
+                try:
+                    asset_hint = "FUTURES" if kind == "futures" else "EQUITIES"
+                    session_number = live_data_redis.get_active_session_number(asset_type=asset_hint)
+                except Exception:
+                    session_number = None
+
+                if session_number is None:
+                    session_date, session_number = _utc_day_session_from_timestamp(
+                        row.get("timestamp") or row.get("ts")
+                    )
+                else:
+                    session_number = int(session_number)
+                    s = str(session_number)
+                    session_date = f"{s[0:4]}-{s[4:6]}-{s[6:8]}" if len(s) == 8 else None
+
                 routing_key = str(session_number)
                 session_keys_seen.add(routing_key)
 

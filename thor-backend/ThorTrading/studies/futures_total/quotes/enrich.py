@@ -20,7 +20,7 @@ from typing import Dict, List, Tuple
 
 from LiveData.shared.redis_client import live_data_redis
 from Instruments.models import Instrument
-from GlobalMarkets.services.active_markets import get_control_countries
+from GlobalMarkets.services import get_control_countries
 from Instruments.models.market_52w import Rolling52WeekStats
 from GlobalMarkets.services import is_known_country, normalize_country_code
 

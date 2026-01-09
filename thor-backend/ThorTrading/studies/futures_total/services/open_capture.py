@@ -11,7 +11,7 @@ from django.db import IntegrityError, transaction
 from django.utils import timezone
 
 from GlobalMarkets.models.market_clock import Market
-from GlobalMarkets.services.active_markets import get_control_markets
+from GlobalMarkets.services import get_control_markets
 from GlobalMarkets.services.market_clock import compute_market_status
 from LiveData.shared.redis_client import live_data_redis
 from Instruments.models import Instrument

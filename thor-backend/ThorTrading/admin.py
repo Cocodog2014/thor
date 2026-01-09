@@ -1,6 +1,6 @@
 from __future__ import annotations
 from django.contrib import admin
-from GlobalMarkets.services.active_markets import get_control_countries
+from GlobalMarkets.services import get_control_countries
 from GlobalMarkets.services import normalize_country_code
 from ThorTrading.studies.futures_total.models.rtd import (
     ContractWeight,

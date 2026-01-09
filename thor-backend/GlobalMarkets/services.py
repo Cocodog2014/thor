@@ -1,18 +1,28 @@
-# Path: GlobalMarkets/services/market_clock.py
-#
-# Simplified GlobalMarkets market clock computation
-# --------------------------------------------------
-# Simplified for US trading: weekends off, US holidays apply to all markets
+"""GlobalMarkets services.
+
+This module is intentionally small and import-stable.
+
+It provides:
+- Market clock computation (`compute_market_status`)
+- Lightweight country normalization helpers
+- Helpers for other apps (ThorTrading, etc.) to list "control" markets
+
+NOTE
+----
+Historically, some callers imported `GlobalMarkets.services.active_markets`.
+GlobalMarkets is now a single-module services layer; keep the helpers here.
+"""
 
 from dataclasses import dataclass
 from datetime import datetime, time, timedelta
 from datetime import timezone as dt_timezone
-from typing import Optional
+from typing import Iterable, Optional
 
 from django.utils import timezone
 
 from GlobalMarkets.models import Market
 from GlobalMarkets.models.market_holiday import MarketHoliday
+from GlobalMarkets.normalize import normalize_country_code
 
 try:
     from zoneinfo import ZoneInfo  # py3.9+
@@ -138,3 +148,44 @@ def compute_market_status(market: Market, *, now_utc: Optional[datetime] = None)
     
     next_utc = _as_utc(_dt_local(tomorrow, market.open_time)) if market.open_time else None
     return MarketComputation(status=Market.Status.CLOSED, next_transition_utc=next_utc, reason="after_close")
+
+
+# -----------------------------------------------------------------------------
+# Control markets helpers
+# -----------------------------------------------------------------------------
+def get_control_markets(*, require_session_capture: bool = False) -> Iterable[Market]:
+    """Return the set of markets other apps should treat as "controlled".
+
+    Today this is simply "active markets".
+
+    The `require_session_capture` flag is kept for compatibility with older
+    callers; GlobalMarkets no longer owns any per-market study flags.
+    """
+    _ = require_session_capture
+    return Market.objects.filter(is_active=True).order_by("sort_order", "name")
+
+
+def get_control_countries(*, require_session_capture: bool = False) -> list[str]:
+    """Return normalized country codes for controlled markets."""
+    markets = get_control_markets(require_session_capture=require_session_capture)
+    out: list[str] = []
+    seen: set[str] = set()
+    for m in markets:
+        raw = getattr(m, "country", None) or getattr(m, "key", None)
+        code = normalize_country_code(raw) or (str(raw).strip().upper() if raw else None)
+        if not code or code in seen:
+            continue
+        seen.add(code)
+        out.append(code)
+    return out
+
+
+def is_known_country(country: str | None, *, controlled: set[str] | None = None) -> bool:
+    """Return True if `country` is allowed/known for the current runtime."""
+    code = normalize_country_code(country)
+    if not code:
+        return False
+    if controlled is None:
+        return True
+    return code in {normalize_country_code(c) or c for c in controlled}
+
