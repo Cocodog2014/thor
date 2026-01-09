@@ -108,19 +108,9 @@ const GlobalMarkets: React.FC = () => {
   const activeCount = markets.filter((m: Market) => String(m.status).toUpperCase() === 'OPEN').length;
   const totalCount = markets.length;
 
-  const COUNTRY_BY_KEY: Record<string, string> = {
-    tokyo: 'Japan',
-    shanghai: 'China',
-    bombay: 'India',
-    london: 'United Kingdom',
-  };
-
   const countryLabel = (m: Market) => {
     const explicit = (m.country ?? '').trim();
     if (explicit) return explicit;
-
-    const key = (m.key ?? '').trim().toLowerCase();
-    if (key && COUNTRY_BY_KEY[key]) return COUNTRY_BY_KEY[key];
 
     const fallback = (m.display_name ?? m.name ?? '').trim();
     if (!fallback) return '—';

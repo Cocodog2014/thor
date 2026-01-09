@@ -21,6 +21,12 @@ class Market(models.Model):
         help_text="Stable identifier used by API/WS. Example: 'new_york', 'london', 'tokyo'.",
     )
     name = models.CharField(max_length=80)
+    country = models.CharField(
+        max_length=80,
+        blank=True,
+        default="",
+        help_text="Display label for the Country column (admin-controlled). Example: 'Japan', 'United Kingdom'.",
+    )
     timezone_name = models.CharField(
         max_length=64,
         help_text="IANA timezone. Example: 'America/New_York', 'Europe/London'.",
@@ -92,6 +98,10 @@ class MarketStatusEvent(models.Model):
 
     # UTC timestamp of the transition
     changed_at = models.DateTimeField(db_index=True)
+
+    # Optional: computed next transition time at the moment of status change
+    # (kept for migration/model consistency and potential UI use)
+    next_transition_utc = models.DateTimeField(null=True, blank=True)
 
     # Optional but useful for debugging / ops
     reason = models.CharField(max_length=64, blank=True, default="")

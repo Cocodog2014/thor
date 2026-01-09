@@ -49,6 +49,7 @@ def markets(request: HttpRequest):
                 # Keep both "name" and "display_name" for frontend convenience/back-compat.
                 "name": market.name,
                 "display_name": market.name,
+                "country": (market.country or None),
                 "timezone_name": market.timezone_name,
                 "market_open_time": _fmt_time(getattr(market, "open_time", None)),
                 "market_close_time": _fmt_time(getattr(market, "close_time", None)),

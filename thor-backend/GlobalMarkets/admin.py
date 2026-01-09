@@ -20,6 +20,7 @@ class MarketAdmin(admin.ModelAdmin):
         "sort_order",
         "key",
         "name",
+        "country",
         "timezone_name",
         "open_time",
         "close_time",
@@ -35,7 +36,7 @@ class MarketAdmin(admin.ModelAdmin):
 
     fieldsets = (
         (None, {
-            "fields": ("key", "name", "timezone_name", "sort_order", "is_active")
+            "fields": ("key", "name", "country", "timezone_name", "sort_order", "is_active")
         }),
         ("Trading Hours (Monday-Friday)", {
             "fields": ("open_time", "close_time"),

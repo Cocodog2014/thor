@@ -30,9 +30,9 @@ export function useGlobalMarkets() {
   const marketsQuery = useQuery({
     queryKey: qk.globalMarkets(),
     queryFn: fetchMarkets,
-    // If the WebSocket drops, keep the UI moving via REST until it reconnects.
-    // This prevents the "works for a few seconds then freezes" symptom.
-    refetchInterval: wsConnected ? false : 5000,
+    // Always refresh periodically so admin add/remove/rename/country changes show up.
+    // Keep it slow enough to avoid UI churn; loading state is only for initial load.
+    refetchInterval: wsConnected ? 60000 : 5000,
     refetchOnWindowFocus: false,
     refetchOnMount: false,
     staleTime: Infinity,
