@@ -215,7 +215,7 @@ def build_enriched_rows(raw_quotes: Dict[str, Dict]) -> List[Dict]:
 
         # Prefer instrument-level country tagging so cloned instruments remain scoped to their market,
         # falling back to provider country or the control-country clock when missing.
-        row_country = inst_country or provider_country or fallback_country
+        row_country = inst_country or provider_country or fallback_country or global_default_country
         if not row_country:
             logger.error("Dropping quote for %s missing country: %s", sym, quote)
             continue
