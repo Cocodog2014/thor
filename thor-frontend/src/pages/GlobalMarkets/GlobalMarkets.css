@@ -88,9 +88,11 @@
   border: 1px solid var(--border-1);
 }
 
-.col-country { width: 55%; }
-.col-tz { width: 30%; }
-.col-status { width: 15%; }
+.col-country { width: 30%; }
+.col-local { width: 26%; }
+.col-open { width: 10%; }
+.col-close { width: 10%; }
+.col-status { width: 12%; }
 
 .markets-table thead th {
   position: sticky;

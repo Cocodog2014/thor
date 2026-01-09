@@ -41,7 +41,6 @@ const STORAGE_KEY = "thor.home.tiles.order";
 const Home: React.FC = () => {
   const [showWelcome, setShowWelcome] = useState<boolean>(false);
   const [hasLoadedPreference, setHasLoadedPreference] = useState(false);
-  const [showGlobalMarkets, setShowGlobalMarkets] = useState(false);
   const { tiles, setTiles } = useDragAndDropTiles(BASE_TILES, { storageKey: STORAGE_KEY });
   const navigate = useNavigate();
 
@@ -72,20 +71,9 @@ const Home: React.FC = () => {
         return {
           ...tile,
           children: (
-            <>
-              <TileCTA
-                description="Monitor global market indices, futures, and sector trends."
-                buttonLabel={showGlobalMarkets ? "Hide Global Markets" : "Open Global Markets"}
-                onClick={() => setShowGlobalMarkets((v) => !v)}
-                disabled={false}
-                helperText="Loads live market hooks only when opened."
-              />
-              {showGlobalMarkets ? (
-                <div className="home-global-markets-embed">
-                  <GlobalMarkets />
-                </div>
-              ) : null}
-            </>
+            <div className="home-global-markets-embed">
+              <GlobalMarkets />
+            </div>
           ),
         };
       }
@@ -118,7 +106,7 @@ const Home: React.FC = () => {
 
       return tile;
     });
-  }, [tiles, navigate, showGlobalMarkets]);
+  }, [tiles, navigate]);
 
   return (
     <div className="home-screen">

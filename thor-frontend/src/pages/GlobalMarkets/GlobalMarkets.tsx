@@ -31,6 +31,25 @@ const GlobalMarkets: React.FC = () => {
         })
       : '—';
 
+  const formatLocal = (tz: string | null | undefined) => {
+    if (!tz) return '—';
+    const now = new Date();
+    try {
+      return new Intl.DateTimeFormat('en-US', {
+        timeZone: tz,
+        weekday: 'short',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false,
+      }).format(now);
+    } catch {
+      return '—';
+    }
+  };
+
   const activeCount = markets.filter((m: Market) => String(m.status).toUpperCase() === 'OPEN').length;
   const totalCount = markets.length;
 
@@ -79,13 +98,17 @@ const GlobalMarkets: React.FC = () => {
         <table className="markets-table">
           <colgroup>
             <col className="col-country" />
-            <col className="col-tz" />
+            <col className="col-local" />
+            <col className="col-open" />
+            <col className="col-close" />
             <col className="col-status" />
           </colgroup>
           <thead>
             <tr>
               <th>COUNTRY</th>
-              <th>TZ</th>
+              <th>LOCAL</th>
+              <th>OPEN</th>
+              <th>CLOSE</th>
               <th>STATUS</th>
             </tr>
           </thead>
@@ -103,7 +126,9 @@ const GlobalMarkets: React.FC = () => {
                   title={title}
                 >
                   <td className="market-name">{displayName}</td>
-                  <td className="market-tz">{market.timezone_name ?? '—'}</td>
+                  <td className="market-local">{formatLocal(market.timezone_name)}</td>
+                  <td className="market-open">{market.market_open_time ?? '—'}</td>
+                  <td className="market-close">{market.market_close_time ?? '—'}</td>
                   <td className="market-status">
                     <span className={`status-indicator ${statusColor}`}>{status}</span>
                   </td>
