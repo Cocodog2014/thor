@@ -296,8 +296,11 @@ CHANNEL_LAYERS = {
 }
 
 # Realtime job providers (plugins loaded by thor_project.realtime.registry)
+# ThorTrading provider runs intraday aggregation + session capture/metrics.
+THOR_ENABLE_THORTRADING_JOBS = config("THOR_ENABLE_THORTRADING_JOBS", default=True, cast=bool)
+
 REALTIME_JOB_PROVIDERS = [
-    # "ThorTrading.studies.realtime_provider",  # Temporarily disabled to pause ThorTrading jobs
+    *( ["ThorTrading.studies.realtime_provider"] if THOR_ENABLE_THORTRADING_JOBS else [] ),
     "LiveData.schwab.realtime.provider",
 ]
 
