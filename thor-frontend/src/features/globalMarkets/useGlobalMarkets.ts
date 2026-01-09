@@ -31,7 +31,7 @@ export function useGlobalMarkets() {
     queryFn: fetchMarkets,
     // If the WebSocket drops, keep the UI moving via REST until it reconnects.
     // This prevents the "works for a few seconds then freezes" symptom.
-    refetchInterval: wsConnected ? false : 5000,
+    refetchInterval: wsConnected ? false : 1000,
     refetchOnWindowFocus: false,
     refetchOnMount: false,
     staleTime: Infinity,
