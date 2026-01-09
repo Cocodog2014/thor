@@ -253,7 +253,9 @@ class IntradaySupervisor:
                     s = str(session_number)
                     session_date = f"{s[0:4]}-{s[4:6]}-{s[6:8]}" if len(s) == 8 else None
 
-                routing_key = str(session_number)
+                # Global routing: bars are keyed by broad asset class only.
+                # session_number is carried as metadata for 24h/52w logic.
+                routing_key = "futures" if kind == "futures" else "equities"
                 session_keys_seen.add(routing_key)
 
                 price = row.get("last")
@@ -317,14 +319,16 @@ class IntradaySupervisor:
             result["captured"]["closed_bars"] = captured_closed
 
             try:
-                flushed_total = 0
+                flushed = {"equities": 0, "futures": 0}
                 for key in sorted(session_keys_seen):
-                    flushed_total += int(flush_closed_bars(key, batch_size=500, max_batches=1) or 0)
+                    inserted = int(flush_closed_bars(key, batch_size=500, max_batches=1) or 0)
+                    if key in flushed:
+                        flushed[key] += inserted
 
                 if self.include_futures:
-                    result["flushed"]["futures"] = flushed_total
+                    result["flushed"]["futures"] = flushed["futures"]
                 if self.include_equities:
-                    result["flushed"]["equities"] = flushed_total
+                    result["flushed"]["equities"] = flushed["equities"]
             except Exception:
                 logger.exception("intraday_flush failed")
 
