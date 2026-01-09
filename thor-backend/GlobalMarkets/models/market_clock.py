@@ -1,4 +1,4 @@
-from __future__ import annotations
+# GlobalMarkets/models/market_clock.py
 
 from django.db import models
 from django.utils import timezone
@@ -70,3 +70,38 @@ class Market(models.Model):
         self.save(update_fields=["status", "status_changed_at", "updated_at"])
         return True
 
+
+class MarketStatusEvent(models.Model):
+    """
+    Immutable audit log of market OPEN / CLOSED transitions.
+
+    One row is written only when a market status actually changes.
+    Used for admin filtering by market and date.
+    """
+
+    market = models.ForeignKey(
+        "GlobalMarkets.Market",
+        on_delete=models.CASCADE,
+        related_name="status_events",
+        db_index=True,
+    )
+
+    # Expect values like: "OPEN", "CLOSED"
+    old_status = models.CharField(max_length=12)
+    new_status = models.CharField(max_length=12)
+
+    # UTC timestamp of the transition
+    changed_at = models.DateTimeField(db_index=True)
+
+    # Optional but useful for debugging / ops
+    reason = models.CharField(max_length=64, blank=True, default="")
+
+    class Meta:
+        ordering = ["-changed_at"]
+        indexes = [
+            models.Index(fields=["market", "-changed_at"]),
+            models.Index(fields=["new_status", "-changed_at"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.market.key}: {self.old_status} -> {self.new_status} @ {self.changed_at}"

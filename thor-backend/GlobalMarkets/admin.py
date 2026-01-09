@@ -1,6 +1,17 @@
 from django.contrib import admin
 
 from .models import Market, MarketHoliday
+from .models.market_clock import MarketStatusEvent
+
+
+class MarketStatusEventInline(admin.TabularInline):
+    model = MarketStatusEvent
+    extra = 0
+    can_delete = False
+    ordering = ("-changed_at",)
+    fields = ("changed_at", "old_status", "new_status", "reason")
+    readonly_fields = fields
+    show_change_link = True
 
 
 @admin.register(Market)
@@ -21,6 +32,7 @@ class MarketAdmin(admin.ModelAdmin):
     search_fields = ("key", "name", "timezone_name")
     list_filter = ("is_active", "status", "timezone_name")
     ordering = ("sort_order", "name")
+
     fieldsets = (
         (None, {
             "fields": ("key", "name", "timezone_name", "sort_order", "is_active")
@@ -34,10 +46,18 @@ class MarketAdmin(admin.ModelAdmin):
             "classes": ("collapse",)
         }),
     )
-    
-    # Sessions removed - not needed for simple Monday-Friday schedules
-    # Markets automatically trade Monday-Friday using open_time/close_time
-    # Weekends (Sat/Sun) are automatically closed
+
+    # Show recent status transitions on the Market detail page
+    inlines = [MarketStatusEventInline]
+
+
+@admin.register(MarketStatusEvent)
+class MarketStatusEventAdmin(admin.ModelAdmin):
+    list_display = ("changed_at", "market", "old_status", "new_status", "reason")
+    list_filter = ("market", "old_status", "new_status")
+    search_fields = ("market__key", "market__name", "reason")
+    date_hierarchy = "changed_at"
+    ordering = ("-changed_at",)
 
 
 @admin.register(MarketHoliday)
@@ -47,5 +67,6 @@ class MarketHolidayAdmin(admin.ModelAdmin):
     list_filter = ("is_closed",)
     search_fields = ("name",)
     ordering = ("-date",)
+
 
 
