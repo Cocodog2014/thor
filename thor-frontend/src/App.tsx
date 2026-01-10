@@ -1,5 +1,6 @@
 // src/App.tsx
-import { Routes, Route, Navigate } from 'react-router-dom';
+import React from 'react';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 
 // GlobalHeader is used inside AppLayout only
 import GlobalMarkets from './pages/GlobalMarkets/GlobalMarkets';
@@ -17,6 +18,7 @@ import AppLayout from './layouts/AppLayout';
 import Register from './pages/User/Register';
 import { Login as UserLogin } from './pages/User';
 import { TradingModeProvider } from './context/TradingModeContext';
+import { useAuth } from './context/AuthContext';
 // import BrokersPage from './pages/User/Brokers/BrokersPage';
 // import SchwabCallbackPage from './pages/User/Brokers/SchwabCallbackPage';
 
@@ -26,6 +28,25 @@ import Home from './pages/Home/Home';
 // NOTE: This App.tsx is the top-level router.
 // The visual home page is handled by src/pages/Home/Home.tsx.
 
+const AuthIndexRedirect: React.FC = () => {
+  const { isAuthenticated } = useAuth();
+  return <Navigate to={isAuthenticated ? '/app/home' : '/auth/login'} replace />;
+};
+
+const PublicOnlyRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { isAuthenticated } = useAuth();
+  const location = useLocation();
+
+  if (isAuthenticated) {
+    const params = new URLSearchParams(location.search);
+    const next = params.get('next');
+    const target = next && next.startsWith('/') ? next : '/app/home';
+    return <Navigate to={target} replace />;
+  }
+
+  return <>{children}</>;
+};
+
 function App() {
 
   return (
@@ -34,17 +55,21 @@ function App() {
       <Route
         path="/auth/login"
         element={
-          <AuthLayout>
-            <UserLogin />
-          </AuthLayout>
+          <PublicOnlyRoute>
+            <AuthLayout>
+              <UserLogin />
+            </AuthLayout>
+          </PublicOnlyRoute>
         }
       />
       <Route
         path="/auth/register"
         element={
-          <AuthLayout>
-            <Register />
-          </AuthLayout>
+          <PublicOnlyRoute>
+            <AuthLayout>
+              <Register />
+            </AuthLayout>
+          </PublicOnlyRoute>
         }
       />
 
@@ -68,8 +93,8 @@ function App() {
       />
 
       {/* Default */}
-      <Route path="/" element={<Navigate to="/auth/login" replace />} />
-      <Route path="*" element={<Navigate to="/auth/login" replace />} />
+      <Route path="/" element={<AuthIndexRedirect />} />
+      <Route path="*" element={<AuthIndexRedirect />} />
     </Routes>
   );
 }
