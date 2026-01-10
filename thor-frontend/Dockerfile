@@ -12,7 +12,7 @@ RUN npm install
 # Copy the rest of the source and build
 COPY thor-frontend/ ./
 # Vite: outputs to dist/  | CRA: outputs to build/
-RUN npm run build
+RUN npm run build -- --mode docker
 
 # ---------- Run Stage (Nginx) ----------
 FROM nginx:alpine

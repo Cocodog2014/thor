@@ -1,0 +1,24 @@
+# Root dockerignore (applies to docker-compose build contexts at repo root)
+
+# Vite loads .env.local for all modes; do not ship local overrides into images
+**/.env.local
+**/.env.*.local
+
+# Dependencies / build outputs
+**/node_modules
+**/dist
+**/build
+
+# VCS / editor
+.git
+**/.git
+**/.DS_Store
+**/.vscode
+
+# Python caches
+**/__pycache__
+**/*.pyc
+
+# Local data volumes
+postgres/data
+redis/data
