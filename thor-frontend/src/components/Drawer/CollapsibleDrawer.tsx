@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 // 1. Remove the 'react-use-websocket' import
 // import useWebSocket from 'react-use-websocket'; 
-import { useWsMessage } from '../../realtime'; // <--- Use this instead
+import { useWsConnection, useWsMessage, wsEnabled } from '../../realtime'; // <--- Use this instead
 import type { WsEnvelope } from '../../realtime/types';
 import {
   Drawer,
@@ -105,6 +105,23 @@ type Market24hPayload = {
   volume?: unknown;
 };
 
+type SnapshotQuote = {
+  symbol?: unknown;
+  bid?: unknown;
+  ask?: unknown;
+  last?: unknown;
+  price?: unknown;
+  volume?: unknown;
+  open?: unknown;
+  open_price?: unknown;
+  high?: unknown;
+  high_price?: unknown;
+  low?: unknown;
+  low_price?: unknown;
+  close?: unknown;
+  close_price?: unknown;
+};
+
 interface WatchlistItemRowProps {
   symbol: string;
   data?: Partial<Record<MetricKey, number>>;
@@ -184,6 +201,10 @@ const CollapsibleDrawer: React.FC<CollapsibleDrawerProps> = ({
   const [marketData, setMarketData] = useState<MarketDataMap>({});
   const [query, setQuery] = useState('');
 
+  const wsIsEnabled = wsEnabled();
+  const wsConnected = useWsConnection(true);
+  const [lastTickAt, setLastTickAt] = useState<Date | null>(null);
+
   // ---------------------------------------------------------------------------
   // 2. UNIFIED WEBSOCKET LOGIC (Stable!)
   // ---------------------------------------------------------------------------
@@ -205,8 +226,43 @@ const CollapsibleDrawer: React.FC<CollapsibleDrawerProps> = ({
     });
   }, []);
 
+  const loadSnapshotForSymbols = useCallback(async (symbols: string[]) => {
+    const normalized = symbols
+      .map((s) => normalizeWsSymbol(s))
+      .filter(Boolean);
+
+    if (normalized.length === 0) return;
+
+    try {
+      // NOTE: api baseURL already includes `/api`, so this hits:
+      // GET /api/feed/quotes/snapshot/?symbols=AAPL,MSFT,...
+      const res = await api.get('/feed/quotes/snapshot/', {
+        params: { symbols: normalized.join(',') },
+      });
+
+      const data = res.data as { quotes?: unknown };
+      const quotesRaw = data?.quotes;
+      const quotes = Array.isArray(quotesRaw) ? (quotesRaw as SnapshotQuote[]) : [];
+      quotes.forEach((q) => {
+        applyMarketPatch(q?.symbol, {
+          bid: q?.bid,
+          ask: q?.ask,
+          last: q?.last ?? q?.price,
+          volume: q?.volume,
+          open: q?.open ?? q?.open_price,
+          high: q?.high ?? q?.high_price,
+          low: q?.low ?? q?.low_price,
+          close: q?.close ?? q?.close_price,
+        });
+      });
+    } catch (err) {
+      console.error('Watchlist snapshot fetch failed', err);
+    }
+  }, [applyMarketPatch]);
+
   // Use the shared global socket connection
   useWsMessage('quote_tick', (msg: WsEnvelope<QuoteTickPayload>) => {
+    setLastTickAt(new Date());
     applyMarketPatch(msg.data?.symbol, {
       bid: msg.data?.bid,
       ask: msg.data?.ask,
@@ -216,6 +272,7 @@ const CollapsibleDrawer: React.FC<CollapsibleDrawerProps> = ({
   });
 
   useWsMessage('market.24h', (msg: WsEnvelope<Market24hPayload>) => {
+    setLastTickAt(new Date());
     applyMarketPatch(msg.data?.symbol, {
       open: msg.data?.open ?? msg.data?.open_price,
       high: msg.data?.high ?? msg.data?.high_price,
@@ -246,16 +303,25 @@ const CollapsibleDrawer: React.FC<CollapsibleDrawerProps> = ({
   }, [isResizing]);
 
   // Actions
-  const loadWatchlist = async () => {
+  const loadWatchlist = useCallback(async () => {
     setWatchlistLoading(true);
     try {
       const res = await api.get('/instruments/watchlist/');
       const items = Array.isArray(res.data?.items) ? (res.data.items as WatchlistItem[]) : [];
       setWatchlist(items);
+
+      // Seed from Redis snapshot (fed by Schwab streamer), then WS ticks keep it live.
+      const symbols = items
+        .map((w) => w.instrument?.symbol)
+        .filter((s): s is string => typeof s === 'string' && Boolean(s.trim()))
+        .map((s) => s.toUpperCase());
+      await loadSnapshotForSymbols(symbols);
     } catch (err) {
       console.error(err);
-    } finally { setWatchlistLoading(false); }
-  };
+    } finally {
+      setWatchlistLoading(false);
+    }
+  }, [loadSnapshotForSymbols]);
 
   const addSymbol = async (symbolRaw: string) => {
     if (!symbolRaw) return;
@@ -264,6 +330,8 @@ const CollapsibleDrawer: React.FC<CollapsibleDrawerProps> = ({
     const next = [...watchlist, { instrument: { symbol: sym } }];
     setWatchlist(next);
     setQuery('');
+    // Best-effort seed for the new symbol.
+    loadSnapshotForSymbols([sym]);
     try {
       await api.put('/instruments/watchlist/', { items: next.map((item, i) => ({ symbol: item.instrument?.symbol ?? '', order: i })) });
       loadWatchlist(); 
@@ -276,10 +344,16 @@ const CollapsibleDrawer: React.FC<CollapsibleDrawerProps> = ({
     await api.put('/instruments/watchlist/', { items: next.map((item, i) => ({ symbol: item.instrument?.symbol ?? '', order: i })) });
   };
 
-  useEffect(() => { if (open) loadWatchlist(); }, [open]);
+  useEffect(() => {
+    if (open) loadWatchlist();
+  }, [open, loadWatchlist]);
 
   const signOut = () => { logout(); sessionStorage.removeItem(HOME_WELCOME_DISMISSED_KEY); navigate('/auth/login'); };
   const currentWidth = open ? drawerWidth : widthClosed;
+
+  const wsStatusLabel = wsIsEnabled ? (wsConnected ? 'WS: Connected' : 'WS: Disconnected') : 'WS: Disabled';
+  const wsStatusColor = !wsIsEnabled ? 'text.secondary' : wsConnected ? '#4caf50' : '#f44336';
+  const wsLastTickLabel = lastTickAt ? ` · last tick ${lastTickAt.toLocaleTimeString('en-US')}` : '';
 
   return (
     <Drawer
@@ -295,7 +369,24 @@ const CollapsibleDrawer: React.FC<CollapsibleDrawerProps> = ({
         },
       }}
     >
-      <Toolbar sx={{ justifyContent: 'center' }}>
+      <Toolbar sx={{ justifyContent: open ? 'space-between' : 'center', px: 1 }}>
+        {open && (
+          <Typography
+            variant="caption"
+            sx={{
+              color: wsStatusColor,
+              fontWeight: 600,
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              maxWidth: '75%',
+            }}
+            title={`${wsStatusLabel}${wsLastTickLabel}`}
+          >
+            {wsStatusLabel}{wsLastTickLabel}
+          </Typography>
+        )}
+
         <IconButton onClick={onToggle}>{open ? <ChevronLeftIcon /> : <ChevronRightIcon />}</IconButton>
       </Toolbar>
 
