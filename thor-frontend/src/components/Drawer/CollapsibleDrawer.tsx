@@ -499,6 +499,8 @@ const CollapsibleDrawer: React.FC<CollapsibleDrawerProps> = ({
         flexShrink: 0,
         '& .MuiDrawer-paper': {
           width: currentWidth,
+          display: 'flex',
+          flexDirection: 'column',
           overflow: 'hidden',
           transition: isResizing ? 'none' : 'width 0.2s',
           backgroundColor: '#000',
@@ -527,7 +529,7 @@ const CollapsibleDrawer: React.FC<CollapsibleDrawerProps> = ({
       </Toolbar>
 
       {open && (
-        <Box sx={{ flexGrow: 1, overflowY: 'auto', px: 2 }}>
+        <Box sx={{ flex: 1, minHeight: 0, overflow: 'hidden', px: 2, display: 'flex', flexDirection: 'column' }}>
           <Typography variant="subtitle2" sx={{ color: 'primary.main', mb: 1 }}>Account Info</Typography>
           <Box sx={{ fontSize: '0.75rem', color: 'text.secondary', mb: 2 }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
@@ -546,8 +548,9 @@ const CollapsibleDrawer: React.FC<CollapsibleDrawerProps> = ({
             />
             <Button variant="outlined" size="small" onClick={() => addSymbol(query)} disabled={!query.trim()}>Add</Button>
           </Box>
-          
-          <Box>
+
+          {/* Scrollable watchlist area */}
+          <Box sx={{ flex: '0 0 50%', maxHeight: '50%', minHeight: 0, overflowY: 'auto', pb: 1 }}>
             {watchlistLoading ? (
               <CircularProgress size={20} />
             ) : (
