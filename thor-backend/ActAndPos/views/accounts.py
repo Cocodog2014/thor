@@ -23,14 +23,18 @@ def _create_default_paper_account(user) -> Account:
 
 
 def get_active_account(request):
-    """Pick account via ?account_id query parameter or return the first record for this user."""
+    """Pick account via ?account_id query parameter.
+
+    If no account_id is provided, prefer a SCHWAB account (most recently updated)
+    when one exists; otherwise fall back to the first account for this user.
+    """
 
     user = getattr(request, "user", None)
     if not user or not user.is_authenticated:
         raise NotAuthenticated("Authentication required to access trading accounts.")
 
     account_id = request.query_params.get("account_id")
-    qs = Account.objects.filter(user=user).order_by("id")
+    qs = Account.objects.filter(user=user)
 
     if account_id:
         # Accept either DB pk (int) or broker_account_id (e.g., Schwab hash)
@@ -49,7 +53,14 @@ def get_active_account(request):
             return get_object_or_404(qs, broker_account_id=account_id)
         return account
 
-    account = qs.first()
+    # Default selection: prefer a SCHWAB account when present.
+    account = (
+        qs.filter(broker="SCHWAB")
+        .order_by("-updated_at", "id")
+        .first()
+    )
+    if account is None:
+        account = qs.order_by("id").first()
     if account is None:
         account = _create_default_paper_account(user)
     return account
