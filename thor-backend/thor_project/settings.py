@@ -29,18 +29,19 @@ config = Config(RepositoryEnv(ENV_FILE)) if ENV_FILE.exists() else Config()
 SECRET_KEY = config('SECRET_KEY', default='django-insecure-h=t6s&0w5sb$fcu(0h#^ot6*uexst$i@_hoca74c*h+$n9@#)$')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = config('DEBUG', default=True, cast=bool)
+# Default to False so production is safe when DEBUG is not explicitly set.
+DEBUG = config('DEBUG', default=False, cast=bool)
 
 ALLOWED_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0']
-# Note: Cloudflare tunnel domains (thor/dev-thor) are added for dev automatically
+# Note: Cloudflare tunnel domains (thor/dev-thor) are allowed so the app works
+# behind the prod/dev tunnels without requiring extra env wiring.
 DEFAULT_TUNNEL_HOSTS = ['thor.360edu.org', 'dev-thor.360edu.org']
 
 # Allow additional hosts via env (comma-separated). Useful for tunnels and staging hosts.
 _extra_hosts = [h.strip() for h in config('ALLOWED_HOSTS_EXTRA', default='').split(',') if h.strip()]
 
-# In development, also allow common tunnel domains so callbacks through HTTPS work.
-if DEBUG:
-    ALLOWED_HOSTS += DEFAULT_TUNNEL_HOSTS
+# Allow the known tunnel hostnames in both dev and prod.
+ALLOWED_HOSTS += DEFAULT_TUNNEL_HOSTS
 
 ALLOWED_HOSTS += _extra_hosts
 
@@ -240,7 +241,7 @@ _default_csrf_origins = [
     'https://127.0.0.1',
 ]
 
-CSRF_TRUSTED_ORIGINS = _default_csrf_origins.copy() if DEBUG else []
+CSRF_TRUSTED_ORIGINS = _default_csrf_origins.copy()
 
 # In production, admin/login POSTs come from the Cloudflare tunnel domains.
 # Trust those origins so CSRF origin checking passes.
@@ -404,6 +405,10 @@ SECURE_SSL_REDIRECT = False  # Disable HTTPS redirect entirely in dev/prod
 SESSION_COOKIE_SAMESITE = "Lax"
 CSRF_COOKIE_SAMESITE = "Lax"
 
-SESSION_COOKIE_SECURE = False  # Allow HTTP cookies in development
-CSRF_COOKIE_SECURE = False     # Allow HTTP CSRF cookies in development
+# For localhost (http://localhost:8000/8001) we must allow non-secure cookies or
+# Django sessions won't persist and admin login will appear "broken".
+# For Cloudflare HTTPS, TRUST_PROXY_SSL_HEADERS makes request.is_secure() true
+# (and cookies will still be accepted by browsers over HTTPS).
+SESSION_COOKIE_SECURE = config('SESSION_COOKIE_SECURE', default=False, cast=bool)
+CSRF_COOKIE_SECURE = config('CSRF_COOKIE_SECURE', default=False, cast=bool)
 
