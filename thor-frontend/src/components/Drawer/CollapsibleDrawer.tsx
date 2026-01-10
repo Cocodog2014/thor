@@ -48,7 +48,7 @@ import api from '../../services/api';
 import { HOME_WELCOME_DISMISSED_KEY } from '../../constants/storageKeys';
 
 // --- Constants & Helpers ---
-export const DEFAULT_WIDTH_OPEN = 500;
+export const DEFAULT_WIDTH_OPEN = 450;
 export const DEFAULT_WIDTH_CLOSED = 72;
 const MIN_DRAWER_WIDTH = 100;
 const MAX_DRAWER_WIDTH = 600;
@@ -167,7 +167,7 @@ const WatchlistItemRow: React.FC<WatchlistItemRowProps> = ({ symbol, dragHandleP
   const priceColor = flash === 'up' ? '#4caf50' : flash === 'down' ? '#f44336' : 'inherit';
 
   const quoteLabelSx = {
-    fontSize: '0.65rem',
+    fontSize: '0.52rem',
     color: 'text.secondary',
     textAlign: 'center' as const,
     lineHeight: 1.1,
@@ -176,7 +176,7 @@ const WatchlistItemRow: React.FC<WatchlistItemRowProps> = ({ symbol, dragHandleP
   };
 
   const quoteValueSx = {
-    fontSize: '0.82rem',
+    fontSize: '0.66rem',
     fontVariantNumeric: 'tabular-nums',
     fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
     textAlign: 'left' as const,
@@ -208,7 +208,7 @@ const WatchlistItemRow: React.FC<WatchlistItemRowProps> = ({ symbol, dragHandleP
           </IconButton>
           <Typography
             variant="body2"
-            sx={{ fontWeight: 'bold', color: '#1976d2', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+            sx={{ fontSize: '0.7rem', fontWeight: 'bold', color: '#1976d2', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
           >
             {symbol}
           </Typography>
@@ -300,6 +300,7 @@ export interface CollapsibleDrawerProps {
   onToggle: () => void;
   widthOpen?: number;
   widthClosed?: number;
+  storageKey?: string;
 }
 
 const CollapsibleDrawer: React.FC<CollapsibleDrawerProps> = ({
@@ -307,6 +308,7 @@ const CollapsibleDrawer: React.FC<CollapsibleDrawerProps> = ({
   onToggle,
   widthOpen = DEFAULT_WIDTH_OPEN,
   widthClosed = DEFAULT_WIDTH_CLOSED,
+  storageKey,
 }) => {
   const navigate = useNavigate();
   const { logout } = useAuth();
@@ -314,6 +316,37 @@ const CollapsibleDrawer: React.FC<CollapsibleDrawerProps> = ({
   const [drawerWidth, setDrawerWidth] = useState(widthOpen);
   const [isResizing, setIsResizing] = useState(false);
   const resizeState = useRef({ startX: 0, startWidth: drawerWidth });
+
+  // Restore persisted drawer width (per-user) when available.
+  useEffect(() => {
+    if (!storageKey || typeof window === 'undefined') {
+      return;
+    }
+
+    try {
+      const raw = window.localStorage.getItem(storageKey);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as { width?: unknown };
+      const savedWidth = typeof parsed?.width === 'number' ? parsed.width : undefined;
+      if (savedWidth !== undefined && Number.isFinite(savedWidth)) {
+        setDrawerWidth(Math.min(MAX_DRAWER_WIDTH, Math.max(MIN_DRAWER_WIDTH, savedWidth)));
+      }
+    } catch {
+      // ignore storage parse errors
+    }
+  }, [storageKey]);
+
+  // Persist drawer state (open + width) per-user.
+  useEffect(() => {
+    if (!storageKey || typeof window === 'undefined') {
+      return;
+    }
+    try {
+      window.localStorage.setItem(storageKey, JSON.stringify({ open, width: drawerWidth }));
+    } catch {
+      // ignore storage write errors
+    }
+  }, [drawerWidth, open, storageKey]);
 
   const [watchlist, setWatchlist] = useState<WatchlistItem[]>([]);
   const [watchlistLoading, setWatchlistLoading] = useState(false);

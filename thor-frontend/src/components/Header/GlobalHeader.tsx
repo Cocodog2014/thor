@@ -5,10 +5,18 @@ import api from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 
 type UserProfile = {
+  id?: number | null;
   first_name?: string | null;
   last_name?: string | null;
   email?: string | null;
 };
+
+type DrawerPrefs = {
+  open?: boolean;
+  width?: number;
+};
+
+const drawerStorageKeyForUser = (userId: number) => `thor:ui:drawer:${userId}`;
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -17,6 +25,7 @@ interface LayoutProps {
 const GlobalHeader: React.FC<LayoutProps> = ({ children }) => {
   const [open, setOpen] = useState(false);
   const [commanderDisplay, setCommanderDisplay] = useState<string | null>(null);
+  const [drawerStorageKey, setDrawerStorageKey] = useState<string | undefined>(undefined);
   const { token } = useAuth();
 
   useEffect(() => {
@@ -27,6 +36,25 @@ const GlobalHeader: React.FC<LayoutProps> = ({ children }) => {
         const { data } = await api.get<UserProfile>('/users/profile/');
         if (!active) {
           return;
+        }
+
+        const userId = typeof data?.id === 'number' ? data.id : undefined;
+        if (userId !== undefined) {
+          const key = drawerStorageKeyForUser(userId);
+          setDrawerStorageKey(key);
+          try {
+            const raw = window.localStorage.getItem(key);
+            if (raw) {
+              const prefs = JSON.parse(raw) as DrawerPrefs;
+              if (typeof prefs?.open === 'boolean') {
+                setOpen(prefs.open);
+              }
+            }
+          } catch {
+            // ignore storage issues
+          }
+        } else {
+          setDrawerStorageKey(undefined);
         }
 
         const last = data?.last_name?.trim();
@@ -54,6 +82,8 @@ const GlobalHeader: React.FC<LayoutProps> = ({ children }) => {
       fetchProfile();
     } else {
       setCommanderDisplay(null);
+      setDrawerStorageKey(undefined);
+      setOpen(false);
     }
 
     return () => {
@@ -113,6 +143,7 @@ const GlobalHeader: React.FC<LayoutProps> = ({ children }) => {
     onToggle={toggleDrawer} 
     widthOpen={DEFAULT_WIDTH_OPEN} 
     widthClosed={DEFAULT_WIDTH_CLOSED}
+    storageKey={drawerStorageKey}
   />
 
       {/* Main Content */}
