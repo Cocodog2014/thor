@@ -33,7 +33,6 @@ import {
   Divider,
   TextField,
   CircularProgress,
-  Grid,
   Button,
 } from '@mui/material';
 import {
@@ -49,9 +48,9 @@ import api from '../../services/api';
 import { HOME_WELCOME_DISMISSED_KEY } from '../../constants/storageKeys';
 
 // --- Constants & Helpers ---
-export const DEFAULT_WIDTH_OPEN = 240;
+export const DEFAULT_WIDTH_OPEN = 500;
 export const DEFAULT_WIDTH_CLOSED = 72;
-const MIN_DRAWER_WIDTH = 200;
+const MIN_DRAWER_WIDTH = 100;
 const MAX_DRAWER_WIDTH = 600;
 
 const navigationItems = [
@@ -167,6 +166,33 @@ const WatchlistItemRow: React.FC<WatchlistItemRowProps> = ({ symbol, dragHandleP
 
   const priceColor = flash === 'up' ? '#4caf50' : flash === 'down' ? '#f44336' : 'inherit';
 
+  const quoteLabelSx = {
+    fontSize: '0.65rem',
+    color: 'text.secondary',
+    textAlign: 'center' as const,
+    lineHeight: 1.1,
+    letterSpacing: '0.06em',
+    width: '100%',
+  };
+
+  const quoteValueSx = {
+    fontSize: '0.82rem',
+    fontVariantNumeric: 'tabular-nums',
+    fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+    textAlign: 'left' as const,
+    lineHeight: 1.2,
+    width: '100%',
+    pl: 0.5,
+  };
+
+  const metricCellSx = {
+    minWidth: 0,
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'stretch',
+    gap: 0.25,
+  };
+
   return (
     <Box className="thor-watchlist-item" sx={{ p: 1.5, borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
@@ -191,26 +217,43 @@ const WatchlistItemRow: React.FC<WatchlistItemRowProps> = ({ symbol, dragHandleP
           <CloseIcon fontSize="inherit" />
         </IconButton>
       </Box>
-      <Grid container spacing={1}>
-        <Grid size={3}>
-          <Typography sx={{ fontSize: '0.65rem', color: 'text.secondary' }}>LAST</Typography>
-          <Typography sx={{ fontSize: '0.75rem', fontWeight: 'bold', color: priceColor, transition: 'color 0.3s' }}>
+      <Box
+        sx={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
+          columnGap: 2,
+          rowGap: 0.5,
+          alignItems: 'start',
+        }}
+      >
+        <Box sx={metricCellSx}>
+          <Typography sx={quoteLabelSx}>LAST</Typography>
+          <Typography
+            noWrap
+            sx={{ ...quoteValueSx, fontWeight: 700, color: priceColor, transition: 'color 0.3s' }}
+          >
             {formatPrice(data?.last)}
           </Typography>
-        </Grid>
-        <Grid size={3}>
-          <Typography sx={{ fontSize: '0.65rem', color: 'text.secondary' }}>BID</Typography>
-          <Typography sx={{ fontSize: '0.75rem' }}>{formatPrice(data?.bid)}</Typography>
-        </Grid>
-        <Grid size={3}>
-          <Typography sx={{ fontSize: '0.65rem', color: 'text.secondary' }}>ASK</Typography>
-          <Typography sx={{ fontSize: '0.75rem' }}>{formatPrice(data?.ask)}</Typography>
-        </Grid>
-        <Grid size={3}>
-          <Typography sx={{ fontSize: '0.65rem', color: 'text.secondary' }}>VOL</Typography>
-          <Typography sx={{ fontSize: '0.75rem' }}>{formatVolume(data?.volume)}</Typography>
-        </Grid>
-      </Grid>
+        </Box>
+        <Box sx={metricCellSx}>
+          <Typography sx={quoteLabelSx}>BID</Typography>
+          <Typography noWrap sx={quoteValueSx}>
+            {formatPrice(data?.bid)}
+          </Typography>
+        </Box>
+        <Box sx={metricCellSx}>
+          <Typography sx={quoteLabelSx}>ASK</Typography>
+          <Typography noWrap sx={quoteValueSx}>
+            {formatPrice(data?.ask)}
+          </Typography>
+        </Box>
+        <Box sx={metricCellSx}>
+          <Typography sx={quoteLabelSx}>VOL</Typography>
+          <Typography noWrap sx={quoteValueSx}>
+            {formatVolume(data?.volume)}
+          </Typography>
+        </Box>
+      </Box>
     </Box>
   );
 };
