@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Any, Dict, Optional
 
 import time
@@ -19,6 +19,57 @@ logger = logging.getLogger(__name__)
 
 
 _LAST_UTC_SESSION_NUMBER_KEY = "intraday:last_utc_session_number"
+_LAST_52W_RECOMPUTE_DAY_KEY = "intraday:last_52w_recompute_day"
+
+
+def _session_date_from_session_number(session_number: int) -> date | None:
+    """Best-effort parse YYYYMMDD session_number into a date."""
+
+    try:
+        s = str(int(session_number))
+    except Exception:
+        return None
+    if len(s) != 8:
+        return None
+    try:
+        return date(int(s[0:4]), int(s[4:6]), int(s[6:8]))
+    except Exception:
+        return None
+
+
+def _maybe_recompute_52w_for_day(asof_date: date) -> None:
+    """Recompute rolling 52w highs/lows once per UTC day.
+
+    Guarded by a Redis key so restarts don't rerun the expensive recompute.
+    """
+
+    try:
+        last_day_raw = live_data_redis.client.get(_LAST_52W_RECOMPUTE_DAY_KEY)
+        last_day = str(last_day_raw).strip() if last_day_raw else ""
+    except Exception:
+        last_day = ""
+
+    asof_key = asof_date.isoformat()
+    if last_day == asof_key:
+        return
+
+    from Instruments.services.market_52w_recompute import recompute_rolling_52w_from_24h
+
+    result = recompute_rolling_52w_from_24h(asof_date=asof_date, window_days=365)
+
+    logger.info(
+        "52w recompute done: asof=%s window_days=%s symbols_seen=%s updated=%s skipped_no_data=%s",
+        result.asof_date,
+        result.window_days,
+        result.symbols_seen,
+        result.updated_rows,
+        result.skipped_no_data,
+    )
+
+    try:
+        live_data_redis.client.set(_LAST_52W_RECOMPUTE_DAY_KEY, asof_key, ex=7 * 24 * 3600)
+    except Exception:
+        logger.debug("Failed to set %s", _LAST_52W_RECOMPUTE_DAY_KEY, exc_info=True)
 
 
 def _finalize_previous_session_if_rolled_over() -> None:
@@ -43,6 +94,12 @@ def _finalize_previous_session_if_rolled_over() -> None:
 
     if prev_sn is None:
         # First boot (or Redis got cleared): ensure 52w working copy exists for today.
+        # Also recompute yesterday once (guarded) so 52w doesn't get stuck stale after restarts.
+        try:
+            yesterday = (_session_date_from_session_number(current_sn) or datetime.now(timezone.utc).date()) - timedelta(days=1)
+            _maybe_recompute_52w_for_day(yesterday)
+        except Exception:
+            logger.exception("Failed daily 52w recompute on boot")
         try:
             seed_live_52w_all_symbols(session_number=current_sn)
         except Exception:
@@ -59,6 +116,13 @@ def _finalize_previous_session_if_rolled_over() -> None:
             finalize_live_52w_to_db(session_number=prev_sn)
         except Exception:
             logger.exception("Failed finalizing live 52w to DB for session_number=%s", prev_sn)
+
+        # Daily rolling 52w recompute from 24h history (fixes expired extremes).
+        try:
+            asof = _session_date_from_session_number(prev_sn) or (datetime.now(timezone.utc).date() - timedelta(days=1))
+            _maybe_recompute_52w_for_day(asof)
+        except Exception:
+            logger.exception("Failed daily 52w recompute for prev session_number=%s", prev_sn)
         try:
             seed_live_52w_all_symbols(session_number=current_sn)
         except Exception:
