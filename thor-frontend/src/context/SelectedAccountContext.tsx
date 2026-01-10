@@ -16,31 +16,48 @@ function toId(next: string | number | null | undefined): string | null {
   return s ? s : null;
 }
 
+function readStoredAccountId(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    // Prefer localStorage so refresh/new tab retains selection.
+    const fromLocal = window.localStorage.getItem(BANNER_SELECTED_ACCOUNT_ID_KEY);
+    if (fromLocal) return fromLocal;
+  } catch {
+    /* ignore storage errors */
+  }
+
+  try {
+    // Back-compat with earlier sessionStorage persistence.
+    const fromSession = window.sessionStorage.getItem(BANNER_SELECTED_ACCOUNT_ID_KEY);
+    return fromSession || null;
+  } catch {
+    return null;
+  }
+}
+
 export const SelectedAccountProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const qc = useQueryClient();
-  const [accountId, _setAccountId] = useState<string | null>(null);
+  const [accountId, _setAccountId] = useState<string | null>(() => readStoredAccountId());
 
   // track previous key so we can cancel/remove *only old account* queries
   const prevAccountKeyRef = useRef<string>("acct:none");
-
-  // hydrate initial account from sessionStorage (keeps current behavior)
-  useEffect(() => {
-    try {
-      const raw = sessionStorage.getItem(BANNER_SELECTED_ACCOUNT_ID_KEY);
-      _setAccountId(raw || null);
-    } catch {
-      _setAccountId(null);
-    }
-  }, []);
 
   const setAccountId = useCallback((next: string | number | null) => {
     const id = toId(next);
     _setAccountId(id);
 
-    // persist selection (keeps banner behavior stable)
+    // persist selection
     try {
-      if (id) sessionStorage.setItem(BANNER_SELECTED_ACCOUNT_ID_KEY, id);
-      else sessionStorage.removeItem(BANNER_SELECTED_ACCOUNT_ID_KEY);
+      if (id) window.localStorage.setItem(BANNER_SELECTED_ACCOUNT_ID_KEY, id);
+      else window.localStorage.removeItem(BANNER_SELECTED_ACCOUNT_ID_KEY);
+    } catch {
+      /* ignore storage errors */
+    }
+
+    // Also write sessionStorage so existing flows remain stable.
+    try {
+      if (id) window.sessionStorage.setItem(BANNER_SELECTED_ACCOUNT_ID_KEY, id);
+      else window.sessionStorage.removeItem(BANNER_SELECTED_ACCOUNT_ID_KEY);
     } catch {
       /* ignore storage errors */
     }

@@ -11,6 +11,7 @@ from ..serializers import (
     PositionSerializer,
 )
 from .accounts import get_active_account
+from .positions import _maybe_refresh_schwab_positions_and_balances
 
 
 @api_view(["GET"])
@@ -18,6 +19,8 @@ def activity_today_view(request):
     """GET /actandpos/activity/today?account_id=123 – intraday order + position snapshot."""
 
     account = get_active_account(request)
+
+    _maybe_refresh_schwab_positions_and_balances(request=request, account=account)
 
     today = timezone.localdate()
     base_qs = Order.objects.filter(account=account, time_placed__date=today)

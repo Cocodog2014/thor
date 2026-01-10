@@ -29,6 +29,7 @@ const GlobalBanner: React.FC = () => {
 
   // Accounts + selected account for the dropdown
   const [accounts, setAccounts] = useState<AccountSummary[]>([]);
+  const [accountsLoaded, setAccountsLoaded] = useState(false);
   const [schwabHealth, setSchwabHealth] = useState<SchwabHealth | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const selectedAccountId = accountId || null;
@@ -118,24 +119,14 @@ const GlobalBanner: React.FC = () => {
         if (!isMounted) return;
 
         setAccounts(accountList);
-
-        if (accountList.length === 0) {
-          setAccountId(null);
-          return;
-        }
-
-        const restored = accountId;
-        if (restored && accountList.some((acct) => String(acct.broker_account_id) === String(restored))) {
-          setAccountId(restored);
-        } else {
-          setAccountId(accountList[0]?.broker_account_id ?? null);
-        }
       } catch (error) {
         if (!isMounted) return;
         console.error('Failed to load accounts list', error);
         setAccounts([]);
-        setAccountId(null);
       }
+
+      if (!isMounted) return;
+      setAccountsLoaded(true);
     };
 
     loadAccounts();
@@ -144,9 +135,27 @@ const GlobalBanner: React.FC = () => {
       isMounted = false;
     };
   // Intentionally run once on mount to hydrate accounts and set initial selection.
-  // Do not include accountId; selection is owned by context and further changes come from user events.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [setAccountId]);
+  }, []);
+
+  // Reconcile selected account once accounts are loaded.
+  // - If there's a valid restored selection, keep it.
+  // - Otherwise default to the first account returned by the backend.
+  useEffect(() => {
+    if (!accountsLoaded) return;
+
+    if (accounts.length === 0) {
+      // Don't blow away a restored selection during transient errors.
+      // If backend says there are no accounts, clear selection.
+      if (accountId) setAccountId(null);
+      return;
+    }
+
+    if (accountId && accounts.some((acct) => String(acct.broker_account_id) === String(accountId))) {
+      return;
+    }
+
+    setAccountId(accounts[0]?.broker_account_id ?? null);
+  }, [accountsLoaded, accounts, accountId, setAccountId]);
 
   // selectedAccount is no longer used for balances; accountId is preserved for selection only
 
