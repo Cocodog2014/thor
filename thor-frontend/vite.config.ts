@@ -11,7 +11,9 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
-  const proxyTarget = env.VITE_PROXY_TARGET || 'http://127.0.0.1:8000'
+  // Proxy target is only used by the Vite dev server. Avoid exposing it to the
+  // client bundle by NOT using a VITE_* env var name.
+  const proxyTarget = env.PROXY_TARGET || 'http://127.0.0.1:8000'
 
   const hmrHost = env.VITE_HMR_HOST
   const hmrProtocol = env.VITE_HMR_PROTOCOL
