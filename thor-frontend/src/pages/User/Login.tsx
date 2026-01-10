@@ -18,8 +18,8 @@ const Login: React.FC = () => {
   const redirectTarget = useMemo(() => {
     const params = new URLSearchParams(location.search);
     const next = params.get("next");
-    // Safe-mode step: land on Global Markets which is currently enabled
-    return next && next.startsWith("/") ? next : "/app/global";
+    // Default landing page after login
+    return next && next.startsWith("/") ? next : "/app/home";
   }, [location.search]);
 
   const handleLogin = async (event: React.FormEvent<HTMLFormElement>) => {
