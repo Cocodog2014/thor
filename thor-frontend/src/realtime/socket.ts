@@ -11,8 +11,13 @@ function isWsEnabled(): boolean {
     : undefined;
   if (w?.__THOR_WS_ENABLED__ === true) return true;
 
-  const env = String(import.meta.env?.VITE_WS_ENABLED ?? '').toLowerCase();
-  return env === '1' || env === 'true' || env === 'yes';
+  const env = String(import.meta.env?.VITE_WS_ENABLED ?? '').toLowerCase().trim();
+  if (env) return env === '1' || env === 'true' || env === 'yes';
+
+  // Default behavior:
+  // - Dev: ON (so local dev immediately streams)
+  // - Prod: OFF unless explicitly enabled via VITE_WS_ENABLED
+  return Boolean(import.meta.env?.DEV);
 }
 
 // AUTH-ONLY MODE: Never connect on /auth routes
@@ -41,7 +46,11 @@ const connectionHandlers = new Set<ConnectionHandler>();
 let missedPongs = 0;
 
 function ensureTrailingSlash(url: string): string {
-  return url.endsWith('/') ? url : `${url}/`;
+  // Keep query/hash intact: ".../ws?x=1" -> ".../ws/?x=1"
+  const match = url.match(/^[^?#]+/);
+  const base = match ? match[0] : url;
+  if (base.endsWith('/')) return url;
+  return `${base}/${url.slice(base.length)}`;
 }
 
 function resolveUrl(): string {
