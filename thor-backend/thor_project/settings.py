@@ -242,8 +242,9 @@ _default_csrf_origins = [
 
 CSRF_TRUSTED_ORIGINS = _default_csrf_origins.copy() if DEBUG else []
 
-if DEBUG:
-    CSRF_TRUSTED_ORIGINS.extend([f'https://{host}' for host in DEFAULT_TUNNEL_HOSTS])
+# In production, admin/login POSTs come from the Cloudflare tunnel domains.
+# Trust those origins so CSRF origin checking passes.
+CSRF_TRUSTED_ORIGINS.extend([f'https://{host}' for host in DEFAULT_TUNNEL_HOSTS])
 
 # Allow adding more CSRF trusted origins via env (comma-separated), e.g., https://thor.360edu.org
 _csrf_extra = [o.strip() for o in config('CSRF_TRUSTED_ORIGINS_EXTRA', default='').split(',') if o.strip()]
