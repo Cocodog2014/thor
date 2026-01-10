@@ -7,6 +7,7 @@ from rest_framework.permissions import IsAuthenticated
 
 from ActAndPos.models import Account
 from LiveData.schwab.client.trader import SchwabTraderAPI
+from LiveData.schwab.utils import get_schwab_connection
 
 logger = logging.getLogger(__name__)
 
@@ -16,7 +17,7 @@ logger = logging.getLogger(__name__)
 def list_accounts(request):
     """List all Schwab accounts for the authenticated user."""
     try:
-        if not request.user.schwab_token:
+        if not get_schwab_connection(request.user):
             return JsonResponse({"error": "No Schwab account connected"}, status=404)
 
         api = SchwabTraderAPI(request.user)
@@ -83,7 +84,7 @@ def list_accounts(request):
 def account_summary(request):
     """UI-ready summary built from /trader/v1/accounts payload."""
     try:
-        if not request.user.schwab_token:
+        if not get_schwab_connection(request.user):
             return JsonResponse({"error": "No Schwab account connected", "connected": False}, status=404)
 
         api = SchwabTraderAPI(request.user)

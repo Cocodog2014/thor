@@ -9,6 +9,7 @@ from django.utils import timezone
 from ActAndPos.models import Account
 from LiveData.shared.redis_client import live_data_redis
 from .trader import SchwabTraderAPI
+from LiveData.schwab.utils import get_active_schwab_connection
 
 logger = logging.getLogger(__name__)
 
@@ -59,12 +60,7 @@ def _poll_once():
     for acct in _iter_active_accounts():
         try:
             user = acct.user
-            token = (
-                user.get_active_schwab_token()
-                if hasattr(user, "get_active_schwab_token")
-                else getattr(user, "schwab_token", None)
-            )
-            if not token:
+            if not get_active_schwab_connection(user):
                 logger.debug("Skip account %s: no active Schwab token", acct.account_number or acct.id)
                 continue
 

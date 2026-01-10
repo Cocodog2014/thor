@@ -7,6 +7,7 @@ from rest_framework.permissions import IsAuthenticated
 
 from LiveData.schwab.client.trader import SchwabTraderAPI
 from LiveData.shared.redis_client import live_data_redis
+from LiveData.schwab.utils import get_schwab_connection
 
 logger = logging.getLogger(__name__)
 
@@ -16,7 +17,7 @@ logger = logging.getLogger(__name__)
 def get_positions(request, account_id):
     """Fetch positions for a specific account (path param) and publish to Redis."""
     try:
-        if not request.user.schwab_token:
+        if not get_schwab_connection(request.user):
             return JsonResponse({"error": "No Schwab account connected"}, status=404)
 
         api = SchwabTraderAPI(request.user)
@@ -61,7 +62,7 @@ def get_positions(request, account_id):
 def account_positions(request):
     """Fetch positions by account_hash or account_number via query params."""
     try:
-        if not request.user.schwab_token:
+        if not get_schwab_connection(request.user):
             return JsonResponse({"error": "No Schwab account connected"}, status=404)
 
         api = SchwabTraderAPI(request.user)

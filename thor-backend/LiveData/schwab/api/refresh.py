@@ -6,6 +6,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 
 from LiveData.schwab.client.tokens import ensure_valid_access_token
+from LiveData.schwab.utils import get_schwab_connection
 
 logger = logging.getLogger(__name__)
 
@@ -15,7 +16,7 @@ logger = logging.getLogger(__name__)
 def refresh_access_token(request):
     """Force a Schwab token refresh for the authenticated user."""
     try:
-        connection = getattr(request.user, "schwab_token", None)
+        connection = get_schwab_connection(request.user)
         if not connection:
             return JsonResponse({"success": False, "error": "No Schwab account connected"}, status=404)
 

@@ -12,6 +12,7 @@ from json import dumps, loads
 from LiveData.shared.redis_client import live_data_redis
 from ActAndPos.models import Account, Position
 from .tokens import ensure_valid_access_token
+from LiveData.schwab.utils import get_schwab_connection
 
 logger = logging.getLogger(__name__)
 
@@ -26,11 +27,12 @@ class SchwabTraderAPI:
     
     def __init__(self, user):
         self.user = user
-        connection = getattr(user, "schwab_token", None)
-        if not connection:
+        self.connection = get_schwab_connection(user)
+        if not self.connection:
             raise RuntimeError("User does not have an active Schwab connection.")
 
-        self.token = ensure_valid_access_token(connection)
+        self.connection = ensure_valid_access_token(self.connection)
+        self.token = self.connection
     
     def _get_headers(self):
         return {
@@ -49,13 +51,15 @@ class SchwabTraderAPI:
         request_kwargs.setdefault("timeout", 10)
 
         # ✅ proactive refresh before any request
-        self.token = ensure_valid_access_token(self.user.schwab_token)
+        self.connection = ensure_valid_access_token(self.connection)
+        self.token = self.connection
 
         response = requests.request(method, url, headers=self._get_headers(), **request_kwargs)
 
         if response.status_code == 401 and retry_on_unauthorized:
             logger.warning("Schwab API 401 for %s %s — attempting token refresh", method, path)
-            self.token = ensure_valid_access_token(self.user.schwab_token, force_refresh=True)
+            self.connection = ensure_valid_access_token(self.connection, force_refresh=True)
+            self.token = self.connection
             response = requests.request(
                 method,
                 url,

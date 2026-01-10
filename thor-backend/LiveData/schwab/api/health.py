@@ -6,6 +6,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from LiveData.schwab.models import BrokerConnection
+from LiveData.schwab.utils import get_schwab_connection
 
 logger = logging.getLogger(__name__)
 
@@ -14,7 +15,7 @@ logger = logging.getLogger(__name__)
 @permission_classes([IsAuthenticated])
 def schwab_health(request):
     """Read-only Schwab health endpoint (no outbound Schwab calls)."""
-    connection = getattr(request.user, "schwab_token", None)
+    connection = get_schwab_connection(request.user)
 
     if not connection:
         return Response({
