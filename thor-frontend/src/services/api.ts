@@ -7,8 +7,32 @@ import { AUTH_ACCESS_TOKEN_KEY, AUTH_REFRESH_TOKEN_KEY } from '../constants/stor
  * - Cloudflare tunnel (thor.360edu.org → /api)
  * - Docker (using VITE_API_BASE_URL inside containers)
  */
+const normalizeApiBaseUrl = (value: string | undefined | null): string | null => {
+  const raw = (value ?? '').trim();
+  if (!raw) {
+    return null;
+  }
+
+  // Allow absolute URLs (http/https) or relative bases (e.g. /api).
+  const withLeadingSlash = raw.startsWith('http://') || raw.startsWith('https://')
+    ? raw
+    : raw.startsWith('/')
+      ? raw
+      : `/${raw}`;
+
+  // Remove trailing slashes to prevent accidental double-slashes when composing paths.
+  const withoutTrailing = withLeadingSlash.replace(/\/+$/, '');
+
+  // Guard against misconfiguration like VITE_API_BASE_URL=/ which would make requests hit root.
+  if (!withoutTrailing || withoutTrailing === '/') {
+    return null;
+  }
+
+  return withoutTrailing;
+};
+
 const API_BASE_URL = (() => {
-  const envUrl = import.meta.env.VITE_API_BASE_URL?.trim();
+  const envUrl = normalizeApiBaseUrl(import.meta.env.VITE_API_BASE_URL);
   if (envUrl) {
     return envUrl;
   }
