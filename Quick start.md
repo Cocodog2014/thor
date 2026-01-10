@@ -1,6 +1,9 @@
 🚀 THOR Quickstart Guide (Improved & Simplified)
 Local Development vs Production (Docker Desktop)
 
+Docs:
+- Prod vs Dev vs Local config map: [docs/Prod and Devp files .md](docs/Prod%20and%20Devp%20files%20.md)
+
 This version removes ambiguity, follows a clean sequence, and states the purpose of each process.
 
 ==========================================
