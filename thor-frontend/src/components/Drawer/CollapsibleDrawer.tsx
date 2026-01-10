@@ -10,9 +10,7 @@ import {
   closestCenter,
   useSensor,
   useSensors,
-  type DraggableAttributes,
   type DragEndEvent,
-  type SyntheticListenerMap,
 } from '@dnd-kit/core';
 import {
   SortableContext,
@@ -95,6 +93,12 @@ const formatVolume = (v?: number) => {
 type MetricKey = 'last' | 'bid' | 'ask' | 'volume' | 'open' | 'high' | 'low' | 'close';
 type MarketDataMap = Record<string, Partial<Record<MetricKey, number>>>;
 
+type SortableHookReturn = ReturnType<typeof useSortable>;
+type DragHandleProps = {
+  attributes: SortableHookReturn['attributes'];
+  listeners?: SortableHookReturn['listeners'];
+};
+
 type WatchlistItem = {
   instrument?: {
     symbol?: string;
@@ -142,10 +146,7 @@ type SnapshotQuote = {
 
 interface WatchlistItemRowProps {
   symbol: string;
-  dragHandleProps?: {
-    attributes: DraggableAttributes;
-    listeners?: SyntheticListenerMap;
-  };
+  dragHandleProps?: DragHandleProps;
   data?: Partial<Record<MetricKey, number>>;
   onRemove: (symbol: string) => void;
 }
