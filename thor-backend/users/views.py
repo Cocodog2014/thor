@@ -3,7 +3,7 @@ Views for user authentication and management.
 """
 from rest_framework import generics, permissions, status, serializers, authentication
 from rest_framework.response import Response
-from rest_framework_simplejwt.views import TokenObtainPairView
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from django.contrib.auth import get_user_model, authenticate
@@ -47,6 +47,14 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
 class CustomTokenObtainPairView(TokenObtainPairView):
     """Custom JWT login view."""
     serializer_class = CustomTokenObtainPairSerializer
+    permission_classes = (permissions.AllowAny,)
+    authentication_classes = ()
+
+
+class CustomTokenRefreshView(TokenRefreshView):
+    """JWT refresh view without SessionAuthentication/CSRF coupling."""
+    permission_classes = (permissions.AllowAny,)
+    authentication_classes = ()
 
 
 class RegisterView(generics.CreateAPIView):

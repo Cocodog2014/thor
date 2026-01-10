@@ -45,12 +45,25 @@ const Login: React.FC = () => {
       toast.success("Welcome back, commander.");
       navigate(redirectTarget, { replace: true });
     } catch (error: unknown) {
-      const responseData = (error as { response?: { data?: { detail?: string; message?: string } } }).response?.data;
+      const responseData = (error as { response?: { data?: unknown } }).response?.data as
+        | {
+            detail?: string;
+            message?: string;
+            non_field_errors?: string[];
+            email?: string[];
+            password?: string[];
+          }
+        | undefined;
+
       const message =
         responseData?.detail ||
         responseData?.message ||
+        responseData?.non_field_errors?.[0] ||
+        responseData?.email?.[0] ||
+        responseData?.password?.[0] ||
         (error instanceof Error ? error.message : undefined) ||
         "Unable to log in. Please verify your credentials.";
+
       toast.error(message);
     } finally {
       setLoading(false);
