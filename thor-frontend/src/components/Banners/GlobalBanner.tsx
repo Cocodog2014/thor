@@ -198,39 +198,6 @@ const GlobalBanner: React.FC = () => {
   // Reconcile selected account once accounts are loaded.
   // - If there's a valid restored selection, keep it.
   // - Otherwise default to the first account returned by the backend.
-  useEffect(() => {
-    if (!accountsLoaded) return;
-
-    if (accounts.length === 0) {
-      // Don't blow away a restored selection during transient errors.
-      // If backend says there are no accounts, clear selection.
-      if (accountId) setAccountId(null);
-      return;
-    }
-
-    if (accountId && accounts.some((acct) => String(acct.broker_account_id) === String(accountId))) {
-      return;
-    }
-
-    setAccountId(accounts[0]?.broker_account_id ?? null);
-  }, [accountsLoaded, accounts, accountId, setAccountId]);
-
-  // selectedAccount is no longer used for balances; accountId is preserved for selection only
-
-  // Client-side Schwab countdown: update once per second so the UI stays "alive" even if
-  // backend health broadcasts are infrequent.
-  useEffect(() => {
-    const expiresAt = schwabHealth?.expires_at;
-    if (!expiresAt) return;
-
-    const interval = window.setInterval(() => {
-      setNowUnix(Math.floor(Date.now() / 1000));
-    }, 1000);
-
-    return () => {
-      window.clearInterval(interval);
-    };
-  }, [schwabHealth?.expires_at]);
 
   const effectiveSchwabHealth = useMemo(() => {
     if (!schwabHealth) return null;
@@ -251,6 +218,55 @@ const GlobalBanner: React.FC = () => {
       connected: schwabHealth.connected && !tokenExpired,
     } as SchwabHealth;
   }, [schwabHealth, nowUnix, schwabServerNowBase, schwabServerNowBaseClientNow]);
+
+  useEffect(() => {
+    if (!accountsLoaded) return;
+
+    if (accounts.length === 0) {
+      // Don't blow away a restored selection during transient errors.
+      // If backend says there are no accounts, clear selection.
+      if (accountId) setAccountId(null);
+      return;
+    }
+
+    const selected = accountId
+      ? accounts.find((acct) => String(acct.broker_account_id) === String(accountId))
+      : undefined;
+
+    const hasSchwab = accounts.some((acct) => String(acct.broker).toUpperCase() === 'SCHWAB');
+    const preferred =
+      accounts.find((acct) => String(acct.broker).toUpperCase() === 'SCHWAB')
+      ?? accounts[0];
+
+    // If a restored selection is valid, keep it.
+    // However: if Schwab is connected and we're currently pinned to PAPER, switch to SCHWAB.
+    if (selected) {
+      const selectedIsPaper = String(selected.broker).toUpperCase() === 'PAPER';
+      if (hasSchwab && selectedIsPaper && effectiveSchwabHealth?.connected) {
+        setAccountId(preferred?.broker_account_id ?? null);
+      }
+      return;
+    }
+
+    setAccountId(preferred?.broker_account_id ?? null);
+  }, [accountsLoaded, accounts, accountId, setAccountId, effectiveSchwabHealth?.connected]);
+
+  // selectedAccount is no longer used for balances; accountId is preserved for selection only
+
+  // Client-side Schwab countdown: update once per second so the UI stays "alive" even if
+  // backend health broadcasts are infrequent.
+  useEffect(() => {
+    const expiresAt = schwabHealth?.expires_at;
+    if (!expiresAt) return;
+
+    const interval = window.setInterval(() => {
+      setNowUnix(Math.floor(Date.now() / 1000));
+    }, 1000);
+
+    return () => {
+      window.clearInterval(interval);
+    };
+  }, [schwabHealth?.expires_at]);
 
   const isConnected = wsIsEnabled && wsConnected;
   const connectionLabel = wsIsEnabled ? (isConnected ? 'Connected' : 'Disconnected') : 'Disabled';
