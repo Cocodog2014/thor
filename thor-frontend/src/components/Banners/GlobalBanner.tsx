@@ -1,9 +1,8 @@
-// GlobalBanner.tsx
+// thor-frontend/src/components/Banners/GlobalBanner.tsx
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import './GlobalBanner.css';
 import api from '../../services/api';
-import { INSTRUMENT_QUOTES_LATEST_ENDPOINT } from '../../constants/endpoints';
 import type { AccountSummary, ParentTab, ChildTab, SchwabHealth } from './bannerTypes';
 import TopRow from './TopRow';
 import BalanceRow from './BalanceRow';
@@ -12,7 +11,7 @@ import SchwabHealthCard from './SchwabHealthCard';
 import { useAuth } from '../../context/AuthContext';
 import { useSelectedAccount } from '../../context/SelectedAccountContext';
 import { useAccountBalance } from '../../hooks/useAccountBalance';
-import { useWsMessage } from '../../realtime';
+import { useWsConnection, useWsMessage, wsEnabled } from '../../realtime';
 
 type UserProfile = {
   is_staff?: boolean;
@@ -26,8 +25,6 @@ const GlobalBanner: React.FC = () => {
   const { accountId, setAccountId } = useSelectedAccount();
   const { data: balance, isFetching: balanceLoading } = useAccountBalance(accountId);
 
-  const [connectionStatus, setConnectionStatus] =
-    useState<'connected' | 'disconnected'>('disconnected');
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
 
   // Accounts + selected account for the dropdown
@@ -36,45 +33,14 @@ const GlobalBanner: React.FC = () => {
   const [isAdmin, setIsAdmin] = useState(false);
   const selectedAccountId = accountId || null;
 
-  // Ping the same quotes endpoint used by the futures hooks
-  useEffect(() => {
-    let isMounted = true;
+  // WebSocket connection status (single backend WS: /ws/ handled by api.websocket)
+  const wsConnected = useWsConnection(true);
+  const wsIsEnabled = wsEnabled();
 
-    const checkConnection = async () => {
-      try {
-        const response = await fetch(`${INSTRUMENT_QUOTES_LATEST_ENDPOINT}?consumer=futures_trading`, {
-          cache: 'no-store',
-        });
-
-        if (!response.ok) {
-          throw new Error(`Status ${response.status}`);
-        }
-
-        const data: { rows?: unknown[] } = await response.json();
-        const rows = Array.isArray(data?.rows) ? data.rows : [];
-        const hasLiveData = rows.length > 0;
-
-        if (!isMounted) return;
-
-        if (hasLiveData) {
-          setConnectionStatus('connected');
-          setLastUpdate(new Date());
-        } else {
-          setConnectionStatus('disconnected');
-        }
-      } catch (err) {
-        if (!isMounted) return;
-        console.error('GlobalBanner: error checking connection', err);
-        setConnectionStatus('disconnected');
-      }
-    };
-
-    checkConnection();
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
+  // Update the "last feed" timestamp using the backend heartbeat (low frequency)
+  useWsMessage('heartbeat', () => {
+    setLastUpdate(new Date());
+  });
 
   useEffect(() => {
     let isMounted = true;
@@ -108,6 +74,7 @@ const GlobalBanner: React.FC = () => {
   useWsMessage<SchwabHealth>('schwab_health', (msg) => {
     if (msg?.data) {
       setSchwabHealth(msg.data);
+      setLastUpdate(new Date());
     }
   });
 
@@ -183,11 +150,13 @@ const GlobalBanner: React.FC = () => {
 
   // selectedAccount is no longer used for balances; accountId is preserved for selection only
 
-  const isConnected = connectionStatus === 'connected';
-  const connectionLabel = isConnected ? 'Connected' : 'Disconnected';
-  const connectionDetails = isConnected
-    ? `Realtime data${lastUpdate ? ` · last feed ${lastUpdate.toLocaleTimeString('en-US')}` : ''}`
-    : 'Waiting for live feed';
+  const isConnected = wsIsEnabled && wsConnected;
+  const connectionLabel = wsIsEnabled ? (isConnected ? 'Connected' : 'Disconnected') : 'Disabled';
+  const connectionDetails = wsIsEnabled
+    ? (isConnected
+        ? `WebSocket connected${lastUpdate ? ` · last feed ${lastUpdate.toLocaleTimeString('en-US')}` : ''}`
+        : 'WebSocket disconnected')
+    : 'Realtime disabled';
 
   // Parent (top) tabs
   const parentTabs: ParentTab[] = useMemo(
