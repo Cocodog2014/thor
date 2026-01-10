@@ -5,6 +5,23 @@ import { useNavigate } from 'react-router-dom';
 import { useWsConnection, useWsMessage, wsEnabled } from '../../realtime'; // <--- Use this instead
 import type { WsEnvelope } from '../../realtime/types';
 import {
+  DndContext,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DraggableAttributes,
+  type DragEndEvent,
+  type SyntheticListenerMap,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  arrayMove,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import {
   Drawer,
   Toolbar,
   List,
@@ -27,6 +44,7 @@ import {
   Logout as LogoutIcon,
   Close as CloseIcon,
   AdminPanelSettings as AdminPanelSettingsIcon,
+  DragIndicator as DragIndicatorIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
@@ -124,11 +142,15 @@ type SnapshotQuote = {
 
 interface WatchlistItemRowProps {
   symbol: string;
+  dragHandleProps?: {
+    attributes: DraggableAttributes;
+    listeners?: SyntheticListenerMap;
+  };
   data?: Partial<Record<MetricKey, number>>;
   onRemove: (symbol: string) => void;
 }
 
-const WatchlistItemRow: React.FC<WatchlistItemRowProps> = ({ symbol, data, onRemove }) => {
+const WatchlistItemRow: React.FC<WatchlistItemRowProps> = ({ symbol, dragHandleProps, data, onRemove }) => {
   const prevLast = useRef<number | undefined>(undefined);
   const [flash, setFlash] = useState<'up' | 'down' | null>(null);
 
@@ -147,8 +169,26 @@ const WatchlistItemRow: React.FC<WatchlistItemRowProps> = ({ symbol, data, onRem
   return (
     <Box className="thor-watchlist-item" sx={{ p: 1.5, borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-        <Typography variant="body2" sx={{ fontWeight: 'bold', color: '#1976d2' }}>{symbol}</Typography>
-        <IconButton size="small" onClick={() => onRemove(symbol)}><CloseIcon fontSize="inherit" /></IconButton>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0 }}>
+          <IconButton
+            size="small"
+            sx={{ cursor: 'grab', color: 'text.secondary' }}
+            aria-label="Drag to reorder"
+            {...(dragHandleProps?.attributes ?? {})}
+            {...(dragHandleProps?.listeners ?? {})}
+          >
+            <DragIndicatorIcon fontSize="inherit" />
+          </IconButton>
+          <Typography
+            variant="body2"
+            sx={{ fontWeight: 'bold', color: '#1976d2', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+          >
+            {symbol}
+          </Typography>
+        </Box>
+        <IconButton size="small" onClick={() => onRemove(symbol)} aria-label={`Remove ${symbol}`}>
+          <CloseIcon fontSize="inherit" />
+        </IconButton>
       </Box>
       <Grid container spacing={1}>
         <Grid size={3}>
@@ -171,6 +211,41 @@ const WatchlistItemRow: React.FC<WatchlistItemRowProps> = ({ symbol, data, onRem
         </Grid>
       </Grid>
     </Box>
+  );
+};
+
+type SortableWatchlistRowProps = {
+  id: string;
+  symbol: string;
+  data?: Partial<Record<MetricKey, number>>;
+  onRemove: (symbol: string) => void;
+};
+
+const SortableWatchlistRow: React.FC<SortableWatchlistRowProps> = ({ id, symbol, data, onRemove }) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id });
+
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.85 : 1,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style}>
+      <WatchlistItemRow
+        symbol={symbol}
+        data={data}
+        onRemove={onRemove}
+        dragHandleProps={{ attributes, listeners }}
+      />
+    </div>
   );
 };
 
@@ -200,6 +275,10 @@ const CollapsibleDrawer: React.FC<CollapsibleDrawerProps> = ({
   const [watchlistLoading, setWatchlistLoading] = useState(false);
   const [marketData, setMarketData] = useState<MarketDataMap>({});
   const [query, setQuery] = useState('');
+
+  const dndSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } })
+  );
 
   const wsIsEnabled = wsEnabled();
   const wsConnected = useWsConnection(true);
@@ -323,6 +402,19 @@ const CollapsibleDrawer: React.FC<CollapsibleDrawerProps> = ({
     }
   }, [loadSnapshotForSymbols]);
 
+  const persistWatchlistOrder = useCallback(async (items: WatchlistItem[]) => {
+    try {
+      await api.put('/instruments/watchlist/', {
+        items: items.map((item, i) => ({
+          symbol: item.instrument?.symbol ?? '',
+          order: i,
+        })),
+      });
+    } catch (err) {
+      console.error('Failed to persist watchlist order', err);
+    }
+  }, []);
+
   const addSymbol = async (symbolRaw: string) => {
     if (!symbolRaw) return;
     // Optimistic UI update
@@ -341,7 +433,7 @@ const CollapsibleDrawer: React.FC<CollapsibleDrawerProps> = ({
   const removeSymbol = async (symbol: string) => {
     const next = watchlist.filter(w => w.instrument?.symbol?.toUpperCase() !== symbol);
     setWatchlist(next);
-    await api.put('/instruments/watchlist/', { items: next.map((item, i) => ({ symbol: item.instrument?.symbol ?? '', order: i })) });
+    await persistWatchlistOrder(next);
   };
 
   useEffect(() => {
@@ -412,20 +504,49 @@ const CollapsibleDrawer: React.FC<CollapsibleDrawerProps> = ({
           </Box>
           
           <Box>
-            {watchlistLoading ? <CircularProgress size={20} /> : 
-              watchlist.map((w) => {
-                const displaySymbol = (w.instrument?.symbol || '').toUpperCase();
-                const dataKey = normalizeWsSymbol(displaySymbol);
-                return (
-                  <WatchlistItemRow
-                    key={displaySymbol}
-                    symbol={displaySymbol}
-                    data={dataKey ? marketData[dataKey] : undefined}
-                    onRemove={removeSymbol}
-                  />
-                );
-              })
-            }
+            {watchlistLoading ? (
+              <CircularProgress size={20} />
+            ) : (
+              <DndContext
+                sensors={dndSensors}
+                collisionDetection={closestCenter}
+                onDragEnd={(event: DragEndEvent) => {
+                  const { active, over } = event;
+                  if (!over || active.id === over.id) return;
+
+                  setWatchlist((prev) => {
+                    const ids = prev.map((item) => String(item.instrument?.symbol ?? ''));
+                    const oldIndex = ids.indexOf(String(active.id));
+                    const newIndex = ids.indexOf(String(over.id));
+                    if (oldIndex < 0 || newIndex < 0) return prev;
+
+                    const next = arrayMove(prev, oldIndex, newIndex);
+                    void persistWatchlistOrder(next);
+                    return next;
+                  });
+                }}
+              >
+                <SortableContext
+                  items={watchlist.map((item) => String(item.instrument?.symbol ?? ''))}
+                  strategy={verticalListSortingStrategy}
+                >
+                  {watchlist.map((w) => {
+                    const displaySymbol = (w.instrument?.symbol || '').toUpperCase();
+                    const id = String(w.instrument?.symbol ?? '');
+                    const dataKey = normalizeWsSymbol(displaySymbol);
+                    return (
+                      <SortableWatchlistRow
+                        key={id}
+                        id={id}
+                        symbol={displaySymbol}
+                        data={dataKey ? marketData[dataKey] : undefined}
+                        onRemove={removeSymbol}
+                      />
+                    );
+                  })}
+                </SortableContext>
+              </DndContext>
+            )}
           </Box>
         </Box>
       )}
