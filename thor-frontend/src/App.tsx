@@ -9,9 +9,9 @@ import GlobalMarkets from './pages/GlobalMarkets/GlobalMarkets';
 // import FutureRTD from './pages/Futures';
 // Minimal app re-enable: only GlobalMarkets route is active
 // import FutureHome from './pages/Futures/FuturesHome/FutureHome';
-// import ActivityPositions from './pages/ActivityPositions';
+import ActivityPositions from './pages/ActivityPositions';
 // import Trades from './pages/Trade/Trades';
-// import AccountStatement from './pages/AccountStatement/AccountStatement';
+import AccountStatement from './pages/AccountStatement/AccountStatement';
 import ProtectedRoute from './components/ProtectedRoute';
 import AuthLayout from './layouts/AuthLayout';
 import AppLayout from './layouts/AppLayout';
@@ -83,6 +83,8 @@ function App() {
                 <Routes>
                   <Route index element={<Navigate to="/app/home" replace />} />
                   <Route path="home" element={<Home />} />
+                  <Route path="activity" element={<ActivityPositions />} />
+                  <Route path="account-statement" element={<AccountStatement />} />
                   <Route path="global" element={<GlobalMarkets />} />
                   <Route path="*" element={<Navigate to="/app/home" replace />} />
                 </Routes>
