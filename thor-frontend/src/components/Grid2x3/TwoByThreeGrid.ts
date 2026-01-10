@@ -1,12 +1,5 @@
-import type React from 'react';
-
-export type DashboardTile = {
-  id: string;
-  title: string;
-  slotLabel?: string;
-  hint?: string;
-  children?: React.ReactNode;
-};
+export { default } from './TwoByThreeGridComponent';
+export type { DashboardTile } from './TwoByThreeGridComponent';
 
 /**
  * Grid layout configuration
