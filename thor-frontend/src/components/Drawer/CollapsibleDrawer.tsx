@@ -414,8 +414,16 @@ const CollapsibleDrawer: React.FC<CollapsibleDrawerProps> = ({
           <Box>
             {watchlistLoading ? <CircularProgress size={20} /> : 
               watchlist.map((w) => {
-                const sym = (w.instrument?.symbol || '').toUpperCase();
-                return <WatchlistItemRow key={sym} symbol={sym} data={marketData[sym]} onRemove={removeSymbol} />;
+                const displaySymbol = (w.instrument?.symbol || '').toUpperCase();
+                const dataKey = normalizeWsSymbol(displaySymbol);
+                return (
+                  <WatchlistItemRow
+                    key={displaySymbol}
+                    symbol={displaySymbol}
+                    data={dataKey ? marketData[dataKey] : undefined}
+                    onRemove={removeSymbol}
+                  />
+                );
               })
             }
           </Box>
