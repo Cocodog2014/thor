@@ -10,9 +10,7 @@ class MarketTrading24Hour(models.Model):
 
     Instrument-neutral: futures, equities, ETFs, indexes, etc.
 
-    Note: This table was historically owned by the ThorTrading app.
-    We keep the existing table and mark it unmanaged so migrations don't
-    attempt to create/alter it under the Instruments app.
+    Owned by the Instruments app and managed via migrations.
     """
 
     session_number = models.IntegerField(

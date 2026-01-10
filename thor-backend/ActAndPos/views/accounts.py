@@ -33,7 +33,8 @@ def get_active_account(request):
     if not user or not user.is_authenticated:
         raise NotAuthenticated("Authentication required to access trading accounts.")
 
-    account_id = request.query_params.get("account_id")
+    params = getattr(request, "query_params", None) or getattr(request, "GET", {})
+    account_id = params.get("account_id")
     qs = Account.objects.filter(user=user)
 
     if account_id:

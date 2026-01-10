@@ -52,11 +52,35 @@ class AccountSummarySerializer(serializers.ModelSerializer):
         if not user:
             return False
 
-        connection = getattr(user, "schwab_token", None)
-        if connection is None:
-            return False
+        # Preferred: use the user helper that returns a non-expired token.
+        getter = getattr(user, "get_active_schwab_token", None)
+        if callable(getter):
+            return getter() is not None
 
-        return not connection.is_expired
+        # Backward-compatible: user may expose a schwab_token attribute/property.
+        connection = getattr(user, "schwab_token", None)
+        if connection is not None:
+            # Handle both a single token object and a related manager/queryset.
+            if hasattr(connection, "is_expired"):
+                return not getattr(connection, "is_expired", True)
+
+            try:
+                token = connection.filter(broker="SCHWAB").first()
+                if token is not None:
+                    return not getattr(token, "is_expired", True)
+            except Exception:
+                pass
+
+        # Last resort: query BrokerConnection directly.
+        try:
+            from LiveData.schwab.models import BrokerConnection
+
+            token = BrokerConnection.objects.filter(user=user, broker="SCHWAB").first()
+            if token is None:
+                return False
+            return not getattr(token, "is_expired", True)
+        except Exception:
+            return False
 
 
 class PositionSerializer(serializers.ModelSerializer):

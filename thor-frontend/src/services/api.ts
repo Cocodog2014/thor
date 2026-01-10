@@ -1,5 +1,6 @@
 import axios, { AxiosHeaders, type AxiosRequestConfig } from 'axios';
 import { AUTH_ACCESS_TOKEN_KEY, AUTH_REFRESH_TOKEN_KEY } from '../constants/storageKeys';
+import { BANNER_SELECTED_ACCOUNT_ID_KEY } from '../constants/bannerKeys';
 
 /**
  * Resolve API base URL in a way that works for:
@@ -62,6 +63,28 @@ const readStoredToken = (key: string): string | null => {
   }
   try {
     return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+};
+
+const readStoredSelectedAccountId = (): string | null => {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+
+  try {
+    const fromLocal = window.localStorage.getItem(BANNER_SELECTED_ACCOUNT_ID_KEY);
+    if (fromLocal) {
+      return fromLocal;
+    }
+  } catch {
+    // ignore storage errors
+  }
+
+  try {
+    const fromSession = window.sessionStorage.getItem(BANNER_SELECTED_ACCOUNT_ID_KEY);
+    return fromSession || null;
   } catch {
     return null;
   }
@@ -142,6 +165,28 @@ api.interceptors.request.use(
       } else if ('Authorization' in config.headers) {
         delete (config.headers as Record<string, unknown>).Authorization;
       }
+    }
+
+    // ActAndPos endpoints select the active account via ?account_id=...
+    // If the caller did not pass account_id, default it from the persisted UI selection.
+    const url = String(config.url ?? '');
+    const isActAndPos = url.startsWith('/actandpos/') || url.startsWith('actandpos/');
+    const isAccountBalance = url.startsWith('/accounts/balance') || url.startsWith('accounts/balance');
+
+    if (isActAndPos || isAccountBalance) {
+      const paramsObj =
+        config.params && typeof config.params === 'object' && !(config.params instanceof URLSearchParams)
+          ? { ...(config.params as Record<string, unknown>) }
+          : {};
+
+      if (paramsObj.account_id === undefined || paramsObj.account_id === null || paramsObj.account_id === '') {
+        const selected = readStoredSelectedAccountId();
+        if (selected) {
+          paramsObj.account_id = selected;
+        }
+      }
+
+      config.params = paramsObj;
     }
 
     return config;

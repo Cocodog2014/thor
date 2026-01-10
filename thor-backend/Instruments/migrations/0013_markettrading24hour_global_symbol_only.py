@@ -50,6 +50,32 @@ class Migration(migrations.Migration):
                 migrations.RunSQL(
                     sql=r"""
 DO $$
+BEGIN
+    -- Fresh installs / test DBs may not have this legacy-owned table yet.
+    -- Create a minimal version so subsequent ALTER/DROP statements succeed.
+    IF to_regclass('public."Instruments_markettrading24hour"') IS NULL THEN
+        CREATE TABLE public."Instruments_markettrading24hour" (
+            id BIGSERIAL PRIMARY KEY,
+            session_group INTEGER NOT NULL,
+            session_date DATE NOT NULL,
+            country VARCHAR(32),
+            symbol VARCHAR(32) NOT NULL,
+            prev_close_24h NUMERIC(14, 4) NULL,
+            open_price_24h NUMERIC(14, 4) NULL,
+            open_prev_diff_24h NUMERIC(14, 4) NULL,
+            open_prev_pct_24h NUMERIC(14, 4) NULL,
+            low_24h NUMERIC(14, 4) NULL,
+            high_24h NUMERIC(14, 4) NULL,
+            range_diff_24h NUMERIC(14, 4) NULL,
+            range_pct_24h NUMERIC(14, 4) NULL,
+            close_24h NUMERIC(14, 4) NULL,
+            volume_24h BIGINT NULL,
+            finalized BOOLEAN NOT NULL DEFAULT FALSE
+        );
+    END IF;
+END $$;
+
+DO $$
 DECLARE
     r RECORD;
 BEGIN
