@@ -53,6 +53,20 @@ def _dec(value: Any, default: Decimal = Decimal("0")) -> Decimal:
 		return default
 
 
+def _first_numeric(row: Dict[str, Any], keys: Iterable[str]) -> Decimal:
+	for key in keys:
+		if key in row:
+			val = row.get(key)
+			d = _dec(val, default=Decimal("0"))
+			if d != Decimal("0"):
+				return d
+	# Treat explicit 0 as a valid value if present on any key.
+	for key in keys:
+		if key in row:
+			return _dec(row.get(key), default=Decimal("0"))
+	return Decimal("0")
+
+
 def _looks_like_hash(value: str) -> bool:
 	return bool(value and re.fullmatch(r"[A-Fa-f0-9]{32,128}", str(value).strip()))
 
@@ -215,6 +229,36 @@ def _normalize_positions(raw_positions: Iterable[Any]) -> List[Dict[str, Any]]:
 
 		avg_price = _dec(pos.get("averagePrice"), Decimal("0"))
 		market_value = _dec(pos.get("marketValue"), Decimal("0"))
+
+		# Schwab position payloads commonly include current-day P/L and may include YTD P/L.
+		# We accept multiple possible key names defensively.
+		pl_day = _first_numeric(
+			pos,
+			(
+				"currentDayProfitLoss",
+				"currentDayProfitLossValue",
+				"dayProfitLoss",
+				"dayPnl",
+				"profitLossDay",
+			),
+		)
+		pl_ytd = _first_numeric(
+			pos,
+			(
+				"yearToDateProfitLoss",
+				"ytdProfitLoss",
+				"profitLossYTD",
+				"ytdPnl",
+			),
+		)
+
+		multiplier = _dec(
+			instrument.get("multiplier")
+			or pos.get("multiplier")
+			or pos.get("contractMultiplier")
+			or Decimal("1"),
+			Decimal("1"),
+		)
 		mark_price = Decimal("0")
 		if quantity:
 			try:
@@ -230,6 +274,9 @@ def _normalize_positions(raw_positions: Iterable[Any]) -> List[Dict[str, Any]]:
 				"quantity": float(quantity),
 				"avg_price": float(avg_price),
 				"mark_price": float(mark_price),
+				"broker_pl_day": float(pl_day),
+				"broker_pl_ytd": float(pl_ytd),
+				"multiplier": float(multiplier),
 				"market_value": float(market_value),
 				"currency": str(pos.get("settlementCurrency") or "USD"),
 				"raw": pos,
@@ -381,9 +428,9 @@ def sync_schwab_account(
 				"quantity": _dec(row.get("quantity")),
 				"avg_price": _dec(row.get("avg_price")),
 				"mark_price": _dec(row.get("mark_price")),
-				"broker_pl_day": Decimal("0"),
-				"broker_pl_ytd": Decimal("0"),
-				"multiplier": Decimal("1"),
+				"broker_pl_day": _dec(row.get("broker_pl_day")),
+				"broker_pl_ytd": _dec(row.get("broker_pl_ytd")),
+				"multiplier": _dec(row.get("multiplier"), Decimal("1")),
 				"currency": str(row.get("currency") or "USD"),
 				"broker_payload": row.get("raw") if isinstance(row.get("raw"), dict) else row,
 			},
@@ -410,6 +457,9 @@ def sync_schwab_account(
 					"quantity": p["quantity"],
 					"avg_price": p["avg_price"],
 					"mark_price": p["mark_price"],
+						"broker_pl_day": p.get("broker_pl_day", 0),
+						"broker_pl_ytd": p.get("broker_pl_ytd", 0),
+						"multiplier": p.get("multiplier", 1),
 					"description": p.get("description") or "",
 					"currency": p.get("currency") or "USD",
 				}
