@@ -273,5 +273,34 @@ def submit_order(params: PaperOrderParams) -> tuple[PaperOrder, PaperFill, Paper
 		bal.save(update_fields=["cash", "updated_at"])
 
 	bal = _recompute_balance(user_id=params.user_id, account_key=account_key)
+
+	# Broadcast snapshots + the newly created order.
 	_publish_realtime(user_id=params.user_id, account_key=account_key)
+
+	if live_data_redis is not None:
+		order_payload = {
+			"broker": "PAPER",
+			"account_key": account_key,
+			"order_id": str(order.id),
+			"client_order_id": order.client_order_id,
+			"symbol": order.symbol,
+			"asset_type": order.asset_type,
+			"side": order.side,
+			"quantity": float(order.quantity or 0),
+			"order_type": order.order_type,
+			"limit_price": float(order.limit_price) if order.limit_price is not None else None,
+			"stop_price": float(order.stop_price) if order.stop_price is not None else None,
+			"status": order.status,
+			"time_placed": order.time_placed.isoformat() if order.time_placed else None,
+			"updated_at": timezone.now().isoformat(),
+		}
+		try:
+			live_data_redis.set_json(f"live_data:orders:{account_key}", {"order": order_payload, "updated_at": order_payload["updated_at"]})
+		except Exception:
+			pass
+		try:
+			live_data_redis.publish_order(account_key, order_payload, broadcast_ws=True)
+		except Exception:
+			pass
+
 	return order, fill, position, bal

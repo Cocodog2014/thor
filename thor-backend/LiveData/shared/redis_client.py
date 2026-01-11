@@ -827,13 +827,30 @@ class LiveDataRedis:
 
         return result
 
-    def publish_order(self, account_id: str, data: Dict[str, Any]) -> int:
+    def publish_order(self, account_id: str, data: Dict[str, Any], *, broadcast_ws: bool = False) -> int:
         """Publish order update."""
         from .channels import get_orders_channel
 
         channel = get_orders_channel(account_id)
-        payload = {"type": "order", "account_id": account_id, **data}
-        return self.publish(channel, payload)
+
+        # Ensure callers cannot override enforced envelope fields.
+        payload = {**data, "type": "order", "account_id": account_id}
+
+        result = self.publish(channel, payload)
+
+        if broadcast_ws:
+            try:
+                from api.websocket.broadcast import broadcast_to_websocket_sync
+
+                # Prefer plural event name for frontend topic routing.
+                broadcast_to_websocket_sync(
+                    channel_layer=None,
+                    message={"type": "orders", "data": payload},
+                )
+            except Exception:
+                logger.exception("Failed to broadcast order to WebSocket for %s", account_id)
+
+        return result
 
     def publish_transaction(self, account_id: str, data: Dict[str, Any]) -> int:
         """Publish transaction update."""

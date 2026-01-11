@@ -1,6 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { BANNER_SELECTED_ACCOUNT_ID_KEY } from "../constants/bannerKeys";
+import { setActiveAccountId } from "../realtime/router";
 
 type SelectedAccountValue = {
   accountId: string | null;
@@ -65,6 +66,12 @@ export const SelectedAccountProvider: React.FC<{ children: React.ReactNode }> = 
   }, []);
 
   const accountKey = accountId ? `acct:${accountId}` : "acct:none";
+
+  // Ensure WS only mutates the currently-selected account view.
+  useEffect(() => {
+    setActiveAccountId(accountId);
+    return () => setActiveAccountId(null);
+  }, [accountId]);
 
   // On account change: cancel/remove only the previous account’s cache
   useEffect(() => {

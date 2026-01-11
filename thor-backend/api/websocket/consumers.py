@@ -156,6 +156,22 @@ class MarketDataConsumer(AsyncWebsocketConsumer):
         """Normalize singular -> plural so the browser only sees 'positions'."""
         await self.positions(event)
 
+    async def orders(self, event):
+        """Broadcast orders snapshot/update to client."""
+        data = self._event_payload(event)
+        if isinstance(data, dict):
+            inner_type = data.get("type")
+            if inner_type in {"order", "orders"}:
+                data = {**data, "type": "orders"}
+        await self.send(text_data=json.dumps({
+            "type": "orders",
+            "data": data,
+        }))
+
+    async def order(self, event):
+        """Normalize singular -> plural so the browser only sees 'orders'."""
+        await self.orders(event)
+
     async def market_data(self, event):
         """Broadcast batched market data snapshot (quotes array) to client."""
         await self.send(text_data=json.dumps({
