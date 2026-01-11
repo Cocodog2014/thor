@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from django.utils.dateparse import parse_datetime
 from decimal import Decimal
 from typing import Any, Dict, Iterable, Optional
 
@@ -162,7 +163,7 @@ def live_refresh_view(request):
     """POST /live/refresh?broker_account_id=<hash>
 
     Pull latest cached Schwab snapshots from Redis (written by the poller) and
-    upsert them into LiveBalance/LivePosition.
+    upsert them into LiveBalance/LivePosition/LiveOrder.
     """
 
     user = _require_user(request)
@@ -197,6 +198,7 @@ def live_refresh_view(request):
 
     balance_payload = _read_redis_json(f"live_data:balances:{broker_account_id}") or {}
     positions_payload = _read_redis_json(f"live_data:positions:{broker_account_id}") or {}
+    orders_payload = _read_redis_json(f"live_data:orders:{broker_account_id}") or {}
 
     # --- balance upsert -----------------------------------------------------
     if balance_payload:
@@ -245,6 +247,46 @@ def live_refresh_view(request):
         )
         updated += 1
 
+    # --- orders upsert -----------------------------------------------------
+    raw_orders: Iterable = orders_payload.get("orders") or []
+    orders_updated = 0
+    for row in raw_orders:
+        if not isinstance(row, dict):
+            continue
+        broker_order_id = str(row.get("broker_order_id") or "").strip()
+        if not broker_order_id:
+            continue
+
+        placed_raw = row.get("time_placed")
+        placed_dt = parse_datetime(str(placed_raw)) if placed_raw else None
+        if placed_dt is None:
+            placed_dt = timezone.now()
+        elif timezone.is_naive(placed_dt):
+            try:
+                placed_dt = timezone.make_aware(placed_dt, timezone.get_current_timezone())
+            except Exception:
+                placed_dt = timezone.now()
+
+        LiveOrder.objects.update_or_create(
+            user=user,
+            broker="SCHWAB",
+            broker_account_id=broker_account_id,
+            broker_order_id=broker_order_id,
+            defaults={
+                "status": str(row.get("status") or "WORKING"),
+                "symbol": str(row.get("symbol") or "").upper(),
+                "asset_type": str(row.get("asset_type") or "EQ").upper(),
+                "side": str(row.get("side") or "BUY"),
+                "quantity": _dec(row.get("quantity")),
+                "order_type": str(row.get("order_type") or "MKT"),
+                "limit_price": row.get("limit_price"),
+                "stop_price": row.get("stop_price"),
+                "time_placed": placed_dt,
+                "broker_payload": row,
+            },
+        )
+        orders_updated += 1
+
     return Response(
         {
             "broker_account_id": broker_account_id,
@@ -252,5 +294,7 @@ def live_refresh_view(request):
             "balance_source": "redis" if balance_payload else "none",
             "positions_source": "redis" if raw_positions else "none",
             "positions_upserted": updated,
+            "orders_source": "redis" if raw_orders else "none",
+            "orders_upserted": orders_updated,
         }
     )

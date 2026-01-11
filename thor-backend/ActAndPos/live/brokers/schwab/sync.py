@@ -506,6 +506,7 @@ def sync_schwab_account(
 
 	# --- orders ------------------------------------------------------------
 	orders_upserted = 0
+	orders_snapshot: list[dict] = []
 	if include_orders:
 		now = timezone.now()
 		from_dt = now - timedelta(days=max(1, int(orders_days)))
@@ -519,6 +520,27 @@ def sync_schwab_account(
 			broker_order_id = str(row.get("broker_order_id") or "").strip()
 			if not broker_order_id:
 				continue
+
+			orders_snapshot.append(
+				{
+					"broker": "SCHWAB",
+					"broker_order_id": broker_order_id,
+					"status": str(row.get("status") or "WORKING"),
+					"symbol": str(row.get("symbol") or "").upper(),
+					"asset_type": str(row.get("asset_type") or "EQ").upper(),
+					"side": str(row.get("side") or "BUY"),
+					"quantity": str(row.get("quantity") or "0"),
+					"order_type": str(row.get("order_type") or "MKT"),
+					"limit_price": str(row.get("limit_price")) if row.get("limit_price") is not None else None,
+					"stop_price": str(row.get("stop_price")) if row.get("stop_price") is not None else None,
+					"time_placed": (
+						row.get("time_placed").isoformat()
+						if getattr(row.get("time_placed"), "isoformat", None)
+						else None
+					),
+				}
+			)
+
 			LiveOrder.objects.update_or_create(
 				user=user,
 				broker="SCHWAB",
@@ -559,6 +581,18 @@ def sync_schwab_account(
 					)
 				except Exception:
 					logger.exception("Failed to publish Schwab order %s for %s", broker_order_id, account_hash)
+
+			if live_data_redis is not None:
+				orders_snapshot_payload = {
+					"account_id": account_hash,
+					"account_hash": account_hash,
+					"updated_at": timezone.now().isoformat(),
+					"orders": orders_snapshot,
+				}
+				try:
+					live_data_redis.set_json(f"live_data:orders:{account_hash}", orders_snapshot_payload)
+				except Exception:
+					pass
 
 	return SchwabSyncResult(
 		account_hash=account_hash,
