@@ -280,6 +280,17 @@ def _normalize_positions(raw_positions: Iterable[Any]) -> List[Dict[str, Any]]:
 				pl_ytd,
 				pl_ytd_key,
 			)
+		# Log all position keys if P/L not found (for debugging Schwab API changes)
+		if pl_day_key is None or pl_ytd_key is None:
+			logger.warning(
+				"Schwab position %s missing expected P/L keys. "
+				"Day P/L found: %s, YTD P/L found: %s. "
+				"Available keys in position: %s",
+				symbol,
+				pl_day_key is not None,
+				pl_ytd_key is not None,
+				list(pos.keys()),
+			)
 
 		multiplier = _dec(
 			instrument.get("multiplier")

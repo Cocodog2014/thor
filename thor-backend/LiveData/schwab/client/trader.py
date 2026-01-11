@@ -265,6 +265,66 @@ class SchwabTraderAPI:
                 except Exception:
                     mark_price = Decimal("0")
 
+            # Extract P/L from Schwab position payload (multiple key names supported)
+            pl_day = Decimal("0")
+            pl_ytd = Decimal("0")
+            pl_day_keys = (
+                "currentDayProfitLoss",
+                "currentDayProfitLossValue",
+                "dayProfitLoss",
+                "dayPnl",
+                "profitLossDay",
+            )
+            pl_ytd_keys = (
+                "yearToDateProfitLoss",
+                "ytdProfitLoss",
+                "profitLossYTD",
+                "ytdPnl",
+            )
+            # Extract day P/L (use first non-zero value or first present key)
+            for key in pl_day_keys:
+                if key in pos:
+                    try:
+                        pl_day = Decimal(str(pos[key] or 0))
+                        if pl_day != Decimal("0"):
+                            break
+                    except Exception:
+                        pass
+            # Check again for 0 values on any key
+            if pl_day == Decimal("0"):
+                for key in pl_day_keys:
+                    if key in pos:
+                        try:
+                            pl_day = Decimal(str(pos[key] or 0))
+                            break
+                        except Exception:
+                            pass
+            # Extract YTD P/L (use first non-zero value or first present key)
+            for key in pl_ytd_keys:
+                if key in pos:
+                    try:
+                        pl_ytd = Decimal(str(pos[key] or 0))
+                        if pl_ytd != Decimal("0"):
+                            break
+                    except Exception:
+                        pass
+            # Check again for 0 values on any key
+            if pl_ytd == Decimal("0"):
+                for key in pl_ytd_keys:
+                    if key in pos:
+                        try:
+                            pl_ytd = Decimal(str(pos[key] or 0))
+                            break
+                        except Exception:
+                            pass
+
+            if not any(key in pos for key in pl_day_keys + pl_ytd_keys):
+                logger.info(
+                    "Schwab position %s missing expected P/L keys. Available keys: %s",
+                    symbol,
+                    list(pos.keys()),
+                )
+
             if account:
                 try:
                     from ActAndPos.models import Position  # legacy (may not exist)
@@ -277,6 +337,8 @@ class SchwabTraderAPI:
                             "quantity": quantity,
                             "avg_price": avg_price,
                             "mark_price": mark_price,
+                            "realized_pl_day": pl_day,
+                            "realized_pl_open": pl_ytd,
                         },
                     )
                     mark_price_out = position.mark_price
