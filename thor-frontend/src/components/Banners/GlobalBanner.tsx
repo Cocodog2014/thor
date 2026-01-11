@@ -172,8 +172,12 @@ const GlobalBanner: React.FC = () => {
 
     const loadAccounts = async () => {
       try {
-        const { data } = await api.get<AccountSummary[]>('/actandpos/accounts');
-        const accountList = Array.isArray(data) ? data : [];
+        const { data } = await api.get<{ accounts?: AccountSummary[] } | AccountSummary[]>('/actandpos/accounts');
+        const accountList = Array.isArray(data)
+          ? data
+          : Array.isArray(data?.accounts)
+            ? data.accounts
+            : [];
         if (!isMounted) return;
 
         setAccounts(accountList);

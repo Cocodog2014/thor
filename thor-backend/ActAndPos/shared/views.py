@@ -5,6 +5,7 @@ both domains or aggregate across them.
 """
 from __future__ import annotations
 
+from django.utils import timezone
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework.exceptions import NotAuthenticated
@@ -18,36 +19,64 @@ def account_balance_view(request):
     """GET /api/accounts/balance/
     
     Aggregates both paper and live balances for the authenticated user.
-    For now, returns the first balance found (paper preferred).
+    Respects ?account_id=... and returns the balance for that account.
     """
     user = getattr(request, "user", None)
     if not user or not user.is_authenticated:
         raise NotAuthenticated("Authentication required")
-    
-    # Try paper first
-    paper_bal = PaperBalance.objects.filter(user=user).order_by("account_key").first()
-    if paper_bal:
-        return Response({
-            "broker": "PAPER",
-            "account_id": paper_bal.account_key,
-            "cash": float(paper_bal.cash),
-            "equity": float(paper_bal.equity),
-            "net_liq": float(paper_bal.net_liq),
-            "buying_power": float(paper_bal.buying_power),
-            "updated_at": paper_bal.updated_at.isoformat() if paper_bal.updated_at else None,
-        })
-    
-    # Fall back to live
-    live_bal = LiveBalance.objects.filter(user=user).order_by("broker", "broker_account_id").first()
-    if live_bal:
-        return Response({
-            "broker": live_bal.broker,
-            "account_id": live_bal.broker_account_id,
-            "cash": float(live_bal.cash),
-            "equity": float(live_bal.equity),
-            "net_liq": float(live_bal.net_liq),
-            "buying_power": float(live_bal.stock_buying_power or 0),
-            "updated_at": live_bal.updated_at.isoformat() if live_bal.updated_at else None,
-        })
-    
-    return Response({"detail": "No balance found"}, status=404)
+
+    # Resolve active account (paper/live) using the same rules as ActAndPos.
+    from ActAndPos.shared.accounts import get_active_account
+
+    acct = get_active_account(request)
+    now_iso = timezone.now().isoformat()
+
+    if str(acct.broker).upper() == "PAPER":
+        bal = PaperBalance.objects.filter(user=user, account_key=str(acct.broker_account_id)).order_by("-updated_at").first()
+        if bal is None:
+            # Ensure a default paper balance exists (best-effort).
+            try:
+                from ActAndPos.shared.accounts import resolve_account_for_user
+
+                resolve_account_for_user(user=user, account_id=None)
+            except Exception:
+                pass
+            bal = PaperBalance.objects.filter(user=user, account_key=str(acct.broker_account_id)).order_by("-updated_at").first()
+
+        if bal is None:
+            return Response({"detail": "Balance not found"}, status=404)
+
+        return Response(
+            {
+                "account_id": str(bal.account_key),
+                "net_liquidation": float(bal.net_liq or 0),
+                "equity": float(bal.equity or 0),
+                "cash": float(bal.cash or 0),
+                "buying_power": float(bal.buying_power or 0),
+                "day_trade_bp": float(bal.day_trade_bp or 0),
+                "updated_at": bal.updated_at.isoformat() if bal.updated_at else now_iso,
+                "source": "paper",
+            }
+        )
+
+    bal = LiveBalance.objects.filter(
+        user=user,
+        broker=str(acct.broker or "SCHWAB").upper(),
+        broker_account_id=str(acct.broker_account_id),
+    ).order_by("-updated_at").first()
+
+    if bal is None:
+        return Response({"detail": "Balance not found"}, status=404)
+
+    return Response(
+        {
+            "account_id": str(bal.broker_account_id),
+            "net_liquidation": float(bal.net_liq or 0),
+            "equity": float(bal.equity or 0),
+            "cash": float(bal.cash or 0),
+            "buying_power": float(bal.stock_buying_power or 0),
+            "day_trade_bp": float(bal.day_trading_buying_power or 0),
+            "updated_at": bal.updated_at.isoformat() if bal.updated_at else now_iso,
+            "source": "live",
+        }
+    )

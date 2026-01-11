@@ -1,5 +1,5 @@
 export interface AccountSummary {
-  id: number;
+  id: string;
   broker: string;
   broker_account_id: string;
   account_number?: string | null;

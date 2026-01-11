@@ -40,7 +40,21 @@ def _default_account_key(user) -> str:
 
 def _resolve_account_key(request, *, user) -> str:
     params = getattr(request, "query_params", None) or getattr(request, "GET", {})
-    return str(params.get("account_key") or params.get("account_id") or _default_account_key(user))
+
+    default_key = _default_account_key(user)
+    key = str(params.get("account_key") or params.get("account_id") or default_key).strip()
+
+    # Defensive: never expose or create legacy TEST-* / non-PAPER keys.
+    # Paper engine enforces PAPER-* too, but this keeps API behavior tidy.
+    if not key.upper().startswith("PAPER-"):
+        return default_key
+
+    # Avoid creating arbitrary paper accounts via query params.
+    if key != default_key and not PaperBalance.objects.filter(user=user, account_key=key).exists():
+        return default_key
+
+    return key
+
 
 @api_view(["GET"])
 def paper_accounts_view(request):
@@ -54,7 +68,7 @@ def paper_accounts_view(request):
     default_key = _default_account_key(user)
 
     keys = set(
-        PaperBalance.objects.filter(user=user)
+        PaperBalance.objects.filter(user=user, account_key__istartswith="PAPER-")
         .values_list("account_key", flat=True)
     )
     keys.add(default_key)
@@ -117,11 +131,18 @@ def paper_orders_submit_view(request):
     ser = PaperSubmitOrderSerializer(data=request.data)
     ser.is_valid(raise_exception=True)
 
+    account_key = str(ser.validated_data["account_key"]).strip()
+    default_key = _default_account_key(user)
+    if not account_key.upper().startswith("PAPER-"):
+        account_key = default_key
+    if account_key != default_key and not PaperBalance.objects.filter(user=user, account_key=account_key).exists():
+        account_key = default_key
+
     try:
         order, _fill, _position, bal = submit_order(
             PaperOrderParams(
                 user_id=user.id,
-                account_key=ser.validated_data["account_key"],
+                account_key=account_key,
                 symbol=ser.validated_data["symbol"],
                 asset_type=ser.validated_data.get("asset_type") or "EQ",
                 side=ser.validated_data["side"],

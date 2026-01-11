@@ -42,12 +42,12 @@ def _as_money_str(value) -> str:
 
 
 def _has_any_paper_balance(user) -> bool:
-    return PaperBalance.objects.filter(user=user).exists()
+    return PaperBalance.objects.filter(user=user, account_key__istartswith="PAPER-").exists()
 
 
 def _ensure_default_paper_balance(user) -> PaperBalance:
     """Guarantee every user has at least one PaperBalance."""
-    existing = PaperBalance.objects.filter(user=user).order_by("account_key").first()
+    existing = PaperBalance.objects.filter(user=user, account_key__istartswith="PAPER-").order_by("account_key").first()
     if existing is not None:
         return existing
 
@@ -125,7 +125,7 @@ def iter_accounts_for_user(user) -> Iterable[ActiveAccount]:
         yield _account_summary_for_live(user=user, bal=bal)
 
     # Paper accounts from balances
-    for bal in PaperBalance.objects.filter(user=user).order_by("account_key"):
+    for bal in PaperBalance.objects.filter(user=user, account_key__istartswith="PAPER-").order_by("account_key"):
         yield _account_summary_for_paper(user=user, bal=bal)
 
 
@@ -217,7 +217,12 @@ def get_active_account(request) -> ActiveAccount:
     params = getattr(request, "query_params", None) or getattr(request, "GET", {})
     account_id = params.get("account_id")
 
-    return resolve_account_for_user(user=user, account_id=account_id)
+    try:
+        return resolve_account_for_user(user=user, account_id=account_id)
+    except ValueError:
+        # If the UI has a stale selection (e.g., legacy/test paper keys),
+        # fall back to the default account instead of 500'ing.
+        return resolve_account_for_user(user=user, account_id=None)
 
 
 def resolve_account_for_user(*, user, account_id: str | None) -> ActiveAccount:
