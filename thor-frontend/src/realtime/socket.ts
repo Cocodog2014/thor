@@ -60,18 +60,29 @@ function resolveUrl(): string {
   const protocol =
     typeof window !== 'undefined' && window.location.protocol === 'https:' ? 'wss' : 'ws';
 
-  if (typeof window !== 'undefined') {
-    const host = window.location.hostname;
-    const port = window.location.port;
-
-    if (host === 'localhost' || host === '127.0.0.1') {
-      return `${protocol}://localhost:8000/ws/`;
+  // Prefer deriving WS origin from API base if it is absolute.
+  // - If VITE_API_BASE_URL is relative (/api), the WS should be same-origin (/ws/)
+  //   and rely on Vite/Nginx/Cloudflare to proxy it.
+  const apiBase = String(import.meta.env?.VITE_API_BASE_URL ?? '').trim();
+  if (apiBase.startsWith('http://') || apiBase.startsWith('https://')) {
+    try {
+      const u = new URL(apiBase);
+      u.protocol = u.protocol === 'https:' ? 'wss:' : 'ws:';
+      u.pathname = '/ws/';
+      u.search = '';
+      u.hash = '';
+      return u.toString();
+    } catch {
+      // fall through
     }
-
-    const base = `${host}${port ? `:${port}` : ''}`;
-    return `${protocol}://${base}/ws/`;
   }
 
+  if (typeof window !== 'undefined') {
+    // Same-origin WS (works with Vite proxy in dev and nginx/cloudflared in prod).
+    return `${protocol}://${window.location.host}/ws/`;
+  }
+
+  // SSR / tests fallback
   return `${protocol}://localhost:8000/ws/`;
 }
 
