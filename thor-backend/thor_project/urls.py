@@ -10,6 +10,7 @@ from ActAndPos.views.balances import account_balance_view
 admin.site.site_header = "Thor's Command Center"
 admin.site.site_title = "Thor Command Center"
 admin.site.index_title = "Thor Command Center"
+admin.site.index_template = "admin/thor_index.html"
 
 
 def api_root(request):

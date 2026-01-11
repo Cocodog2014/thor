@@ -1,0 +1,7 @@
+{% extends "admin/index.html" %}
+{% load pending_approvals %}
+
+{% block content %}
+  {% pending_approvals_panel 10 %}
+  {{ block.super }}
+{% endblock %}

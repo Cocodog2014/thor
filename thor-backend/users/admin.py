@@ -3,9 +3,29 @@ Admin configuration for Users app.
 """
 
 from django.contrib import admin
+from django.contrib.admin import SimpleListFilter
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.utils.html import format_html
 from .models import CustomUser, UserRole
+
+
+class ApprovalStatusFilter(SimpleListFilter):
+    title = "Approval"
+    parameter_name = "approval"
+
+    def lookups(self, request, model_admin):
+        return (
+            ("pending", "New / Pending approval"),
+            ("approved", "Approved"),
+        )
+
+    def queryset(self, request, queryset):
+        value = self.value()
+        if value == "pending":
+            return queryset.filter(is_approved=False)
+        if value == "approved":
+            return queryset.filter(is_approved=True)
+        return queryset
 
 
 @admin.register(CustomUser)
@@ -23,7 +43,7 @@ class CustomUserAdmin(BaseUserAdmin):
         'is_approved', 'mfa_enabled', 'last_login', 'created_at'
     )
     list_filter = (
-        'role', 'is_active', 'is_staff', 'is_approved', 'mfa_enabled', 'created_at'
+        'role', 'is_active', 'is_staff', ApprovalStatusFilter, 'mfa_enabled', 'created_at'
     )
     search_fields = ('email', 'first_name', 'last_name', 'display_name')
     ordering = ('-created_at',)

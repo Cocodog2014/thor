@@ -1,0 +1,32 @@
+{% if pending_count|default:0|add:0 > 0 %}
+  <div class="module" style="margin-bottom: 16px;">
+    <h2 style="display:flex; justify-content:space-between; align-items:center;">
+      <span>{{ title }} ({{ pending_count }})</span>
+      <a href="{{ pending_list_url }}">Review</a>
+    </h2>
+
+    <div style="padding: 8px 10px;">
+      <p style="margin: 0 0 8px 0;">
+        These users can log in, but are blocked from the API until approved.
+      </p>
+      <ul style="margin: 0; padding-left: 18px;">
+        {% for u in pending_users %}
+          <li>
+            <a href="{% url 'admin:users_customuser_change' u.pk %}">{{ u.email }}</a>
+            <span style="opacity: 0.75;">· {{ u.created_at }}</span>
+          </li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+{% else %}
+  <div class="module" style="margin-bottom: 16px;">
+    <h2 style="display:flex; justify-content:space-between; align-items:center;">
+      <span>{{ title }}</span>
+      <a href="{{ pending_list_url }}">Users</a>
+    </h2>
+    <div style="padding: 8px 10px;">
+      <p style="margin: 0;">No new users waiting for approval.</p>
+    </div>
+  </div>
+{% endif %}
