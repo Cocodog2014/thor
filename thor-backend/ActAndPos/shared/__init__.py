@@ -1,0 +1,5 @@
+"""Shared (broker-agnostic) contracts and utilities for ActAndPos.
+
+This package is intentionally dependency-light so both PAPER and LIVE
+implementations can import it without pulling in broker-specific code.
+"""
