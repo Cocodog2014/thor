@@ -31,7 +31,8 @@ def _iter_active_accounts():
 
 
 def _publish_balances(api: SchwabTraderAPI, account_hash: str, account_number: str | None):
-    balances = api.fetch_balances(account_hash)
+    # Avoid double-publishing: trader can publish, but poller should publish a single snapshot.
+    balances = api.fetch_balances(account_hash, publish=False)
     if balances is None:
         return
     payload: Dict = {
@@ -45,8 +46,9 @@ def _publish_balances(api: SchwabTraderAPI, account_hash: str, account_number: s
 
 
 def _publish_positions(api: SchwabTraderAPI, account_hash: str):
-    # fetch_positions already normalizes, persists Positions, caches snapshot
-    positions = api.fetch_positions(account_hash)
+    # Avoid per-position spam: poller publishes a single snapshot.
+    # fetch_positions still normalizes, persists Positions, caches snapshot.
+    positions = api.fetch_positions(account_hash, publish=False)
     payload: Dict = {
         "account_hash": account_hash,
         "positions": positions,

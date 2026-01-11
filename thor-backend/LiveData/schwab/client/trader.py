@@ -221,8 +221,8 @@ class SchwabTraderAPI:
             logger.debug("Schwab balances cache read failed for %s: %s", account_hash, e)
             return {}
 
-    def fetch_positions(self, account_hash: str) -> List[Dict]:
-        """Fetch positions for an account (hash or accountNumber), persist, publish."""
+    def fetch_positions(self, account_hash: str, *, publish: bool = True) -> List[Dict]:
+        """Fetch positions for an account (hash or accountNumber), persist, and optionally publish."""
         account_hash = self.resolve_account_hash(account_hash)
         try:
             data = self.fetch_account_details(account_hash, include_positions=True)
@@ -284,16 +284,17 @@ class SchwabTraderAPI:
 
             normalized.append(payload)
 
-            try:
-                live_data_redis.publish_position(account_hash, payload)
-            except Exception as e:
-                logger.error("Failed to publish Schwab position for %s: %s", symbol, e)
+            if publish:
+                try:
+                    live_data_redis.publish_position(account_hash, payload)
+                except Exception as e:
+                    logger.error("Failed to publish Schwab position for %s: %s", symbol, e)
 
         self._cache_positions_snapshot(account_hash, normalized)
         return normalized
 
-    def fetch_balances(self, account_id: str) -> Dict:
-        """Fetch balances (accountNumber or hashValue), persist, and publish to Redis."""
+    def fetch_balances(self, account_id: str, *, publish: bool = True) -> Dict:
+        """Fetch balances (accountNumber or hashValue), persist, and optionally publish to Redis."""
         try:
             account_hash = self.resolve_account_hash(account_id)
         except Exception as e:
@@ -413,11 +414,12 @@ class SchwabTraderAPI:
         payload["equity_percentage"] = float(equity_pct_dec)
         payload["long_stock_value"] = float(long_stock_value_dec)
 
-        publish_key = account_hash or account_number
-        try:
-            live_data_redis.publish_balance(publish_key, payload)
-        except Exception as e:
-            logger.error("Failed to publish Schwab balances for %s: %s", publish_key, e)
+        if publish:
+            publish_key = account_hash or account_number
+            try:
+                live_data_redis.publish_balance(publish_key, payload)
+            except Exception as e:
+                logger.error("Failed to publish Schwab balances for %s: %s", publish_key, e)
 
         self._cache_balances_snapshot(account_hash, payload)
         return payload
