@@ -427,7 +427,7 @@ const CollapsibleDrawer: React.FC<CollapsibleDrawerProps> = ({
     });
   });
 
-  useWsMessage('market.24h', (msg: WsEnvelope<Market24hPayload>) => {
+  useWsMessage('market_24h', (msg: WsEnvelope<Market24hPayload>) => {
     setLastTickAt(new Date());
     applyMarketPatch(msg.data?.symbol, {
       open: msg.data?.open ?? msg.data?.open_price,

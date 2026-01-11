@@ -337,7 +337,7 @@ class IntradaySupervisor:
                     if snap_52w:
                         broadcast_to_websocket_sync(
                             channel_layer=None,
-                            message={"type": "market.52w", "data": snap_52w},
+                            message={"type": "market_52w", "data": snap_52w},
                         )
                 except Exception:
                     logger.debug("live52w update failed for %s", sym, exc_info=True)
@@ -353,7 +353,7 @@ class IntradaySupervisor:
                     if snap:
                         broadcast_to_websocket_sync(
                             channel_layer=None,
-                            message={"type": "market.24h", "data": snap},
+                            message={"type": "market_24h", "data": snap},
                         )
                 except Exception:
                     logger.debug("live24h update failed for %s", sym, exc_info=True)

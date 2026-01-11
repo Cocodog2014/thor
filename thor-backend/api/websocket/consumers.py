@@ -171,16 +171,24 @@ class MarketDataConsumer(AsyncWebsocketConsumer):
         }))
 
     async def market_24h(self, event):
-        """Broadcast live 24h snapshot update to client (event type 'market.24h')."""
+        """Broadcast live 24h snapshot update to client.
+
+        Channels maps event type names to handler methods by replacing '.' with '_',
+        so legacy 'market.24h' will still dispatch here. The preferred wire name is 'market_24h'.
+        """
         await self.send(text_data=json.dumps({
-            "type": "market.24h",
+            "type": "market_24h",
             "data": event.get("data"),
         }))
 
     async def market_52w(self, event):
-        """Broadcast live 52w snapshot update to client (event type 'market.52w')."""
+        """Broadcast live 52w snapshot update to client.
+
+        Channels maps event type names to handler methods by replacing '.' with '_',
+        so legacy 'market.52w' will still dispatch here. The preferred wire name is 'market_52w'.
+        """
         await self.send(text_data=json.dumps({
-            "type": "market.52w",
+            "type": "market_52w",
             "data": event.get("data"),
         }))
     
