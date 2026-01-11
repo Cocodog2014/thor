@@ -88,11 +88,12 @@
   border: 1px solid var(--border-1);
 }
 
-.col-country { width: 30%; }
-.col-local { width: 26%; }
-.col-open { width: 18%; }
-.col-close { width: 18%; }
-.col-status { width: 12%; }
+/* Tighten the first two columns so OPEN/CLOSE have more room */
+.col-country { width: 10%; }
+.col-local { width: 25%; }
+.col-open { width: 20%; }
+.col-close { width: 20%; }
+.col-status { width: 15%; }
 
 .markets-table thead th {
   position: sticky;
@@ -157,6 +158,7 @@
   font-weight: 600;
   color: var(--text-strong);
   font-size: 0.9rem;
+  padding-right: 0.08rem; /* reduce gap before LOCAL */
 }
 
 .market-year,
@@ -198,6 +200,11 @@
   font-size: 0.85rem;
 }
 
+.markets-table td.market-local {
+  padding-left: 0.08rem;
+  padding-right: 0.08rem;
+}
+
 .status-indicator {
   display: inline-block;
   padding: 2px 6px;
@@ -221,8 +228,11 @@
 }
 
 @media (max-width: 900px) {
-  .col-market { width: 16%; }
-  .col-time { width: 22%; }
+  .col-country { width: 25%; }
+  .col-local { width: 23%; }
+  .col-open { width: 20%; }
+  .col-close { width: 20%; }
+  .col-status { width: 12%; }
   .markets-table td,
   .markets-table thead th {
     padding: 0.24rem 0.2rem;

@@ -41,7 +41,7 @@ def _publish_balances(api: SchwabTraderAPI, account_hash: str, account_number: s
         **(balances if isinstance(balances, dict) else {"balances": balances}),
     }
     live_data_redis.set_json(f"live_data:balances:{account_hash}", payload)
-    live_data_redis.publish_balance(account_hash, payload)
+    live_data_redis.publish_balance(account_hash, payload, broadcast_ws=True)
 
 
 def _publish_positions(api: SchwabTraderAPI, account_hash: str):
@@ -53,7 +53,7 @@ def _publish_positions(api: SchwabTraderAPI, account_hash: str):
         "updated_at": datetime.utcnow().isoformat() + "Z",
     }
     live_data_redis.set_json(f"live_data:positions:{account_hash}", payload)
-    live_data_redis.publish_positions(account_hash, payload)
+    live_data_redis.publish_positions(account_hash, payload, broadcast_ws=True)
 
 
 def _poll_once():

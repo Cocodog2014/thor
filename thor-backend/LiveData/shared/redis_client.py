@@ -761,7 +761,13 @@ class LiveDataRedis:
         payload = {**data, "type": "position", "account_id": account_id}
         return self.publish(channel, payload)
 
-    def publish_positions(self, account_id: str, data: Dict[str, Any] | list[Any]) -> int:
+    def publish_positions(
+        self,
+        account_id: str,
+        data: Dict[str, Any] | list[Any],
+        *,
+        broadcast_ws: bool = False,
+    ) -> int:
         """Publish a positions snapshot (batch) for an account."""
         from .channels import get_positions_channel
 
@@ -781,15 +787,45 @@ class LiveDataRedis:
 
         # Ensure callers cannot override enforced envelope fields.
         payload = {**payload_data, "type": "positions", "account_id": account_id}
-        return self.publish(channel, payload)
 
-    def publish_balance(self, account_id: str, data: Dict[str, Any]) -> int:
+        result = self.publish(channel, payload)
+
+        if broadcast_ws:
+            try:
+                from api.websocket.broadcast import broadcast_to_websocket_sync
+
+                # Frontend listens for topic-like event names (plural).
+                broadcast_to_websocket_sync(
+                    channel_layer=None,
+                    message={"type": "positions", "data": payload},
+                )
+            except Exception:
+                logger.exception("Failed to broadcast positions to WebSocket for %s", account_id)
+
+        return result
+
+    def publish_balance(self, account_id: str, data: Dict[str, Any], *, broadcast_ws: bool = False) -> int:
         """Publish balance update."""
         from .channels import get_balances_channel
 
         channel = get_balances_channel(account_id)
-        payload = {"type": "balance", "account_id": account_id, **data}
-        return self.publish(channel, payload)
+        # Ensure callers cannot override enforced envelope fields.
+        payload = {**data, "type": "balance", "account_id": account_id}
+        result = self.publish(channel, payload)
+
+        if broadcast_ws:
+            try:
+                from api.websocket.broadcast import broadcast_to_websocket_sync
+
+                # Prefer plural event name for frontend topic routing.
+                broadcast_to_websocket_sync(
+                    channel_layer=None,
+                    message={"type": "balances", "data": payload},
+                )
+            except Exception:
+                logger.exception("Failed to broadcast balance to WebSocket for %s", account_id)
+
+        return result
 
     def publish_order(self, account_id: str, data: Dict[str, Any]) -> int:
         """Publish order update."""

@@ -107,6 +107,41 @@ class MarketDataConsumer(AsyncWebsocketConsumer):
             "data": event.get("data")
         }))
 
+    async def balances(self, event):
+        """Broadcast account balances snapshot/update to client."""
+        await self.send(text_data=json.dumps({
+            "type": "balances",
+            "data": event.get("data", event),
+        }))
+
+    async def balance(self, event):
+        """Backward-compatible alias (some publishers may emit type='balance')."""
+        await self.send(text_data=json.dumps({
+            "type": "balance",
+            "data": event.get("data", event),
+        }))
+
+    async def account_balance(self, event):
+        """Backward-compatible alias for type='account_balance'."""
+        await self.send(text_data=json.dumps({
+            "type": "account_balance",
+            "data": event.get("data", event),
+        }))
+
+    async def positions(self, event):
+        """Broadcast positions snapshot/update to client."""
+        await self.send(text_data=json.dumps({
+            "type": "positions",
+            "data": event.get("data", event),
+        }))
+
+    async def position(self, event):
+        """Backward-compatible alias (some publishers may emit type='position')."""
+        await self.send(text_data=json.dumps({
+            "type": "position",
+            "data": event.get("data", event),
+        }))
+
     async def market_data(self, event):
         """Broadcast batched market data snapshot (quotes array) to client."""
         await self.send(text_data=json.dumps({
