@@ -9,10 +9,9 @@ from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
-from ActAndPos.models import Position
-from ActAndPos.models.snapshots import AccountDailySnapshot
-from ActAndPos.serializers import AccountSummarySerializer
 from ActAndPos.views.accounts import get_active_account
+
+from ActAndPos.shared.statement.service import build_statement
 
 from ..models import Trade
 from ..serializers import TradeSerializer
@@ -58,19 +57,6 @@ def _resolve_date_range(
     return today, today
 
 
-def _as_str(value) -> str:
-    return "" if value is None else str(value)
-
-
-def _format_percent(value) -> str:
-    if value is None:
-        return ""
-    try:
-        return f"{float(value):.2f}%"
-    except (TypeError, ValueError):
-        return str(value)
-
-
 @api_view(["GET"])
 def account_statement_view(request):
     """Aggregate account snapshot + trade history for Account Statements."""
@@ -79,12 +65,6 @@ def account_statement_view(request):
         account = get_active_account(request)
     except ValueError as exc:
         return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
-
-    latest_snapshot = (
-        AccountDailySnapshot.objects.filter(account=account)
-        .order_by("-trading_date", "-captured_at")
-        .first()
-    )
 
     today = timezone.localdate()
     days_back_param = request.query_params.get("days_back")
@@ -96,84 +76,22 @@ def account_statement_view(request):
     except ValueError as exc:
         return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
-    trades_qs = Trade.objects.filter(
+    payload = build_statement(
+        user=request.user,
         account=account,
-        exec_time__date__gte=start_date,
-        exec_time__date__lte=end_date,
-    ).order_by("-exec_time")
-    trades_data = TradeSerializer(trades_qs, many=True).data
-
-    positions_qs = Position.objects.filter(account=account).order_by("symbol")
-
-    equities_rows = [
-        {
-            "id": str(position.pk),
-            "symbol": position.symbol,
-            "description": position.description or "",
-            "qty": _as_str(position.quantity),
-            "tradePrice": _as_str(position.avg_price),
-            "mark": _as_str(position.mark_price),
-            "markValue": _as_str(position.market_value),
-        }
-        for position in positions_qs
-    ]
-
-    pnl_rows = [
-        {
-            "id": f"pnl-{position.pk}",
-            "symbol": position.symbol,
-            "description": position.description or "",
-            "plOpen": _as_str(position.unrealized_pl),
-            "plPct": _format_percent(position.pl_percent),
-            "plDay": _as_str(position.realized_pl_day),
-            "plYtd": _as_str(position.realized_pl_open),
-        }
-        for position in positions_qs
-    ]
-
-    account_summary = AccountSummarySerializer(account).data
-    if latest_snapshot:
-        snapshot_overrides = {
-            "net_liq": latest_snapshot.net_liq,
-            "cash": latest_snapshot.cash,
-            "stock_buying_power": latest_snapshot.stock_buying_power,
-            "option_buying_power": latest_snapshot.option_buying_power,
-            "day_trading_buying_power": latest_snapshot.day_trading_buying_power,
-            "equity": latest_snapshot.equity,
-        }
-        for key, value in snapshot_overrides.items():
-            account_summary[key] = _as_str(value)
-
-    value_source = latest_snapshot or account
-    summary_rows = [
-        {"id": "net_liq", "metric": "Net Liquidating Value", "value": _as_str(value_source.net_liq)},
-        {"id": "cash", "metric": "Cash", "value": _as_str(value_source.cash)},
-        {
-            "id": "stock_bp",
-            "metric": "Stock Buying Power",
-            "value": _as_str(value_source.stock_buying_power),
-        },
-        {
-            "id": "option_bp",
-            "metric": "Option Buying Power",
-            "value": _as_str(value_source.option_buying_power),
-        },
-        {
-            "id": "dt_bp",
-            "metric": "Day Trading Buying Power",
-            "value": _as_str(value_source.day_trading_buying_power),
-        },
-    ]
-
-    return Response(
-        {
-            "account": account_summary,
-            "date_range": {"from": start_date.isoformat(), "to": end_date.isoformat()},
-            "cashSweep": [],
-            "futuresCash": [],
-            "equities": equities_rows,
-            "pnlBySymbol": pnl_rows,
-            "trades": trades_data,
-            "summary": summary_rows,
-        }
+        days_back=days_back_param,
+        from_param=from_param,
+        to_param=to_param,
     )
+
+    # Keep existing Trades.Trade history in response for now (UI expects it),
+    # but prefer the unified source list if it contains trades.
+    if not payload.get("trades"):
+        trades_qs = Trade.objects.filter(
+            account=account,
+            exec_time__date__gte=start_date,
+            exec_time__date__lte=end_date,
+        ).order_by("-exec_time")
+        payload["trades"] = TradeSerializer(trades_qs, many=True).data
+
+    return Response(payload)
