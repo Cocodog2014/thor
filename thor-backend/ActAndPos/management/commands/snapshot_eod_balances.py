@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from datetime import date
 from decimal import Decimal
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, TYPE_CHECKING
 
 from django.core.cache import cache
 from django.core.management.base import BaseCommand
@@ -17,6 +17,11 @@ try:
     from LiveData.schwab.client.trader import SchwabTraderAPI
 except Exception:  # pragma: no cover - Schwab optional in some environments
     SchwabTraderAPI = None  # type: ignore
+
+if TYPE_CHECKING:  # pragma: no cover
+	from LiveData.schwab.client.trader import SchwabTraderAPI as SchwabTraderAPIType
+else:
+	SchwabTraderAPIType = Any  # type: ignore
 
 
 _SCHWAB_ACCOUNTS_CACHE: Dict[int, List[dict]] = {}
@@ -159,7 +164,7 @@ def _get_schwab_cached_balances(account: Account) -> Optional[dict]:
     return None
 
 
-def _get_schwab_accounts_payload(api: "SchwabTraderAPI", user_id: int) -> List[dict]:
+def _get_schwab_accounts_payload(api: "SchwabTraderAPIType", user_id: int) -> List[dict]:
     """Fetch /accounts payload once per user for the current command run."""
 
     if user_id in _SCHWAB_ACCOUNTS_CACHE:
