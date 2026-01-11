@@ -67,6 +67,30 @@ def _first_numeric(row: Dict[str, Any], keys: Iterable[str]) -> Decimal:
 	return Decimal("0")
 
 
+def _first_numeric_with_key(row: Dict[str, Any], keys: Iterable[str]) -> tuple[Decimal, str | None]:
+	"""Return (value, key_used) for the first matching numeric field in `keys`.
+
+	- Prefers non-zero values.
+	- If only zeros exist, returns zero with the first present key.
+	- If none present, returns (0, None).
+	"""
+
+	first_present_key: str | None = None
+	for key in keys:
+		if key not in row:
+			continue
+		if first_present_key is None:
+			first_present_key = key
+		val = _dec(row.get(key), default=Decimal("0"))
+		if val != Decimal("0"):
+			return val, key
+
+	if first_present_key is not None:
+		return _dec(row.get(first_present_key), default=Decimal("0")), first_present_key
+
+	return Decimal("0"), None
+
+
 def _looks_like_hash(value: str) -> bool:
 	return bool(value and re.fullmatch(r"[A-Fa-f0-9]{32,128}", str(value).strip()))
 
@@ -232,25 +256,30 @@ def _normalize_positions(raw_positions: Iterable[Any]) -> List[Dict[str, Any]]:
 
 		# Schwab position payloads commonly include current-day P/L and may include YTD P/L.
 		# We accept multiple possible key names defensively.
-		pl_day = _first_numeric(
-			pos,
-			(
-				"currentDayProfitLoss",
-				"currentDayProfitLossValue",
-				"dayProfitLoss",
-				"dayPnl",
-				"profitLossDay",
-			),
+		pl_day_keys = (
+			"currentDayProfitLoss",
+			"currentDayProfitLossValue",
+			"dayProfitLoss",
+			"dayPnl",
+			"profitLossDay",
 		)
-		pl_ytd = _first_numeric(
-			pos,
-			(
-				"yearToDateProfitLoss",
-				"ytdProfitLoss",
-				"profitLossYTD",
-				"ytdPnl",
-			),
+		pl_ytd_keys = (
+			"yearToDateProfitLoss",
+			"ytdProfitLoss",
+			"profitLossYTD",
+			"ytdPnl",
 		)
+		pl_day, pl_day_key = _first_numeric_with_key(pos, pl_day_keys)
+		pl_ytd, pl_ytd_key = _first_numeric_with_key(pos, pl_ytd_keys)
+		if logger.isEnabledFor(logging.DEBUG):
+			logger.debug(
+				"Schwab position P/L keys for %s: day=%s (%s), ytd=%s (%s)",
+				symbol,
+				pl_day,
+				pl_day_key,
+				pl_ytd,
+				pl_ytd_key,
+			)
 
 		multiplier = _dec(
 			instrument.get("multiplier")
