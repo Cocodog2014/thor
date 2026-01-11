@@ -10,8 +10,10 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
 from ActAndPos.models import Account
-from ActAndPos.models.snapshots import AccountDailySnapshot
 from ActAndPos.views.accounts import get_active_account
+
+from ActAndPos.live.models import LiveBalance
+from ActAndPos.paper.models import PaperBalance
 
 try:  # LiveData redis helper (publishes balances/positions)
     from LiveData.shared.redis_client import live_data_redis
@@ -126,40 +128,59 @@ def _read_redis_balance(account: Account) -> Optional[Dict[str, Any]]:
     return None
 
 
-def _snapshot_balance(account: Account) -> Optional[Dict[str, Any]]:
-    snapshot = (
-        AccountDailySnapshot.objects.filter(account=account)
-        .order_by("-trading_date", "-captured_at")
-        .first()
-    )
-    if snapshot is None:
-        return None
-
+def _paper_balance(account: Account) -> Dict[str, Any]:
     account_identifier = _account_identifier(account)
-    data = {
-        "account_id": account_identifier,
-        "net_liquidation": _as_float(snapshot.net_liq),
-        "equity": _as_float(snapshot.equity),
-        "cash": _as_float(snapshot.cash),
-        "buying_power": _as_float(snapshot.stock_buying_power),
-        "day_trade_bp": _as_float(snapshot.day_trading_buying_power),
-        "source": "db",
-        "updated_at": snapshot.captured_at.isoformat() if snapshot.captured_at else timezone.now().isoformat(),
-    }
-    return data
-
-
-def _account_balance(account: Account) -> Dict[str, Any]:
-    account_identifier = _account_identifier(account)
+    bal = PaperBalance.objects.filter(user=account.user, account_key=str(account.broker_account_id)).first()
+    if bal is None:
+        return {
+            "account_id": account_identifier,
+            "net_liquidation": 0.0,
+            "equity": 0.0,
+            "cash": 0.0,
+            "buying_power": 0.0,
+            "day_trade_bp": 0.0,
+            "source": "paper_db",
+            "updated_at": datetime.utcnow().isoformat(),
+        }
     return {
         "account_id": account_identifier,
-        "net_liquidation": _as_float(account.net_liq),
-        "equity": _as_float(account.equity),
-        "cash": _as_float(account.cash),
-        "buying_power": _as_float(account.stock_buying_power),
-        "day_trade_bp": _as_float(account.day_trading_buying_power),
-        "source": "db",
-        "updated_at": datetime.utcnow().isoformat(),
+        "net_liquidation": _as_float(bal.net_liq),
+        "equity": _as_float(bal.equity),
+        "cash": _as_float(bal.cash),
+        "buying_power": _as_float(bal.buying_power),
+        "day_trade_bp": _as_float(bal.day_trade_bp),
+        "source": "paper_db",
+        "updated_at": bal.updated_at.isoformat() if bal.updated_at else datetime.utcnow().isoformat(),
+    }
+
+
+def _live_balance(account: Account) -> Dict[str, Any]:
+    account_identifier = _account_identifier(account)
+    bal = LiveBalance.objects.filter(
+        user=account.user,
+        broker=str(account.broker),
+        broker_account_id=str(account.broker_account_id),
+    ).order_by("-updated_at").first()
+    if bal is None:
+        return {
+            "account_id": account_identifier,
+            "net_liquidation": 0.0,
+            "equity": 0.0,
+            "cash": 0.0,
+            "buying_power": 0.0,
+            "day_trade_bp": 0.0,
+            "source": "live_db",
+            "updated_at": datetime.utcnow().isoformat(),
+        }
+    return {
+        "account_id": account_identifier,
+        "net_liquidation": _as_float(bal.net_liq),
+        "equity": _as_float(bal.equity),
+        "cash": _as_float(bal.cash),
+        "buying_power": _as_float(bal.stock_buying_power),
+        "day_trade_bp": _as_float(bal.day_trading_buying_power),
+        "source": "live_db",
+        "updated_at": bal.updated_at.isoformat() if bal.updated_at else datetime.utcnow().isoformat(),
     }
 
 
@@ -169,22 +190,17 @@ def account_balance_view(request):
     Canonical balance endpoint.
 
     Order of precedence:
-    1) Redis live_data:balances:<account_hash>
-    2) Latest AccountDailySnapshot (EOD/last capture)
-    3) Account row values
+    - SCHWAB/LIVE: Redis live_data:balances:<account_hash> then LiveBalance
+    - PAPER: PaperBalance
     """
 
     account = get_active_account(request)
 
-    # Redis first (live)
+    if getattr(account, "broker", None) == "PAPER":
+        return Response(_paper_balance(account))
+
     redis_balance = _read_redis_balance(account)
     if redis_balance:
         return Response(redis_balance)
 
-    # Snapshot fallback (most recent captured)
-    snapshot_balance = _snapshot_balance(account)
-    if snapshot_balance:
-        return Response(snapshot_balance)
-
-    # Direct account values as last resort
-    return Response(_account_balance(account))
+    return Response(_live_balance(account))

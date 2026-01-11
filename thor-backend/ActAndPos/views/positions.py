@@ -1,13 +1,15 @@
 import logging
-import re
 
-from typing import Optional
+from decimal import Decimal
+from typing import Any, Optional
 
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
-from ..models import Position
-from ..serializers import AccountSummarySerializer, PositionSerializer
+from ActAndPos.live.models import LivePosition
+from ActAndPos.paper.models import PaperPosition
+from ActAndPos.serializers import AccountSummarySerializer
+
 from .accounts import get_active_account
 
 logger = logging.getLogger(__name__)
@@ -19,80 +21,78 @@ def _truthy(value: Optional[str]) -> bool:
     return str(value).strip().lower() in {"1", "true", "yes", "y", "on"}
 
 
-def _maybe_refresh_schwab_positions_and_balances(*, request, account) -> None:
-    """Best-effort refresh for SCHWAB accounts.
+def _as_str(value: Any) -> str:
+    return "" if value is None else str(value)
 
-    This keeps ActAndPos in sync even if no external poller is running.
-    Guarded by a short Redis cooldown to avoid hammering Schwab on rapid UI polls.
-    """
 
+def _calc_unrealized_pl(*, qty: Decimal, avg: Decimal, mark: Decimal, multiplier: Decimal) -> Decimal:
+    return (mark - avg) * qty * (multiplier or Decimal("1"))
+
+
+def _calc_pl_percent(*, qty: Decimal, avg: Decimal, unrealized_pl: Decimal, multiplier: Decimal) -> Decimal:
+    cost = qty * avg * (multiplier or Decimal("1"))
+    if not cost:
+        return Decimal("0")
+    try:
+        return (unrealized_pl / abs(cost)) * Decimal("100")
+    except Exception:
+        return Decimal("0")
+
+
+def _serialize_position(
+    *,
+    pk: int,
+    symbol: str,
+    description: str,
+    asset_type: str,
+    quantity: Decimal,
+    avg_price: Decimal,
+    mark_price: Decimal,
+    multiplier: Decimal,
+    realized_pl_open: Decimal,
+    realized_pl_day: Decimal,
+    currency: str,
+) -> dict:
+    market_value = quantity * mark_price * (multiplier or Decimal("1"))
+    unrealized_pl = _calc_unrealized_pl(qty=quantity, avg=avg_price, mark=mark_price, multiplier=multiplier)
+    pl_percent = _calc_pl_percent(qty=quantity, avg=avg_price, unrealized_pl=unrealized_pl, multiplier=multiplier)
+
+    return {
+        "id": pk,
+        "symbol": symbol,
+        "description": description or "",
+        "asset_type": asset_type,
+        "quantity": _as_str(quantity),
+        "avg_price": _as_str(avg_price),
+        "mark_price": _as_str(mark_price),
+        "market_value": _as_str(market_value),
+        "unrealized_pl": _as_str(unrealized_pl),
+        "pl_percent": _as_str(pl_percent),
+        "realized_pl_open": _as_str(realized_pl_open),
+        "realized_pl_day": _as_str(realized_pl_day),
+        "currency": currency or "USD",
+    }
+
+
+def _maybe_refresh_schwab(*, request, account) -> None:
     if getattr(account, "broker", None) != "SCHWAB":
         return
 
     params = getattr(request, "query_params", None) or getattr(request, "GET", {})
-    force = _truthy(params.get("refresh"))
-
-    broker_account_id = str(getattr(account, "broker_account_id", "") or "").strip()
-    account_number = str(getattr(account, "account_number", "") or "").strip()
-
-    def _looks_like_hash(value: str) -> bool:
-        return bool(value and re.fullmatch(r"[A-Fa-f0-9]{32,128}", value))
-
-    def _looks_like_account_number(value: str) -> bool:
-        return bool(value and value.isdigit() and 6 <= len(value) <= 12)
-
-    # SchwabTraderAPI accepts either, but internally it must be able to resolve to hashValue.
-    # Prefer hashValue, otherwise pass accountNumber when available.
-    schwab_account_id = None
-    if _looks_like_hash(broker_account_id):
-        schwab_account_id = broker_account_id
-    elif _looks_like_account_number(account_number):
-        schwab_account_id = account_number
-    elif _looks_like_account_number(broker_account_id):
-        schwab_account_id = broker_account_id
-    else:
-        schwab_account_id = broker_account_id or account_number or None
-
-    if not schwab_account_id:
-        logger.warning(
-            "Schwab refresh skipped: missing account identifier (broker_account_id/account_number). account_pk=%s",
-            getattr(account, "pk", None),
-        )
+    if not _truthy(params.get("refresh")):
         return
 
     try:
-        from LiveData.shared.redis_client import live_data_redis
+        from ActAndPos.live.brokers.schwab.sync import sync_schwab_account
 
-        cooldown_key = f"actandpos:schwab:refresh:{schwab_account_id}"
-        if not force:
-            acquired = live_data_redis.client.set(cooldown_key, "1", nx=True, ex=15)
-            if not acquired:
-                return
-    except Exception:
-        # If Redis is unavailable, proceed without cooldown.
-        pass
-
-    try:
-        from LiveData.schwab.client.trader import SchwabTraderAPI
-
-        api = SchwabTraderAPI(request.user)
-        api.fetch_balances(schwab_account_id)
-        api.fetch_positions(schwab_account_id)
-    except Exception as e:
-        logger.warning(
-            "Schwab refresh failed. broker_account_id=%s account_number=%s chosen=%s err=%s",
-            broker_account_id or "?",
-            account_number or "?",
-            schwab_account_id or "?",
-            e,
-            exc_info=True,
+        sync_schwab_account(
+            user=request.user,
+            broker_account_id=str(account.broker_account_id),
+            include_orders=False,
+            publish_ws=True,
         )
-        return
-
-    try:
-        account.refresh_from_db()
     except Exception:
-        pass
+        logger.exception("Schwab sync failed for positions refresh")
 
 
 @api_view(["GET"])
@@ -101,13 +101,55 @@ def positions_view(request):
 
     account = get_active_account(request)
 
-    _maybe_refresh_schwab_positions_and_balances(request=request, account=account)
+    _maybe_refresh_schwab(request=request, account=account)
 
-    positions = Position.objects.filter(account=account).order_by("symbol")
+    positions_payload: list[dict] = []
+    if getattr(account, "broker", None) == "PAPER":
+        qs = PaperPosition.objects.filter(user=account.user, account_key=str(account.broker_account_id)).order_by(
+            "symbol"
+        )
+        for p in qs:
+            positions_payload.append(
+                _serialize_position(
+                    pk=p.pk,
+                    symbol=str(p.symbol or "").upper(),
+                    description=p.description or "",
+                    asset_type=str(p.asset_type or "EQ").upper(),
+                    quantity=p.quantity,
+                    avg_price=p.avg_price,
+                    mark_price=p.mark_price,
+                    multiplier=p.multiplier,
+                    realized_pl_open=p.realized_pl_total,
+                    realized_pl_day=p.realized_pl_day,
+                    currency=p.currency or "USD",
+                )
+            )
+    else:
+        qs = LivePosition.objects.filter(
+            user=account.user,
+            broker=str(account.broker),
+            broker_account_id=str(account.broker_account_id),
+        ).order_by("symbol")
+        for p in qs:
+            positions_payload.append(
+                _serialize_position(
+                    pk=p.pk,
+                    symbol=str(p.symbol or "").upper(),
+                    description=p.description or "",
+                    asset_type=str(p.asset_type or "EQ").upper(),
+                    quantity=p.quantity,
+                    avg_price=p.avg_price,
+                    mark_price=p.mark_price,
+                    multiplier=p.multiplier,
+                    realized_pl_open=p.broker_pl_ytd,
+                    realized_pl_day=p.broker_pl_day,
+                    currency=p.currency or "USD",
+                )
+            )
 
     return Response(
         {
             "account": AccountSummarySerializer(account).data,
-            "positions": PositionSerializer(positions, many=True).data,
+            "positions": positions_payload,
         }
     )
