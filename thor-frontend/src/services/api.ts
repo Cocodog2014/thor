@@ -204,6 +204,18 @@ api.interceptors.response.use(
     if (!originalRequest) {
       return Promise.reject(error);
     }
+
+    // Approval gate: if backend says the user is not approved, route to pending approval.
+    if (error.response?.status === 403) {
+      const code = (error.response?.data as { code?: string } | undefined)?.code;
+      if (code === 'not_approved') {
+        // Avoid redirect loops.
+        if (!window.location.pathname.startsWith('/auth/pending-approval')) {
+          window.location.href = '/auth/pending-approval';
+        }
+        return Promise.reject(error);
+      }
+    }
     
     // Check if this is a public endpoint - don't try auth refresh
     const isPublic = PUBLIC_ENDPOINTS.some(endpoint => 

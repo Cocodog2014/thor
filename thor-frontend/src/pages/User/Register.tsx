@@ -3,10 +3,12 @@ import { Box, Paper, Typography, TextField, Button, FormControlLabel, Checkbox }
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import api from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
 import './Register.css';
 
 const Register: React.FC = () => {
   const navigate = useNavigate();
+  const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
@@ -21,7 +23,7 @@ const Register: React.FC = () => {
     setLoading(true);
     try {
       // Call Django register endpoint
-      await api.post('/users/register/', {  // baseURL already has /api
+      const { data } = await api.post('/users/register/', {  // baseURL already has /api
         email, 
         password,
         password_confirm: confirm,
@@ -29,9 +31,17 @@ const Register: React.FC = () => {
         first_name: '',
         last_name: ''
       });
-      
-      toast.success('Account created! You can now sign in.');
-      navigate('/auth/login');
+
+      const accessToken = (data as { access?: string }).access;
+      const refreshToken = (data as { refresh?: string }).refresh;
+      if (accessToken) {
+        login(accessToken, refreshToken ?? null);
+        toast.success('Account created! Waiting for admin approval.');
+        navigate('/auth/pending-approval', { replace: true });
+      } else {
+        toast.success('Account created! You can now sign in.');
+        navigate('/auth/login');
+      }
     } catch (err: unknown) {
       console.error('Registration error:', err);
       // Extract error messages from Django response

@@ -39,6 +39,7 @@ class CustomUserManager(BaseUserManager):
         extra_fields.setdefault('is_staff', True)
         extra_fields.setdefault('is_superuser', True)
         extra_fields.setdefault('role', UserRole.OWNER)
+        extra_fields.setdefault('is_approved', True)
         
         if extra_fields.get('is_staff') is not True:
             raise ValueError('Superuser must have is_staff=True.')
@@ -111,6 +112,11 @@ class CustomUser(AbstractUser):
     mfa_enabled = models.BooleanField(
         default=False,
         help_text="Whether multi-factor authentication is enabled"
+    )
+
+    is_approved = models.BooleanField(
+        default=False,
+        help_text="Whether this user is approved by an admin to use the app",
     )
     
     role = models.CharField(
@@ -218,6 +224,7 @@ class CustomUser(AbstractUser):
         if self.role == UserRole.OWNER:
             self.is_staff = True
             self.is_superuser = True
+            self.is_approved = True
 
         if not self.display_name and (self.first_name or self.last_name):
             self.display_name = f"{self.first_name} {self.last_name}".strip()

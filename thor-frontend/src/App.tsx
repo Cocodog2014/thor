@@ -17,6 +17,7 @@ import AuthLayout from './layouts/AuthLayout';
 import AppLayout from './layouts/AppLayout';
 import Register from './pages/User/Register';
 import { Login as UserLogin } from './pages/User';
+import PendingApproval from './pages/User/PendingApproval';
 import { TradingModeProvider } from './context/TradingModeContext';
 import { useAuth } from './context/AuthContext';
 // import BrokersPage from './pages/User/Brokers/BrokersPage';
@@ -70,6 +71,15 @@ function App() {
               <Register />
             </AuthLayout>
           </PublicOnlyRoute>
+        }
+      />
+
+      <Route
+        path="/auth/pending-approval"
+        element={
+          <AuthLayout>
+            <PendingApproval />
+          </AuthLayout>
         }
       />
 

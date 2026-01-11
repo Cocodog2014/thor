@@ -42,6 +42,17 @@ const Login: React.FC = () => {
 
       login(accessToken, refreshToken ?? null);
 
+      try {
+        const profile = await api.get<{ is_approved?: boolean }>('/users/profile/');
+        if (!profile?.data?.is_approved) {
+          navigate('/auth/pending-approval', { replace: true });
+          toast('Account pending admin approval.');
+          return;
+        }
+      } catch {
+        // If profile fails, fall back to normal navigation.
+      }
+
       toast.success("Welcome back, commander.");
       navigate(redirectTarget, { replace: true });
     } catch (error: unknown) {

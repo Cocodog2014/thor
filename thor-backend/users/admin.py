@@ -20,10 +20,10 @@ class CustomUserAdmin(BaseUserAdmin):
     # Lists
     list_display = (
         'email', 'display_name', 'role', 'is_active', 
-        'mfa_enabled', 'last_login', 'created_at'
+        'is_approved', 'mfa_enabled', 'last_login', 'created_at'
     )
     list_filter = (
-        'role', 'is_active', 'is_staff', 'mfa_enabled', 'created_at'
+        'role', 'is_active', 'is_staff', 'is_approved', 'mfa_enabled', 'created_at'
     )
     search_fields = ('email', 'first_name', 'last_name', 'display_name')
     ordering = ('-created_at',)
@@ -77,7 +77,17 @@ class CustomUserAdmin(BaseUserAdmin):
         super().save_model(request, obj, form, change)
     
     # Custom admin actions
-    actions = ['enable_mfa', 'disable_mfa', 'set_trader_role', 'set_viewer_role']
+    actions = ['approve_users', 'unapprove_users', 'enable_mfa', 'disable_mfa', 'set_trader_role', 'set_viewer_role']
+
+    def approve_users(self, request, queryset):
+        count = queryset.update(is_approved=True)
+        self.message_user(request, f'Approved {count} users.')
+    approve_users.short_description = "Approve selected users"
+
+    def unapprove_users(self, request, queryset):
+        count = queryset.update(is_approved=False)
+        self.message_user(request, f'Unapproved {count} users.')
+    unapprove_users.short_description = "Mark selected users as unapproved"
     
     def enable_mfa(self, request, queryset):
         """Enable MFA for selected users."""
