@@ -1,13 +1,16 @@
 """Inspect current position data in both live and paper databases."""
-
-from decimal import Decimal
 from django.core.management.base import BaseCommand
-from django.contrib.auth import get_user_model
-
 from ActAndPos.live.models import LivePosition
 from ActAndPos.paper.models import PaperPosition
 
-User = get_user_model()
+
+def _fmt(value, fmt: str) -> str:
+    if value is None:
+        return "-"
+    try:
+        return format(value, fmt)
+    except Exception:
+        return str(value)
 
 
 class Command(BaseCommand):
@@ -34,11 +37,11 @@ class Command(BaseCommand):
             for pos in live_qs.order_by("symbol"):
                 self.stdout.write(
                     f"  {pos.symbol:8} | "
-                    f"qty={pos.quantity:8.2f} | "
-                    f"avg={pos.avg_price:10.2f} | "
-                    f"mark={pos.mark_price:10.2f} | "
-                    f"pl_day={pos.broker_pl_day:10.2f} | "
-                    f"pl_ytd={pos.broker_pl_ytd:10.2f}"
+                    f"qty={_fmt(pos.quantity, '8.2f')} | "
+                    f"avg={_fmt(pos.avg_price, '10.2f')} | "
+                    f"mark={_fmt(pos.mark_price, '10.2f')} | "
+                    f"pl_day={_fmt(pos.broker_pl_day, '10.2f')} | "
+                    f"pl_ytd={_fmt(pos.broker_pl_ytd, '10.2f')}"
                 )
         else:
             self.stdout.write("  (no live positions)")
@@ -54,11 +57,11 @@ class Command(BaseCommand):
             for pos in paper_qs.order_by("symbol"):
                 self.stdout.write(
                     f"  {pos.symbol:8} | "
-                    f"qty={pos.quantity:8.2f} | "
-                    f"avg={pos.avg_price:10.2f} | "
-                    f"mark={pos.mark_price:10.2f} | "
-                    f"pl_day={pos.realized_pl_day:10.2f} | "
-                    f"pl_total={pos.realized_pl_total:10.2f}"
+                    f"qty={_fmt(pos.quantity, '8.2f')} | "
+                    f"avg={_fmt(pos.avg_price, '10.2f')} | "
+                    f"mark={_fmt(pos.mark_price, '10.2f')} | "
+                    f"pl_day={_fmt(pos.realized_pl_day, '10.2f')} | "
+                    f"pl_total={_fmt(pos.realized_pl_total, '10.2f')}"
                 )
         else:
             self.stdout.write("  (no paper positions)")

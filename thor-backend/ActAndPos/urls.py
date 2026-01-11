@@ -1,6 +1,6 @@
 # ActAndPos/urls.py
 from django.urls import include, path
-from ActAndPos.views.accounts import accounts_view
+from ActAndPos.accounts_view import accounts_view
 
 app_name = "ActAndPos"
 
