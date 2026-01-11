@@ -15,6 +15,8 @@ from .serializers import LiveBalanceSerializer, LiveOrderSerializer, LivePositio
 
 from .services.order_router import LiveSubmitOrderParams, submit_order
 
+from .brokers.schwab.sync import sync_schwab_account
+
 try:
     from LiveData.shared.redis_client import live_data_redis
 except Exception:  # pragma: no cover
@@ -167,6 +169,31 @@ def live_refresh_view(request):
     broker_account_id = _get_param(request, "broker_account_id")
     if not broker_account_id:
         return Response({"detail": "broker_account_id is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Preferred: hit Schwab directly and upsert into Live*.
+    # Fallback: if Schwab is unavailable, use last-good Redis snapshots.
+    try:
+        result = sync_schwab_account(
+            user=user,
+            broker_account_id=broker_account_id,
+            include_orders=True,
+            publish_ws=True,
+        )
+        return Response(
+            {
+                "broker_account_id": broker_account_id,
+                "account_hash": result.account_hash,
+                "refreshed_at": timezone.now().isoformat(),
+                "source": "schwab",
+                "balances_upserted": result.balances_upserted,
+                "positions_upserted": result.positions_upserted,
+                "positions_deleted": result.positions_deleted,
+                "orders_upserted": result.orders_upserted,
+            }
+        )
+    except Exception:
+        # Fall back to Redis-backed refresh.
+        pass
 
     balance_payload = _read_redis_json(f"live_data:balances:{broker_account_id}") or {}
     positions_payload = _read_redis_json(f"live_data:positions:{broker_account_id}") or {}
