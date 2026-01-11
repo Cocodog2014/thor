@@ -1,10 +1,30 @@
 from rest_framework import serializers
 
-from .models import Account, Order, Position
+class AccountSummarySerializer(serializers.Serializer):
+    """UI-facing account summary.
 
+    This used to be backed by legacy ActAndPos.Account. After the cutover,
+    it is backed by split-domain balance rows (PaperBalance/LiveBalance) and
+    a lightweight account reference.
+    """
 
-class AccountSummarySerializer(serializers.ModelSerializer):
-    ok_to_trade = serializers.BooleanField(read_only=True)
+    id = serializers.CharField()
+    broker = serializers.CharField()
+    broker_account_id = serializers.CharField()
+    account_number = serializers.CharField(allow_null=True, required=False)
+    display_name = serializers.CharField(allow_blank=True, required=False)
+    currency = serializers.CharField(required=False)
+
+    net_liq = serializers.CharField(required=False)
+    cash = serializers.CharField(required=False)
+    starting_balance = serializers.CharField(required=False)
+    current_cash = serializers.CharField(required=False)
+    equity = serializers.CharField(required=False)
+    stock_buying_power = serializers.CharField(required=False)
+    option_buying_power = serializers.CharField(required=False)
+    day_trading_buying_power = serializers.CharField(required=False)
+
+    ok_to_trade = serializers.BooleanField(required=False)
 
     ZEROABLE_FIELDS = [
         "net_liq",
@@ -17,38 +37,19 @@ class AccountSummarySerializer(serializers.ModelSerializer):
         "day_trading_buying_power",
     ]
 
-    class Meta:
-        model = Account
-        fields = [
-            "id",
-            "broker",
-            "broker_account_id",
-            "account_number",
-            "display_name",
-            "currency",
-            "net_liq",
-            "cash",
-            "starting_balance",
-            "current_cash",
-            "equity",
-            "stock_buying_power",
-            "option_buying_power",
-            "day_trading_buying_power",
-            "ok_to_trade",
-        ]
-
     def to_representation(self, instance):
         data = super().to_representation(instance)
+        broker = str(data.get("broker") or "").upper()
 
-        if instance.broker == "SCHWAB" and not self._has_live_connection(instance):
+        user = self.context.get("user")
+        if broker == "SCHWAB" and not self._has_live_connection(user):
             for field in self.ZEROABLE_FIELDS:
                 data[field] = "0.00"
             data["ok_to_trade"] = False
 
         return data
 
-    def _has_live_connection(self, instance) -> bool:
-        user = getattr(instance, "user", None)
+    def _has_live_connection(self, user) -> bool:
         if not user:
             return False
 
@@ -82,47 +83,4 @@ class AccountSummarySerializer(serializers.ModelSerializer):
         except Exception:
             return False
 
-
-class PositionSerializer(serializers.ModelSerializer):
-    market_value = serializers.DecimalField(max_digits=18, decimal_places=2, read_only=True)
-    unrealized_pl = serializers.DecimalField(max_digits=18, decimal_places=2, read_only=True)
-    pl_percent = serializers.DecimalField(max_digits=7, decimal_places=2, read_only=True)
-
-    class Meta:
-        model = Position
-        fields = [
-            "id",
-            "symbol",
-            "description",
-            "asset_type",
-            "quantity",
-            "avg_price",
-            "mark_price",
-            "market_value",
-            "unrealized_pl",
-            "pl_percent",
-            "realized_pl_open",
-            "realized_pl_day",
-            "currency",
-        ]
-
-
-class OrderSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Order
-        fields = [
-            "id",
-            "symbol",
-            "asset_type",
-            "side",
-            "quantity",
-            "order_type",
-            "limit_price",
-            "stop_price",
-            "status",
-            "time_placed",
-            "time_last_update",
-            "time_filled",
-            "time_canceled",
-        ]
 

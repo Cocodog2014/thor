@@ -9,8 +9,7 @@ from rest_framework.response import Response
 
 from ActAndPos.live.models import LiveOrder, LivePosition
 from ActAndPos.paper.models import PaperOrder, PaperPosition
-from ActAndPos.serializers import AccountSummarySerializer
-from ActAndPos.views.accounts import get_active_account
+from ActAndPos.views.accounts import get_active_account, serialize_active_account
 
 from .positions import _serialize_position
 
@@ -20,6 +19,8 @@ def activity_today_view(request):
     """GET /actandpos/activity/today?account_id=123 – intraday order + position snapshot."""
 
     account = get_active_account(request)
+
+    account_summary = serialize_active_account(request=request, account=account)
 
     today = timezone.localdate()
 
@@ -178,15 +179,15 @@ def activity_today_view(request):
 
     return Response(
         {
-            "account": AccountSummarySerializer(account).data,
+            "account": account_summary,
             "working_orders": working_orders,
             "filled_orders": filled_orders,
             "canceled_orders": canceled_orders,
             "positions": positions_payload,
             "account_status": {
-                "ok_to_trade": account.ok_to_trade,
-                "net_liq": account.net_liq,
-                "day_trading_buying_power": account.day_trading_buying_power,
+                "ok_to_trade": account_summary.get("ok_to_trade", False),
+                "net_liq": account_summary.get("net_liq", "0.00"),
+                "day_trading_buying_power": account_summary.get("day_trading_buying_power", "0.00"),
             },
         }
     )

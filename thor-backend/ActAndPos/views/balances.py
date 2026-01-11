@@ -9,7 +9,6 @@ from django.utils import timezone
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
-from ActAndPos.models import Account
 from ActAndPos.views.accounts import get_active_account
 
 from ActAndPos.live.models import LiveBalance
@@ -48,13 +47,13 @@ def _extract_balance_fields(payload: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-def _account_identifier(account: Account) -> str:
+def _account_identifier(account) -> str:
     """Canonical identifier we surface to clients (prefer the broker hash)."""
 
-    return str(account.broker_account_id or account.account_number or account.id)
+    return str(getattr(account, "broker_account_id", None) or getattr(account, "id", ""))
 
 
-def _read_redis_balance(account: Account) -> Optional[Dict[str, Any]]:
+def _read_redis_balance(account) -> Optional[Dict[str, Any]]:
     if live_data_redis is None:
         return None
 
@@ -65,9 +64,7 @@ def _read_redis_balance(account: Account) -> Optional[Dict[str, Any]]:
     account_identifier = _account_identifier(account)
     candidate_keys: Iterable[str] = (
         f"live_data:balances:{account_identifier}",
-        f"live_data:balances:{account.account_number}",  # tolerate account_number being stored as key
-        f"live_data:balances:{account.id}",  # legacy key shape
-        f"live_data:balances:{account.user_id}:{account_identifier}",  # legacy user-prefixed shape
+        f"live_data:balances:{account.id}",
     )
 
     for key in candidate_keys:
@@ -98,37 +95,10 @@ def _read_redis_balance(account: Account) -> Optional[Dict[str, Any]]:
             data["updated_at"] = timezone.now().isoformat()
         return data
 
-    # Fallback: scan a small number of balance keys to match by account_number (covers accidental numeric broker ids)
-    account_number = getattr(account, "account_number", None)
-    if account_number:
-        try:
-            # small, bounded scan to avoid heavy ops
-            for key in client.scan_iter(match="live_data:balances:*", count=20):
-                try:
-                    raw = client.get(key)
-                    if not raw:
-                        continue
-                    payload = json.loads(raw)
-                except Exception:
-                    continue
-
-                if str(payload.get("account_number")) != str(account_number):
-                    continue
-
-                data = _extract_balance_fields(payload)
-                data["account_id"] = account_identifier
-                data["source"] = "redis"
-                ts = payload.get("updated_at") or payload.get("timestamp") or payload.get("asof")
-                data["updated_at"] = str(ts) if ts else timezone.now().isoformat()
-                return data
-        except Exception:
-            # silent fallback; we'll drop to DB path if this fails
-            pass
-
     return None
 
 
-def _paper_balance(account: Account) -> Dict[str, Any]:
+def _paper_balance(account) -> Dict[str, Any]:
     account_identifier = _account_identifier(account)
     bal = PaperBalance.objects.filter(user=account.user, account_key=str(account.broker_account_id)).first()
     if bal is None:
@@ -154,7 +124,7 @@ def _paper_balance(account: Account) -> Dict[str, Any]:
     }
 
 
-def _live_balance(account: Account) -> Dict[str, Any]:
+def _live_balance(account) -> Dict[str, Any]:
     account_identifier = _account_identifier(account)
     bal = LiveBalance.objects.filter(
         user=account.user,

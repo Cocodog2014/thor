@@ -13,9 +13,6 @@ from ActAndPos.views.accounts import get_active_account
 
 from ActAndPos.shared.statement.service import build_statement
 
-from ..models import Trade
-from ..serializers import TradeSerializer
-
 MAX_RANGE_DAYS = 370
 
 
@@ -83,15 +80,5 @@ def account_statement_view(request):
         from_param=from_param,
         to_param=to_param,
     )
-
-    # Keep existing Trades.Trade history in response for now (UI expects it),
-    # but prefer the unified source list if it contains trades.
-    if not payload.get("trades"):
-        trades_qs = Trade.objects.filter(
-            account=account,
-            exec_time__date__gte=start_date,
-            exec_time__date__lte=end_date,
-        ).order_by("-exec_time")
-        payload["trades"] = TradeSerializer(trades_qs, many=True).data
 
     return Response(payload)

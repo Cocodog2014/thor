@@ -6,12 +6,12 @@ from decimal import Decimal
 from typing import Any, Dict, List, Optional, TYPE_CHECKING
 
 from django.core.cache import cache
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 from django.utils import timezone
 
-from ActAndPos.models import Account
-from ActAndPos.models.snapshots import AccountDailySnapshot
+# Legacy command disabled after ActAndPos.models removal
+# TODO: Reimplement using LiveBalance/PaperBalance models
 
 try:
     from LiveData.schwab.client.trader import SchwabTraderAPI

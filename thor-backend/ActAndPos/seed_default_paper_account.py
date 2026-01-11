@@ -8,26 +8,39 @@ tests all receive the default account without hitting specific views.
 
 from __future__ import annotations
 
-from uuid import uuid4
+from decimal import Decimal
 
 from django.apps import apps
 from django.conf import settings
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 
-
-def _generate_paper_account_id(user) -> str:
-    user_id = getattr(user, "pk", "NOUSER")
-    return f"PAPER-{user_id}-{uuid4().hex[:8].upper()}"
+PAPER_DEFAULT_BALANCE = Decimal("100000.00")
 
 
-def _create_default_paper_account(user):
-    Account = apps.get_model("ActAndPos", "Account")
-    return Account.objects.create(
+def _ensure_default_paper_balance(user) -> None:
+    """Ensure every user has at least one PaperBalance row.
+
+    After legacy ActAndPos.Account was removed, PAPER accounts are represented
+    by PaperBalance/PaperPosition/PaperOrder rows keyed by account_key.
+    """
+
+    PaperBalance = apps.get_model("ActAndPos", "PaperBalance")
+    if PaperBalance.objects.filter(user=user).exists():
+        return
+
+    account_key = f"PAPER-{getattr(user, 'pk', 'NOUSER')}"
+    PaperBalance.objects.get_or_create(
         user=user,
-        broker="PAPER",
-        broker_account_id=_generate_paper_account_id(user),
-        display_name="Paper Trading (Auto)",
+        account_key=account_key,
+        defaults={
+            "currency": "USD",
+            "cash": PAPER_DEFAULT_BALANCE,
+            "equity": PAPER_DEFAULT_BALANCE,
+            "net_liq": PAPER_DEFAULT_BALANCE,
+            "buying_power": PAPER_DEFAULT_BALANCE,
+            "day_trade_bp": PAPER_DEFAULT_BALANCE,
+        },
     )
 
 
@@ -38,8 +51,4 @@ def ensure_default_paper_account(sender, instance, created, **kwargs):
     if not created:
         return
 
-    Account = apps.get_model("ActAndPos", "Account")
-    if Account.objects.filter(user=instance, broker="PAPER").exists():
-        return
-
-    _create_default_paper_account(instance)
+    _ensure_default_paper_balance(instance)

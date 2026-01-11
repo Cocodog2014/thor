@@ -1,14 +1,9 @@
 import logging
 import os
 import time
-from datetime import datetime
-from typing import Dict
+from typing import Dict, Iterable, Tuple
 
-from django.utils import timezone
-
-from ActAndPos.models import Account
-from LiveData.shared.redis_client import live_data_redis
-from .trader import SchwabTraderAPI
+from LiveData.schwab.models import BrokerConnection
 from LiveData.schwab.utils import get_active_schwab_connection
 
 logger = logging.getLogger(__name__)
@@ -19,85 +14,50 @@ ENABLE_POLLER = os.environ.get("THOR_ENABLE_SCHWAB_POLLER", "1") not in {"0", "f
 
 
 def _iter_active_accounts():
-    # Conservative filter: Schwab accounts with a non-empty broker_account_id
-    qs = (
-        Account.objects.select_related("user")
-        .filter(broker="SCHWAB")
-        .exclude(broker_account_id__isnull=True)
-        .exclude(broker_account_id__exact="")
-    )
-    for acct in qs:
-        yield acct
+    qs = BrokerConnection.objects.select_related("user").filter(broker=BrokerConnection.BROKER_SCHWAB)
+    for conn in qs:
+        user = conn.user
+        if not get_active_schwab_connection(user):
+            continue
+
+        # Prefer cached hashValue; otherwise discover all accounts for the user.
+        broker_account_id = (conn.broker_account_id or "").strip()
+        if broker_account_id:
+            yield user.id, broker_account_id
+            continue
+
+        try:
+            from ActAndPos.live.brokers.schwab.sync import _fetch_account_numbers_map
+
+            mapping = _fetch_account_numbers_map(user)
+            for account_hash in set(mapping.values()):
+                if account_hash:
+                    yield user.id, str(account_hash)
+        except Exception:
+            logger.exception("Schwab poller could not resolve accountNumbers for user_id=%s", user.id)
 
 
-def _publish_balances(api: SchwabTraderAPI, account_hash: str, account_number: str | None):
-    # Avoid double-publishing: trader can publish, but poller should publish a single snapshot.
-    balances = api.fetch_balances(account_hash, publish=False)
-    if balances is None:
-        return
-    payload: Dict = {
-        "account_hash": account_hash,
-        "account_number": account_number,
-        "updated_at": timezone.now().isoformat(),
-        **(balances if isinstance(balances, dict) else {"balances": balances}),
-    }
-    live_data_redis.set_json(f"live_data:balances:{account_hash}", payload)
-    live_data_redis.publish_balance(account_hash, payload, broadcast_ws=True)
-
-
-def _publish_positions(api: SchwabTraderAPI, account_hash: str):
-    # Avoid per-position spam: poller publishes a single snapshot.
-    # fetch_positions still normalizes, persists Positions, caches snapshot.
-    positions = api.fetch_positions(account_hash, publish=False)
-    payload: Dict = {
-        "account_hash": account_hash,
-        "positions": positions,
-        "updated_at": datetime.utcnow().isoformat() + "Z",
-    }
-    live_data_redis.set_json(f"live_data:positions:{account_hash}", payload)
-    live_data_redis.publish_positions(account_hash, payload, broadcast_ws=True)
+def _iter_active_accounts_for_poll() -> Iterable[Tuple[int, str]]:
+    return _iter_active_accounts()
 
 
 def _poll_once():
-    seen_users: Dict[int, SchwabTraderAPI] = {}
-    for acct in _iter_active_accounts():
+    for user_id, broker_account_id in _iter_active_accounts_for_poll():
         try:
-            user = acct.user
-            if not get_active_schwab_connection(user):
-                logger.debug("Skip account %s: no active Schwab token", acct.account_number or acct.id)
-                continue
+            from django.contrib.auth import get_user_model
+            from ActAndPos.live.brokers.schwab.sync import sync_schwab_account
 
-            api = seen_users.get(user.id)
-            if api is None:
-                try:
-                    api = SchwabTraderAPI(user)
-                except Exception as e:
-                    logger.warning("Skip user %s: Schwab API init failed: %s", user.id, e)
-                    continue
-                seen_users[user.id] = api
+            User = get_user_model()
+            user = User.objects.get(pk=user_id)
 
-            account_id = acct.broker_account_id or acct.account_number
-            if not account_id:
-                logger.debug("Skip account %s: missing broker_account_id/account_number", acct.id)
-                continue
-            try:
-                account_hash = api.resolve_account_hash(str(account_id))
-            except Exception as e:
-                logger.warning("Skip account %s (user %s): resolve hash failed: %s", account_id, user.id, e)
-                continue
-
-            try:
-                _publish_balances(api, account_hash, acct.account_number)
-            except Exception as e:
-                logger.warning("Balances poll failed for %s: %s", account_hash, e)
-
-            try:
-                _publish_positions(api, account_hash)
-            except Exception as e:
-                logger.warning("Positions poll failed for %s: %s", account_hash, e)
-
+            sync_schwab_account(
+                user=user,
+                broker_account_id=str(broker_account_id),
+                include_orders=False,
+                publish_ws=True,
+            )
         except Exception:
-            logger.exception("❌ Schwab poll failed for %s", acct.account_number or acct.id)
+            logger.exception("❌ Schwab poll failed for user_id=%s account=%s", user_id, broker_account_id)
             continue
 
 

@@ -6,8 +6,6 @@ from typing import Any, Dict, List, Tuple
 
 from django.utils import timezone
 
-from ActAndPos.models.accounts import Account
-
 from ActAndPos.shared.formatting import format_money, format_pct
 from ActAndPos.shared.marketdata import get_marks
 from ActAndPos.shared.statement.dto import (
@@ -81,7 +79,7 @@ def _build_summary_rows(balance) -> List[Dict[str, str]]:
     ]
 
 
-def build_statement(*, user, account: Account, days_back: str | None, from_param: str | None, to_param: str | None) -> Dict[str, Any]:
+def build_statement(*, user, account, days_back: str | None, from_param: str | None, to_param: str | None) -> Dict[str, Any]:
     """Build the AccountStatement payload (same shape for PAPER or LIVE).
 
     Output shape matches the current React page in
@@ -91,12 +89,12 @@ def build_statement(*, user, account: Account, days_back: str | None, from_param
     today = timezone.localdate()
     start_date, end_date = _resolve_date_range(today, days_back, from_param, to_param)
 
-    if str(account.broker).upper() == "PAPER":
+    if str(getattr(account, "broker", "")).upper() == "PAPER":
         from ActAndPos.paper.statement_source import build as build_source
 
         source: StatementSourceData = build_source(
             user=user,
-            account_key=str(account.broker_account_id),
+            account_key=str(getattr(account, "broker_account_id", "")),
             date_range=StatementDateRange(start=start_date, end=end_date),
         )
     else:
@@ -104,8 +102,8 @@ def build_statement(*, user, account: Account, days_back: str | None, from_param
 
         source = build_source(
             user=user,
-            broker=str(account.broker),
-            broker_account_id=str(account.broker_account_id),
+            broker=str(getattr(account, "broker", "SCHWAB")),
+            broker_account_id=str(getattr(account, "broker_account_id", "")),
             date_range=StatementDateRange(start=start_date, end=end_date),
         )
 
@@ -199,12 +197,16 @@ def build_statement(*, user, account: Account, days_back: str | None, from_param
             }
         )
 
+    broker = str(getattr(account, "broker", "SCHWAB")).upper()
+    broker_account_id = str(getattr(account, "broker_account_id", ""))
+    display_name = getattr(account, "display_name", None) or broker_account_id
+
     account_payload = {
-        "id": account.id,
-        "broker": account.broker,
-        "broker_account_id": account.broker_account_id,
+        "id": getattr(account, "id", broker_account_id),
+        "broker": broker,
+        "broker_account_id": broker_account_id,
         "account_number": getattr(account, "account_number", None),
-        "display_name": account.display_name or account.broker_account_id,
+        "display_name": display_name,
         "currency": getattr(account, "currency", "USD") or "USD",
         "net_liq": format_money(source.balance.net_liq),
         "cash": format_money(source.balance.cash),

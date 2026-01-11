@@ -8,9 +8,7 @@ from rest_framework.response import Response
 
 from ActAndPos.live.models import LivePosition
 from ActAndPos.paper.models import PaperPosition
-from ActAndPos.serializers import AccountSummarySerializer
-
-from .accounts import get_active_account
+from ActAndPos.views.accounts import get_active_account, serialize_active_account
 
 logger = logging.getLogger(__name__)
 
@@ -101,6 +99,8 @@ def positions_view(request):
 
     account = get_active_account(request)
 
+    account_summary = serialize_active_account(request=request, account=account)
+
     _maybe_refresh_schwab(request=request, account=account)
 
     positions_payload: list[dict] = []
@@ -149,7 +149,7 @@ def positions_view(request):
 
     return Response(
         {
-            "account": AccountSummarySerializer(account).data,
+            "account": account_summary,
             "positions": positions_payload,
         }
     )

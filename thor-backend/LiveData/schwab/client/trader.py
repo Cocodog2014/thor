@@ -10,7 +10,6 @@ from decimal import Decimal
 from json import dumps, loads
 
 from LiveData.shared.redis_client import live_data_redis
-from ActAndPos.models import Account, Position
 from .tokens import ensure_valid_access_token
 from LiveData.schwab.utils import get_schwab_connection
 
@@ -166,6 +165,11 @@ class SchwabTraderAPI:
         }
 
     def _get_or_fix_account_record(self, account_hash: str, account_number: Optional[str]):
+        try:
+            from ActAndPos.models import Account  # legacy (may not exist)
+        except Exception:
+            return None
+
         qs = Account.objects.filter(user=self.user, broker="SCHWAB").select_related("user")
 
         acct = qs.filter(broker_account_id=account_hash).first()
@@ -235,8 +239,7 @@ class SchwabTraderAPI:
 
         account = self._get_or_fix_account_record(account_hash, account_number)
         if not account:
-            logger.warning("Schwab account %s not registered in Thor", account_hash)
-            return []
+            logger.info("Skipping local Position upsert; legacy ActAndPos models not available")
 
         normalized: List[Dict] = []
 
@@ -262,24 +265,37 @@ class SchwabTraderAPI:
                 except Exception:
                     mark_price = Decimal("0")
 
-            position, _ = Position.objects.update_or_create(
-                account=account,
-                symbol=symbol,
-                asset_type=asset_type,
-                defaults={
-                    "quantity": quantity,
-                    "avg_price": avg_price,
-                    "mark_price": mark_price,
-                },
-            )
+            if account:
+                try:
+                    from ActAndPos.models import Position  # legacy (may not exist)
+
+                    position, _ = Position.objects.update_or_create(
+                        account=account,
+                        symbol=symbol,
+                        asset_type=asset_type,
+                        defaults={
+                            "quantity": quantity,
+                            "avg_price": avg_price,
+                            "mark_price": mark_price,
+                        },
+                    )
+                    mark_price_out = position.mark_price
+                    market_value_out = position.market_value
+                except Exception:
+                    account = None
+                    mark_price_out = mark_price
+                    market_value_out = market_value
+            else:
+                mark_price_out = mark_price
+                market_value_out = market_value
 
             payload = {
                 "symbol": symbol,
                 "asset_type": asset_type,
                 "quantity": float(quantity),
                 "avg_price": float(avg_price),
-                "mark_price": float(position.mark_price),
-                "market_value": float(position.market_value),
+                "mark_price": float(mark_price_out),
+                "market_value": float(market_value_out),
             }
 
             normalized.append(payload)
@@ -371,45 +387,42 @@ class SchwabTraderAPI:
         }
 
         account = self._get_or_fix_account_record(account_hash, account_number)
-        if not account:
-            display_name = account_number or account_hash
-            account = Account.objects.create(
-                user=self.user,
-                broker="SCHWAB",
-                broker_account_id=account_hash,
-                account_number=account_number,
-                display_name=display_name,
-                currency="USD",
-            )
+        if account:
+            try:
+                account.cash = _dec(bal.get("cashBalance") or bal.get("cashAvailableForTrading") or avail)
+                account.current_cash = account.cash
+                account.net_liq = _dec(net_liq)
+                equity_val = bal.get("equity", account.net_liq)
+                account.equity = _dec(equity_val, account.net_liq)
+                account.stock_buying_power = _dec(stock_bp)
+                account.option_buying_power = _dec(option_bp)
+                account.day_trading_buying_power = _dec(daytrade_bp)
+                if account_number:
+                    account.account_number = account_number
+                account.save(
+                    update_fields=[
+                        "cash",
+                        "current_cash",
+                        "net_liq",
+                        "equity",
+                        "stock_buying_power",
+                        "option_buying_power",
+                        "day_trading_buying_power",
+                        "account_number",
+                        "updated_at",
+                    ]
+                )
+            except Exception:
+                account = None
 
-        account.cash = _dec(bal.get("cashBalance") or bal.get("cashAvailableForTrading") or avail)
-        account.current_cash = account.cash
-        account.net_liq = _dec(net_liq)
-        equity_val = bal.get("equity", account.net_liq)
-        account.equity = _dec(equity_val, account.net_liq)
-        account.stock_buying_power = _dec(stock_bp)
-        account.option_buying_power = _dec(option_bp)
-        account.day_trading_buying_power = _dec(daytrade_bp)
-        if account_number:
-            account.account_number = account_number
         long_stock_value_dec = _dec(long_stock_value)
         equity_pct_dec = _dec(equity_pct_raw) if equity_pct_raw is not None else Decimal("0")
-        if equity_pct_raw is None and account.net_liq:
+        if equity_pct_raw is None and _dec(net_liq):
             try:
-                equity_pct_dec = (account.equity / account.net_liq) * Decimal("100")
+                equity_val = bal.get("equity") or net_liq
+                equity_pct_dec = (_dec(equity_val) / _dec(net_liq)) * Decimal("100")
             except Exception:
                 equity_pct_dec = Decimal("0")
-        account.save(update_fields=[
-            "cash",
-            "current_cash",
-            "net_liq",
-            "equity",
-            "stock_buying_power",
-            "option_buying_power",
-            "day_trading_buying_power",
-            "account_number",
-            "updated_at",
-        ])
 
         payload["equity_percentage"] = float(equity_pct_dec)
         payload["long_stock_value"] = float(long_stock_value_dec)
