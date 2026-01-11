@@ -11,7 +11,9 @@ from rest_framework.exceptions import NotAuthenticated
 from rest_framework.response import Response
 
 from .models import LiveBalance, LiveOrder, LivePosition
-from .serializers import LiveBalanceSerializer, LiveOrderSerializer, LivePositionSerializer
+from .serializers import LiveBalanceSerializer, LiveOrderSerializer, LivePositionSerializer, LiveSubmitOrderSerializer
+
+from .services.order_router import LiveSubmitOrderParams, submit_order
 
 try:
     from LiveData.shared.redis_client import live_data_redis
@@ -122,13 +124,35 @@ def live_orders_view(request):
 
 
 @api_view(["POST"])
-def live_orders_submit_view(_request):
+def live_orders_submit_view(request):
     """POST /live/orders/submit
 
     Placeholder until broker adapters are wired into LiveOrder/LiveExecution.
     """
 
-    return Response({"detail": "Not implemented"}, status=501)
+    user = _require_user(request)
+    ser = LiveSubmitOrderSerializer(data=request.data)
+    ser.is_valid(raise_exception=True)
+
+    try:
+        order = submit_order(
+            LiveSubmitOrderParams(
+                user_id=user.id,
+                broker=ser.validated_data.get("broker") or "SCHWAB",
+                broker_account_id=ser.validated_data["broker_account_id"],
+                symbol=ser.validated_data["symbol"],
+                asset_type=ser.validated_data.get("asset_type") or "EQ",
+                side=ser.validated_data["side"],
+                quantity=ser.validated_data["quantity"],
+                order_type=ser.validated_data.get("order_type") or "MKT",
+                limit_price=ser.validated_data.get("limit_price"),
+                stop_price=ser.validated_data.get("stop_price"),
+            )
+        )
+    except Exception as exc:
+        return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+    return Response({"order": LiveOrderSerializer(order).data}, status=status.HTTP_201_CREATED)
 
 
 @api_view(["POST"])
