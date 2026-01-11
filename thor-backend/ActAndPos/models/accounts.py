@@ -31,6 +31,11 @@ class Account(models.Model):
         help_text="Owner of this trading account.",
     )
     broker = models.CharField(max_length=20, choices=BROKER_CHOICES, default="PAPER")
+    quote_provider = models.CharField(
+        max_length=32,
+        default="AUTO",
+        help_text="Quote provider used to populate balances/positions (legacy DB column).",
+    )
     broker_account_id = models.CharField(max_length=64, unique=True)
     account_number = models.CharField(
         max_length=32,

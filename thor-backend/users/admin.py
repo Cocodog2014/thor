@@ -42,6 +42,7 @@ class CustomUserAdmin(BaseUserAdmin):
         'email', 'display_name', 'role', 'is_active', 
         'is_approved', 'mfa_enabled', 'last_login', 'created_at'
     )
+    list_editable = ('is_approved',)
     list_filter = (
         'role', 'is_active', 'is_staff', ApprovalStatusFilter, 'mfa_enabled', 'created_at'
     )
@@ -60,7 +61,7 @@ class CustomUserAdmin(BaseUserAdmin):
             'fields': ('role', 'timezone', 'mfa_enabled')
         }),
         ('Permissions', {
-            'fields': ('is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions'),
+            'fields': ('is_active', 'is_approved', 'is_staff', 'is_superuser', 'groups', 'user_permissions'),
             'classes': ('collapse',)
         }),
         ('Metadata', {
