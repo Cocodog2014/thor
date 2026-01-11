@@ -1,5 +1,5 @@
 # ActAndPos/urls.py
-from django.urls import path
+from django.urls import include, path
 
 from .views.account_orders import activity_today_view
 from .views.positions import positions_view
@@ -22,5 +22,9 @@ urlpatterns = [
 
     # 🔹 New: list of all accounts (used by GlobalBanner dropdown)
     path("accounts", accounts_list_view, name="accounts-list"),
+
+    # Split-domain endpoints
+    path("paper/", include("ActAndPos.paper.urls")),
+    path("live/", include("ActAndPos.live.urls")),
 ]
 
