@@ -174,7 +174,7 @@ class MarketDataConsumer(AsyncWebsocketConsumer):
         """Broadcast live 24h snapshot update to client.
 
         Channels maps event type names to handler methods by replacing '.' with '_',
-        so legacy 'market.24h' will still dispatch here. The preferred wire name is 'market_24h'.
+        so legacy dotted names will still dispatch here. The preferred wire name is 'market_24h'.
         """
         await self.send(text_data=json.dumps({
             "type": "market_24h",
@@ -185,7 +185,7 @@ class MarketDataConsumer(AsyncWebsocketConsumer):
         """Broadcast live 52w snapshot update to client.
 
         Channels maps event type names to handler methods by replacing '.' with '_',
-        so legacy 'market.52w' will still dispatch here. The preferred wire name is 'market_52w'.
+        so legacy dotted names will still dispatch here. The preferred wire name is 'market_52w'.
         """
         await self.send(text_data=json.dumps({
             "type": "market_52w",

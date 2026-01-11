@@ -17,8 +17,7 @@ export function dispatch(message: WsEnvelope): void {
   const type = message?.type;
   if (!type) return;
 
-  // Back-compat + stability: normalize dotted event names to underscore.
-  // Example: 'market_24h' (preferred) but tolerate legacy 'market.24h'
+  // Back-compat + stability: normalize legacy dotted event names to underscore.
   const normalizedType = type.includes('.') ? type.replaceAll('.', '_') : type;
 
   const handlers = subscribers.get(type);
