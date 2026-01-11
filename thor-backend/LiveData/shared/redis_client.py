@@ -757,7 +757,30 @@ class LiveDataRedis:
         from .channels import get_positions_channel
 
         channel = get_positions_channel(account_id)
-        payload = {"type": "position", "account_id": account_id, **data}
+        # Ensure callers cannot override enforced envelope fields.
+        payload = {**data, "type": "position", "account_id": account_id}
+        return self.publish(channel, payload)
+
+    def publish_positions(self, account_id: str, data: Dict[str, Any] | list[Any]) -> int:
+        """Publish a positions snapshot (batch) for an account."""
+        from .channels import get_positions_channel
+
+        channel = get_positions_channel(account_id)
+
+        if isinstance(data, dict):
+            payload_data: Dict[str, Any] = data
+        else:
+            # Backward-compatible: allow passing a raw positions list
+            payload_data = {"positions": data}
+            try:
+                from datetime import datetime
+
+                payload_data["updated_at"] = datetime.utcnow().isoformat() + "Z"
+            except Exception:
+                pass
+
+        # Ensure callers cannot override enforced envelope fields.
+        payload = {**payload_data, "type": "positions", "account_id": account_id}
         return self.publish(channel, payload)
 
     def publish_balance(self, account_id: str, data: Dict[str, Any]) -> int:

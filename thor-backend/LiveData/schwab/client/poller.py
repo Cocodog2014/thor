@@ -47,12 +47,13 @@ def _publish_balances(api: SchwabTraderAPI, account_hash: str, account_number: s
 def _publish_positions(api: SchwabTraderAPI, account_hash: str):
     # fetch_positions already normalizes, persists Positions, caches snapshot
     positions = api.fetch_positions(account_hash)
-    live_data_redis.set_json(f"live_data:positions:{account_hash}", {
+    payload: Dict = {
         "account_hash": account_hash,
         "positions": positions,
         "updated_at": datetime.utcnow().isoformat() + "Z",
-    })
-    live_data_redis.publish_positions(account_hash, positions)
+    }
+    live_data_redis.set_json(f"live_data:positions:{account_hash}", payload)
+    live_data_redis.publish_positions(account_hash, payload)
 
 
 def _poll_once():
