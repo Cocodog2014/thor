@@ -81,6 +81,14 @@ class MarketDataConsumer(AsyncWebsocketConsumer):
                     logger.debug(f"Received message from client: {message_type}")
             except json.JSONDecodeError:
                 logger.error(f"Invalid JSON received from client")
+
+    def _event_payload(self, event):
+        """Normalize a Channels event into the payload sent to the browser."""
+        if isinstance(event, dict) and "data" in event:
+            return event.get("data")
+        if isinstance(event, dict):
+            return {k: v for k, v in event.items() if k != "type"}
+        return event
     
     # ---- Broadcast message handlers ----
     # These methods are called by the channel layer when messages are sent
@@ -109,38 +117,44 @@ class MarketDataConsumer(AsyncWebsocketConsumer):
 
     async def balances(self, event):
         """Broadcast account balances snapshot/update to client."""
+        data = self._event_payload(event)
+        if isinstance(data, dict):
+            inner_type = data.get("type")
+            if inner_type in {"balance", "account_balance"}:
+                # Reduce confusion: browser routes by envelope type, but keep inner payload consistent.
+                data = {**data, "type": "balances"}
         await self.send(text_data=json.dumps({
             "type": "balances",
-            "data": event.get("data", event),
+            "data": data,
         }))
 
     async def balance(self, event):
-        """Backward-compatible alias (some publishers may emit type='balance')."""
-        await self.send(text_data=json.dumps({
-            "type": "balance",
-            "data": event.get("data", event),
-        }))
+        """Normalize singular -> plural so the browser only sees 'balances'."""
+        await self.balances(event)
 
     async def account_balance(self, event):
-        """Backward-compatible alias for type='account_balance'."""
-        await self.send(text_data=json.dumps({
-            "type": "account_balance",
-            "data": event.get("data", event),
-        }))
+        """Normalize alias -> plural so the browser only sees 'balances'."""
+        await self.balances(event)
 
     async def positions(self, event):
         """Broadcast positions snapshot/update to client."""
+        data = self._event_payload(event)
+        if isinstance(data, dict):
+            # Optional: if someone sends a single position shape, wrap it consistently.
+            if "positions" not in data and "symbol" in data:
+                data = {"positions": [data]}
+
+            inner_type = data.get("type")
+            if inner_type in {"position", "positions"}:
+                data = {**data, "type": "positions"}
         await self.send(text_data=json.dumps({
             "type": "positions",
-            "data": event.get("data", event),
+            "data": data,
         }))
 
     async def position(self, event):
-        """Backward-compatible alias (some publishers may emit type='position')."""
-        await self.send(text_data=json.dumps({
-            "type": "position",
-            "data": event.get("data", event),
-        }))
+        """Normalize singular -> plural so the browser only sees 'positions'."""
+        await self.positions(event)
 
     async def market_data(self, event):
         """Broadcast batched market data snapshot (quotes array) to client."""
@@ -188,7 +202,7 @@ class MarketDataConsumer(AsyncWebsocketConsumer):
         """Broadcast Schwab health snapshot to client."""
         await self.send(text_data=json.dumps({
             "type": "schwab_health",
-            "data": event.get("data", event),
+            "data": self._event_payload(event),
         }))
 
     async def global_markets_tick(self, event):
