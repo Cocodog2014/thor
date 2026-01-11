@@ -6,6 +6,8 @@ import { useAuth } from '../../context/AuthContext';
 
 type UserProfile = {
   is_approved?: boolean;
+  is_staff?: boolean;
+  is_superuser?: boolean;
   email?: string;
 };
 
@@ -31,7 +33,7 @@ const PendingApproval: React.FC = () => {
         if (!active) return;
 
         setEmail(typeof data?.email === 'string' ? data.email : null);
-        const isApproved = Boolean(data?.is_approved);
+        const isApproved = Boolean(data?.is_approved || data?.is_staff || data?.is_superuser);
         setApproved(isApproved);
 
         if (isApproved) {

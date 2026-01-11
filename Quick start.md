@@ -248,7 +248,7 @@ Start everything in the right order
 Open three terminals (or PowerShell windows).
 
 1. cd A:\Thor\thor-backend
-      python -m daphne -b 127.0.0.1 -p 8000 thor_project.asgi:application
+       python -m daphne -b 127.0.0.1 -p 8000 thor_project.asgi:application
 
       http://localhost:8000/admin/login/?next=/admin/
 

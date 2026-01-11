@@ -5,6 +5,8 @@ import api from '../services/api';
 
 type UserProfile = {
   is_approved?: boolean;
+  is_staff?: boolean;
+  is_superuser?: boolean;
 };
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -24,7 +26,8 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
       try {
         const { data } = await api.get<UserProfile>('/users/profile/');
         if (!active) return;
-        setApprovalState(data?.is_approved ? 'approved' : 'pending');
+        const isPrivileged = Boolean(data?.is_staff || data?.is_superuser);
+        setApprovalState(data?.is_approved || isPrivileged ? 'approved' : 'pending');
       } catch {
         if (!active) return;
         // If profile fails, treat as not authenticated and let downstream handle.

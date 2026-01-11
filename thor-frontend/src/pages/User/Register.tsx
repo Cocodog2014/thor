@@ -24,12 +24,9 @@ const Register: React.FC = () => {
     try {
       // Call Django register endpoint
       const { data } = await api.post('/users/register/', {  // baseURL already has /api
-        email, 
+        email,
         password,
         password_confirm: confirm,
-        username: email.split('@')[0], // Use email prefix as username
-        first_name: '',
-        last_name: ''
       });
 
       const accessToken = (data as { access?: string }).access;
