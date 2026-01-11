@@ -9,7 +9,7 @@ from django.utils import timezone
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
-from ActAndPos.views.accounts import get_active_account
+from ActAndPos.shared.accounts import get_active_account
 
 from ActAndPos.live.models import LiveBalance
 from ActAndPos.paper.models import PaperBalance

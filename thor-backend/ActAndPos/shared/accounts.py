@@ -1,13 +1,15 @@
+"""Shared account resolution and serialization helpers.
+
+Used by both paper and live domains and cross-domain endpoints like
+activity_today, account_summary, positions, balances.
+"""
 from __future__ import annotations
 
 from dataclasses import dataclass
 from decimal import Decimal
 from typing import Any, Iterable
 
-from django.utils import timezone
-from rest_framework.decorators import api_view
 from rest_framework.exceptions import NotAuthenticated
-from rest_framework.response import Response
 
 from ..live.models import LiveBalance
 from ..paper.models import PaperBalance
@@ -19,6 +21,8 @@ PAPER_DEFAULT_BALANCE = Decimal("100000.00")
 
 @dataclass(frozen=True)
 class ActiveAccount:
+    """Lightweight account reference combining paper and live domains."""
+
     user: Any
     broker: str
     broker_account_id: str
@@ -26,8 +30,6 @@ class ActiveAccount:
     account_number: str | None = None
     currency: str = "USD"
 
-    # For backwards-compatible JSON shape (old UI expected an int id)
-    # we now use the broker_account_id/account_key as the stable identifier.
     @property
     def id(self) -> str:
         return str(self.broker_account_id)
@@ -44,6 +46,7 @@ def _has_any_paper_balance(user) -> bool:
 
 
 def _ensure_default_paper_balance(user) -> PaperBalance:
+    """Guarantee every user has at least one PaperBalance."""
     existing = PaperBalance.objects.filter(user=user).order_by("account_key").first()
     if existing is not None:
         return existing
@@ -115,7 +118,8 @@ def _account_summary_for_live(*, user, bal: LiveBalance) -> ActiveAccount:
     )
 
 
-def _iter_accounts_for_user(user) -> Iterable[ActiveAccount]:
+def iter_accounts_for_user(user) -> Iterable[ActiveAccount]:
+    """Yield all accounts (paper + live) for a user."""
     # Live accounts from balances
     for bal in LiveBalance.objects.filter(user=user).order_by("broker", "broker_account_id"):
         yield _account_summary_for_live(user=user, bal=bal)
@@ -125,8 +129,8 @@ def _iter_accounts_for_user(user) -> Iterable[ActiveAccount]:
         yield _account_summary_for_paper(user=user, bal=bal)
 
 
-def _serialize_account(account: ActiveAccount) -> dict:
-    # Fill in numeric fields from balance rows.
+def serialize_account(account: ActiveAccount) -> dict:
+    """Serialize an ActiveAccount to JSON with balance fields."""
     if account.broker == "PAPER":
         bal = PaperBalance.objects.filter(user=account.user, account_key=str(account.broker_account_id)).first()
         if bal is None:
@@ -165,7 +169,6 @@ def _serialize_account(account: ActiveAccount) -> dict:
     ).order_by("-updated_at").first()
 
     if bal is None:
-        # No sync yet; keep zeros but preserve identity fields.
         ok_to_trade = False
         return {
             "id": account.id,
@@ -204,13 +207,9 @@ def _serialize_account(account: ActiveAccount) -> dict:
         "ok_to_trade": ok_to_trade,
     }
 
-def get_active_account(request):
-    """Pick account via ?account_id query parameter.
 
-    If no account_id is provided, prefer a SCHWAB account (most recently updated)
-    when one exists; otherwise fall back to the first account for this user.
-    """
-
+def get_active_account(request) -> ActiveAccount:
+    """Resolve account from request (query param or default)."""
     user = getattr(request, "user", None)
     if not user or not user.is_authenticated:
         raise NotAuthenticated("Authentication required to access trading accounts.")
@@ -221,18 +220,12 @@ def get_active_account(request):
     return resolve_account_for_user(user=user, account_id=account_id)
 
 
-def resolve_account_for_user(*, user, account_id: str | None):
-    """Resolve an account reference for a user.
-
-    account_id is expected to be the broker_account_id (Schwab hash) or the
-    PaperBalance account_key. Legacy numeric PKs are no longer supported.
-    """
-
-    # Ensure the user always has a paper balance so the UI can function.
+def resolve_account_for_user(*, user, account_id: str | None) -> ActiveAccount:
+    """Resolve account by ID or return default."""
     if not _has_any_paper_balance(user):
         _ensure_default_paper_balance(user)
 
-    accounts = list(_iter_accounts_for_user(user))
+    accounts = list(iter_accounts_for_user(user))
     if account_id:
         wanted = str(account_id)
         for acct in accounts:
@@ -240,7 +233,7 @@ def resolve_account_for_user(*, user, account_id: str | None):
                 return acct
         raise ValueError("Account not found.")
 
-    # Default selection: prefer a SCHWAB account when present.
+    # Prefer SCHWAB, fallback to first
     for acct in accounts:
         if str(acct.broker).upper() == "SCHWAB":
             return acct
@@ -248,17 +241,7 @@ def resolve_account_for_user(*, user, account_id: str | None):
     return accounts[0]
 
 
-@api_view(["GET"])
-def account_summary_view(request):
-    """Return a simple account summary payload for the selected account."""
-
-    account = get_active_account(request)
-    payload = _serialize_account(account)
-    return Response(AccountSummarySerializer(payload, context={"user": request.user}).data)
-
-
 def serialize_active_account(*, request, account: ActiveAccount) -> dict:
-    """Helper for other views: return AccountSummarySerializer-ready dict."""
-
-    payload = _serialize_account(account)
+    """Serialize account with serializer context."""
+    payload = serialize_account(account)
     return AccountSummarySerializer(payload, context={"user": request.user}).data

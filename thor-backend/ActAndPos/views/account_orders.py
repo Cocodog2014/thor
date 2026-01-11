@@ -9,9 +9,8 @@ from rest_framework.response import Response
 
 from ActAndPos.live.models import LiveOrder, LivePosition
 from ActAndPos.paper.models import PaperOrder, PaperPosition
-from ActAndPos.views.accounts import get_active_account, serialize_active_account
-
-from .positions import _serialize_position
+from ActAndPos.shared.accounts import get_active_account, serialize_active_account
+from ActAndPos.views.positions import _serialize_position
 
 
 @api_view(["GET"])

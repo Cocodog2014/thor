@@ -5,7 +5,7 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.http import JsonResponse
 from LiveData.schwab import views as schwab_views
-from ActAndPos.views.balances import account_balance_view
+from ActAndPos.shared.views import account_balance_view
 
 admin.site.site_header = "Thor's Command Center"
 admin.site.site_title = "Thor Command Center"

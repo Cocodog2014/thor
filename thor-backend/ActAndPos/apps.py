@@ -7,8 +7,9 @@ class ActandposConfig(AppConfig):
     verbose_name = "Accounts and Positions"
 
     def ready(self):  # pragma: no cover
-        from . import seed_default_paper_account  # noqa: F401
-
+        # NOTE: seed_default_paper_account was removed with legacy models
+        # If needed, move seeding logic to management command or signal
+        
         # Register split-domain models (scaffolding).
         # Importing here keeps existing ActAndPos models untouched while we
         # build paper/live side-by-side.

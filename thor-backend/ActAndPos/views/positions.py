@@ -8,7 +8,7 @@ from rest_framework.response import Response
 
 from ActAndPos.live.models import LivePosition
 from ActAndPos.paper.models import PaperPosition
-from ActAndPos.views.accounts import get_active_account, serialize_active_account
+from ActAndPos.shared.accounts import get_active_account, serialize_active_account
 
 logger = logging.getLogger(__name__)
 

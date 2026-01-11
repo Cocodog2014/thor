@@ -9,8 +9,25 @@ from ActAndPos.live.models import LiveOrder
 from ActAndPos.live.services.order_router import LiveSubmitOrderParams, cancel_order as cancel_live_order, submit_order as submit_live_order
 from ActAndPos.paper.engine import InvalidPaperOrder, PaperOrderParams, submit_order as submit_paper_order
 from ActAndPos.paper.models import PaperOrder
-from ActAndPos.views.accounts import get_active_account, resolve_account_for_user, serialize_active_account
-from ActAndPos.views.positions import _serialize_position
+from ActAndPos.shared.accounts import get_active_account, resolve_account_for_user, serialize_active_account
+
+
+def _serialize_position(pk, symbol, description, asset_type, quantity, avg_price, mark_price, multiplier, realized_pl_open, realized_pl_day, currency):
+    """Serialize a position object to a dict."""
+    return {
+        "id": pk,
+        "symbol": symbol,
+        "description": description,
+        "asset_type": asset_type,
+        "quantity": quantity,
+        "avg_price": avg_price,
+        "mark_price": mark_price,
+        "multiplier": multiplier,
+        "realized_pl_open": realized_pl_open,
+        "realized_pl_day": realized_pl_day,
+        "currency": currency,
+    }
+
 
 
 def _parse_decimal(value, field_name: str, allow_null: bool = False):
