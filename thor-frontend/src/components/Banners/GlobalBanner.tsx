@@ -237,18 +237,33 @@ const GlobalBanner: React.FC = () => {
       ? accounts.find((acct) => String(acct.broker_account_id) === String(accountId))
       : undefined;
 
-    const hasSchwab = accounts.some((acct) => String(acct.broker).toUpperCase() === 'SCHWAB');
-    const preferred =
-      accounts.find((acct) => String(acct.broker).toUpperCase() === 'SCHWAB')
-      ?? accounts[0];
+    const paper = accounts.find((acct) => String(acct.broker).toUpperCase() === 'PAPER');
+    const schwab = accounts.find((acct) => String(acct.broker).toUpperCase() === 'SCHWAB');
+    const schwabConnected = Boolean(effectiveSchwabHealth?.connected);
+
+    // Default selection should match what's actually usable:
+    // - If Schwab is connected, prefer it.
+    // - Otherwise prefer Paper (if present), else fallback to whatever we have.
+    const preferred = (schwabConnected ? schwab : (paper ?? schwab)) ?? accounts[0];
 
     // If a restored selection is valid, keep it.
-    // However: if Schwab is connected and we're currently pinned to PAPER, switch to SCHWAB.
+    // However:
+    // - If Schwab is connected and we're pinned to PAPER, switch to SCHWAB.
+    // - If Schwab is NOT connected and we're pinned to SCHWAB, switch to PAPER (when available).
     if (selected) {
       const selectedIsPaper = String(selected.broker).toUpperCase() === 'PAPER';
-      if (hasSchwab && selectedIsPaper && effectiveSchwabHealth?.connected) {
-        setAccountId(preferred?.broker_account_id ?? null);
+      const selectedIsSchwab = String(selected.broker).toUpperCase() === 'SCHWAB';
+
+      if (selectedIsPaper && schwabConnected && schwab) {
+        setAccountId(schwab.broker_account_id);
+        return;
       }
+
+      if (selectedIsSchwab && !schwabConnected && paper) {
+        setAccountId(paper.broker_account_id);
+        return;
+      }
+
       return;
     }
 

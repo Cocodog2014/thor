@@ -26,9 +26,14 @@ function isAuthRoute(): boolean {
   return window.location.pathname.startsWith('/auth');
 }
 
-const MAX_RETRIES = 10;
+// Reconnect strategy
+//
+// We intentionally retry indefinitely. In real-world usage (laptop sleep/wake,
+// wifi changes, backend restarts, tunnels/proxies flapping), a finite retry cap
+// can leave the UI permanently stale until a full page refresh.
 const INITIAL_DELAY = 1000;
 const MAX_DELAY = 30000;
+const EXP_BACKOFF_CAP = 10; // 2^10 ~= 1024, reaches MAX_DELAY quickly
 
 // Heartbeat / idle detection
 const IDLE_PING_AFTER_MS = 15000;
@@ -126,9 +131,10 @@ function scheduleHeartbeatTimeout() {
 }
 
 function scheduleReconnect(url: string) {
-  if (retryTimeout || retryCount >= MAX_RETRIES) return;
+  if (retryTimeout) return;
 
-  const delay = Math.min(INITIAL_DELAY * Math.pow(2, retryCount), MAX_DELAY);
+  const exp = Math.min(retryCount, EXP_BACKOFF_CAP);
+  const delay = Math.min(INITIAL_DELAY * Math.pow(2, exp), MAX_DELAY);
   retryCount += 1;
 
   retryTimeout = setTimeout(() => {
