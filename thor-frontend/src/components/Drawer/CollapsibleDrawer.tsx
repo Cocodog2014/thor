@@ -152,19 +152,30 @@ interface WatchlistItemRowProps {
 
 const WatchlistItemRow: React.FC<WatchlistItemRowProps> = ({ symbol, dragHandleProps, data, onRemove }) => {
   const prevLast = useRef<number | undefined>(undefined);
+  const [trend, setTrend] = useState<'up' | 'down' | null>(null);
   const [flash, setFlash] = useState<'up' | 'down' | null>(null);
 
   useEffect(() => {
     const current = data?.last;
     if (current !== undefined && prevLast.current !== undefined && current !== prevLast.current) {
-      setFlash(current > prevLast.current ? 'up' : 'down');
-      const timer = setTimeout(() => setFlash(null), 800);
+      const dir = current > prevLast.current ? 'up' : 'down';
+      setTrend(dir);
+      setFlash(dir);
+      const timer = setTimeout(() => setFlash(null), 650);
       return () => clearTimeout(timer);
     }
     if (current !== undefined) prevLast.current = current;
   }, [data?.last]);
 
-  const priceColor = flash === 'up' ? '#4caf50' : flash === 'down' ? '#f44336' : 'inherit';
+  const baseColor = trend === 'up' ? '#00e676' : trend === 'down' ? '#ff1744' : 'inherit';
+  const priceColor = flash === 'up' ? '#69f0ae' : flash === 'down' ? '#ff5252' : baseColor;
+  const flashBg =
+    flash === 'up'
+      ? 'rgba(0, 230, 118, 0.18)'
+      : flash === 'down'
+        ? 'rgba(255, 23, 68, 0.18)'
+        : 'transparent';
+  const dirGlyph = trend === 'up' ? '▲' : trend === 'down' ? '▼' : '';
 
   const quoteLabelSx = {
     fontSize: '0.52rem',
@@ -230,8 +241,20 @@ const WatchlistItemRow: React.FC<WatchlistItemRowProps> = ({ symbol, dragHandleP
           <Typography sx={quoteLabelSx}>LAST</Typography>
           <Typography
             noWrap
-            sx={{ ...quoteValueSx, fontWeight: 700, color: priceColor, transition: 'color 0.3s' }}
+            sx={{
+              ...quoteValueSx,
+              fontWeight: 800,
+              fontSize: '0.74rem',
+              color: priceColor,
+              transition: 'color 0.25s, background-color 0.25s',
+              backgroundColor: flashBg,
+              borderRadius: 0.75,
+              pr: 0.5,
+            }}
           >
+            <Box component="span" sx={{ display: 'inline-block', width: '0.9em', color: priceColor }}>
+              {dirGlyph}
+            </Box>
             {formatPrice(data?.last)}
           </Typography>
         </Box>
