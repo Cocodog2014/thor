@@ -427,6 +427,32 @@ const CollapsibleDrawer: React.FC<CollapsibleDrawerProps> = ({
     });
   });
 
+  // Some deployments primarily broadcast batched snapshots as `market_data`.
+  // Support that path so the Drawer keeps updating even if `quote_tick` is not emitted.
+  useWsMessage('market_data', (msg: WsEnvelope<{ quotes?: unknown }>) => {
+    const quotesRaw = msg.data?.quotes;
+    if (!Array.isArray(quotesRaw)) return;
+    setLastTickAt(new Date());
+
+    (quotesRaw as SnapshotQuote[]).forEach((q) => {
+      applyMarketPatch(q?.symbol, {
+        bid: (q as unknown as { bid?: unknown }).bid,
+        ask: (q as unknown as { ask?: unknown }).ask,
+        last: (q as unknown as { last?: unknown; price?: unknown }).last
+          ?? (q as unknown as { price?: unknown }).price,
+        volume: (q as unknown as { volume?: unknown }).volume,
+        open: (q as unknown as { open?: unknown; open_price?: unknown }).open
+          ?? (q as unknown as { open_price?: unknown }).open_price,
+        high: (q as unknown as { high?: unknown; high_price?: unknown }).high
+          ?? (q as unknown as { high_price?: unknown }).high_price,
+        low: (q as unknown as { low?: unknown; low_price?: unknown }).low
+          ?? (q as unknown as { low_price?: unknown }).low_price,
+        close: (q as unknown as { close?: unknown; close_price?: unknown }).close
+          ?? (q as unknown as { close_price?: unknown }).close_price,
+      });
+    });
+  });
+
   useWsMessage('market_24h', (msg: WsEnvelope<Market24hPayload>) => {
     setLastTickAt(new Date());
     applyMarketPatch(msg.data?.symbol, {
@@ -522,9 +548,6 @@ const CollapsibleDrawer: React.FC<CollapsibleDrawerProps> = ({
   useEffect(() => {
     if (!open) return;
 
-    // Prefer WS for low-latency updates.
-    if (wsIsEnabled && wsConnected) return;
-
     const symbols = watchlist
       .map((w) => w.instrument?.symbol)
       .filter((s): s is string => typeof s === 'string' && Boolean(s.trim()))
@@ -532,13 +555,21 @@ const CollapsibleDrawer: React.FC<CollapsibleDrawerProps> = ({
 
     if (symbols.length === 0) return;
 
+    const isWsFresh = () => {
+      if (!(wsIsEnabled && wsConnected)) return false;
+      if (!lastTickAt) return false;
+      return Date.now() - lastTickAt.getTime() < 8000;
+    };
+
     // Keep it modest to avoid hammering the API.
+    // If WS is healthy we do nothing; if WS is disabled/disconnected/stale, we refresh.
     const interval = window.setInterval(() => {
+      if (isWsFresh()) return;
       loadSnapshotForSymbols(symbols);
     }, 5000);
 
     return () => window.clearInterval(interval);
-  }, [open, wsIsEnabled, wsConnected, watchlist, loadSnapshotForSymbols]);
+  }, [open, wsIsEnabled, wsConnected, lastTickAt, watchlist, loadSnapshotForSymbols]);
 
   const signOut = () => { logout(); sessionStorage.removeItem(HOME_WELCOME_DISMISSED_KEY); navigate('/auth/login'); };
   const currentWidth = open ? drawerWidth : widthClosed;
