@@ -36,7 +36,9 @@ const MAX_DELAY = 30000;
 const EXP_BACKOFF_CAP = 10; // 2^10 ~= 1024, reaches MAX_DELAY quickly
 
 // Heartbeat / idle detection
-const IDLE_PING_AFTER_MS = 15000;
+// Some proxies/tunnels will silently stall/timeout idle websockets around ~10s.
+// Keep this below that so prod streaming remains steady.
+const IDLE_PING_AFTER_MS = 5000;
 const PONG_GRACE_MS = 5000;
 
 let socket: WebSocket | null = null;
