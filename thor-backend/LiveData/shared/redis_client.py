@@ -22,6 +22,12 @@ from GlobalMarkets.normalize import normalize_country_code
 logger = logging.getLogger(__name__)
 
 
+# WebSocket quote tick fanout can overwhelm clients/proxies during high-volume periods,
+# causing perceived lag (messages queue up and arrive late). We prefer "latest wins":
+# send at a controlled max rate per symbol.
+_LAST_WS_QUOTE_SEND_AT: dict[str, float] = {}
+
+
 def _to_epoch_seconds_utc(value) -> int:
     """
     Accepts:
@@ -647,6 +653,7 @@ class LiveDataRedis:
         asset_type: str | None = None,
         ts: int | float | str | datetime | None = None,
         broadcast_ws: bool = False,
+        ws_throttle_ms: int | None = None,
     ) -> int:
         """
         Publish quote data for a symbol and optionally fan out to WebSocket.
@@ -658,6 +665,7 @@ class LiveDataRedis:
             asset_type: Asset category (e.g., "EQUITY", "FUTURE", "INDEX")
             ts: Optional timestamp for this quote. If omitted, best-effort from data or now.
             broadcast_ws: If True, also emit a `quote_tick` over Channels
+            ws_throttle_ms: If set, limit per-symbol `quote_tick` broadcasts to at most once per this many ms.
         """
         from .channels import get_quotes_channel
 
@@ -721,6 +729,19 @@ class LiveDataRedis:
         if broadcast_ws:
             try:
                 from api.websocket.broadcast import broadcast_to_websocket_sync
+
+                throttle_ms = ws_throttle_ms
+                if throttle_ms is None:
+                    # Default: unthrottled. If you need to reduce backlog/lag under high tick volume,
+                    # set LIVE_DATA_WS_QUOTE_THROTTLE_MS (e.g. 50 or 100).
+                    throttle_ms = int(getattr(settings, "LIVE_DATA_WS_QUOTE_THROTTLE_MS", 0) or 0)
+
+                if throttle_ms and throttle_ms > 0:
+                    now = time.time()
+                    last = _LAST_WS_QUOTE_SEND_AT.get(sym, 0.0)
+                    if (now - last) * 1000.0 < float(throttle_ms):
+                        return result
+                    _LAST_WS_QUOTE_SEND_AT[sym] = now
 
                 broadcast_to_websocket_sync(
                     channel_layer=None,

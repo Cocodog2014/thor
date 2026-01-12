@@ -382,6 +382,55 @@ const CollapsibleDrawer: React.FC<CollapsibleDrawerProps> = ({
     });
   }, []);
 
+  const applyMarketQuotesBatch = useCallback((quotes: SnapshotQuote[]) => {
+    if (!quotes.length) return;
+
+    setMarketData((prev) => {
+      let changedAny = false;
+      const nextAll: MarketDataMap = { ...prev };
+
+      for (const q of quotes) {
+        const symbol = normalizeWsSymbol(q?.symbol);
+        if (!symbol) continue;
+
+        const current = prev[symbol] || {};
+        const next = { ...current };
+        let changed = false;
+
+        const patch: Partial<Record<MetricKey, unknown>> = {
+          bid: (q as unknown as { bid?: unknown }).bid,
+          ask: (q as unknown as { ask?: unknown }).ask,
+          last: (q as unknown as { last?: unknown; price?: unknown }).last
+            ?? (q as unknown as { price?: unknown }).price,
+          volume: (q as unknown as { volume?: unknown }).volume,
+          open: (q as unknown as { open?: unknown; open_price?: unknown }).open
+            ?? (q as unknown as { open_price?: unknown }).open_price,
+          high: (q as unknown as { high?: unknown; high_price?: unknown }).high
+            ?? (q as unknown as { high_price?: unknown }).high_price,
+          low: (q as unknown as { low?: unknown; low_price?: unknown }).low
+            ?? (q as unknown as { low_price?: unknown }).low_price,
+          close: (q as unknown as { close?: unknown; close_price?: unknown }).close
+            ?? (q as unknown as { close_price?: unknown }).close_price,
+        };
+
+        (Object.entries(patch) as Array<[MetricKey, unknown]>).forEach(([key, raw]) => {
+          const val = toNumeric(raw);
+          if (val !== undefined && next[key] !== val) {
+            next[key] = val;
+            changed = true;
+          }
+        });
+
+        if (changed) {
+          nextAll[symbol] = next;
+          changedAny = true;
+        }
+      }
+
+      return changedAny ? nextAll : prev;
+    });
+  }, []);
+
   const loadSnapshotForSymbols = useCallback(async (symbols: string[]) => {
     const normalized = symbols
       .map((s) => normalizeWsSymbol(s))
@@ -399,22 +448,11 @@ const CollapsibleDrawer: React.FC<CollapsibleDrawerProps> = ({
       const data = res.data as { quotes?: unknown };
       const quotesRaw = data?.quotes;
       const quotes = Array.isArray(quotesRaw) ? (quotesRaw as SnapshotQuote[]) : [];
-      quotes.forEach((q) => {
-        applyMarketPatch(q?.symbol, {
-          bid: q?.bid,
-          ask: q?.ask,
-          last: q?.last ?? q?.price,
-          volume: q?.volume,
-          open: q?.open ?? q?.open_price,
-          high: q?.high ?? q?.high_price,
-          low: q?.low ?? q?.low_price,
-          close: q?.close ?? q?.close_price,
-        });
-      });
+      applyMarketQuotesBatch(quotes);
     } catch (err) {
       console.error('Watchlist snapshot fetch failed', err);
     }
-  }, [applyMarketPatch]);
+  }, [applyMarketQuotesBatch]);
 
   // Use the shared global socket connection
   useWsMessage('quote_tick', (msg: WsEnvelope<QuoteTickPayload>) => {
@@ -434,23 +472,7 @@ const CollapsibleDrawer: React.FC<CollapsibleDrawerProps> = ({
     if (!Array.isArray(quotesRaw)) return;
     setLastTickAt(new Date());
 
-    (quotesRaw as SnapshotQuote[]).forEach((q) => {
-      applyMarketPatch(q?.symbol, {
-        bid: (q as unknown as { bid?: unknown }).bid,
-        ask: (q as unknown as { ask?: unknown }).ask,
-        last: (q as unknown as { last?: unknown; price?: unknown }).last
-          ?? (q as unknown as { price?: unknown }).price,
-        volume: (q as unknown as { volume?: unknown }).volume,
-        open: (q as unknown as { open?: unknown; open_price?: unknown }).open
-          ?? (q as unknown as { open_price?: unknown }).open_price,
-        high: (q as unknown as { high?: unknown; high_price?: unknown }).high
-          ?? (q as unknown as { high_price?: unknown }).high_price,
-        low: (q as unknown as { low?: unknown; low_price?: unknown }).low
-          ?? (q as unknown as { low_price?: unknown }).low_price,
-        close: (q as unknown as { close?: unknown; close_price?: unknown }).close
-          ?? (q as unknown as { close_price?: unknown }).close_price,
-      });
-    });
+    applyMarketQuotesBatch(quotesRaw as SnapshotQuote[]);
   });
 
   useWsMessage('market_24h', (msg: WsEnvelope<Market24hPayload>) => {
