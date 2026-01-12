@@ -517,6 +517,29 @@ const CollapsibleDrawer: React.FC<CollapsibleDrawerProps> = ({
     if (open) loadWatchlist();
   }, [open, loadWatchlist]);
 
+  // If WS is disabled (common in prod) or temporarily disconnected, keep the Drawer
+  // quotes alive via periodic snapshot refresh.
+  useEffect(() => {
+    if (!open) return;
+
+    // Prefer WS for low-latency updates.
+    if (wsIsEnabled && wsConnected) return;
+
+    const symbols = watchlist
+      .map((w) => w.instrument?.symbol)
+      .filter((s): s is string => typeof s === 'string' && Boolean(s.trim()))
+      .map((s) => s.toUpperCase());
+
+    if (symbols.length === 0) return;
+
+    // Keep it modest to avoid hammering the API.
+    const interval = window.setInterval(() => {
+      loadSnapshotForSymbols(symbols);
+    }, 5000);
+
+    return () => window.clearInterval(interval);
+  }, [open, wsIsEnabled, wsConnected, watchlist, loadSnapshotForSymbols]);
+
   const signOut = () => { logout(); sessionStorage.removeItem(HOME_WELCOME_DISMISSED_KEY); navigate('/auth/login'); };
   const currentWidth = open ? drawerWidth : widthClosed;
 
