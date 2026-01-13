@@ -19,12 +19,15 @@ const Register: React.FC = () => {
     e.preventDefault();
     if (!agree) return toast.error('You must agree to the Terms & Privacy Policy');
     if (password !== confirm) return toast.error('Passwords do not match');
+
+    const normalizedEmail = email.replace(/\s+/g, '').trim();
+    if (!normalizedEmail) return toast.error('Please enter a valid email');
     
     setLoading(true);
     try {
       // Call Django register endpoint
       const { data } = await api.post('/users/register/', {  // baseURL already has /api
-        email,
+        email: normalizedEmail,
         password,
         password_confirm: confirm,
       });
@@ -83,6 +86,7 @@ const Register: React.FC = () => {
             value={email} 
             onChange={(e) => setEmail(e.target.value)} 
             sx={{ mb: 2 }}
+            inputProps={{ autoCapitalize: 'none', autoCorrect: 'off', spellCheck: 'false' }}
           />
           <TextField 
             label="Password" 

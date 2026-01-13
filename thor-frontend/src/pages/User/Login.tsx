@@ -24,14 +24,16 @@ const Login: React.FC = () => {
 
   const handleLogin = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!email || !password) {
+    const normalizedEmail = email.replace(/\s+/g, '').trim();
+
+    if (!normalizedEmail || !password) {
       toast.error("Please enter valid credentials.");
       return;
     }
 
     try {
       setLoading(true);
-      const { data } = await api.post("/users/login/", { email, password });
+      const { data } = await api.post("/users/login/", { email: normalizedEmail, password });
 
       const accessToken = data?.access;
       const refreshToken = data?.refresh;
@@ -101,6 +103,9 @@ const Login: React.FC = () => {
               type="email"
               placeholder="Email"
               autoComplete="email"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
               value={email}
               onChange={(event) => setEmail(event.target.value)}
               disabled={loading}
@@ -111,6 +116,8 @@ const Login: React.FC = () => {
               type="password"
               placeholder="Password"
               autoComplete="current-password"
+              autoCapitalize="none"
+              autoCorrect="off"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               disabled={loading}

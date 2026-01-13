@@ -46,10 +46,6 @@ type WatchlistItem = {
   };
 };
 
-type AccountSummary = {
-  broker?: string;
-  broker_account_id?: string;
-};
 
 type QuoteTickPayload = {
   symbol?: unknown;
@@ -349,8 +345,13 @@ const Watchlist: React.FC<WatchlistProps> = ({ open, onLastTickAtChange }) => {
   const [query, setQuery] = useState('');
   const [lastTickAt, setLastTickAt] = useState<Date | null>(null);
 
-  const [accounts, setAccounts] = useState<AccountSummary[]>([]);
-  const [derivedMode, setDerivedMode] = useState<'paper' | 'live' | null>(null);
+  const derivedMode = useMemo<'paper' | 'live' | null>(() => {
+    if (!accountId) return null;
+    const s = String(accountId).trim().toUpperCase();
+    if (!s) return null;
+    // Current backend convention: paper broker_account_id values are PAPER-*.
+    return s.startsWith('PAPER') ? 'paper' : 'live';
+  }, [accountId]);
 
 
   const setTickNow = useCallback(() => {
@@ -447,49 +448,7 @@ const Watchlist: React.FC<WatchlistProps> = ({ open, onLastTickAtChange }) => {
     }
   }, [applyMarketQuotesBatch]);
 
-  // Derive watchlist mode from the selected account in the GlobalBanner.
-  useEffect(() => {
-    let active = true;
-    if (!open) return;
-
-    const resolveMode = (rows: AccountSummary[], selectedId: string | null): 'paper' | 'live' | null => {
-      if (!selectedId) return null;
-      const acct = rows.find((a) => String(a?.broker_account_id ?? '') === String(selectedId));
-      if (!acct) return null;
-      const broker = String(acct.broker ?? '').toUpperCase();
-      return broker === 'PAPER' ? 'paper' : 'live';
-    };
-
-    const loadAccounts = async () => {
-      try {
-        const res = await api.get<{ accounts?: AccountSummary[] } | AccountSummary[]>('/actandpos/accounts');
-        const data = res.data;
-        const rows = Array.isArray(data)
-          ? data
-          : Array.isArray((data as { accounts?: AccountSummary[] })?.accounts)
-            ? (data as { accounts?: AccountSummary[] }).accounts!
-            : [];
-
-        if (!active) return;
-        setAccounts(rows);
-        setDerivedMode(resolveMode(rows, accountId));
-      } catch (err) {
-        if (!active) return;
-        console.error('Watchlist: failed to load accounts for mode derivation', err);
-        setAccounts([]);
-        setDerivedMode(null);
-      }
-    };
-
-    // If we already have accounts cached, just re-derive based on current selection.
-    if (accounts.length > 0) {
-      setDerivedMode(resolveMode(accounts, accountId));
-      return;
-    }
-
-    void loadAccounts();
-    return () => { active = false; };
-  }, [open, accountId, accounts]);
+  const canWrite = derivedMode !== null;
 
   // WS events
   useWsMessage('quote_tick', (msg: WsEnvelope<QuoteTickPayload>) => {
@@ -549,6 +508,7 @@ const Watchlist: React.FC<WatchlistProps> = ({ open, onLastTickAtChange }) => {
   }, [derivedMode, loadSnapshotForSymbols, loadUserWatchlist]);
 
   const persistWatchlistOrder = useCallback(async (items: WatchlistItem[]) => {
+    if (!derivedMode) return;
     try {
       await api.put(
         '/instruments/watchlist/',
@@ -558,7 +518,7 @@ const Watchlist: React.FC<WatchlistProps> = ({ open, onLastTickAtChange }) => {
             order: i,
           })),
         },
-        { params: derivedMode ? { mode: derivedMode } : {} }
+        { params: { mode: derivedMode } }
       );
     } catch (err) {
       console.error('Failed to persist watchlist order', err);
@@ -567,6 +527,7 @@ const Watchlist: React.FC<WatchlistProps> = ({ open, onLastTickAtChange }) => {
 
   const addSymbol = useCallback(async (symbolRaw: string) => {
     if (!symbolRaw) return;
+    if (!derivedMode) return;
 
     const sym = symbolRaw.toUpperCase();
     const next = [...userWatchlist, { instrument: { symbol: sym } }];
@@ -579,7 +540,7 @@ const Watchlist: React.FC<WatchlistProps> = ({ open, onLastTickAtChange }) => {
       await api.put(
         '/instruments/watchlist/',
         { items: next.map((item, i) => ({ symbol: item.instrument?.symbol ?? '', order: i })) },
-        { params: derivedMode ? { mode: derivedMode } : {} }
+        { params: { mode: derivedMode } }
       );
       await loadWatchlists();
     } catch (e) {
@@ -661,13 +622,14 @@ const Watchlist: React.FC<WatchlistProps> = ({ open, onLastTickAtChange }) => {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter') void addSymbol(query); }}
+          disabled={!canWrite}
         />
         <Button
           className="thor-watchlist-add"
           variant="outlined"
           size="small"
           onClick={() => void addSymbol(query)}
-          disabled={!query.trim()}
+          disabled={!canWrite || !query.trim()}
         >
           Add
         </Button>
