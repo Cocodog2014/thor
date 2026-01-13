@@ -22,15 +22,27 @@ def ensure_owner_watchlist_for_instrument(instrument: Instrument) -> None:
 
     owner_user_id = get_owner_user_id()
 
+    # Global (admin) watchlist lives on the owner user and is tagged with mode=GLOBAL.
+    global_mode = getattr(UserInstrumentWatchlistItem, "Mode", None)
+    global_mode_value = getattr(global_mode, "GLOBAL", "GLOBAL")
+
     if not instrument.is_active:
         with suppress_schwab_subscription_signals():
-            UserInstrumentWatchlistItem.objects.filter(user_id=owner_user_id, instrument=instrument).delete()
+            UserInstrumentWatchlistItem.objects.filter(
+                user_id=owner_user_id,
+                instrument=instrument,
+                mode=global_mode_value,
+            ).delete()
         return
 
     defaults = {"enabled": True, "stream": True}
 
     # Append to end when first added.
-    existing = UserInstrumentWatchlistItem.objects.filter(user_id=owner_user_id, instrument=instrument).first()
+    existing = UserInstrumentWatchlistItem.objects.filter(
+        user_id=owner_user_id,
+        instrument=instrument,
+        mode=global_mode_value,
+    ).first()
     if existing:
         if existing.enabled != defaults["enabled"] or existing.stream != defaults["stream"]:
             with suppress_schwab_subscription_signals():
@@ -38,7 +50,7 @@ def ensure_owner_watchlist_for_instrument(instrument: Instrument) -> None:
         return
 
     max_order = (
-        UserInstrumentWatchlistItem.objects.filter(user_id=owner_user_id)
+        UserInstrumentWatchlistItem.objects.filter(user_id=owner_user_id, mode=global_mode_value)
         .order_by("-order")
         .values_list("order", flat=True)
         .first()
@@ -49,6 +61,7 @@ def ensure_owner_watchlist_for_instrument(instrument: Instrument) -> None:
         UserInstrumentWatchlistItem.objects.create(
             user_id=owner_user_id,
             instrument=instrument,
+            mode=global_mode_value,
             order=next_order,
             **defaults,
         )
@@ -57,8 +70,14 @@ def ensure_owner_watchlist_for_instrument(instrument: Instrument) -> None:
 def remove_owner_watchlist_for_instrument(instrument: Instrument | int) -> None:
     owner_user_id = get_owner_user_id()
     instrument_id = instrument.id if isinstance(instrument, Instrument) else int(instrument)
+    global_mode = getattr(UserInstrumentWatchlistItem, "Mode", None)
+    global_mode_value = getattr(global_mode, "GLOBAL", "GLOBAL")
     with suppress_schwab_subscription_signals():
-        UserInstrumentWatchlistItem.objects.filter(user_id=owner_user_id, instrument_id=instrument_id).delete()
+        UserInstrumentWatchlistItem.objects.filter(
+            user_id=owner_user_id,
+            instrument_id=instrument_id,
+            mode=global_mode_value,
+        ).delete()
 
 
 def upsert_quote_source_map(instrument: Instrument) -> None:

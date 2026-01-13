@@ -29,6 +29,7 @@ import {
 import { useWsConnection, useWsMessage, wsEnabled } from '../../realtime';
 import type { WsEnvelope } from '../../realtime/types';
 import api from '../../services/api';
+import { useTradingMode } from '../../context/TradingModeContext';
 
 type MetricKey = 'last' | 'bid' | 'ask' | 'volume' | 'open' | 'high' | 'low' | 'close';
 type MarketDataMap = Record<string, Partial<Record<MetricKey, number>>>;
@@ -120,10 +121,11 @@ interface WatchlistItemRowProps {
   symbol: string;
   dragHandleProps?: DragHandleProps;
   data?: Partial<Record<MetricKey, number>>;
-  onRemove: (symbol: string) => void;
+  onRemove?: (symbol: string) => void;
+  readOnly?: boolean;
 }
 
-const WatchlistItemRow: React.FC<WatchlistItemRowProps> = ({ symbol, dragHandleProps, data, onRemove }) => {
+const WatchlistItemRow: React.FC<WatchlistItemRowProps> = ({ symbol, dragHandleProps, data, onRemove, readOnly }) => {
   const prevLast = useRef<number | undefined>(undefined);
   const [trend, setTrend] = useState<'up' | 'down' | null>(null);
   const [flash, setFlash] = useState<'up' | 'down' | null>(null);
@@ -183,10 +185,11 @@ const WatchlistItemRow: React.FC<WatchlistItemRowProps> = ({ symbol, dragHandleP
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0 }}>
           <IconButton
             size="small"
-            sx={{ cursor: 'grab', color: 'text.secondary' }}
+            sx={{ cursor: readOnly ? 'default' : 'grab', color: 'text.secondary' }}
             aria-label="Drag to reorder"
-            {...(dragHandleProps?.attributes ?? {})}
-            {...(dragHandleProps?.listeners ?? {})}
+            disabled={Boolean(readOnly)}
+            {...(!readOnly ? (dragHandleProps?.attributes ?? {}) : {})}
+            {...(!readOnly ? (dragHandleProps?.listeners ?? {}) : {})}
           >
             <DragIndicatorIcon fontSize="inherit" />
           </IconButton>
@@ -204,9 +207,13 @@ const WatchlistItemRow: React.FC<WatchlistItemRowProps> = ({ symbol, dragHandleP
             {symbol}
           </Typography>
         </Box>
-        <IconButton size="small" onClick={() => onRemove(symbol)} aria-label={`Remove ${symbol}`}>
-          <CloseIcon fontSize="inherit" />
-        </IconButton>
+        {onRemove && !readOnly ? (
+          <IconButton size="small" onClick={() => onRemove(symbol)} aria-label={`Remove ${symbol}`}>
+            <CloseIcon fontSize="inherit" />
+          </IconButton>
+        ) : (
+          <Box sx={{ width: 28 }} />
+        )}
       </Box>
       <Box
         sx={{
@@ -309,7 +316,10 @@ const Watchlist: React.FC<WatchlistProps> = ({ open, onLastTickAtChange }) => {
   const wsIsEnabled = wsEnabled();
   const wsConnected = useWsConnection(true);
 
-  const [watchlist, setWatchlist] = useState<WatchlistItem[]>([]);
+  const { mode, setMode } = useTradingMode();
+
+  const [userWatchlist, setUserWatchlist] = useState<WatchlistItem[]>([]);
+  const [globalWatchlist, setGlobalWatchlist] = useState<WatchlistItem[]>([]);
   const [watchlistLoading, setWatchlistLoading] = useState(false);
   const [marketData, setMarketData] = useState<MarketDataMap>({});
   const [query, setQuery] = useState('');
@@ -439,73 +449,103 @@ const Watchlist: React.FC<WatchlistProps> = ({ open, onLastTickAtChange }) => {
   });
 
   // Actions
-  const loadWatchlist = useCallback(async () => {
+  const loadGlobalWatchlist = useCallback(async () => {
+    const res = await api.get('/instruments/watchlist/global/');
+    const items = Array.isArray(res.data?.items) ? (res.data.items as WatchlistItem[]) : [];
+    setGlobalWatchlist(items);
+    return items;
+  }, []);
+
+  const loadUserWatchlist = useCallback(async (nextMode: 'paper' | 'live') => {
+    const res = await api.get('/instruments/watchlist/', {
+      params: { mode: nextMode },
+    });
+    const items = Array.isArray(res.data?.items) ? (res.data.items as WatchlistItem[]) : [];
+    setUserWatchlist(items);
+    return items;
+  }, []);
+
+  const loadWatchlists = useCallback(async () => {
     setWatchlistLoading(true);
     try {
-      const res = await api.get('/instruments/watchlist/');
-      const items = Array.isArray(res.data?.items) ? (res.data.items as WatchlistItem[]) : [];
-      setWatchlist(items);
+      const [globalItems, userItems] = await Promise.all([
+        loadGlobalWatchlist(),
+        loadUserWatchlist(mode),
+      ]);
 
-      const symbols = items
+      const symbols = [...globalItems, ...userItems]
         .map((w) => w.instrument?.symbol)
         .filter((s): s is string => typeof s === 'string' && Boolean(s.trim()))
         .map((s) => s.toUpperCase());
+
       await loadSnapshotForSymbols(symbols);
     } catch (err) {
       console.error(err);
     } finally {
       setWatchlistLoading(false);
     }
-  }, [loadSnapshotForSymbols]);
+  }, [loadGlobalWatchlist, loadSnapshotForSymbols, loadUserWatchlist, mode]);
 
   const persistWatchlistOrder = useCallback(async (items: WatchlistItem[]) => {
     try {
-      await api.put('/instruments/watchlist/', {
-        items: items.map((item, i) => ({
-          symbol: item.instrument?.symbol ?? '',
-          order: i,
-        })),
-      });
+      await api.put(
+        '/instruments/watchlist/',
+        {
+          items: items.map((item, i) => ({
+            symbol: item.instrument?.symbol ?? '',
+            order: i,
+          })),
+        },
+        { params: { mode } }
+      );
     } catch (err) {
       console.error('Failed to persist watchlist order', err);
     }
-  }, []);
+  }, [mode]);
 
   const addSymbol = useCallback(async (symbolRaw: string) => {
     if (!symbolRaw) return;
 
     const sym = symbolRaw.toUpperCase();
-    const next = [...watchlist, { instrument: { symbol: sym } }];
-    setWatchlist(next);
+    const next = [...userWatchlist, { instrument: { symbol: sym } }];
+    setUserWatchlist(next);
     setQuery('');
 
     loadSnapshotForSymbols([sym]);
 
     try {
-      await api.put('/instruments/watchlist/', {
-        items: next.map((item, i) => ({ symbol: item.instrument?.symbol ?? '', order: i })),
-      });
-      await loadWatchlist();
+      await api.put(
+        '/instruments/watchlist/',
+        { items: next.map((item, i) => ({ symbol: item.instrument?.symbol ?? '', order: i })) },
+        { params: { mode } }
+      );
+      await loadWatchlists();
     } catch (e) {
       console.error(e);
     }
-  }, [loadSnapshotForSymbols, loadWatchlist, watchlist]);
+  }, [loadSnapshotForSymbols, loadWatchlists, mode, userWatchlist]);
 
   const removeSymbol = useCallback(async (symbol: string) => {
-    const next = watchlist.filter((w) => w.instrument?.symbol?.toUpperCase() !== symbol);
-    setWatchlist(next);
+    const next = userWatchlist.filter((w) => w.instrument?.symbol?.toUpperCase() !== symbol);
+    setUserWatchlist(next);
     await persistWatchlistOrder(next);
-  }, [persistWatchlistOrder, watchlist]);
+  }, [persistWatchlistOrder, userWatchlist]);
 
   useEffect(() => {
-    if (open) void loadWatchlist();
-  }, [open, loadWatchlist]);
+    if (!open) return;
+    void loadWatchlists();
+  }, [open, loadWatchlists]);
+
+  useEffect(() => {
+    if (!open) return;
+    void loadUserWatchlist(mode);
+  }, [open, mode, loadUserWatchlist]);
 
   // Snapshot fallback when WS is disabled/disconnected/stale.
   useEffect(() => {
     if (!open) return;
 
-    const symbols = watchlist
+    const symbols = [...globalWatchlist, ...userWatchlist]
       .map((w) => w.instrument?.symbol)
       .filter((s): s is string => typeof s === 'string' && Boolean(s.trim()))
       .map((s) => s.toUpperCase());
@@ -524,15 +564,15 @@ const Watchlist: React.FC<WatchlistProps> = ({ open, onLastTickAtChange }) => {
     }, 5000);
 
     return () => window.clearInterval(interval);
-  }, [open, wsConnected, wsIsEnabled, lastTickAt, watchlist, loadSnapshotForSymbols]);
+  }, [open, wsConnected, wsIsEnabled, lastTickAt, globalWatchlist, userWatchlist, loadSnapshotForSymbols]);
 
   const watchlistIds = useMemo(
-    () => watchlist.map((item) => String(item.instrument?.symbol ?? '')),
-    [watchlist]
+    () => userWatchlist.map((item) => String(item.instrument?.symbol ?? '')),
+    [userWatchlist]
   );
 
   const renderRows = useMemo(() => {
-    return watchlist.map((w) => {
+    return userWatchlist.map((w) => {
       const displaySymbol = (w.instrument?.symbol || '').toUpperCase();
       const id = String(w.instrument?.symbol ?? '');
       const dataKey = normalizeWsSymbol(displaySymbol);
@@ -546,11 +586,29 @@ const Watchlist: React.FC<WatchlistProps> = ({ open, onLastTickAtChange }) => {
         />
       );
     });
-  }, [marketData, removeSymbol, watchlist]);
+  }, [marketData, removeSymbol, userWatchlist]);
 
   return (
     <>
-      <Typography variant="subtitle2" sx={{ mb: 1 }}>Watchlist</Typography>
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+        <Typography variant="subtitle2">Watchlist</Typography>
+        <Box sx={{ display: 'flex', gap: 0.5 }}>
+          <Button
+            size="small"
+            variant={mode === 'paper' ? 'contained' : 'outlined'}
+            onClick={() => setMode('paper')}
+          >
+            Paper
+          </Button>
+          <Button
+            size="small"
+            variant={mode === 'live' ? 'contained' : 'outlined'}
+            onClick={() => setMode('live')}
+          >
+            Live
+          </Button>
+        </Box>
+      </Box>
       <Box className="thor-watchlist-controls" sx={{ display: 'flex', gap: 1, mb: 2 }}>
         <TextField
           size="small"
@@ -575,32 +633,59 @@ const Watchlist: React.FC<WatchlistProps> = ({ open, onLastTickAtChange }) => {
         {watchlistLoading ? (
           <CircularProgress size={20} />
         ) : (
-          <DndContext
-            sensors={dndSensors}
-            collisionDetection={closestCenter}
-            onDragEnd={(event: DragEndEvent) => {
-              const { active, over } = event;
-              if (!over || active.id === over.id) return;
+          <>
+            {globalWatchlist.length > 0 ? (
+              <>
+                <Typography variant="caption" sx={{ display: 'block', px: 1.5, pt: 0.5, pb: 0.5, color: 'text.secondary' }}>
+                  Global (admin)
+                </Typography>
+                {globalWatchlist.map((w) => {
+                  const displaySymbol = (w.instrument?.symbol || '').toUpperCase();
+                  const id = `global:${displaySymbol}`;
+                  const dataKey = normalizeWsSymbol(displaySymbol);
+                  return (
+                    <WatchlistItemRow
+                      key={id}
+                      symbol={displaySymbol}
+                      readOnly
+                      data={dataKey ? marketData[dataKey] : undefined}
+                    />
+                  );
+                })}
+              </>
+            ) : null}
 
-              setWatchlist((prev) => {
-                const ids = prev.map((item) => String(item.instrument?.symbol ?? ''));
-                const oldIndex = ids.indexOf(String(active.id));
-                const newIndex = ids.indexOf(String(over.id));
-                if (oldIndex < 0 || newIndex < 0) return prev;
+            <Typography variant="caption" sx={{ display: 'block', px: 1.5, pt: 1, pb: 0.5, color: 'text.secondary' }}>
+              My watchlist ({mode})
+            </Typography>
 
-                const next = arrayMove(prev, oldIndex, newIndex);
-                void persistWatchlistOrder(next);
-                return next;
-              });
-            }}
-          >
-            <SortableContext
-              items={watchlistIds}
-              strategy={verticalListSortingStrategy}
+            <DndContext
+              sensors={dndSensors}
+              collisionDetection={closestCenter}
+              onDragEnd={(event: DragEndEvent) => {
+                const { active, over } = event;
+                if (!over || active.id === over.id) return;
+
+                setUserWatchlist((prev) => {
+                  const ids = prev.map((item) => String(item.instrument?.symbol ?? ''));
+                  const oldIndex = ids.indexOf(String(active.id));
+                  const newIndex = ids.indexOf(String(over.id));
+                  if (oldIndex < 0 || newIndex < 0) return prev;
+
+                  const next = arrayMove(prev, oldIndex, newIndex);
+                  void persistWatchlistOrder(next);
+                  return next;
+                });
+              }}
             >
-              {renderRows}
-            </SortableContext>
-          </DndContext>
+              <SortableContext
+                items={watchlistIds}
+                strategy={verticalListSortingStrategy}
+              >
+                {renderRows}
+              </SortableContext>
+            </DndContext>
+          </>
         )}
       </Box>
     </>

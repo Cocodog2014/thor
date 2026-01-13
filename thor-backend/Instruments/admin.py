@@ -8,7 +8,7 @@ from .models import InstrumentIntraday
 from .models import MarketTrading24Hour
 from .models import Rolling52WeekStats
 from .models import UserInstrumentWatchlistItem
-from Instruments.services.watchlist_sync import sync_watchlist_to_schwab
+from Instruments.services.watchlist_sync import sync_watchlist_to_schwab, sync_global_watchlist_to_schwab
 from Instruments.services.instrument_sync import (
     ensure_owner_watchlist_for_instrument,
     remove_owner_watchlist_for_instrument,
@@ -25,8 +25,12 @@ class InstrumentAdmin(admin.ModelAdmin):
     search_fields = ("symbol", "name", "exchange")
 
     def _sync_users_for_instrument(self, instrument: Instrument) -> None:
+        mode_cls = getattr(UserInstrumentWatchlistItem, "Mode", None)
+        live = getattr(mode_cls, "LIVE", "LIVE")
+        global_mode = getattr(mode_cls, "GLOBAL", "GLOBAL")
+
         user_ids = list(
-            UserInstrumentWatchlistItem.objects.filter(instrument=instrument)
+            UserInstrumentWatchlistItem.objects.filter(instrument=instrument, mode__in=[live, global_mode])
             .values_list("user_id", flat=True)
             .distinct()
         )
@@ -107,8 +111,8 @@ class InstrumentAdmin(admin.ModelAdmin):
 
 @admin.register(UserInstrumentWatchlistItem)
 class UserInstrumentWatchlistItemAdmin(admin.ModelAdmin):
-    list_display = ("user", "instrument", "enabled", "stream", "order", "updated_at")
-    list_filter = ("enabled", "stream", "instrument__asset_type")
+    list_display = ("user", "mode", "instrument", "enabled", "stream", "order", "updated_at")
+    list_filter = ("mode", "enabled", "stream", "instrument__asset_type")
     search_fields = ("user__email", "instrument__symbol", "instrument__name")
 
     def get_changeform_initial_data(self, request):  # pragma: no cover - admin
@@ -121,13 +125,27 @@ class UserInstrumentWatchlistItemAdmin(admin.ModelAdmin):
             obj.user = request.user
         with suppress_schwab_subscription_signals():
             super().save_model(request, obj, form, change)
-        transaction.on_commit(lambda: sync_watchlist_to_schwab(int(obj.user_id), publish_on_commit=False))
+
+        mode_cls = getattr(UserInstrumentWatchlistItem, "Mode", None)
+        live = getattr(mode_cls, "LIVE", "LIVE")
+        global_mode = getattr(mode_cls, "GLOBAL", "GLOBAL")
+        if getattr(obj, "mode", None) == global_mode:
+            transaction.on_commit(lambda: sync_global_watchlist_to_schwab(publish_on_commit=False))
+        elif getattr(obj, "mode", None) == live:
+            transaction.on_commit(lambda: sync_watchlist_to_schwab(int(obj.user_id), publish_on_commit=False))
 
     def delete_model(self, request, obj):  # pragma: no cover - admin
         user_id = int(obj.user_id)
         with suppress_schwab_subscription_signals():
             super().delete_model(request, obj)
-        transaction.on_commit(lambda: sync_watchlist_to_schwab(user_id, publish_on_commit=False))
+
+        mode_cls = getattr(UserInstrumentWatchlistItem, "Mode", None)
+        live = getattr(mode_cls, "LIVE", "LIVE")
+        global_mode = getattr(mode_cls, "GLOBAL", "GLOBAL")
+        if getattr(obj, "mode", None) == global_mode:
+            transaction.on_commit(lambda: sync_global_watchlist_to_schwab(publish_on_commit=False))
+        elif getattr(obj, "mode", None) == live:
+            transaction.on_commit(lambda: sync_watchlist_to_schwab(user_id, publish_on_commit=False))
 
 
 @admin.register(Rolling52WeekStats)

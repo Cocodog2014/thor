@@ -30,6 +30,7 @@ class WatchlistItemSerializer(serializers.ModelSerializer):
             "instrument",
             "enabled",
             "stream",
+            "mode",
             "order",
         )
 
@@ -56,7 +57,10 @@ class WatchlistReplaceSerializer(serializers.Serializer):
         if request is None or not getattr(request, "user", None) or not request.user.is_authenticated:
             raise serializers.ValidationError("Authentication required")
 
-        user = request.user
+        user = self.context.get("user") or request.user
+        mode = self.context.get("mode")
+        if not mode:
+            mode = getattr(getattr(UserInstrumentWatchlistItem, "Mode", None), "LIVE", "LIVE")
         items = self.validated_data.get("items") or []
 
         # Resolve instruments
@@ -95,12 +99,13 @@ class WatchlistReplaceSerializer(serializers.Serializer):
         # Keep signals suppressed during the bulk write to avoid per-row control-plane spam.
         with suppress_schwab_subscription_signals(), transaction.atomic():
             keep_ids = {inst.id for inst, _ in resolved}
-            UserInstrumentWatchlistItem.objects.filter(user=user).exclude(instrument_id__in=keep_ids).delete()
+            UserInstrumentWatchlistItem.objects.filter(user=user, mode=mode).exclude(instrument_id__in=keep_ids).delete()
 
             for inst, payload in resolved:
                 UserInstrumentWatchlistItem.objects.update_or_create(
                     user=user,
                     instrument=inst,
+                    mode=mode,
                     defaults={
                         "enabled": bool(payload.get("enabled", True)),
                         "stream": bool(payload.get("stream", True)),
