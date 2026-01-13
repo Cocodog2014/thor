@@ -67,6 +67,11 @@ def _ensure_default_paper_balance(user) -> PaperBalance:
     return bal
 
 
+def ensure_default_paper_balance(user) -> PaperBalance:
+    """Public wrapper to guarantee a default paper balance exists."""
+    return _ensure_default_paper_balance(user)
+
+
 def _extract_schwab_account_number(payload: dict | None) -> str | None:
     if not payload or not isinstance(payload, dict):
         return None

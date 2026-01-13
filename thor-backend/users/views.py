@@ -8,6 +8,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from django.contrib.auth import get_user_model, authenticate
 from .serializers import RegisterSerializer, UserSerializer
+from ActAndPos.shared.accounts import ensure_default_paper_balance
 
 User = get_user_model()
 
@@ -32,6 +33,9 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         
         if not user.is_active:
             raise serializers.ValidationError({'non_field_errors': ['User account is disabled']})
+
+        # Guarantee paper trading works even if the user never connects a live broker.
+        ensure_default_paper_balance(user)
         
         # Generate tokens using the authenticated user
         refresh = self.get_token(user)
@@ -77,6 +81,8 @@ class RegisterView(generics.CreateAPIView):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
+        # Guarantee paper trading works immediately after signup.
+        ensure_default_paper_balance(user)
         refresh = RefreshToken.for_user(user)
         return Response({
             'user': UserSerializer(user).data,

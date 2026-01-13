@@ -33,6 +33,12 @@ const PaperOrderTicket: React.FC<{ account: AccountSummary; onOrderPlaced: () =>
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    const isPaperAccount = String(account.broker || '').toUpperCase() === 'PAPER';
+    if (!isPaperAccount) {
+      toast.error('Select your PAPER account in the banner to place paper orders.');
+      return;
+    }
+
     const sym = symbol.trim().toUpperCase();
     if (!sym) {
       toast.error("Symbol is required.");
@@ -62,7 +68,15 @@ const PaperOrderTicket: React.FC<{ account: AccountSummary; onOrderPlaced: () =>
         stop_price: null,
       };
 
-      const response = await api.post<PaperOrderResponse>("/trades/orders/active", payload);
+      const response = await api.post<PaperOrderResponse>(
+        "/trades/orders/active",
+        payload,
+        {
+          params: {
+            account_id: account.broker_account_id,
+          },
+        }
+      );
       toast.success(
         `Paper ${response.data.order.side} ${response.data.order.quantity} ${response.data.order.symbol} submitted.`,
       );

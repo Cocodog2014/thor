@@ -248,16 +248,9 @@ const GlobalBanner: React.FC = () => {
 
     // If a restored selection is valid, keep it.
     // However:
-    // - If Schwab is connected and we're pinned to PAPER, switch to SCHWAB.
     // - If Schwab is NOT connected and we're pinned to SCHWAB, switch to PAPER (when available).
     if (selected) {
-      const selectedIsPaper = String(selected.broker).toUpperCase() === 'PAPER';
       const selectedIsSchwab = String(selected.broker).toUpperCase() === 'SCHWAB';
-
-      if (selectedIsPaper && schwabConnected && schwab) {
-        setAccountId(schwab.broker_account_id);
-        return;
-      }
 
       if (selectedIsSchwab && !schwabConnected && paper) {
         setAccountId(paper.broker_account_id);
