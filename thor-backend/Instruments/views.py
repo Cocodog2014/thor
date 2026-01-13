@@ -2,14 +2,13 @@ from __future__ import annotations
 
 from django.contrib.auth import get_user_model
 from django.db.models import Q
-from rest_framework.permissions import IsAuthenticated, IsAdminUser
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from Instruments.models import Instrument, UserInstrumentWatchlistItem
 from Instruments.serializers import InstrumentSummarySerializer, WatchlistItemSerializer, WatchlistReplaceSerializer
-from Instruments.services.instrument_sync import get_owner_user_id
-from Instruments.services.watchlist_sync import sync_watchlist_to_schwab, sync_global_watchlist_to_schwab
+from Instruments.services.watchlist_sync import sync_watchlist_to_schwab
 from ActAndPos.live.models import LiveBalance
 
 User = get_user_model()
@@ -57,57 +56,6 @@ class UserWatchlistView(APIView):
         items = (
             UserInstrumentWatchlistItem.objects.select_related("instrument")
             .filter(user=request.user, mode=mode)
-            .order_by("order", "instrument__symbol")
-        )
-        return Response({"items": WatchlistItemSerializer(items, many=True).data})
-
-
-class GlobalWatchlistView(APIView):
-    """Global (admin-only) watchlist.
-
-    - GET: any authenticated user can read the global list.
-    - PUT: only admins can replace it.
-    """
-
-    permission_classes = [IsAuthenticated]
-
-    def get(self, request):
-        mode_cls = getattr(UserInstrumentWatchlistItem, "Mode", None)
-        global_mode = getattr(mode_cls, "GLOBAL", "GLOBAL")
-        owner_user_id = int(get_owner_user_id())
-
-        items = (
-            UserInstrumentWatchlistItem.objects.select_related("instrument")
-            .filter(user_id=owner_user_id, mode=global_mode)
-            .order_by("order", "instrument__symbol")
-        )
-        return Response({"items": WatchlistItemSerializer(items, many=True).data})
-
-    def put(self, request):
-        if not IsAdminUser().has_permission(request, self):
-            return Response({"detail": "Admin access required."}, status=403)
-
-        mode_cls = getattr(UserInstrumentWatchlistItem, "Mode", None)
-        global_mode = getattr(mode_cls, "GLOBAL", "GLOBAL")
-        owner_user_id = int(get_owner_user_id())
-
-        serializer = WatchlistReplaceSerializer(
-            data=request.data,
-            context={
-                "request": request,
-                "user": User.objects.get(id=owner_user_id),
-                "mode": global_mode,
-            },
-        )
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
-
-        # Global list changes affect all LIVE subscriptions.
-        sync_global_watchlist_to_schwab()
-
-        items = (
-            UserInstrumentWatchlistItem.objects.select_related("instrument")
-            .filter(user_id=owner_user_id, mode=global_mode)
             .order_by("order", "instrument__symbol")
         )
         return Response({"items": WatchlistItemSerializer(items, many=True).data})

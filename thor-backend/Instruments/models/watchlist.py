@@ -10,7 +10,6 @@ User = get_user_model()
 
 class UserInstrumentWatchlistItem(models.Model):
     class Mode(models.TextChoices):
-        GLOBAL = "GLOBAL", "Global"
         PAPER = "PAPER", "Paper"
         LIVE = "LIVE", "Live"
 
@@ -35,7 +34,8 @@ class UserInstrumentWatchlistItem(models.Model):
         choices=Mode.choices,
         default=Mode.LIVE,
         db_index=True,
-        help_text="Watchlist scope/mode: GLOBAL (admin), PAPER, or LIVE.",
+        db_column="trading_mode",
+        help_text="Watchlist scope/mode: PAPER or LIVE.",
     )
     order = models.IntegerField(default=0, db_index=True)
 

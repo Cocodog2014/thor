@@ -17,7 +17,7 @@ from django.db.models.signals import post_delete, post_save
 from django.dispatch import receiver
 
 from Instruments.models import UserInstrumentWatchlistItem
-from Instruments.services.watchlist_sync import sync_watchlist_to_schwab, sync_global_watchlist_to_schwab
+from Instruments.services.watchlist_sync import sync_watchlist_to_schwab
 from LiveData.schwab.signal_control import signals_suppressed
 
 
@@ -30,13 +30,8 @@ def watchlist_item_post_save(sender, instance: UserInstrumentWatchlistItem, crea
 
     mode_cls = getattr(UserInstrumentWatchlistItem, "Mode", None)
     live = getattr(mode_cls, "LIVE", "LIVE")
-    global_mode = getattr(mode_cls, "GLOBAL", "GLOBAL")
 
     # PAPER list is UI-only; it should not drive Schwab streaming.
-    if getattr(instance, "mode", None) == global_mode:
-        transaction.on_commit(lambda: sync_global_watchlist_to_schwab())
-        return
-
     if getattr(instance, "mode", None) != live:
         return
 
@@ -54,11 +49,6 @@ def watchlist_item_post_delete(sender, instance: UserInstrumentWatchlistItem, **
 
     mode_cls = getattr(UserInstrumentWatchlistItem, "Mode", None)
     live = getattr(mode_cls, "LIVE", "LIVE")
-    global_mode = getattr(mode_cls, "GLOBAL", "GLOBAL")
-
-    if getattr(instance, "mode", None) == global_mode:
-        transaction.on_commit(lambda: sync_global_watchlist_to_schwab())
-        return
 
     if getattr(instance, "mode", None) != live:
         return

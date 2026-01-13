@@ -8,12 +8,10 @@ from .models import InstrumentIntraday
 from .models import MarketTrading24Hour
 from .models import Rolling52WeekStats
 from .models import UserInstrumentWatchlistItem
-from Instruments.services.watchlist_sync import sync_watchlist_to_schwab, sync_global_watchlist_to_schwab
+from Instruments.services.watchlist_sync import sync_watchlist_to_schwab
 from Instruments.services.instrument_sync import (
-    remove_owner_watchlist_for_instrument,
     upsert_quote_source_map,
     remove_quote_source_map,
-    get_owner_user_id,
 )
 
 
@@ -26,10 +24,9 @@ class InstrumentAdmin(admin.ModelAdmin):
     def _sync_users_for_instrument(self, instrument: Instrument) -> None:
         mode_cls = getattr(UserInstrumentWatchlistItem, "Mode", None)
         live = getattr(mode_cls, "LIVE", "LIVE")
-        global_mode = getattr(mode_cls, "GLOBAL", "GLOBAL")
 
         user_ids = list(
-            UserInstrumentWatchlistItem.objects.filter(instrument=instrument, mode__in=[live, global_mode])
+            UserInstrumentWatchlistItem.objects.filter(instrument=instrument, mode=live)
             .values_list("user_id", flat=True)
             .distinct()
         )
@@ -56,11 +53,6 @@ class InstrumentAdmin(admin.ModelAdmin):
             .distinct()
         )
         symbol = obj.symbol
-        instrument_id = obj.id
-
-        # Remove from owner watchlist before the instrument row is deleted.
-        if instrument_id is not None:
-            remove_owner_watchlist_for_instrument(int(instrument_id))
         super().delete_model(request, obj)
 
         # Remove from source map.
@@ -86,17 +78,6 @@ class InstrumentAdmin(admin.ModelAdmin):
         # (including cascaded deletes). Suppress during the delete, then publish one authoritative
         # sync per affected user on commit.
         with suppress_schwab_subscription_signals():
-            # Remove from owner watchlist before deletion (cascades will handle the rest).
-            if instrument_ids:
-                owner_user_id = get_owner_user_id()
-                mode_cls = getattr(UserInstrumentWatchlistItem, "Mode", None)
-                global_mode = getattr(mode_cls, "GLOBAL", "GLOBAL")
-                UserInstrumentWatchlistItem.objects.filter(
-                    user_id=int(owner_user_id),
-                    instrument_id__in=instrument_ids,
-                    mode=global_mode,
-                ).delete()
-
             super().delete_queryset(request, queryset)
 
         def _on_commit() -> None:
@@ -127,10 +108,7 @@ class UserInstrumentWatchlistItemAdmin(admin.ModelAdmin):
 
         mode_cls = getattr(UserInstrumentWatchlistItem, "Mode", None)
         live = getattr(mode_cls, "LIVE", "LIVE")
-        global_mode = getattr(mode_cls, "GLOBAL", "GLOBAL")
-        if getattr(obj, "mode", None) == global_mode:
-            transaction.on_commit(lambda: sync_global_watchlist_to_schwab(publish_on_commit=False))
-        elif getattr(obj, "mode", None) == live:
+        if getattr(obj, "mode", None) == live:
             transaction.on_commit(lambda: sync_watchlist_to_schwab(int(obj.user_id), publish_on_commit=False))
 
     def delete_model(self, request, obj):  # pragma: no cover - admin
@@ -140,10 +118,7 @@ class UserInstrumentWatchlistItemAdmin(admin.ModelAdmin):
 
         mode_cls = getattr(UserInstrumentWatchlistItem, "Mode", None)
         live = getattr(mode_cls, "LIVE", "LIVE")
-        global_mode = getattr(mode_cls, "GLOBAL", "GLOBAL")
-        if getattr(obj, "mode", None) == global_mode:
-            transaction.on_commit(lambda: sync_global_watchlist_to_schwab(publish_on_commit=False))
-        elif getattr(obj, "mode", None) == live:
+        if getattr(obj, "mode", None) == live:
             transaction.on_commit(lambda: sync_watchlist_to_schwab(user_id, publish_on_commit=False))
 
 

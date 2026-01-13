@@ -29,7 +29,7 @@ import {
 import { useWsConnection, useWsMessage, wsEnabled } from '../../realtime';
 import type { WsEnvelope } from '../../realtime/types';
 import api from '../../services/api';
-import { useTradingMode } from '../../context/TradingModeContext';
+import { useSelectedAccount } from '../../context/SelectedAccountContext';
 
 type MetricKey = 'last' | 'bid' | 'ask' | 'volume' | 'open' | 'high' | 'low' | 'close';
 type MarketDataMap = Record<string, Partial<Record<MetricKey, number>>>;
@@ -44,6 +44,11 @@ type WatchlistItem = {
   instrument?: {
     symbol?: string;
   };
+};
+
+type AccountSummary = {
+  broker?: string;
+  broker_account_id?: string;
 };
 
 type QuoteTickPayload = {
@@ -336,14 +341,17 @@ const Watchlist: React.FC<WatchlistProps> = ({ open, onLastTickAtChange }) => {
   const wsIsEnabled = wsEnabled();
   const wsConnected = useWsConnection(true);
 
-  const { mode, setMode } = useTradingMode();
+  const { accountId } = useSelectedAccount();
 
   const [userWatchlist, setUserWatchlist] = useState<WatchlistItem[]>([]);
-  const [globalWatchlist, setGlobalWatchlist] = useState<WatchlistItem[]>([]);
   const [watchlistLoading, setWatchlistLoading] = useState(false);
   const [marketData, setMarketData] = useState<MarketDataMap>({});
   const [query, setQuery] = useState('');
   const [lastTickAt, setLastTickAt] = useState<Date | null>(null);
+
+  const [accounts, setAccounts] = useState<AccountSummary[]>([]);
+  const [derivedMode, setDerivedMode] = useState<'paper' | 'live' | null>(null);
+
 
   const setTickNow = useCallback(() => {
     const d = new Date();
@@ -439,6 +447,50 @@ const Watchlist: React.FC<WatchlistProps> = ({ open, onLastTickAtChange }) => {
     }
   }, [applyMarketQuotesBatch]);
 
+  // Derive watchlist mode from the selected account in the GlobalBanner.
+  useEffect(() => {
+    let active = true;
+    if (!open) return;
+
+    const resolveMode = (rows: AccountSummary[], selectedId: string | null): 'paper' | 'live' | null => {
+      if (!selectedId) return null;
+      const acct = rows.find((a) => String(a?.broker_account_id ?? '') === String(selectedId));
+      if (!acct) return null;
+      const broker = String(acct.broker ?? '').toUpperCase();
+      return broker === 'PAPER' ? 'paper' : 'live';
+    };
+
+    const loadAccounts = async () => {
+      try {
+        const res = await api.get<{ accounts?: AccountSummary[] } | AccountSummary[]>('/actandpos/accounts');
+        const data = res.data;
+        const rows = Array.isArray(data)
+          ? data
+          : Array.isArray((data as { accounts?: AccountSummary[] })?.accounts)
+            ? (data as { accounts?: AccountSummary[] }).accounts!
+            : [];
+
+        if (!active) return;
+        setAccounts(rows);
+        setDerivedMode(resolveMode(rows, accountId));
+      } catch (err) {
+        if (!active) return;
+        console.error('Watchlist: failed to load accounts for mode derivation', err);
+        setAccounts([]);
+        setDerivedMode(null);
+      }
+    };
+
+    // If we already have accounts cached, just re-derive based on current selection.
+    if (accounts.length > 0) {
+      setDerivedMode(resolveMode(accounts, accountId));
+      return;
+    }
+
+    void loadAccounts();
+    return () => { active = false; };
+  }, [open, accountId, accounts]);
+
   // WS events
   useWsMessage('quote_tick', (msg: WsEnvelope<QuoteTickPayload>) => {
     setTickNow();
@@ -469,16 +521,9 @@ const Watchlist: React.FC<WatchlistProps> = ({ open, onLastTickAtChange }) => {
   });
 
   // Actions
-  const loadGlobalWatchlist = useCallback(async () => {
-    const res = await api.get('/instruments/watchlist/global/');
-    const items = Array.isArray(res.data?.items) ? (res.data.items as WatchlistItem[]) : [];
-    setGlobalWatchlist(items);
-    return items;
-  }, []);
-
-  const loadUserWatchlist = useCallback(async (nextMode: 'paper' | 'live') => {
+  const loadUserWatchlist = useCallback(async (nextMode: 'paper' | 'live' | null) => {
     const res = await api.get('/instruments/watchlist/', {
-      params: { mode: nextMode },
+      params: nextMode ? { mode: nextMode } : {},
     });
     const items = Array.isArray(res.data?.items) ? (res.data.items as WatchlistItem[]) : [];
     setUserWatchlist(items);
@@ -488,12 +533,9 @@ const Watchlist: React.FC<WatchlistProps> = ({ open, onLastTickAtChange }) => {
   const loadWatchlists = useCallback(async () => {
     setWatchlistLoading(true);
     try {
-      const [globalItems, userItems] = await Promise.all([
-        loadGlobalWatchlist(),
-        loadUserWatchlist(mode),
-      ]);
+      const userItems = await loadUserWatchlist(derivedMode);
 
-      const symbols = [...globalItems, ...userItems]
+      const symbols = [...userItems]
         .map((w) => w.instrument?.symbol)
         .filter((s): s is string => typeof s === 'string' && Boolean(s.trim()))
         .map((s) => s.toUpperCase());
@@ -504,7 +546,7 @@ const Watchlist: React.FC<WatchlistProps> = ({ open, onLastTickAtChange }) => {
     } finally {
       setWatchlistLoading(false);
     }
-  }, [loadGlobalWatchlist, loadSnapshotForSymbols, loadUserWatchlist, mode]);
+  }, [derivedMode, loadSnapshotForSymbols, loadUserWatchlist]);
 
   const persistWatchlistOrder = useCallback(async (items: WatchlistItem[]) => {
     try {
@@ -516,12 +558,12 @@ const Watchlist: React.FC<WatchlistProps> = ({ open, onLastTickAtChange }) => {
             order: i,
           })),
         },
-        { params: { mode } }
+        { params: derivedMode ? { mode: derivedMode } : {} }
       );
     } catch (err) {
       console.error('Failed to persist watchlist order', err);
     }
-  }, [mode]);
+  }, [derivedMode]);
 
   const addSymbol = useCallback(async (symbolRaw: string) => {
     if (!symbolRaw) return;
@@ -537,13 +579,13 @@ const Watchlist: React.FC<WatchlistProps> = ({ open, onLastTickAtChange }) => {
       await api.put(
         '/instruments/watchlist/',
         { items: next.map((item, i) => ({ symbol: item.instrument?.symbol ?? '', order: i })) },
-        { params: { mode } }
+        { params: derivedMode ? { mode: derivedMode } : {} }
       );
       await loadWatchlists();
     } catch (e) {
       console.error(e);
     }
-  }, [loadSnapshotForSymbols, loadWatchlists, mode, userWatchlist]);
+  }, [derivedMode, loadSnapshotForSymbols, loadWatchlists, userWatchlist]);
 
   const removeSymbol = useCallback(async (symbol: string) => {
     const next = userWatchlist.filter((w) => w.instrument?.symbol?.toUpperCase() !== symbol);
@@ -558,14 +600,14 @@ const Watchlist: React.FC<WatchlistProps> = ({ open, onLastTickAtChange }) => {
 
   useEffect(() => {
     if (!open) return;
-    void loadUserWatchlist(mode);
-  }, [open, mode, loadUserWatchlist]);
+    void loadUserWatchlist(derivedMode);
+  }, [open, derivedMode, loadUserWatchlist]);
 
   // Snapshot fallback when WS is disabled/disconnected/stale.
   useEffect(() => {
     if (!open) return;
 
-    const symbols = [...globalWatchlist, ...userWatchlist]
+    const symbols = [...userWatchlist]
       .map((w) => w.instrument?.symbol)
       .filter((s): s is string => typeof s === 'string' && Boolean(s.trim()))
       .map((s) => s.toUpperCase());
@@ -584,7 +626,7 @@ const Watchlist: React.FC<WatchlistProps> = ({ open, onLastTickAtChange }) => {
     }, 5000);
 
     return () => window.clearInterval(interval);
-  }, [open, wsConnected, wsIsEnabled, lastTickAt, globalWatchlist, userWatchlist, loadSnapshotForSymbols]);
+  }, [open, wsConnected, wsIsEnabled, lastTickAt, userWatchlist, loadSnapshotForSymbols]);
 
   const watchlistIds = useMemo(
     () => userWatchlist.map((item) => String(item.instrument?.symbol ?? '')),
@@ -610,25 +652,7 @@ const Watchlist: React.FC<WatchlistProps> = ({ open, onLastTickAtChange }) => {
 
   return (
     <>
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-        <Typography variant="subtitle2">Watchlist</Typography>
-        <Box sx={{ display: 'flex', gap: 0.5 }}>
-          <Button
-            size="small"
-            variant={mode === 'paper' ? 'contained' : 'outlined'}
-            onClick={() => setMode('paper')}
-          >
-            Paper
-          </Button>
-          <Button
-            size="small"
-            variant={mode === 'live' ? 'contained' : 'outlined'}
-            onClick={() => setMode('live')}
-          >
-            Live
-          </Button>
-        </Box>
-      </Box>
+      <Typography variant="subtitle2" sx={{ mb: 1 }}>Watchlist</Typography>
       <Box className="thor-watchlist-controls" sx={{ display: 'flex', gap: 1, mb: 2 }}>
         <TextField
           size="small"
@@ -654,29 +678,8 @@ const Watchlist: React.FC<WatchlistProps> = ({ open, onLastTickAtChange }) => {
           <CircularProgress size={20} />
         ) : (
           <>
-            {globalWatchlist.length > 0 ? (
-              <>
-                <Typography variant="caption" sx={{ display: 'block', px: 1.5, pt: 0.5, pb: 0.5, color: 'text.secondary' }}>
-                  Global (admin)
-                </Typography>
-                {globalWatchlist.map((w) => {
-                  const displaySymbol = (w.instrument?.symbol || '').toUpperCase();
-                  const id = `global:${displaySymbol}`;
-                  const dataKey = normalizeWsSymbol(displaySymbol);
-                  return (
-                    <WatchlistItemRow
-                      key={id}
-                      symbol={displaySymbol}
-                      readOnly
-                      data={dataKey ? marketData[dataKey] : undefined}
-                    />
-                  );
-                })}
-              </>
-            ) : null}
-
             <Typography variant="caption" sx={{ display: 'block', px: 1.5, pt: 1, pb: 0.5, color: 'text.secondary' }}>
-              My watchlist ({mode})
+              My watchlist
             </Typography>
 
             <DndContext
