@@ -130,6 +130,11 @@ const WatchlistItemRow: React.FC<WatchlistItemRowProps> = ({ symbol, dragHandleP
   const [trend, setTrend] = useState<'up' | 'down' | null>(null);
   const [flash, setFlash] = useState<'up' | 'down' | null>(null);
 
+  const last = data?.last;
+  const prevClose = data?.close;
+  const netChange = last !== undefined && prevClose !== undefined ? last - prevClose : undefined;
+  const netPct = netChange !== undefined && prevClose ? (netChange / prevClose) * 100 : undefined;
+
   useEffect(() => {
     const current = data?.last;
     if (current !== undefined && prevLast.current !== undefined && current !== prevLast.current) {
@@ -144,6 +149,7 @@ const WatchlistItemRow: React.FC<WatchlistItemRowProps> = ({ symbol, dragHandleP
 
   const baseColor = trend === 'up' ? '#00e676' : trend === 'down' ? '#ff1744' : 'inherit';
   const priceColor = flash === 'up' ? '#69f0ae' : flash === 'down' ? '#ff5252' : baseColor;
+  const netColor = netChange === undefined ? 'inherit' : netChange > 0 ? '#00e676' : netChange < 0 ? '#ff1744' : 'inherit';
   const flashBg =
     flash === 'up'
       ? 'rgba(0, 230, 118, 0.18)'
@@ -218,7 +224,7 @@ const WatchlistItemRow: React.FC<WatchlistItemRowProps> = ({ symbol, dragHandleP
       <Box
         sx={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
+          gridTemplateColumns: 'repeat(5, minmax(0, 1fr))',
           columnGap: 2,
           rowGap: 0.5,
           alignItems: 'start',
@@ -261,6 +267,20 @@ const WatchlistItemRow: React.FC<WatchlistItemRowProps> = ({ symbol, dragHandleP
           <Typography sx={quoteLabelSx}>VOL</Typography>
           <Typography noWrap sx={quoteValueSx}>
             {formatVolume(data?.volume)}
+          </Typography>
+        </Box>
+        <Box sx={metricCellSx}>
+          <Typography sx={quoteLabelSx}>NET</Typography>
+          <Typography
+            noWrap
+            sx={{
+              ...quoteValueSx,
+              color: netColor,
+              fontWeight: 700,
+            }}
+          >
+            {netChange === undefined ? '-' : `${netChange >= 0 ? '+' : ''}${netChange.toFixed(2)}`}
+            {netPct === undefined ? '' : ` (${netPct >= 0 ? '+' : ''}${netPct.toFixed(2)}%)`}
           </Typography>
         </Box>
       </Box>
