@@ -10,7 +10,6 @@ from .models import Rolling52WeekStats
 from .models import UserInstrumentWatchlistItem
 from Instruments.services.watchlist_sync import sync_watchlist_to_schwab, sync_global_watchlist_to_schwab
 from Instruments.services.instrument_sync import (
-    ensure_owner_watchlist_for_instrument,
     remove_owner_watchlist_for_instrument,
     upsert_quote_source_map,
     remove_quote_source_map,
@@ -43,9 +42,6 @@ class InstrumentAdmin(admin.ModelAdmin):
 
     def save_model(self, request, obj, form, change):  # pragma: no cover - admin
         super().save_model(request, obj, form, change)
-
-        # Instruments is the symbol CRUD source of truth: keep owner watchlist aligned.
-        ensure_owner_watchlist_for_instrument(obj)
 
         # Publish per-symbol quote source preference for fast gating.
         upsert_quote_source_map(obj)
@@ -93,9 +89,12 @@ class InstrumentAdmin(admin.ModelAdmin):
             # Remove from owner watchlist before deletion (cascades will handle the rest).
             if instrument_ids:
                 owner_user_id = get_owner_user_id()
+                mode_cls = getattr(UserInstrumentWatchlistItem, "Mode", None)
+                global_mode = getattr(mode_cls, "GLOBAL", "GLOBAL")
                 UserInstrumentWatchlistItem.objects.filter(
                     user_id=int(owner_user_id),
                     instrument_id__in=instrument_ids,
+                    mode=global_mode,
                 ).delete()
 
             super().delete_queryset(request, queryset)
