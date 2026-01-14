@@ -24,6 +24,13 @@ def _format_for_schwab(inst: Instrument) -> tuple[str, str] | tuple[None, None]:
         if inst.asset_type == Instrument.AssetType.FUTURE:
                 return "FUTURE", "/" + base
 
+        # Canonical convention: indexes are stored in our DB with a leading '$'.
+        # Schwab streaming expects the bare symbol (e.g. $DXY -> DXY).
+        if inst.asset_type == Instrument.AssetType.INDEX or base.startswith("$"):
+            base = base.lstrip("$")
+            if not base:
+                return None, None
+
         # Everything else is treated as "equity" service for Schwab Level One.
         return "EQUITY", base
 

@@ -88,7 +88,10 @@ type SnapshotQuote = {
 
 const normalizeWsSymbol = (s: unknown) => {
   if (typeof s !== 'string') return '';
-  return s.replace(/^\/+/, '').toUpperCase().trim();
+  const t = s.trim().toUpperCase();
+  if (!t) return '';
+  if (t.startsWith('/')) return '/' + t.replace(/^\/+/, '');
+  return t;
 };
 
 const toNumeric = (value: unknown): number | undefined => {
@@ -344,6 +347,7 @@ const Watchlist: React.FC<WatchlistProps> = ({ open, onLastTickAtChange }) => {
   const [marketData, setMarketData] = useState<MarketDataMap>({});
   const [query, setQuery] = useState('');
   const [lastTickAt, setLastTickAt] = useState<Date | null>(null);
+  const [watchlistError, setWatchlistError] = useState<string | null>(null);
 
   const derivedMode = useMemo<'paper' | 'live' | null>(() => {
     if (!accountId) return null;
@@ -491,6 +495,7 @@ const Watchlist: React.FC<WatchlistProps> = ({ open, onLastTickAtChange }) => {
 
   const loadWatchlists = useCallback(async () => {
     setWatchlistLoading(true);
+    setWatchlistError(null);
     try {
       const userItems = await loadUserWatchlist(derivedMode);
 
@@ -502,6 +507,7 @@ const Watchlist: React.FC<WatchlistProps> = ({ open, onLastTickAtChange }) => {
       await loadSnapshotForSymbols(symbols);
     } catch (err) {
       console.error(err);
+      setWatchlistError('Failed to load watchlist');
     } finally {
       setWatchlistLoading(false);
     }
@@ -510,6 +516,7 @@ const Watchlist: React.FC<WatchlistProps> = ({ open, onLastTickAtChange }) => {
   const persistWatchlistOrder = useCallback(async (items: WatchlistItem[]) => {
     if (!derivedMode) return;
     try {
+      setWatchlistError(null);
       await api.put(
         '/instruments/watchlist/',
         {
@@ -522,6 +529,7 @@ const Watchlist: React.FC<WatchlistProps> = ({ open, onLastTickAtChange }) => {
       );
     } catch (err) {
       console.error('Failed to persist watchlist order', err);
+      setWatchlistError('Failed to save watchlist');
     }
   }, [derivedMode]);
 
@@ -529,7 +537,27 @@ const Watchlist: React.FC<WatchlistProps> = ({ open, onLastTickAtChange }) => {
     if (!symbolRaw) return;
     if (!derivedMode) return;
 
-    const sym = symbolRaw.toUpperCase();
+    setWatchlistError(null);
+
+    let sym = symbolRaw.trim().toUpperCase();
+    if (sym.startsWith('/')) {
+      // normalize multiple leading slashes: //ES -> /ES
+      sym = '/' + sym.replace(/^\/+/, '');
+    }
+
+    // De-dupe exact symbol entries (but allow SI and /SI as distinct).
+    const symKey = normalizeWsSymbol(sym);
+    if (
+      symKey &&
+      userWatchlist.some((w) => normalizeWsSymbol(w.instrument?.symbol) === symKey)
+    ) {
+      setWatchlistError(`${sym} is already in the watchlist`);
+      setQuery('');
+      return;
+    }
+
+    if (!sym) return;
+
     const next = [...userWatchlist, { instrument: { symbol: sym } }];
     setUserWatchlist(next);
     setQuery('');
@@ -545,6 +573,7 @@ const Watchlist: React.FC<WatchlistProps> = ({ open, onLastTickAtChange }) => {
       await loadWatchlists();
     } catch (e) {
       console.error(e);
+      setWatchlistError('Failed to add symbol (check server response in console)');
     }
   }, [derivedMode, loadSnapshotForSymbols, loadWatchlists, userWatchlist]);
 
@@ -614,6 +643,15 @@ const Watchlist: React.FC<WatchlistProps> = ({ open, onLastTickAtChange }) => {
   return (
     <>
       <Typography variant="subtitle2" sx={{ mb: 1 }}>Watchlist</Typography>
+
+      {watchlistError ? (
+        <Box className="thor-watchlist-error" sx={{ mb: 1 }}>
+          <Typography variant="caption" sx={{ color: 'error.main' }}>
+            {watchlistError}
+          </Typography>
+        </Box>
+      ) : null}
+
       <Box className="thor-watchlist-controls" sx={{ display: 'flex', gap: 1, mb: 2 }}>
         <TextField
           size="small"

@@ -65,7 +65,7 @@ def _group_subscriptions(rows: List[Dict[str, Any]]) -> Tuple[List[str], List[st
         if not sym:
             continue
         if asset in ("EQUITY", "EQUITIES", "STOCK", "INDEX"):
-            equities.append(sym.lstrip("/").upper())
+            equities.append(sym.lstrip("/").lstrip("$").upper())
         elif asset in ("FUTURE", "FUTURES"):
             s = sym.upper()
             if not s.startswith("/"):
@@ -115,7 +115,8 @@ def _load_watchlist_subscriptions(*, user_id: int, types_filter: set[str]) -> Tu
             # Schwab requires futures with leading '/'
             futures.append("/" + base)
         else:
-            equities.append(base)
+            # Canonical: indexes stored with '$' in our DB; Schwab expects bare symbol.
+            equities.append(base.lstrip("$"))
 
     # De-dupe stable
     def _dedupe(xs: list[str]) -> list[str]:
@@ -612,7 +613,7 @@ class Command(BaseCommand):
                         return
 
                     if asset in ("EQUITY", "EQUITIES", "STOCK", "INDEX"):
-                        symbols = [s.lstrip("/") for s in symbols if s]
+                        symbols = [s.lstrip("/").lstrip("$") for s in symbols if s]
                         if action == "add":
                             equities_set |= set(symbols)
                         elif action == "remove":
@@ -633,7 +634,7 @@ class Command(BaseCommand):
 
                 async def _apply_equity_subs(stream_client: Any, desired: set[str]) -> None:
                     nonlocal applied_equities
-                    desired_list = sorted([s.upper().lstrip("/") for s in desired if s])
+                    desired_list = sorted([s.upper().lstrip("/").lstrip("$") for s in desired if s])
                     unsubs = getattr(stream_client, "level_one_equity_unsubs", None)
                     subs = getattr(stream_client, "level_one_equity_subs", None)
                     add = getattr(stream_client, "level_one_equity_add", None)

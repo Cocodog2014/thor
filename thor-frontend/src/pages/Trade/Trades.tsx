@@ -45,6 +45,8 @@ const PaperOrderTicket: React.FC<{ account: AccountSummary; onOrderPlaced: () =>
       return;
     }
 
+    const inferredAssetType = sym.startsWith('/') ? 'FUT' : 'EQ';
+
     const qty = Number(quantity);
     if (!qty || qty <= 0) {
       toast.error("Quantity must be greater than zero.");
@@ -60,7 +62,7 @@ const PaperOrderTicket: React.FC<{ account: AccountSummary; onOrderPlaced: () =>
       setSubmitting(true);
       const payload = {
         symbol: sym,
-        asset_type: "EQ",
+        asset_type: inferredAssetType,
         side,
         quantity: qty,
         order_type: orderType,

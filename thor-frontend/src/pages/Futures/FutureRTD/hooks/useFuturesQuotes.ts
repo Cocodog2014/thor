@@ -20,8 +20,34 @@ type MarketDataSnapshot = {
   quotes?: QuoteTick[];
 };
 
-const normalizeSymbol = (symbol: string | undefined | null) =>
-  (symbol ?? "").replace(/^\//, "").toUpperCase();
+const FUTURES_ROOTS = new Set([
+  'YM',
+  'ES',
+  'NQ',
+  'RTY',
+  'CL',
+  'SI',
+  'HG',
+  'GC',
+  'VX',
+  'DX',
+  'ZB',
+]);
+
+const normalizeSymbolKey = (symbol: string | undefined | null) =>
+  (symbol ?? "").replace(/^\/+/, "").toUpperCase().trim();
+
+const canonicalizeFuturesDisplaySymbol = (symbol: string | undefined | null) => {
+  const key = normalizeSymbolKey(symbol);
+  if (!key) return "";
+  // The backend commonly stores/streams futures roots without '/'.
+  // For Futures RTD, always display canonical futures roots with a leading '/'.
+  if (FUTURES_ROOTS.has(key)) return `/${key}`;
+  // If some upstream already includes '/', keep a single leading slash.
+  const raw = String(symbol ?? '').trim().toUpperCase();
+  if (raw.startsWith('/')) return `/${raw.replace(/^\/+/, '')}`;
+  return key;
+};
 
 const toFloat = (value: unknown): number | null => {
   if (value === null || value === undefined) return null;
@@ -149,7 +175,17 @@ export function useFuturesQuotes(): UseFuturesQuotesResult {
       }
 
       const data: ApiResponse = await response.json();
-      let enrichedRows: MarketData[] = data.rows;
+      let enrichedRows: MarketData[] = (data.rows || []).map((row) => {
+        const displaySymbol = canonicalizeFuturesDisplaySymbol(row?.instrument?.symbol);
+        if (!displaySymbol) return row;
+        return {
+          ...row,
+          instrument: {
+            ...row.instrument,
+            symbol: displaySymbol,
+          },
+        };
+      });
 
       console.log("useFuturesQuotes: quotes response", {
         rowCount: enrichedRows.length,
@@ -212,10 +248,12 @@ export function useFuturesQuotes(): UseFuturesQuotesResult {
 
         for (const tick of quotes) {
           if (!tick) continue;
-          const symbol = normalizeSymbol(tick.symbol);
-          if (!symbol) continue;
+          const key = normalizeSymbolKey(tick.symbol);
+          if (!key) continue;
 
-          const idx = next.findIndex((row) => normalizeSymbol(row.instrument.symbol) === symbol);
+          const symbol = canonicalizeFuturesDisplaySymbol(tick.symbol);
+
+          const idx = next.findIndex((row) => normalizeSymbolKey(row.instrument.symbol) === key);
 
           const bidNum = toFloat(tick.bid);
           const askNum = toFloat(tick.ask);
@@ -232,7 +270,7 @@ export function useFuturesQuotes(): UseFuturesQuotesResult {
           if (idx === -1) {
             const row = makeRealtimeRow(
               { ...tick, bid: bidNum, ask: askNum, price: priceNum, volume, timestamp, source: tick.source },
-              symbol
+              symbol || key
             );
             next = [...next, row];
             continue;

@@ -200,7 +200,17 @@ class SchwabStreamingProducer:
         symbol_raw = _get_any(tick, "symbol", "key", "SYMBOL", "KEY", 0, "0")
         if not symbol_raw:
             return None
-        symbol = str(symbol_raw).lstrip("/").upper()
+        symbol = str(symbol_raw).strip().upper()
+        # Preserve a single leading '/' for futures so they don't collide with equity symbols.
+        if symbol.startswith("/"):
+            symbol = "/" + symbol.lstrip("/")
+
+        # Canonical: indexes are stored with a leading '$' in our app.
+        # Schwab streaming may send index symbols without '$' (e.g. DXY).
+        if symbol and not symbol.startswith(("/", "$")):
+            main = (tick.get("assetMainType") or tick.get("assetType") or "").upper()
+            if "INDEX" in main:
+                symbol = "$" + symbol
 
         # Some Schwab streams use short keys:
         #   b = bid, a = ask, t = last/trade

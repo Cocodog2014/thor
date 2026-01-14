@@ -14,7 +14,15 @@ logger = logging.getLogger(__name__)
 def _parse_symbols_param(raw: str | None) -> List[str]:
     if not raw:
         return []
-    return [s.strip().lstrip('/').upper() for s in raw.split(',') if s.strip()]
+    out: list[str] = []
+    for s in raw.split(','):
+        t = (s or '').strip().upper()
+        if not t:
+            continue
+        if t.startswith('/'):
+            t = '/' + t.lstrip('/')
+        out.append(t)
+    return out
 
 
 @api_view(['GET'])

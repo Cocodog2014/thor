@@ -13,14 +13,14 @@ const FUTURES_11 = [
   "/YM",
   "/ES",
   "/NQ",
-  "RTY", // equity index futures
-  "CL",
-  "SI",
-  "HG",
-  "GC", // energy & metals
-  "VX",
-  "DX",
-  "ZB", // vol, dollar, 30Y
+  "/RTY", // equity index futures
+  "/CL",
+  "/SI",
+  "/HG",
+  "/GC", // energy & metals
+  "/VX",
+  "/DX",
+  "/ZB", // vol, dollar, 30Y
 ];
 
 const normalizeSymbol = (symbol: string) => symbol.replace(/^\//, "").toUpperCase();

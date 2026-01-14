@@ -373,9 +373,24 @@ class LiveDataRedis:
         key = f"bar:1m:current:{prefix}:{symbol}".lower()
 
         # 1) price + volume
-        price = tick.get("price") or tick.get("last") or tick.get("close")
+        price = None
+        for candidate in (tick.get("price"), tick.get("last"), tick.get("close")):
+            if candidate is not None:
+                price = candidate
+                break
+
+        # Defensive: some upstream feeds can emit partial/empty ticks (or a misclassified
+        # symbol can route to an incompatible stream). Don't crash the bar builder.
         if price is None:
-            raise ValueError("tick missing price/last/close field")
+            existing_raw = self.client.get(key)
+            if existing_raw:
+                try:
+                    existing = json.loads(existing_raw)
+                    return None, existing if isinstance(existing, dict) else {}
+                except Exception:
+                    return None, {}
+            return None, {}
+
         price = float(price)
 
         volume = tick.get("volume") or tick.get("v") or 0
