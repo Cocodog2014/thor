@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from django.db import transaction
+import os
 
 from LiveData.schwab.control_plane import publish_set
 from Instruments.models import Instrument, UserInstrumentWatchlistItem
@@ -24,10 +25,13 @@ def _format_for_schwab(inst: Instrument) -> tuple[str, str] | tuple[None, None]:
         if inst.asset_type == Instrument.AssetType.FUTURE:
                 return "FUTURE", "/" + base
 
-        # Canonical convention: indexes are stored in our DB with a leading '$'.
-        # Schwab streaming expects the bare symbol (e.g. $DXY -> DXY).
+        # Canonical convention in Thor: indexes are stored with a leading '$' (e.g. $DXY).
+        # Schwab streaming should receive '$' for indexes so it recognizes the asset as an index.
+        # If you need legacy behavior, set THOR_SCHWAB_INDEX_STRIP_DOLLAR=1.
         if inst.asset_type == Instrument.AssetType.INDEX or base.startswith("$"):
-            base = base.lstrip("$")
+            strip_dollar = os.getenv("THOR_SCHWAB_INDEX_STRIP_DOLLAR", "").strip().lower() in {"1", "true", "yes", "on"}
+            if strip_dollar:
+                base = base.lstrip("$")
             if not base:
                 return None, None
 

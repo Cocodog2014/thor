@@ -290,7 +290,15 @@ Fix C: You can also combine A + B:
 
 
 
+This keeps real-time data flowing into Docker Redis.
 
+✔ STEP 2 — Build the Docker image
+cd A:\Thor
+docker compose build web
+
+✔ STEP 3 — Start the full production stack (now includes Nginx proxy)
+cd A:\Thor
+docker compose up -d
 
    
 

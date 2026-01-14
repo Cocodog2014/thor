@@ -29,6 +29,8 @@ class InstrumentSummarySerializer(serializers.ModelSerializer):
             return ""
         if obj.asset_type == Instrument.AssetType.FUTURE:
             return sym if sym.startswith("/") else f"/{sym.lstrip('/')}"
+        if obj.asset_type == Instrument.AssetType.INDEX:
+            return sym if sym.startswith("$") else f"${sym.lstrip('$')}"
         return sym.lstrip("/")
 
 

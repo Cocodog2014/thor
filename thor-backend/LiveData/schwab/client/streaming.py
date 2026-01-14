@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import time
 from typing import Any, Dict, Iterable, Optional
 
@@ -134,6 +135,7 @@ class SchwabStreamingProducer:
         self._session_cache_until: float = 0.0  # unix time
         self._missing_routing_last_log: float = 0.0
         self._missing_price_last_log: dict[str, float] = {}
+        self._index_symbol_remap_last_log: dict[str, float] = {}
         self._last_quote_by_symbol: dict[str, dict[str, Any]] = {}
         self._logged_first_message: bool = False
         self._logged_first_payload: bool = False
@@ -205,12 +207,23 @@ class SchwabStreamingProducer:
         if symbol.startswith("/"):
             symbol = "/" + symbol.lstrip("/")
 
-        # Canonical: indexes are stored with a leading '$' in our app.
-        # Schwab streaming may send index symbols without '$' (e.g. DXY).
+        # Canonical in Thor: indexes use a leading '$' (e.g. $DXY).
+        # Schwab ticks for indexes may arrive without '$' (e.g. DXY). If the tick
+        # indicates an INDEX asset type, normalize to '$' so Redis keys match UI.
         if symbol and not symbol.startswith(("/", "$")):
             main = (tick.get("assetMainType") or tick.get("assetType") or "").upper()
             if "INDEX" in main:
+                original = symbol
                 symbol = "$" + symbol
+
+                # Debug: confirm INDEX remaps when diagnosing $DXY/$DJI gaps.
+                # Enable via env var: THOR_DEBUG_SCHWAB_INDEX_REMAP=1
+                if os.getenv("THOR_DEBUG_SCHWAB_INDEX_REMAP", "").strip().lower() in {"1", "true", "yes", "on"}:
+                    now = time.time()
+                    last_log = self._index_symbol_remap_last_log.get(symbol, 0.0)
+                    if now - last_log > 30.0:
+                        logger.warning("Schwab INDEX symbol remap %s -> %s (asset=%s)", original, symbol, main)
+                        self._index_symbol_remap_last_log[symbol] = now
 
         # Some Schwab streams use short keys:
         #   b = bid, a = ask, t = last/trade

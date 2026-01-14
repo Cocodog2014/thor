@@ -50,6 +50,29 @@ except Exception:  # pragma: no cover
 # ---------------------------
 # Helpers: CSV parsing + grouping
 # ---------------------------
+def _env_truthy(name: str) -> bool:
+    return os.getenv(name, "").strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _normalize_equity_index_symbol_for_schwab(sym: str) -> str:
+    """Normalize a symbol for Schwab Level One Equity subscription.
+
+    Canonical Thor symbols:
+      - FUTURE: /ES
+      - INDEX:  $DXY
+      - EQUITY: AAPL
+
+    Futures are handled separately, so this always strips leading '/'.
+    By default we KEEP the leading '$' for indexes so Schwab recognizes the asset.
+    To force legacy behavior, set THOR_SCHWAB_INDEX_STRIP_DOLLAR=1.
+    """
+    s = (sym or "").strip().upper()
+    s = s.lstrip("/")
+    if _env_truthy("THOR_SCHWAB_INDEX_STRIP_DOLLAR"):
+        s = s.lstrip("$")
+    return s
+
+
 def _parse_csv(raw: Optional[str]) -> List[str]:
     if not raw:
         return []
@@ -65,7 +88,7 @@ def _group_subscriptions(rows: List[Dict[str, Any]]) -> Tuple[List[str], List[st
         if not sym:
             continue
         if asset in ("EQUITY", "EQUITIES", "STOCK", "INDEX"):
-            equities.append(sym.lstrip("/").lstrip("$").upper())
+            equities.append(_normalize_equity_index_symbol_for_schwab(sym))
         elif asset in ("FUTURE", "FUTURES"):
             s = sym.upper()
             if not s.startswith("/"):
@@ -115,8 +138,7 @@ def _load_watchlist_subscriptions(*, user_id: int, types_filter: set[str]) -> Tu
             # Schwab requires futures with leading '/'
             futures.append("/" + base)
         else:
-            # Canonical: indexes stored with '$' in our DB; Schwab expects bare symbol.
-            equities.append(base.lstrip("$"))
+            equities.append(_normalize_equity_index_symbol_for_schwab(base))
 
     # De-dupe stable
     def _dedupe(xs: list[str]) -> list[str]:
@@ -613,7 +635,7 @@ class Command(BaseCommand):
                         return
 
                     if asset in ("EQUITY", "EQUITIES", "STOCK", "INDEX"):
-                        symbols = [s.lstrip("/").lstrip("$") for s in symbols if s]
+                        symbols = [_normalize_equity_index_symbol_for_schwab(s) for s in symbols if s]
                         if action == "add":
                             equities_set |= set(symbols)
                         elif action == "remove":
@@ -634,7 +656,7 @@ class Command(BaseCommand):
 
                 async def _apply_equity_subs(stream_client: Any, desired: set[str]) -> None:
                     nonlocal applied_equities
-                    desired_list = sorted([s.upper().lstrip("/").lstrip("$") for s in desired if s])
+                    desired_list = sorted([_normalize_equity_index_symbol_for_schwab(s) for s in desired if s])
                     unsubs = getattr(stream_client, "level_one_equity_unsubs", None)
                     subs = getattr(stream_client, "level_one_equity_subs", None)
                     add = getattr(stream_client, "level_one_equity_add", None)
