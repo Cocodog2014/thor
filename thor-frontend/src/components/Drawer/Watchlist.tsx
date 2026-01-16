@@ -644,7 +644,8 @@ const Watchlist: React.FC<WatchlistProps> = ({ open, onLastTickAtChange }) => {
   }, [derivedMode, loadSnapshotForSymbols, loadUserWatchlistHttp, userWatchlist, wsConnected, wsIsEnabled]);
 
   const removeSymbol = useCallback(async (symbol: string) => {
-    const next = userWatchlist.filter((w) => w.instrument?.symbol?.toUpperCase() !== symbol);
+    const target = normalizeWsSymbol(symbol);
+    const next = userWatchlist.filter((w) => normalizeWsSymbol(w.instrument?.symbol) !== target);
     setUserWatchlist(next);
     await persistWatchlistMembershipDb(next);
   }, [persistWatchlistMembershipDb, userWatchlist]);
