@@ -70,25 +70,22 @@ class UserWatchlistView(APIView):
         mode_norm = self._mode_norm(mode)
 
         # Redis-first (runtime truth). DB is only used to hydrate Redis on cold cache.
-        def _read_from_redis() -> list[dict] | None:
-            return build_watchlist_items_payload(
+        # IMPORTANT: hydrate based on the sentinel, not on whether the first Redis read is None/[],
+        # to avoid a first-login edge case where Redis returns an empty payload before being warmed.
+        if not is_watchlists_hydrated(user_id=int(request.user.id)):
+            try:
+                sync_watchlist_sets_to_redis(int(request.user.id))
+            except Exception:
+                pass
+
+        try:
+            redis_items = build_watchlist_items_payload(
                 user_id=int(request.user.id),
                 mode_norm=mode_norm,
                 db_mode=mode,
             )
-
-        try:
-            redis_items = _read_from_redis()
         except Exception:
             redis_items = None
-
-        if redis_items is None and not is_watchlists_hydrated(user_id=int(request.user.id)):
-            # Cold cache: hydrate from DB into Redis, then re-read.
-            sync_watchlist_sets_to_redis(int(request.user.id))
-            try:
-                redis_items = _read_from_redis()
-            except Exception:
-                redis_items = None
 
         # If still None, Redis is now the source of truth and the list is empty.
         if redis_items is None:
