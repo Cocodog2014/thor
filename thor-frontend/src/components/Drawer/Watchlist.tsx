@@ -46,6 +46,14 @@ type WatchlistItem = {
   };
 };
 
+type WatchlistUpdatedPayload = {
+  user_id?: unknown;
+  watchlists?: {
+    live?: unknown;
+    paper?: unknown;
+  };
+};
+
 
 type QuoteTickPayload = {
   symbol?: unknown;
@@ -455,6 +463,32 @@ const Watchlist: React.FC<WatchlistProps> = ({ open, onLastTickAtChange }) => {
   const canWrite = derivedMode !== null;
 
   // WS events
+  useWsMessage('watchlist_updated', (msg: WsEnvelope<WatchlistUpdatedPayload>) => {
+    const watchlists = msg.data?.watchlists;
+    if (!watchlists) return;
+
+    const modeKey = derivedMode ?? null;
+    if (!modeKey) return;
+
+    const raw = modeKey === 'live' ? watchlists.live : watchlists.paper;
+    if (!Array.isArray(raw)) return;
+
+    const symbols = raw
+      .map((s) => (typeof s === 'string' ? s.trim().toUpperCase() : ''))
+      .filter(Boolean);
+
+    if (!symbols.length) {
+      setUserWatchlist([]);
+      return;
+    }
+
+    // Keep UI in sync without a DB fetch.
+    setUserWatchlist(symbols.map((s) => ({ instrument: { symbol: s } })));
+
+    // Best-effort snapshot to immediately fill any missing rows.
+    void loadSnapshotForSymbols(symbols);
+  });
+
   useWsMessage('quote_tick', (msg: WsEnvelope<QuoteTickPayload>) => {
     setTickNow();
     applyMarketPatch(msg.data?.symbol, {

@@ -12,7 +12,10 @@ from Instruments.serializers import InstrumentSummarySerializer, WatchlistItemSe
 from Instruments.services.watchlist_sync import sync_watchlist_to_schwab
 from Instruments.services.watchlist_redis_sets import sync_watchlist_sets_to_redis
 from Instruments.services.watchlist_redis_sets import set_watchlist_order_in_redis
+from Instruments.services.watchlist_redis_sets import build_watchlist_items_payload, get_watchlists_snapshot_from_redis
 from ActAndPos.live.models import LiveBalance
+
+from api.websocket.broadcast import broadcast_to_websocket_sync
 
 User = get_user_model()
 
@@ -37,12 +40,55 @@ class UserWatchlistView(APIView):
         has_live = LiveBalance.objects.filter(user=request.user).exists()
         return live if has_live else paper
 
+    def _mode_norm(self, mode: str) -> str:
+        mode_cls = getattr(UserInstrumentWatchlistItem, "Mode", None)
+        paper = getattr(mode_cls, "PAPER", "PAPER")
+        live = getattr(mode_cls, "LIVE", "LIVE")
+        return "paper" if mode == paper else ("live" if mode == live else "live")
+
+    def _broadcast_watchlist_updated(self, *, user_id: int) -> None:
+        try:
+            snapshot = get_watchlists_snapshot_from_redis(user_id=int(user_id))
+        except Exception:
+            snapshot = {"paper": [], "live": []}
+
+        # Send only to the authenticated user's private group.
+        broadcast_to_websocket_sync(
+            channel_layer=None,
+            group_name=f"user:{int(user_id)}",
+            message={
+                "type": "watchlist_updated",
+                "data": {
+                    "user_id": int(user_id),
+                    "watchlists": snapshot,
+                },
+            },
+        )
+
     def get(self, request):
         mode = self._resolve_mode(request)
-        items = UserInstrumentWatchlistItem.objects.select_related("instrument").filter(user=request.user, mode=mode)
+        mode_norm = self._mode_norm(mode)
 
+        # Redis-first (runtime truth). DB fallback (cold cache) then hydrate Redis.
+        try:
+            redis_items = build_watchlist_items_payload(
+                user_id=int(request.user.id),
+                mode_norm=mode_norm,
+                db_mode=mode,
+            )
+        except Exception:
+            redis_items = None
+
+        if redis_items is not None:
+            return Response({"items": redis_items, "source": "redis"})
+
+        items = UserInstrumentWatchlistItem.objects.select_related("instrument").filter(user=request.user, mode=mode)
         items = items.order_by("order", "instrument__symbol")
-        return Response({"items": WatchlistItemSerializer(items, many=True).data})
+
+        # Hydrate Redis so subsequent UI reads are DB-free.
+        sync_watchlist_sets_to_redis(int(request.user.id))
+
+        return Response({"items": WatchlistItemSerializer(items, many=True).data, "source": "db"})
 
     def put(self, request):
         mode = self._resolve_mode(request)
@@ -53,6 +99,12 @@ class UserWatchlistView(APIView):
         # Mirror watchlist membership into Redis so UI rendering can avoid DB reads.
         sync_watchlist_sets_to_redis(int(request.user.id))
 
+        # Notify UI instantly (no need to refetch from DB).
+        try:
+            self._broadcast_watchlist_updated(user_id=int(request.user.id))
+        except Exception:
+            pass
+
         # PAPER and LIVE both drive Schwab streaming subscriptions (union).
         sync_watchlist_to_schwab(int(request.user.id))
 
@@ -61,7 +113,7 @@ class UserWatchlistView(APIView):
             .filter(user=request.user, mode=mode)
             .order_by("order", "instrument__symbol")
         )
-        return Response({"items": WatchlistItemSerializer(items, many=True).data})
+        return Response({"items": WatchlistItemSerializer(items, many=True).data, "source": "db"})
 
 
 class InstrumentCatalogView(APIView):
@@ -127,6 +179,24 @@ class UserWatchlistOrderView(APIView):
 
         try:
             result = set_watchlist_order_in_redis(user_id=int(request.user.id), mode=raw_mode, symbols=symbols)
+
+            # Notify UI instantly.
+            try:
+                snapshot = get_watchlists_snapshot_from_redis(user_id=int(request.user.id))
+                broadcast_to_websocket_sync(
+                    channel_layer=None,
+                    group_name=f"user:{int(request.user.id)}",
+                    message={
+                        "type": "watchlist_updated",
+                        "data": {
+                            "user_id": int(request.user.id),
+                            "watchlists": snapshot,
+                        },
+                    },
+                )
+            except Exception:
+                pass
+
             return Response({**result, "source": "redis_watchlist_order"}, status=status.HTTP_200_OK)
         except ValueError as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)

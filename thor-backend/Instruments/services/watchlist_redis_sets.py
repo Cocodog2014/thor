@@ -189,3 +189,76 @@ def _normalize_symbol(sym: str) -> str | None:
     if s.startswith("/"):
         s = "/" + s.lstrip("/")
     return s
+
+
+def get_watchlist_symbols_from_redis(*, user_id: int, mode: str) -> list[str] | None:
+    """Return ordered watchlist symbols from Redis.
+
+    If the membership SET is missing/empty, returns None.
+    Ordering comes from the ZSET when present.
+    """
+
+    mode_norm = (mode or "").strip().lower()
+    if mode_norm not in {"live", "paper"}:
+        return None
+
+    set_key = _wl_key(user_id, mode_norm)
+    order_key = _wl_order_key(user_id, mode_norm)
+
+    try:
+        members_raw = live_data_redis.client.smembers(set_key) or set()
+    except Exception:
+        logger.exception("Failed reading Redis watchlist set %s", set_key)
+        return None
+
+    members: set[str] = set()
+    for s in members_raw:
+        ns = _normalize_symbol(str(s))
+        if ns:
+            members.add(ns)
+
+    if not members:
+        return None
+
+    ordered: list[str] = []
+    try:
+        if int(live_data_redis.client.zcard(order_key) or 0) > 0:
+            z = live_data_redis.client.zrange(order_key, 0, -1) or []
+            for s in z:
+                ns = _normalize_symbol(str(s))
+                if ns and ns in members:
+                    ordered.append(ns)
+    except Exception:
+        logger.debug("Failed reading Redis watchlist order %s", order_key, exc_info=True)
+
+    # Fallback: stable order (alpha) plus any un-ordered members.
+    remaining = sorted([m for m in members if m not in set(ordered)])
+    return ordered + remaining
+
+
+def get_watchlists_snapshot_from_redis(*, user_id: int) -> dict[str, list[str]]:
+    """Return both live and paper watchlists from Redis (empty lists if missing)."""
+    return {
+        "paper": get_watchlist_symbols_from_redis(user_id=user_id, mode="paper") or [],
+        "live": get_watchlist_symbols_from_redis(user_id=user_id, mode="live") or [],
+    }
+
+
+def build_watchlist_items_payload(*, user_id: int, mode_norm: str, db_mode: str) -> list[dict] | None:
+    """Build an API-compatible items list from Redis membership/order."""
+    symbols = get_watchlist_symbols_from_redis(user_id=user_id, mode=mode_norm)
+    if symbols is None:
+        return None
+
+    items: list[dict] = []
+    for i, sym in enumerate(symbols):
+        items.append(
+            {
+                "instrument": {"symbol": sym},
+                "enabled": True,
+                "stream": True,
+                "mode": db_mode,
+                "order": i,
+            }
+        )
+    return items

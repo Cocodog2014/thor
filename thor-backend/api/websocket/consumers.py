@@ -44,6 +44,14 @@ class MarketDataConsumer(AsyncWebsocketConsumer):
                 await self.channel_layer.group_add("market_data", self.channel_name)
             except AttributeError:
                 pass  # channel_name may not be available in all test scenarios
+
+            # Also join a private per-user group for user-scoped events (e.g. watchlist updates).
+            try:
+                user = self.scope.get("user")
+                if user is not None and getattr(user, "is_authenticated", False):
+                    await self.channel_layer.group_add(f"user:{int(user.id)}", self.channel_name)
+            except Exception:
+                logger.debug("Failed to join user websocket group", exc_info=True)
         
         await self.accept()
         logger.debug("WebSocket client connected")
@@ -59,6 +67,13 @@ class MarketDataConsumer(AsyncWebsocketConsumer):
                 await self.channel_layer.group_discard("market_data", self.channel_name)
             except AttributeError:
                 pass  # channel_name may not be available in all test scenarios
+
+            try:
+                user = self.scope.get("user")
+                if user is not None and getattr(user, "is_authenticated", False):
+                    await self.channel_layer.group_discard(f"user:{int(user.id)}", self.channel_name)
+            except Exception:
+                logger.debug("Failed to leave user websocket group", exc_info=True)
         logger.debug("WebSocket client disconnected")
     
     async def receive(self, text_data=None, bytes_data=None):
@@ -242,3 +257,12 @@ class MarketDataConsumer(AsyncWebsocketConsumer):
             "type": "error_message",
             "data": event.get("data")
         }))
+
+    async def watchlist_updated(self, event):
+        """Broadcast watchlist membership/order update (user-scoped)."""
+        await self.send(
+            text_data=json.dumps({
+                "type": "watchlist_updated",
+                "data": self._event_payload(event),
+            })
+        )
