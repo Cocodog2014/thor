@@ -136,10 +136,37 @@ class SchwabStreamingProducer:
         self._missing_routing_last_log: float = 0.0
         self._missing_price_last_log: dict[str, float] = {}
         self._index_symbol_remap_last_log: dict[str, float] = {}
+        # When the UI/watchlists use canonical "$" index symbols, Schwab may emit ticks
+        # without the leading '$'. Keep a small in-memory alias map so we can rewrite
+        # incoming ticks to the canonical symbol without per-tick DB/Redis lookups.
+        # Map: "DXY" -> "$DXY".
+        self._index_symbol_aliases: dict[str, str] = {}
         self._last_quote_by_symbol: dict[str, dict[str, Any]] = {}
         self._logged_first_message: bool = False
         self._logged_first_payload: bool = False
         self._logged_first_redis_snapshot: bool = False
+
+    def set_index_symbol_aliases(self, canonical_index_symbols: Iterable[str]) -> None:
+        """Provide the set of canonical index symbols (e.g. "$DXY").
+
+        This is called by the Schwab streamer when subscription sets change.
+        It allows the producer to rewrite provider-emitted symbols like "DXY"
+        to "$DXY" even when Schwab doesn't tag the tick as INDEX.
+        """
+
+        aliases: dict[str, str] = {}
+        for raw in canonical_index_symbols or []:
+            s = str(raw or "").strip().upper()
+            if not s:
+                continue
+            if not s.startswith("$"):
+                continue
+            base = s.lstrip("$")
+            if not base:
+                continue
+            aliases[base] = "$" + base
+
+        self._index_symbol_aliases = aliases
 
     @staticmethod
     def _to_session_number(value: Any) -> Optional[int]:
@@ -206,6 +233,20 @@ class SchwabStreamingProducer:
         # Preserve a single leading '/' for futures so they don't collide with equity symbols.
         if symbol.startswith("/"):
             symbol = "/" + symbol.lstrip("/")
+
+        # If we have an explicit alias (from subscribed index symbols), apply it
+        # before relying on Schwab's asset classification.
+        if symbol and not symbol.startswith(("/", "$")):
+            aliased = self._index_symbol_aliases.get(symbol)
+            if aliased:
+                symbol = aliased
+
+        # Schwab may emit FUTURE symbols without a leading '/' even when our canonical
+        # convention (and UI) expects '/'. If the tick indicates FUTURE, enforce '/'.
+        if symbol and not symbol.startswith(("/", "$")):
+            main = (tick.get("assetMainType") or tick.get("assetType") or "").upper()
+            if "FUTURE" in main:
+                symbol = "/" + symbol
 
         # Canonical in Thor: indexes use a leading '$' (e.g. $DXY).
         # Schwab ticks for indexes may arrive without '$' (e.g. DXY). If the tick

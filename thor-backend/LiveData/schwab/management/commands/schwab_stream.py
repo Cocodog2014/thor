@@ -73,6 +73,41 @@ def _normalize_equity_index_symbol_for_schwab(sym: str) -> str:
     return s
 
 
+def _expand_equity_index_symbols_for_schwab(symbols: Iterable[str]) -> List[str]:
+    """Return Schwab subscription symbols for EQUITY/INDEX.
+
+    For index symbols in Thor (canonical '$DXY'), Schwab behavior varies:
+    - some environments accept '$DXY'
+    - others only emit/accept 'DXY'
+
+    To avoid silent gaps, we subscribe both variants by default.
+    If THOR_SCHWAB_INDEX_STRIP_DOLLAR=1 is set, only the stripped variant is used.
+    """
+
+    out: List[str] = []
+    seen: set[str] = set()
+
+    for raw in symbols or []:
+        s = _normalize_equity_index_symbol_for_schwab(str(raw or ""))
+        if not s:
+            continue
+
+        candidates: List[str] = [s]
+        if not _env_truthy("THOR_SCHWAB_INDEX_STRIP_DOLLAR") and s.startswith("$"):
+            base = s.lstrip("$")
+            if base:
+                candidates.append(base)
+
+        for c in candidates:
+            c = (c or "").strip().upper().lstrip("/")
+            if not c or c in seen:
+                continue
+            seen.add(c)
+            out.append(c)
+
+    return out
+
+
 def _parse_csv(raw: Optional[str]) -> List[str]:
     if not raw:
         return []
@@ -656,7 +691,14 @@ class Command(BaseCommand):
 
                 async def _apply_equity_subs(stream_client: Any, desired: set[str]) -> None:
                     nonlocal applied_equities
-                    desired_list = sorted([_normalize_equity_index_symbol_for_schwab(s) for s in desired if s])
+                    # Subscribe indexes in both '$DXY' and 'DXY' forms to avoid provider
+                    # symbol-format variance.
+                    desired_list = sorted(_expand_equity_index_symbols_for_schwab(desired))
+
+                    # Provide the canonical index set (with '$') to the producer so incoming
+                    # ticks can be rewritten to canonical symbols even if Schwab omits '$'.
+                    canonical_indexes = sorted([("$" + str(s).strip().upper().lstrip("$") ) for s in desired if str(s).strip().startswith("$")])
+                    producer.set_index_symbol_aliases(canonical_indexes)
                     unsubs = getattr(stream_client, "level_one_equity_unsubs", None)
                     subs = getattr(stream_client, "level_one_equity_subs", None)
                     add = getattr(stream_client, "level_one_equity_add", None)
