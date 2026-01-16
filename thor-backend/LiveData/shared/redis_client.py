@@ -27,6 +27,10 @@ logger = logging.getLogger(__name__)
 # send at a controlled max rate per symbol.
 _LAST_WS_QUOTE_SEND_AT: dict[str, float] = {}
 
+# WebSocket bar fanout can also be large under heavy tick volume.
+# Default is unthrottled (instant), but can be capped via settings.
+_LAST_WS_BAR_SEND_AT: dict[str, float] = {}
+
 
 def _to_epoch_seconds_utc(value) -> int:
     """
@@ -735,6 +739,69 @@ class LiveDataRedis:
         result = self.publish(channel, payload)
         self.set_latest_quote(sym, payload)
 
+        # --- Tick-driven intraday bar update (Redis) ---
+        # Build/update the 1m bar as ticks arrive, not from a 1-second poller.
+        # This keeps the UI instant while still allowing DB persistence on minute close.
+        current_bar: Dict[str, Any] | None = None
+        try:
+            enable_bars = bool(getattr(settings, "LIVE_DATA_ENABLE_INTRADAY_BARS", True))
+        except Exception:
+            enable_bars = True
+
+        if enable_bars:
+            try:
+                # Prefer an explicit session number if provided (some producers set it).
+                session_number = payload.get("session_number")
+                if session_number is None:
+                    session_number = self.get_active_session_number(asset_type=asset_type)
+
+                if session_number is not None:
+                    routing_key = str(int(session_number))
+
+                    # Short TTL tick cache (session-scoped)
+                    try:
+                        self.set_tick(routing_key, sym, payload, ttl=10)
+                    except Exception:
+                        pass
+
+                    bar_tick: Dict[str, Any] = {
+                        "symbol": sym,
+                        "price": payload.get("last") or payload.get("price") or payload.get("bid") or payload.get("ask"),
+                        "last": payload.get("last") or payload.get("price"),
+                        "volume": payload.get("volume"),
+                        "bid": payload.get("bid"),
+                        "ask": payload.get("ask"),
+                        "country": payload.get("country"),
+                        "ts": payload.get("ts"),
+                    }
+
+                    closed_bar, cur = self.upsert_current_bar_1m(routing_key, sym, bar_tick)
+                    if isinstance(cur, dict) and cur:
+                        current_bar = cur
+
+                    if closed_bar:
+                        self.enqueue_closed_bar(routing_key, closed_bar)
+
+                        # Keep a rolling in-Redis history for fast reads (optional UI use).
+                        # Key: bars:1m:{session_number}:{SYMBOL}
+                        try:
+                            hist_key = f"bars:1m:{self._routing_prefix(routing_key)}:{sym}".lower()
+                            score = float(closed_bar.get("t") or 0)
+                            self.client.zadd(hist_key, {json.dumps(closed_bar, default=str): score})
+                            # Trim oldest (keep last N)
+                            keep = int(getattr(settings, "LIVE_DATA_BARS_1M_KEEP", 2000) or 2000)
+                            if keep > 0:
+                                self.client.zremrangebyrank(hist_key, 0, -keep - 1)
+                            # Expire after a few days (bars are persisted to DB)
+                            ttl = int(getattr(settings, "LIVE_DATA_BARS_1M_TTL", 60 * 60 * 72) or (60 * 60 * 72))
+                            if ttl > 0:
+                                self.client.expire(hist_key, ttl)
+                        except Exception:
+                            logger.debug("Failed to update Redis 1m bar history for %s", sym, exc_info=True)
+
+            except Exception:
+                logger.debug("Failed to upsert intraday bar for %s", sym, exc_info=True)
+
         # Track "active" symbols for snapshot batching (score = last update epoch seconds)
         try:
             self.client.zadd(self.ACTIVE_QUOTES_ZSET, {sym: float(ts_epoch)})
@@ -762,6 +829,24 @@ class LiveDataRedis:
                     channel_layer=None,
                     message={"type": "quote_tick", "data": payload},
                 )
+
+                # Also broadcast the in-progress 1m bar so the UI can update instantly.
+                if current_bar:
+                    bar_throttle_ms = int(getattr(settings, "LIVE_DATA_WS_BAR_THROTTLE_MS", 0) or 0)
+                    if bar_throttle_ms and bar_throttle_ms > 0:
+                        now = time.time()
+                        last = _LAST_WS_BAR_SEND_AT.get(sym, 0.0)
+                        if (now - last) * 1000.0 >= float(bar_throttle_ms):
+                            _LAST_WS_BAR_SEND_AT[sym] = now
+                            broadcast_to_websocket_sync(
+                                channel_layer=None,
+                                message={"type": "intraday_bar", "data": current_bar},
+                            )
+                    else:
+                        broadcast_to_websocket_sync(
+                            channel_layer=None,
+                            message={"type": "intraday_bar", "data": current_bar},
+                        )
             except Exception:
                 logger.exception("Failed to broadcast quote to WebSocket for %s", sym)
 

@@ -43,7 +43,7 @@ def _active_countries() -> list[str]:
 
 
 def _run_intraday_tick(ctx: Any) -> None:
-    """1-second tick: build ticks + bars + flush closed bars to DB."""
+    """1-minute tick: flush closed bars to DB and refresh lightweight intraday snapshots."""
     from Instruments.services.intraday_supervisor import IntradaySupervisor
 
     IntradaySupervisor().tick()
@@ -102,7 +102,7 @@ def _run_market_grader(ctx: Any) -> None:
 
 def register(registry: Any) -> list[str]:
     jobs = [
-        InlineJob("intraday_tick", 1.0, _run_intraday_tick),
+        InlineJob("intraday_tick", 60.0, _run_intraday_tick),
         InlineJob("gm.open_capture_scan", 5.0, _run_open_capture_scan),
         InlineJob("market_metrics", 10.0, _run_market_metrics),
         InlineJob("market_grader", 15.0, _run_market_grader),

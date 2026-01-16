@@ -7,6 +7,8 @@ from typing import Any, Dict, Optional
 
 import time
 
+from django.conf import settings
+
 from LiveData.shared.redis_client import live_data_redis
 from Instruments.services.intraday_flush import flush_closed_bars
 from Instruments.models.market_24h import MarketTrading24Hour
@@ -317,9 +319,9 @@ class IntradaySupervisor:
                     s = str(session_number)
                     session_date = f"{s[0:4]}-{s[4:6]}-{s[6:8]}" if len(s) == 8 else None
 
-                # Global routing: bars are keyed by broad asset class only.
-                # session_number is carried as metadata for 24h/52w logic.
-                routing_key = "futures" if kind == "futures" else "equities"
+                # Session-based routing: bars/ticks are keyed by the active session_number.
+                # This matches LiveDataRedis.publish_quote tick-driven aggregation.
+                routing_key = str(int(session_number))
                 session_keys_seen.add(routing_key)
 
                 price = row.get("last")
@@ -367,12 +369,16 @@ class IntradaySupervisor:
                 )
 
                 try:
-                    live_data_redis.set_tick(routing_key, sym, tick, ttl=10)
+                        # Bars are now tick-driven directly inside LiveDataRedis.publish_quote
+                        # (i.e., computed as the upstream feed publishes ticks), so the 1-second
+                        # supervisor should not re-aggregate bars from snapshots.
+                        if not bool(getattr(settings, "LIVE_DATA_ENABLE_INTRADAY_BARS", True)):
+                            live_data_redis.set_tick(routing_key, sym, tick, ttl=10)
 
-                    closed_bar, _current_bar = live_data_redis.upsert_current_bar_1m(routing_key, sym, tick)
-                    if closed_bar:
-                        live_data_redis.enqueue_closed_bar(routing_key, closed_bar)
-                        captured_closed += 1
+                            closed_bar, _current_bar = live_data_redis.upsert_current_bar_1m(routing_key, sym, tick)
+                            if closed_bar:
+                                live_data_redis.enqueue_closed_bar(routing_key, closed_bar)
+                                captured_closed += 1
 
                     captured_ticks += 1
                 except Exception:

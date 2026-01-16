@@ -398,8 +398,19 @@ class SchwabStreamingProducer:
             return
 
         try:
-            # Always publish quotes (session-agnostic)
-            live_data_redis.publish_quote(payload["symbol"], payload, broadcast_ws=True)
+            # Always publish quotes. publish_quote now also:
+            # - resolves active session routing
+            # - updates Redis 1m bars from ticks
+            # - emits `intraday_bar` to WebSocket (instant)
+            asset_type = (payload.get("assetMainType") or payload.get("assetType") or "")
+            live_data_redis.publish_quote(
+                payload["symbol"],
+                payload,
+                provider="SCHWAB",
+                asset_type=str(asset_type) if asset_type else None,
+                ts=payload.get("timestamp"),
+                broadcast_ws=True,
+            )
 
             if not self._logged_first_redis_snapshot:
                 self._logged_first_redis_snapshot = True
@@ -408,28 +419,6 @@ class SchwabStreamingProducer:
                     logger.warning("Schwab first Redis latest quote snapshot=%s", snap)
                 except Exception:
                     logger.exception("Failed reading back latest quote after publish")
-
-            session_number = self._resolve_session_number(payload)
-            if session_number is None:
-                # No routing available: don't write bars/ticks to session namespaces
-                # (and don't spam warnings)
-                return
-
-            routing_key = str(session_number)
-            payload["session_number"] = session_number
-
-            # Short TTL tick cache (keyed by session)
-            live_data_redis.set_tick(routing_key, payload["symbol"], payload, ttl=10)
-
-            # Update 1m bar (keyed by session)
-            bar_tick = self._build_bar_tick(payload)
-            if bar_tick:
-                bar_tick["session_number"] = session_number
-                closed_bar, _cur = live_data_redis.upsert_current_bar_1m(
-                    routing_key, payload["symbol"], bar_tick
-                )
-                if closed_bar:
-                    live_data_redis.enqueue_closed_bar(routing_key, closed_bar)
 
         except Exception:
             logger.exception(

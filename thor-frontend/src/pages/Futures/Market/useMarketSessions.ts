@@ -1,5 +1,7 @@
 // src/pages/Futures/Market/useMarketSessions.ts
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useWsMessage } from "../../../realtime";
+import type { WsEnvelope } from "../../../realtime/types";
 import {
   type MarketOpenSession,
   type MarketLiveStatus,
@@ -47,6 +49,54 @@ export const useMarketSessions = (apiUrl?: string): UseMarketSessionsResult => {
     });
     return init;
   });
+
+  // Keep latest selection available to WS handlers without re-subscribing.
+  const selectedRef = useRef(selected);
+  useEffect(() => {
+    selectedRef.current = selected;
+  }, [selected]);
+
+  useWsMessage(
+    "intraday_bar",
+    (msg: WsEnvelope<unknown>) => {
+      const data = msg.data as Record<string, unknown> | undefined;
+      if (!data) return;
+
+      const rawSymbol = String(data.symbol ?? "").trim();
+      if (!rawSymbol) return;
+
+      // Backend bars may use futures like "/ES"; UI selects "ES".
+      const symbol = rawSymbol.replace(/^\//, "").toUpperCase();
+
+      const snap = {
+        open: typeof data.o === "number" ? data.o : Number(data.o),
+        high: typeof data.h === "number" ? data.h : Number(data.h),
+        low: typeof data.l === "number" ? data.l : Number(data.l),
+        close: typeof data.c === "number" ? data.c : Number(data.c),
+        volume: typeof data.v === "number" ? data.v : Number(data.v),
+        spread: data.spread === null || data.spread === undefined ? null : (typeof data.spread === "number" ? data.spread : Number(data.spread)),
+      };
+
+      // Guard against NaN spam
+      if (![snap.open, snap.high, snap.low, snap.close].some((n) => typeof n === "number" && Number.isFinite(n))) {
+        return;
+      }
+
+      setIntradayLatest((prev) => {
+        const next = { ...prev };
+        const sel = selectedRef.current;
+
+        for (const m of CONTROL_MARKETS) {
+          const pick = sel[m.key] || "TOTAL";
+          if (pick === "TOTAL") continue;
+          if (String(pick).toUpperCase() !== symbol) continue;
+          next[m.key] = snap;
+        }
+        return next;
+      });
+    },
+    true,
+  );
 
   // Main sessions + live status fetch (single run)
   useEffect(() => {
