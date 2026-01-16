@@ -23,7 +23,12 @@ const FUTURES_11 = [
   "/ZB", // vol, dollar, 30Y
 ];
 
-const normalizeSymbol = (symbol: string) => symbol.replace(/^\//, "").toUpperCase();
+const normalizeSymbol = (symbol: string) => {
+  const raw = String(symbol ?? "").trim().toUpperCase();
+  if (!raw) return "";
+  const base = raw.replace(/^\/+/, "");
+  return base ? `/${base}` : "";
+};
 
 // Helper to create an empty placeholder row for missing symbols
 function makePlaceholder(symbol: string, index: number): MarketData {

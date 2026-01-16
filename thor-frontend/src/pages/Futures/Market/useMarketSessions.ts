@@ -65,8 +65,9 @@ export const useMarketSessions = (apiUrl?: string): UseMarketSessionsResult => {
       const rawSymbol = String(data.symbol ?? "").trim();
       if (!rawSymbol) return;
 
-      // Backend bars may use futures like "/ES"; UI selects "ES".
-      const symbol = rawSymbol.replace(/^\//, "").toUpperCase();
+      // Preserve leading '/' for futures so we don't collide with equities
+      // that may share the same base (e.g. ES vs /ES).
+      const symbol = rawSymbol.toUpperCase();
 
       const snap = {
         open: typeof data.o === "number" ? data.o : Number(data.o),
@@ -89,7 +90,9 @@ export const useMarketSessions = (apiUrl?: string): UseMarketSessionsResult => {
         for (const m of CONTROL_MARKETS) {
           const pick = sel[m.key] || "TOTAL";
           if (pick === "TOTAL") continue;
-          if (String(pick).toUpperCase() !== symbol) continue;
+          const pickNorm = String(pick).toUpperCase();
+          const expected = pickNorm.startsWith("/") ? pickNorm : `/${pickNorm}`;
+          if (expected !== symbol) continue;
           next[m.key] = snap;
         }
         return next;

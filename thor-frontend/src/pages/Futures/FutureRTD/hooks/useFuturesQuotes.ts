@@ -5,6 +5,7 @@ import type { ApiResponse, MarketData } from "../types";
 
 type QuoteTick = {
   symbol?: string;
+  asset_type?: string | null;
   bid?: number | string | null;
   ask?: number | string | null;
   last?: number | string | null;
@@ -34,18 +35,26 @@ const FUTURES_ROOTS = new Set([
   'ZB',
 ]);
 
-const normalizeSymbolKey = (symbol: string | undefined | null) =>
-  (symbol ?? "").replace(/^\/+/, "").toUpperCase().trim();
+const _normAssetType = (v: unknown) => String(v ?? "").trim().toUpperCase();
 
-const canonicalizeFuturesDisplaySymbol = (symbol: string | undefined | null) => {
-  const key = normalizeSymbolKey(symbol);
+const normalizeFuturesSymbolKey = (symbol: string | undefined | null, assetType?: unknown) => {
+  const raw = String(symbol ?? "").trim().toUpperCase();
+  if (!raw) return "";
+
+  const at = _normAssetType(assetType);
+  const isFut = at.includes("FUTURE") || raw.startsWith("/");
+  if (!isFut) return "";
+
+  const base = raw.replace(/^\/+/, "");
+  return base ? `/${base}` : "";
+};
+
+const canonicalizeFuturesDisplaySymbol = (symbol: string | undefined | null, assetType?: unknown) => {
+  const key = normalizeFuturesSymbolKey(symbol, assetType);
   if (!key) return "";
-  // The backend commonly stores/streams futures roots without '/'.
-  // For Futures RTD, always display canonical futures roots with a leading '/'.
-  if (FUTURES_ROOTS.has(key)) return `/${key}`;
-  // If some upstream already includes '/', keep a single leading slash.
-  const raw = String(symbol ?? '').trim().toUpperCase();
-  if (raw.startsWith('/')) return `/${raw.replace(/^\/+/, '')}`;
+  // If it's a root future we track, keep canonical '/ROOT'. Otherwise keep '/...' as-is.
+  const base = key.replace(/^\/+/, "");
+  if (FUTURES_ROOTS.has(base)) return `/${base}`;
   return key;
 };
 
@@ -248,12 +257,12 @@ export function useFuturesQuotes(): UseFuturesQuotesResult {
 
         for (const tick of quotes) {
           if (!tick) continue;
-          const key = normalizeSymbolKey(tick.symbol);
+          const key = normalizeFuturesSymbolKey(tick.symbol, tick.asset_type);
           if (!key) continue;
 
-          const symbol = canonicalizeFuturesDisplaySymbol(tick.symbol);
+          const symbol = canonicalizeFuturesDisplaySymbol(tick.symbol, tick.asset_type);
 
-          const idx = next.findIndex((row) => normalizeSymbolKey(row.instrument.symbol) === key);
+          const idx = next.findIndex((row) => normalizeFuturesSymbolKey(row.instrument.symbol, "FUTURE") === key);
 
           const bidNum = toFloat(tick.bid);
           const askNum = toFloat(tick.ask);

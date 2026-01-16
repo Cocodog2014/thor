@@ -69,7 +69,10 @@ class MarketGrader:
             elif symbol == "DX":
                 redis_key = "$DXY"
             else:
-                redis_key = symbol.lstrip("/")
+                # Futures symbols must keep a leading '/' to avoid collisions
+                # with equities that can share the same base (e.g. ES vs /ES).
+                raw = (symbol or "").strip().upper()
+                redis_key = raw if raw.startswith("/") else "/" + raw.lstrip("/")
 
             data = live_data_redis.get_latest_quote(redis_key)
 

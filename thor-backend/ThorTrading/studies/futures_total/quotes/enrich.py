@@ -150,7 +150,8 @@ def fetch_raw_quotes() -> Dict[str, Dict]:
             continue
 
         # Redis keys may be published as "ES" or "/ES" depending on feed.
-        keys_to_try = [sym, f"/{sym}"]
+        # Prefer the futures-prefixed variant to avoid collisions with equities.
+        keys_to_try = [f"/{sym}", sym]
         try:
             for key in keys_to_try:
                 data = live_data_redis.get_latest_quote(key)
