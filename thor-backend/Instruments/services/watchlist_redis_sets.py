@@ -17,6 +17,10 @@ def _wl_order_key(user_id: int, mode: str) -> str:
     return f"wl:{int(user_id)}:{mode}:order".lower()
 
 
+def _wl_union_key(user_id: int) -> str:
+    return f"wl:{int(user_id)}:union".lower()
+
+
 def _wl_hydrated_key(user_id: int) -> str:
     # Sentinel to distinguish "cold cache" (unknown) from "known empty".
     # When present, it means Redis watchlist keys are the current truth even if empty.
@@ -74,7 +78,7 @@ def sync_watchlist_sets_to_redis(user_id: int) -> None:
     try:
         qs = (
             UserInstrumentWatchlistItem.objects.select_related("instrument")
-            .filter(user_id=int(user_id), enabled=True, instrument__is_active=True)
+            .filter(user_id=int(user_id), enabled=True, stream=True, instrument__is_active=True)
             .values_list("mode", "instrument__symbol", "order")
         )
     except Exception:
@@ -117,6 +121,7 @@ def sync_watchlist_sets_to_redis(user_id: int) -> None:
 
     paper_key = _wl_key(user_id, "paper")
     live_key = _wl_key(user_id, "live")
+    union_key = _wl_union_key(user_id)
     paper_order_key = _wl_order_key(user_id, "paper")
     live_order_key = _wl_order_key(user_id, "live")
     hydrated_key = _wl_hydrated_key(user_id)
@@ -125,6 +130,7 @@ def sync_watchlist_sets_to_redis(user_id: int) -> None:
         pipe = live_data_redis.client.pipeline(transaction=False)
         pipe.delete(paper_key)
         pipe.delete(live_key)
+        pipe.delete(union_key)
         pipe.delete(paper_order_key)
         pipe.delete(live_order_key)
         if paper_symbols:
@@ -134,12 +140,34 @@ def sync_watchlist_sets_to_redis(user_id: int) -> None:
             pipe.sadd(live_key, *live_symbols)
             pipe.zadd(live_order_key, live_order)
 
+        # Union set is the streamer subscription truth: union(paper, live).
+        # This avoids thrash when users switch UI tabs/modes.
+        pipe.sunionstore(union_key, paper_key, live_key)
+
         # Mark that watchlists have been synced from DB -> Redis, even if empty.
         # This prevents repeated DB reads on every websocket connect for users with empty lists.
         pipe.set(hydrated_key, "1", ex=6 * 60 * 60)
         pipe.execute()
     except Exception:
         logger.exception("Failed writing watchlist Redis sets for user_id=%s", user_id)
+
+
+def get_watchlist_union_from_redis(*, user_id: int) -> list[str]:
+    """Return the union watchlist symbols (stable order, empty if missing)."""
+
+    key = _wl_union_key(int(user_id))
+    try:
+        raw = live_data_redis.client.smembers(key) or set()
+    except Exception:
+        logger.debug("Failed reading Redis watchlist union %s", key, exc_info=True)
+        return []
+
+    syms: list[str] = []
+    for s in raw:
+        ns = _normalize_symbol(str(s))
+        if ns:
+            syms.append(ns)
+    return sorted(set(syms))
 
 
 def set_watchlist_order_in_redis(*, user_id: int, mode: str, symbols: list[str]) -> dict:

@@ -5,6 +5,11 @@ import os
 
 from LiveData.schwab.control_plane import publish_set
 from Instruments.models import Instrument, UserInstrumentWatchlistItem
+from Instruments.services.watchlist_redis_sets import (
+    get_watchlist_union_from_redis,
+    is_watchlists_hydrated,
+    sync_watchlist_sets_to_redis,
+)
 
 
 def _format_for_schwab(inst: Instrument) -> tuple[str, str] | tuple[None, None]:
@@ -48,38 +53,64 @@ def sync_watchlist_to_schwab(user_id: int, *, publish_on_commit: bool = True) ->
     This function does not write SchwabSubscription rows.
     """
 
-    mode_cls = getattr(UserInstrumentWatchlistItem, "Mode", None)
-    paper_mode = getattr(mode_cls, "PAPER", "PAPER")
-    live_mode = getattr(mode_cls, "LIVE", "LIVE")
+    # Prefer Redis union (runtime truth): union(paper, live)
+    # This avoids subscription thrash when a symbol moves between modes.
+    union_symbols: list[str] = []
+    try:
+        union_symbols = get_watchlist_union_from_redis(user_id=int(user_id))
+    except Exception:
+        union_symbols = []
 
-    user_qs = (
-        UserInstrumentWatchlistItem.objects.select_related("instrument")
-        # Streamer subscribes to the union of LIVE + PAPER so PAPER lists also get live quotes.
-        .filter(user_id=user_id, mode__in=[paper_mode, live_mode], enabled=True, stream=True, instrument__is_active=True)
-        .order_by("order", "instrument__symbol")
-    )
+    # Cold cache fallback: if Redis isn't hydrated yet, build it from DB.
+    if not union_symbols and not is_watchlists_hydrated(user_id=int(user_id)):
+        try:
+            sync_watchlist_sets_to_redis(int(user_id))
+            union_symbols = get_watchlist_union_from_redis(user_id=int(user_id))
+        except Exception:
+            union_symbols = []
 
-    qs = list(user_qs)
+    # If still empty, publish empty desired sets (unsubscribe all).
+    if not union_symbols:
+        equities: list[str] = []
+        futures: list[str] = []
+    else:
+        # Query instruments for symbols. DB convention: futures are stored without leading '/'.
+        query_symbols: set[str] = set()
+        for s in union_symbols:
+            ss = (s or "").strip().upper()
+            if not ss:
+                continue
+            if ss.startswith("/"):
+                query_symbols.add(ss.lstrip("/"))
+            else:
+                query_symbols.add(ss)
+            if ss.startswith("$"):
+                query_symbols.add(ss.lstrip("$"))
 
-    equities: list[str] = []
-    futures: list[str] = []
+        instruments = list(
+            Instrument.objects.filter(
+                symbol__in=sorted(query_symbols),
+                is_active=True,
+            )
+        )
 
-    for item in qs:
-        inst = item.instrument
+        equities = []
+        futures = []
 
-        # Instruments can choose which feed owns the symbol.
-        # If a symbol is set to TOS, do not subscribe it via Schwab.
-        quote_source = (getattr(inst, "quote_source", None) or "AUTO").upper()
-        if quote_source not in {"AUTO", "SCHWAB"}:
-            continue
+        for inst in instruments:
+            # Instruments can choose which feed owns the symbol.
+            # If a symbol is set to TOS, do not subscribe it via Schwab.
+            quote_source = (getattr(inst, "quote_source", None) or "AUTO").upper()
+            if quote_source not in {"AUTO", "SCHWAB"}:
+                continue
 
-        asset, sym = _format_for_schwab(inst)
-        if not asset or not sym:
-            continue
-        if asset == "FUTURE":
-            futures.append(sym)
-        else:
-            equities.append(sym)
+            asset, sym = _format_for_schwab(inst)
+            if not asset or not sym:
+                continue
+            if asset == "FUTURE":
+                futures.append(sym)
+            else:
+                equities.append(sym)
 
     # De-dupe stable
     def _dedupe(xs: list[str]) -> list[str]:

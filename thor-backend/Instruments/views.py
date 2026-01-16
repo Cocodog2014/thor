@@ -10,7 +10,7 @@ from rest_framework import status
 from Instruments.models import Instrument, UserInstrumentWatchlistItem
 from Instruments.serializers import InstrumentSummarySerializer, WatchlistItemSerializer, WatchlistReplaceSerializer
 from Instruments.services.watchlist_sync import sync_watchlist_to_schwab
-from Instruments.services.watchlist_redis_sets import sync_watchlist_sets_to_redis
+from Instruments.services.watchlist_redis_sets import sync_watchlist_sets_to_redis, is_watchlists_hydrated
 from Instruments.services.watchlist_redis_sets import set_watchlist_order_in_redis
 from Instruments.services.watchlist_redis_sets import build_watchlist_items_payload, get_watchlists_snapshot_from_redis
 from ActAndPos.live.models import LiveBalance
@@ -69,29 +69,36 @@ class UserWatchlistView(APIView):
         mode = self._resolve_mode(request)
         mode_norm = self._mode_norm(mode)
 
-        # Redis-first (runtime truth). DB fallback (cold cache) then hydrate Redis.
-        try:
-            redis_items = build_watchlist_items_payload(
+        # Redis-first (runtime truth). DB is only used to hydrate Redis on cold cache.
+        def _read_from_redis() -> list[dict] | None:
+            return build_watchlist_items_payload(
                 user_id=int(request.user.id),
                 mode_norm=mode_norm,
                 db_mode=mode,
             )
+
+        try:
+            redis_items = _read_from_redis()
         except Exception:
             redis_items = None
 
-        if redis_items is not None:
-            return Response({"items": redis_items, "source": "redis"})
+        if redis_items is None and not is_watchlists_hydrated(user_id=int(request.user.id)):
+            # Cold cache: hydrate from DB into Redis, then re-read.
+            sync_watchlist_sets_to_redis(int(request.user.id))
+            try:
+                redis_items = _read_from_redis()
+            except Exception:
+                redis_items = None
 
-        items = UserInstrumentWatchlistItem.objects.select_related("instrument").filter(user=request.user, mode=mode)
-        items = items.order_by("order", "instrument__symbol")
+        # If still None, Redis is now the source of truth and the list is empty.
+        if redis_items is None:
+            redis_items = []
 
-        # Hydrate Redis so subsequent UI reads are DB-free.
-        sync_watchlist_sets_to_redis(int(request.user.id))
-
-        return Response({"items": WatchlistItemSerializer(items, many=True).data, "source": "db"})
+        return Response({"items": redis_items, "source": "redis"})
 
     def put(self, request):
         mode = self._resolve_mode(request)
+        mode_norm = self._mode_norm(mode)
         serializer = WatchlistReplaceSerializer(data=request.data, context={"request": request, "mode": mode})
         serializer.is_valid(raise_exception=True)
         serializer.save()
@@ -108,12 +115,17 @@ class UserWatchlistView(APIView):
         # PAPER and LIVE both drive Schwab streaming subscriptions (union).
         sync_watchlist_to_schwab(int(request.user.id))
 
-        items = (
-            UserInstrumentWatchlistItem.objects.select_related("instrument")
-            .filter(user=request.user, mode=mode)
-            .order_by("order", "instrument__symbol")
-        )
-        return Response({"items": WatchlistItemSerializer(items, many=True).data, "source": "db"})
+        # Respond from Redis (runtime truth); avoid DB read in the response.
+        try:
+            redis_items = build_watchlist_items_payload(
+                user_id=int(request.user.id),
+                mode_norm=mode_norm,
+                db_mode=mode,
+            )
+        except Exception:
+            redis_items = None
+
+        return Response({"items": redis_items or [], "source": "redis"})
 
 
 class InstrumentCatalogView(APIView):

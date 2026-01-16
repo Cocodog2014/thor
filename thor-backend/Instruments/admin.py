@@ -7,11 +7,32 @@ from .models import MarketTrading24Hour
 from .models import Rolling52WeekStats
 from .models import UserInstrumentWatchlistItem
 from Instruments.services.watchlist_sync import sync_watchlist_to_schwab
-from Instruments.services.watchlist_redis_sets import sync_watchlist_sets_to_redis
+from Instruments.services.watchlist_redis_sets import sync_watchlist_sets_to_redis, get_watchlists_snapshot_from_redis
 from Instruments.services.instrument_sync import (
     upsert_quote_source_map,
     remove_quote_source_map,
 )
+from api.websocket.broadcast import broadcast_to_websocket_sync
+
+
+def _broadcast_watchlist_updated(*, user_id: int) -> None:
+    try:
+        snapshot = get_watchlists_snapshot_from_redis(user_id=int(user_id))
+    except Exception:
+        snapshot = {"paper": [], "live": []}
+
+    # Best-effort; if WS is disabled, this is a no-op at the edge.
+    broadcast_to_websocket_sync(
+        channel_layer=None,
+        group_name=f"user:{int(user_id)}",
+        message={
+            "type": "watchlist_updated",
+            "data": {
+                "user_id": int(user_id),
+                "watchlists": snapshot,
+            },
+        },
+    )
 
 
 @admin.register(Instrument)
@@ -34,6 +55,7 @@ class InstrumentAdmin(admin.ModelAdmin):
         def _on_commit() -> None:
             for user_id in user_ids:
                 sync_watchlist_sets_to_redis(int(user_id))
+                _broadcast_watchlist_updated(user_id=int(user_id))
                 sync_watchlist_to_schwab(int(user_id), publish_on_commit=False)
 
         transaction.on_commit(_on_commit)
@@ -62,6 +84,7 @@ class InstrumentAdmin(admin.ModelAdmin):
         def _on_commit() -> None:
             for user_id in user_ids:
                 sync_watchlist_sets_to_redis(int(user_id))
+                _broadcast_watchlist_updated(user_id=int(user_id))
                 sync_watchlist_to_schwab(int(user_id), publish_on_commit=False)
 
         transaction.on_commit(_on_commit)
@@ -83,6 +106,7 @@ class InstrumentAdmin(admin.ModelAdmin):
                 remove_quote_source_map(sym)
             for user_id in user_ids:
                 sync_watchlist_sets_to_redis(int(user_id))
+                _broadcast_watchlist_updated(user_id=int(user_id))
                 sync_watchlist_to_schwab(int(user_id), publish_on_commit=False)
 
         transaction.on_commit(_on_commit)
@@ -105,19 +129,26 @@ class UserInstrumentWatchlistItemAdmin(admin.ModelAdmin):
         super().save_model(request, obj, form, change)
 
         user_id = int(obj.user_id)
-        transaction.on_commit(lambda: sync_watchlist_sets_to_redis(user_id))
 
-        # PAPER and LIVE both drive Schwab streaming subscriptions (union).
-        transaction.on_commit(lambda: sync_watchlist_to_schwab(user_id, publish_on_commit=False))
+        def _on_commit() -> None:
+            sync_watchlist_sets_to_redis(user_id)
+            _broadcast_watchlist_updated(user_id=user_id)
+            # PAPER and LIVE both drive Schwab streaming subscriptions (union).
+            sync_watchlist_to_schwab(user_id, publish_on_commit=False)
+
+        transaction.on_commit(_on_commit)
 
     def delete_model(self, request, obj):  # pragma: no cover - admin
         user_id = int(obj.user_id)
         super().delete_model(request, obj)
 
-        transaction.on_commit(lambda: sync_watchlist_sets_to_redis(user_id))
+        def _on_commit() -> None:
+            sync_watchlist_sets_to_redis(user_id)
+            _broadcast_watchlist_updated(user_id=user_id)
+            # PAPER and LIVE both drive Schwab streaming subscriptions (union).
+            sync_watchlist_to_schwab(user_id, publish_on_commit=False)
 
-        # PAPER and LIVE both drive Schwab streaming subscriptions (union).
-        transaction.on_commit(lambda: sync_watchlist_to_schwab(user_id, publish_on_commit=False))
+        transaction.on_commit(_on_commit)
 
     def delete_queryset(self, request, queryset):  # pragma: no cover - admin
         """Bulk delete path ("delete selected") for watchlist rows."""
@@ -129,6 +160,7 @@ class UserInstrumentWatchlistItemAdmin(admin.ModelAdmin):
         def _on_commit() -> None:
             for uid in user_ids:
                 sync_watchlist_sets_to_redis(int(uid))
+                _broadcast_watchlist_updated(user_id=int(uid))
                 sync_watchlist_to_schwab(int(uid), publish_on_commit=False)
 
         transaction.on_commit(_on_commit)
