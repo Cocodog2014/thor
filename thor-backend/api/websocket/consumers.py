@@ -61,7 +61,15 @@ class MarketDataConsumer(AsyncWebsocketConsumer):
                 logger.debug("Failed to join user websocket group", exc_info=True)
         
         await self.accept()
-        logger.debug("WebSocket client connected")
+        try:
+            user = self.scope.get("user")
+            logger.debug(
+                "WebSocket client connected (authenticated=%s user_id=%s)",
+                bool(user is not None and getattr(user, "is_authenticated", False)),
+                getattr(user, "id", None),
+            )
+        except Exception:
+            logger.debug("WebSocket client connected")
 
         # Push watchlist membership immediately for authenticated users.
         # This makes the frontend "Redis truth" without an HTTP membership fetch.

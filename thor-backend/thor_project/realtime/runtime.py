@@ -107,13 +107,18 @@ def start_realtime(force: bool = False) -> None:
         def _handler(signum, frame):  # type: ignore[override]
             _request_shutdown(f"signal {signum}")
 
+            # Delegate to any previous handler so the hosting server (daphne/runserver)
+            # can perform its own shutdown logic. Avoid sys.exit() here because it can
+            # fire during interpreter shutdown and produce noisy "Exception ignored" logs.
             if signum == signal.SIGINT:
-                # Exit cleanly without invoking previous handlers or raising KeyboardInterrupt.
-                sys.exit(0)
+                if callable(prev_sigint):
+                    return prev_sigint(signum, frame)
+                return
 
-            prev = prev_sigterm if signum == signal.SIGTERM else None
-            if callable(prev):
-                return prev(signum, frame)
+            if signum == signal.SIGTERM:
+                if callable(prev_sigterm):
+                    return prev_sigterm(signum, frame)
+                return
 
         try:
             signal.signal(signal.SIGINT, _handler)
