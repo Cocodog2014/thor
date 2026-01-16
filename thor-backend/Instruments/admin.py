@@ -1,14 +1,13 @@
 from django.contrib import admin
 from django.db import transaction
 
-from LiveData.schwab.signal_control import suppress_schwab_subscription_signals
-
 from .models import Instrument
 from .models import InstrumentIntraday
 from .models import MarketTrading24Hour
 from .models import Rolling52WeekStats
 from .models import UserInstrumentWatchlistItem
 from Instruments.services.watchlist_sync import sync_watchlist_to_schwab
+from Instruments.services.watchlist_redis_sets import sync_watchlist_sets_to_redis
 from Instruments.services.instrument_sync import (
     upsert_quote_source_map,
     remove_quote_source_map,
@@ -23,16 +22,18 @@ class InstrumentAdmin(admin.ModelAdmin):
 
     def _sync_users_for_instrument(self, instrument: Instrument) -> None:
         mode_cls = getattr(UserInstrumentWatchlistItem, "Mode", None)
+        paper = getattr(mode_cls, "PAPER", "PAPER")
         live = getattr(mode_cls, "LIVE", "LIVE")
 
         user_ids = list(
-            UserInstrumentWatchlistItem.objects.filter(instrument=instrument, mode=live)
+            UserInstrumentWatchlistItem.objects.filter(instrument=instrument, mode__in=[paper, live])
             .values_list("user_id", flat=True)
             .distinct()
         )
 
         def _on_commit() -> None:
             for user_id in user_ids:
+                sync_watchlist_sets_to_redis(int(user_id))
                 sync_watchlist_to_schwab(int(user_id), publish_on_commit=False)
 
         transaction.on_commit(_on_commit)
@@ -60,6 +61,7 @@ class InstrumentAdmin(admin.ModelAdmin):
 
         def _on_commit() -> None:
             for user_id in user_ids:
+                sync_watchlist_sets_to_redis(int(user_id))
                 sync_watchlist_to_schwab(int(user_id), publish_on_commit=False)
 
         transaction.on_commit(_on_commit)
@@ -74,16 +76,13 @@ class InstrumentAdmin(admin.ModelAdmin):
             .distinct()
         )
 
-        # If signals are ever enabled, bulk deletes could otherwise trigger per-row publish spam
-        # (including cascaded deletes). Suppress during the delete, then publish one authoritative
-        # sync per affected user on commit.
-        with suppress_schwab_subscription_signals():
-            super().delete_queryset(request, queryset)
+        super().delete_queryset(request, queryset)
 
         def _on_commit() -> None:
             for sym in symbols:
                 remove_quote_source_map(sym)
             for user_id in user_ids:
+                sync_watchlist_sets_to_redis(int(user_id))
                 sync_watchlist_to_schwab(int(user_id), publish_on_commit=False)
 
         transaction.on_commit(_on_commit)
@@ -103,23 +102,36 @@ class UserInstrumentWatchlistItemAdmin(admin.ModelAdmin):
     def save_model(self, request, obj, form, change):  # pragma: no cover - admin
         if not getattr(obj, "user_id", None):
             obj.user = request.user
-        with suppress_schwab_subscription_signals():
-            super().save_model(request, obj, form, change)
+        super().save_model(request, obj, form, change)
 
-        mode_cls = getattr(UserInstrumentWatchlistItem, "Mode", None)
-        live = getattr(mode_cls, "LIVE", "LIVE")
-        if getattr(obj, "mode", None) == live:
-            transaction.on_commit(lambda: sync_watchlist_to_schwab(int(obj.user_id), publish_on_commit=False))
+        user_id = int(obj.user_id)
+        transaction.on_commit(lambda: sync_watchlist_sets_to_redis(user_id))
+
+        # PAPER and LIVE both drive Schwab streaming subscriptions (union).
+        transaction.on_commit(lambda: sync_watchlist_to_schwab(user_id, publish_on_commit=False))
 
     def delete_model(self, request, obj):  # pragma: no cover - admin
         user_id = int(obj.user_id)
-        with suppress_schwab_subscription_signals():
-            super().delete_model(request, obj)
+        super().delete_model(request, obj)
 
-        mode_cls = getattr(UserInstrumentWatchlistItem, "Mode", None)
-        live = getattr(mode_cls, "LIVE", "LIVE")
-        if getattr(obj, "mode", None) == live:
-            transaction.on_commit(lambda: sync_watchlist_to_schwab(user_id, publish_on_commit=False))
+        transaction.on_commit(lambda: sync_watchlist_sets_to_redis(user_id))
+
+        # PAPER and LIVE both drive Schwab streaming subscriptions (union).
+        transaction.on_commit(lambda: sync_watchlist_to_schwab(user_id, publish_on_commit=False))
+
+    def delete_queryset(self, request, queryset):  # pragma: no cover - admin
+        """Bulk delete path ("delete selected") for watchlist rows."""
+
+        user_ids = list(queryset.values_list("user_id", flat=True).distinct())
+
+        super().delete_queryset(request, queryset)
+
+        def _on_commit() -> None:
+            for uid in user_ids:
+                sync_watchlist_sets_to_redis(int(uid))
+                sync_watchlist_to_schwab(int(uid), publish_on_commit=False)
+
+        transaction.on_commit(_on_commit)
 
 
 @admin.register(Rolling52WeekStats)

@@ -326,10 +326,6 @@ SCHWAB_CLIENT_SECRET = config('SCHWAB_CLIENT_SECRET', default='')
 SCHWAB_HEARTBEAT_BUFFER_SECONDS = config('SCHWAB_HEARTBEAT_BUFFER_SECONDS', default=120, cast=int)
 SCHWAB_HEALTH_INTERVAL = config('SCHWAB_HEALTH_INTERVAL', default=15, cast=int)
 
-# If true, watchlist changes emit control-plane updates to the Schwab streamer.
-# Default off: Instruments.services.watchlist_sync publishes authoritative 'set' messages at the end of watchlist writes.
-SCHWAB_SUBSCRIPTION_SIGNAL_PUBLISH = config('SCHWAB_SUBSCRIPTION_SIGNAL_PUBLISH', default=False, cast=bool)
-
 # Cloudflare Tunnel URL (for HTTPS OAuth callback in dev)
 CLOUDFLARE_TUNNEL_URL = config('CLOUDFLARE_TUNNEL_URL', default='')
 

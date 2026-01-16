@@ -13,4 +13,5 @@ app_name = "feed"
 
 urlpatterns = [
     path("quotes/snapshot/", views.get_quotes_snapshot, name="quotes_snapshot"),
+    path("quotes/watchlist/", views.get_watchlist_quotes, name="quotes_watchlist"),
 ]

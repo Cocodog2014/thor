@@ -5,10 +5,13 @@ from django.db.models import Q
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework import status
 
 from Instruments.models import Instrument, UserInstrumentWatchlistItem
 from Instruments.serializers import InstrumentSummarySerializer, WatchlistItemSerializer, WatchlistReplaceSerializer
 from Instruments.services.watchlist_sync import sync_watchlist_to_schwab
+from Instruments.services.watchlist_redis_sets import sync_watchlist_sets_to_redis
+from Instruments.services.watchlist_redis_sets import set_watchlist_order_in_redis
 from ActAndPos.live.models import LiveBalance
 
 User = get_user_model()
@@ -47,11 +50,11 @@ class UserWatchlistView(APIView):
         serializer.is_valid(raise_exception=True)
         serializer.save()
 
-        # Only LIVE mode changes should affect Schwab streaming subscriptions.
-        mode_cls = getattr(UserInstrumentWatchlistItem, "Mode", None)
-        live = getattr(mode_cls, "LIVE", "LIVE")
-        if mode == live:
-            sync_watchlist_to_schwab(int(request.user.id))
+        # Mirror watchlist membership into Redis so UI rendering can avoid DB reads.
+        sync_watchlist_sets_to_redis(int(request.user.id))
+
+        # PAPER and LIVE both drive Schwab streaming subscriptions (union).
+        sync_watchlist_to_schwab(int(request.user.id))
 
         items = (
             UserInstrumentWatchlistItem.objects.select_related("instrument")
@@ -88,3 +91,47 @@ class InstrumentCatalogView(APIView):
         # Keep payload small; this endpoint is intended for dropdown autocomplete.
         items = qs.order_by("symbol")[:50]
         return Response({"items": InstrumentSummarySerializer(items, many=True).data})
+
+
+class UserWatchlistOrderView(APIView):
+    """Persist drag/drop ordering to Redis (no DB writes).
+
+    POST body:
+      {"symbols": ["/ES", "AAPL", ...]}
+
+    Query params:
+      - mode: live|paper (required; avoids DB lookups for default inference)
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        raw_mode = (request.query_params.get("mode") or "").strip().lower()
+        if raw_mode not in {"live", "paper"}:
+            return Response(
+                {"detail": "mode is required", "valid": ["live", "paper"]},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        symbols = request.data.get("symbols")
+        if symbols is None:
+            return Response(
+                {"detail": "symbols is required", "example": {"symbols": ["/ES", "AAPL"]}},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if not isinstance(symbols, list):
+            return Response(
+                {"detail": "symbols must be a list"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            result = set_watchlist_order_in_redis(user_id=int(request.user.id), mode=raw_mode, symbols=symbols)
+            return Response({**result, "source": "redis_watchlist_order"}, status=status.HTTP_200_OK)
+        except ValueError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as exc:
+            return Response(
+                {"detail": "Failed to update Redis watchlist order", "error": str(exc)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )

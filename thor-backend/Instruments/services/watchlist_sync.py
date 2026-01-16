@@ -49,11 +49,13 @@ def sync_watchlist_to_schwab(user_id: int, *, publish_on_commit: bool = True) ->
     """
 
     mode_cls = getattr(UserInstrumentWatchlistItem, "Mode", None)
+    paper_mode = getattr(mode_cls, "PAPER", "PAPER")
     live_mode = getattr(mode_cls, "LIVE", "LIVE")
 
     user_qs = (
         UserInstrumentWatchlistItem.objects.select_related("instrument")
-        .filter(user_id=user_id, mode=live_mode, enabled=True, stream=True, instrument__is_active=True)
+        # Streamer subscribes to the union of LIVE + PAPER so PAPER lists also get live quotes.
+        .filter(user_id=user_id, mode__in=[paper_mode, live_mode], enabled=True, stream=True, instrument__is_active=True)
         .order_by("order", "instrument__symbol")
     )
 

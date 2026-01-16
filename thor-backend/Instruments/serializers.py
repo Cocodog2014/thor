@@ -5,7 +5,6 @@ from django.db.models import Exists, OuterRef
 from rest_framework import serializers
 
 from Instruments.models import Instrument, UserInstrumentWatchlistItem
-from LiveData.schwab.signal_control import suppress_schwab_subscription_signals
 
 
 class InstrumentSummarySerializer(serializers.ModelSerializer):
@@ -274,8 +273,7 @@ class WatchlistReplaceSerializer(serializers.Serializer):
             resolved.append((instrument, item))
 
         # This serializer is used by the API "replace watchlist" path.
-        # Keep signals suppressed during the bulk write to avoid per-row control-plane spam.
-        with suppress_schwab_subscription_signals(), transaction.atomic():
+        with transaction.atomic():
             keep_ids = {inst.id for inst, _ in resolved}
             UserInstrumentWatchlistItem.objects.filter(user=user, mode=mode).exclude(instrument_id__in=keep_ids).delete()
 
