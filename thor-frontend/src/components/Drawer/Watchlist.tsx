@@ -553,7 +553,28 @@ const Watchlist: React.FC<WatchlistProps> = ({ open, onLastTickAtChange }) => {
     sendMessage({ type: 'watchlists_request' });
   }, [wsIsEnabled, wsConnected]);
 
-  const persistWatchlistOrder = useCallback(async (items: WatchlistItem[]) => {
+  const persistWatchlistOrderRedis = useCallback(async (items: WatchlistItem[]) => {
+    if (!derivedMode) return;
+    try {
+      setWatchlistError(null);
+      await api.post(
+        '/instruments/watchlist/order/',
+        {
+          symbols: items
+            .map((item) => item.instrument?.symbol)
+            .filter((s): s is string => typeof s === 'string' && Boolean(s.trim()))
+            .map((s) => s.trim().toUpperCase()),
+        },
+        { params: { mode: derivedMode } }
+      );
+      // UI will be kept in sync via watchlist_updated WS event (if enabled).
+    } catch (err) {
+      console.error('Failed to persist watchlist order (redis)', err);
+      setWatchlistError('Failed to save watchlist order');
+    }
+  }, [derivedMode]);
+
+  const persistWatchlistMembershipDb = useCallback(async (items: WatchlistItem[]) => {
     if (!derivedMode) return;
     try {
       setWatchlistError(null);
@@ -567,8 +588,9 @@ const Watchlist: React.FC<WatchlistProps> = ({ open, onLastTickAtChange }) => {
         },
         { params: { mode: derivedMode } }
       );
+      // If WS is active, rely on watchlist_updated broadcast.
     } catch (err) {
-      console.error('Failed to persist watchlist order', err);
+      console.error('Failed to persist watchlist membership', err);
       setWatchlistError('Failed to save watchlist');
     }
   }, [derivedMode]);
@@ -624,8 +646,8 @@ const Watchlist: React.FC<WatchlistProps> = ({ open, onLastTickAtChange }) => {
   const removeSymbol = useCallback(async (symbol: string) => {
     const next = userWatchlist.filter((w) => w.instrument?.symbol?.toUpperCase() !== symbol);
     setUserWatchlist(next);
-    await persistWatchlistOrder(next);
-  }, [persistWatchlistOrder, userWatchlist]);
+    await persistWatchlistMembershipDb(next);
+  }, [persistWatchlistMembershipDb, userWatchlist]);
 
   // Initial membership load: WS-driven when available, HTTP fallback only when WS is unavailable.
   useEffect(() => {
@@ -778,7 +800,7 @@ const Watchlist: React.FC<WatchlistProps> = ({ open, onLastTickAtChange }) => {
                   if (oldIndex < 0 || newIndex < 0) return prev;
 
                   const next = arrayMove(prev, oldIndex, newIndex);
-                  void persistWatchlistOrder(next);
+                  void persistWatchlistOrderRedis(next);
                   return next;
                 });
               }}

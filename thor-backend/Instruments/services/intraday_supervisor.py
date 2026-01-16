@@ -287,6 +287,7 @@ class IntradaySupervisor:
             captured_ticks = 0
             captured_closed = 0
             session_keys_seen: set[str] = set()
+            session_kinds_by_key: dict[str, set[str]] = {}
 
             for row in enriched or []:
                 sym = _normalize_symbol(row)
@@ -323,6 +324,7 @@ class IntradaySupervisor:
                 # This matches LiveDataRedis.publish_quote tick-driven aggregation.
                 routing_key = str(int(session_number))
                 session_keys_seen.add(routing_key)
+                session_kinds_by_key.setdefault(routing_key, set()).add(kind)
 
                 price = row.get("last")
                 if price is None:
@@ -389,16 +391,24 @@ class IntradaySupervisor:
             result["captured"]["closed_bars"] = captured_closed
 
             try:
-                flushed = {"equities": 0, "futures": 0}
+                flushed = {"equities": 0, "futures": 0, "total": 0}
                 for key in sorted(session_keys_seen):
                     inserted = int(flush_closed_bars(key, batch_size=500, max_batches=1) or 0)
-                    if key in flushed:
-                        flushed[key] += inserted
+                    flushed["total"] += inserted
 
-                if self.include_futures:
-                    result["flushed"]["futures"] = flushed["futures"]
-                if self.include_equities:
-                    result["flushed"]["equities"] = flushed["equities"]
+                    kinds = session_kinds_by_key.get(key) or set()
+                    # Best-effort attribution: if a routing key is shared across kinds,
+                    # we can't reliably split inserts, so count it only toward total.
+                    if kinds == {"futures"} and self.include_futures:
+                        flushed["futures"] += inserted
+                    elif kinds == {"equities"} and self.include_equities:
+                        flushed["equities"] += inserted
+                    else:
+                        logger.debug("Flush key %s spans kinds=%s", key, sorted(kinds))
+
+                result["flushed"]["futures"] = flushed["futures"]
+                result["flushed"]["equities"] = flushed["equities"]
+                result["flushed"]["total"] = flushed["total"]
             except Exception:
                 logger.exception("intraday_flush failed")
 
