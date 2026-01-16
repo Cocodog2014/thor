@@ -105,6 +105,17 @@ class LiveDataRedis:
 
     def __init__(self):
         """Initialize Redis connection from Django settings."""
+        redis_url = getattr(settings, "REDIS_URL", None)
+        if redis_url:
+            try:
+                self.client = redis.Redis.from_url(
+                    redis_url,
+                    decode_responses=True,
+                )
+                return
+            except Exception:
+                logger.debug("Failed to init Redis from REDIS_URL; falling back to host/port", exc_info=True)
+
         self.client = redis.Redis(
             host=getattr(settings, "REDIS_HOST", "localhost"),
             port=getattr(settings, "REDIS_PORT", 6379),

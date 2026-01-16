@@ -43,6 +43,10 @@ Postgres stores intraday/session data.
 
 ✔ STEP 2 — Start Django backend (local)
 cd A:\Thor\thor-backend
+\# IMPORTANT (local dev): backend connects to Docker Redis via localhost
+\# (otherwise defaults like redis://redis:6379/0 will hang when running on Windows).
+$env:REDIS_URL = "redis://localhost:6379/0"
+
 python manage.py runserver
 
 Optional debug (helps diagnose Channels "over capacity" spam):
