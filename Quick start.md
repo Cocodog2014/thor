@@ -92,7 +92,8 @@ Frontend reads API from:
 thor-frontend/.env.local
 - Local dev uses `.env.local` directly
 - `VITE_API_BASE_URL=/api` (always relative!)
-- `VITE_PROXY_TARGET=http://127.0.0.1:8000` (Vite proxy)
+- `PROXY_TARGET=http://127.0.0.1:8000` (Vite dev-server proxy target)
+- `VITE_WS_ENABLED=1` (only needed for prod builds; dev defaults to ON)
 
 Need HTTPS callbacks (Schwab tunnel testing)?
 - `set TRUST_PROXY_SSL_HEADERS=1` (or add to `.env`) before `python manage.py runserver` so Django trusts Cloudflare's `X-Forwarded-Proto`.
@@ -166,7 +167,8 @@ npm run dev:docker
 
 `npm run dev:docker` copies `.env.docker` → `.env.local` with:
 - `VITE_API_BASE_URL=/api`
-- `VITE_PROXY_TARGET=http://localhost:8001`
+- `PROXY_TARGET=http://localhost:8001`
+- `VITE_WS_ENABLED=1` (required because a Vite "prod" bundle defaults WS OFF)
 
 Nginx listens on 8001, serves the React build, and proxies `/api` + `/admin` to Gunicorn when the production tunnel (`https://thor.360edu.org`) forwards requests.
 

@@ -112,6 +112,16 @@ class MarketDataConsumer(AsyncWebsocketConsumer):
                 
                 # Handle client-side heartbeat ACK or ping messages
                 if message_type == "ping":
+                    try:
+                        user = self.scope.get("user")
+                        logger.debug(
+                            "WS ping received -> pong sent (user_id=%s ts=%s)",
+                            getattr(user, "id", None),
+                            data.get("timestamp"),
+                        )
+                    except Exception:
+                        # Never let logging break heartbeats.
+                        pass
                     await self.send(text_data=json.dumps({
                         "type": "pong",
                         "timestamp": data.get("timestamp")
