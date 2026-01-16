@@ -190,6 +190,13 @@ export function connectSocket(urlOverride?: string): void {
     return;
   }
 
+  // If a reconnect attempt is already scheduled, don't stampede-create sockets.
+  // Multiple components/hooks may call connectSocket() every render/effect; when the
+  // WS is failing/closing quickly, we rely on the backoff timer to retry.
+  if (retryTimeout) {
+    return;
+  }
+
   // Drop stale closed socket
   if (socket && socket.readyState === WebSocket.CLOSED) {
     socket = null;
@@ -198,11 +205,6 @@ export function connectSocket(urlOverride?: string): void {
   const url = withJwtToken(urlOverride || resolveUrl());
 
   shouldReconnect = true;
-
-  if (retryTimeout) {
-    clearTimeout(retryTimeout);
-    retryTimeout = null;
-  }
 
   try {
     socket = new WebSocket(url);
