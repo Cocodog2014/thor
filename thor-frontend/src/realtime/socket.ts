@@ -1,5 +1,6 @@
 import { dispatch } from './router';
 import type { ConnectionHandler, WsMessage } from './types';
+import { AUTH_ACCESS_TOKEN_KEY } from '../constants/storageKeys';
 
 // WS hard gate (OFF by default)
 // Enable by setting: VITE_WS_ENABLED=1 (or true)
@@ -58,6 +59,30 @@ function ensureTrailingSlash(url: string): string {
   const base = match ? match[0] : url;
   if (base.endsWith('/')) return url;
   return `${base}/${url.slice(base.length)}`;
+}
+
+function readAccessToken(): string | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    return window.localStorage.getItem(AUTH_ACCESS_TOKEN_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function withJwtToken(url: string): string {
+  const token = readAccessToken();
+  if (!token) return url;
+
+  try {
+    const u = new URL(url);
+    // Keep token out of the path; backend reads from query string.
+    u.searchParams.set('token', token);
+    return u.toString();
+  } catch {
+    // If URL parsing fails for any reason, fall back to the raw URL.
+    return url;
+  }
 }
 
 function resolveUrl(): string {
@@ -170,7 +195,7 @@ export function connectSocket(urlOverride?: string): void {
     socket = null;
   }
 
-  const url = urlOverride || resolveUrl();
+  const url = withJwtToken(urlOverride || resolveUrl());
 
   shouldReconnect = true;
 

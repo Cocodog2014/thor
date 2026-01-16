@@ -15,12 +15,17 @@ WebSocket Server:
 """
 
 import os
+
+# IMPORTANT: set settings module BEFORE importing Django/Channels modules.
+# Daphne imports this module directly; any Django model import before this will crash.
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'thor_project.settings')
+
 from django.core.asgi import get_asgi_application
 from channels.routing import ProtocolTypeRouter, URLRouter
 from channels.auth import AuthMiddlewareStack
 from channels.security.websocket import AllowedHostsOriginValidator
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'thor_project.settings')
+from thor_project.websocket_jwt_auth import JwtAuthMiddlewareStack
 
 # Initialize Django ASGI application early to ensure the AppRegistry
 # is populated before importing code that may import ORM models.
@@ -35,9 +40,11 @@ application = ProtocolTypeRouter(
         "http": django_asgi_app,
         # WebSocket handler with authentication
         "websocket": AllowedHostsOriginValidator(
-            AuthMiddlewareStack(
-                URLRouter(
-                    websocket_urlpatterns
+            JwtAuthMiddlewareStack(
+                AuthMiddlewareStack(
+                    URLRouter(
+                        websocket_urlpatterns
+                    )
                 )
             )
         ),
