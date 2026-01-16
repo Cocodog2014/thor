@@ -362,8 +362,25 @@ const Watchlist: React.FC<WatchlistProps> = ({ open, onLastTickAtChange }) => {
   const [query, setQuery] = useState('');
   const [watchlistError, setWatchlistError] = useState<string | null>(null);
 
-  const snapshotInFlightRef = useRef(false);
-  const lastSnapshotAtMsRef = useRef(0);
+  const lastSnapshotSymbolsKeyRef = useRef('');
+
+  const sameStringArray = useCallback((a: string[] | null | undefined, b: string[] | null | undefined) => {
+    if (a === b) return true;
+    if (!a || !b) return false;
+    if (a.length !== b.length) return false;
+    for (let i = 0; i < a.length; i += 1) {
+      if (a[i] !== b[i]) return false;
+    }
+    return true;
+  }, []);
+
+  const makeSymbolsKey = useCallback((symbols: string[]) => {
+    return symbols
+      .map((s) => normalizeWsSymbol(s))
+      .filter((s): s is string => typeof s === 'string' && Boolean(s))
+      .sort()
+      .join(',');
+  }, []);
 
   const derivedMode = useMemo<'paper' | 'live' | null>(() => {
     if (!accountId) return null;
@@ -489,7 +506,13 @@ const Watchlist: React.FC<WatchlistProps> = ({ open, onLastTickAtChange }) => {
       paper: toSymbols(rawPaper),
     };
 
-    setWatchlistsSnapshot(nextSnapshot);
+    // Avoid triggering downstream effects (and snapshot fetches) if membership didn't change.
+    setWatchlistsSnapshot((prev) => {
+      if (prev && sameStringArray(prev.live, nextSnapshot.live) && sameStringArray(prev.paper, nextSnapshot.paper)) {
+        return prev;
+      }
+      return nextSnapshot;
+    });
     setWatchlistError(null);
     setWatchlistLoading(false);
   });
@@ -504,11 +527,21 @@ const Watchlist: React.FC<WatchlistProps> = ({ open, onLastTickAtChange }) => {
       ? watchlistsSnapshot.live
       : watchlistsSnapshot.paper;
 
-    setUserWatchlist(symbols.map((s) => ({ instrument: { symbol: s } })));
-    if (symbols.length) {
+    setUserWatchlist((prev) => {
+      const prevSymbols = prev
+        .map((w) => (w.instrument?.symbol || '').trim().toUpperCase())
+        .filter(Boolean);
+      if (sameStringArray(prevSymbols, symbols)) return prev;
+      return symbols.map((s) => ({ instrument: { symbol: s } }));
+    });
+
+    // Only fetch a snapshot when the set of symbols actually changes.
+    const key = makeSymbolsKey(symbols);
+    if (key && key !== lastSnapshotSymbolsKeyRef.current) {
+      lastSnapshotSymbolsKeyRef.current = key;
       void loadSnapshotForSymbols(symbols);
     }
-  }, [open, derivedMode, watchlistsSnapshot, loadSnapshotForSymbols]);
+  }, [open, derivedMode, watchlistsSnapshot, loadSnapshotForSymbols, makeSymbolsKey, sameStringArray]);
 
   useWsMessage('quote_tick', (msg: WsEnvelope<QuoteTickPayload>) => {
     setTickNow();
@@ -625,7 +658,7 @@ const Watchlist: React.FC<WatchlistProps> = ({ open, onLastTickAtChange }) => {
     setUserWatchlist(next);
     setQuery('');
 
-    loadSnapshotForSymbols([sym]);
+    void loadSnapshotForSymbols([sym]);
 
     try {
       await api.put(
@@ -699,48 +732,8 @@ const Watchlist: React.FC<WatchlistProps> = ({ open, onLastTickAtChange }) => {
     requestWatchlistsViaWs();
   }, [open, derivedMode, wsIsEnabled, wsConnected, requestWatchlistsViaWs]);
 
-  // Snapshot fallback (NOT a polling feed):
-  // - We do one-time snapshots on initial load + watchlist changes.
-  // - If WS is DISCONNECTED, we allow a slow refresh to keep the UI from going stale.
-  useEffect(() => {
-    if (!open) return;
-
-    const symbols = [...userWatchlist]
-      .map((w) => w.instrument?.symbol)
-      .filter((s): s is string => typeof s === 'string' && Boolean(s.trim()))
-      .map((s) => s.toUpperCase());
-
-    if (symbols.length === 0) return;
-
-    // If WS is connected, do not poll snapshots.
-    if (wsIsEnabled && wsConnected) return;
-
-    const POLL_MS = 30000;
-    let cancelled = false;
-
-    const maybeRefresh = async () => {
-      if (cancelled) return;
-      if (snapshotInFlightRef.current) return;
-      const now = Date.now();
-      if (now - lastSnapshotAtMsRef.current < POLL_MS) return;
-
-      snapshotInFlightRef.current = true;
-      try {
-        await loadSnapshotForSymbols(symbols);
-        lastSnapshotAtMsRef.current = Date.now();
-      } finally {
-        snapshotInFlightRef.current = false;
-      }
-    };
-
-    // Kick once immediately, then slowly retry while WS remains down.
-    void maybeRefresh();
-    const interval = window.setInterval(() => { void maybeRefresh(); }, POLL_MS);
-    return () => {
-      cancelled = true;
-      window.clearInterval(interval);
-    };
-  }, [open, wsConnected, wsIsEnabled, userWatchlist, loadSnapshotForSymbols]);
+  // Snapshots are intended as a one-time fill (initial load + membership changes).
+  // Ongoing quote updates should come from Redis-backed WS events.
 
   const watchlistIds = useMemo(
     () => userWatchlist.map((item) => String(item.instrument?.symbol ?? '')),
