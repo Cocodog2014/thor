@@ -360,8 +360,10 @@ const Watchlist: React.FC<WatchlistProps> = ({ open, onLastTickAtChange }) => {
   const [watchlistLoading, setWatchlistLoading] = useState(false);
   const [marketData, setMarketData] = useState<MarketDataMap>({});
   const [query, setQuery] = useState('');
-  const [lastTickAt, setLastTickAt] = useState<Date | null>(null);
   const [watchlistError, setWatchlistError] = useState<string | null>(null);
+
+  const snapshotInFlightRef = useRef(false);
+  const lastSnapshotAtMsRef = useRef(0);
 
   const derivedMode = useMemo<'paper' | 'live' | null>(() => {
     if (!accountId) return null;
@@ -374,7 +376,6 @@ const Watchlist: React.FC<WatchlistProps> = ({ open, onLastTickAtChange }) => {
 
   const setTickNow = useCallback(() => {
     const d = new Date();
-    setLastTickAt(d);
     onLastTickAtChange?.(d);
   }, [onLastTickAtChange]);
 
@@ -698,7 +699,9 @@ const Watchlist: React.FC<WatchlistProps> = ({ open, onLastTickAtChange }) => {
     requestWatchlistsViaWs();
   }, [open, derivedMode, wsIsEnabled, wsConnected, requestWatchlistsViaWs]);
 
-  // Snapshot fallback when WS is disabled/disconnected/stale.
+  // Snapshot fallback (NOT a polling feed):
+  // - We do one-time snapshots on initial load + watchlist changes.
+  // - If WS is DISCONNECTED, we allow a slow refresh to keep the UI from going stale.
   useEffect(() => {
     if (!open) return;
 
@@ -709,19 +712,35 @@ const Watchlist: React.FC<WatchlistProps> = ({ open, onLastTickAtChange }) => {
 
     if (symbols.length === 0) return;
 
-    const isWsFresh = () => {
-      if (!(wsIsEnabled && wsConnected)) return false;
-      if (!lastTickAt) return false;
-      return Date.now() - lastTickAt.getTime() < 8000;
+    // If WS is connected, do not poll snapshots.
+    if (wsIsEnabled && wsConnected) return;
+
+    const POLL_MS = 30000;
+    let cancelled = false;
+
+    const maybeRefresh = async () => {
+      if (cancelled) return;
+      if (snapshotInFlightRef.current) return;
+      const now = Date.now();
+      if (now - lastSnapshotAtMsRef.current < POLL_MS) return;
+
+      snapshotInFlightRef.current = true;
+      try {
+        await loadSnapshotForSymbols(symbols);
+        lastSnapshotAtMsRef.current = Date.now();
+      } finally {
+        snapshotInFlightRef.current = false;
+      }
     };
 
-    const interval = window.setInterval(() => {
-      if (isWsFresh()) return;
-      void loadSnapshotForSymbols(symbols);
-    }, 5000);
-
-    return () => window.clearInterval(interval);
-  }, [open, wsConnected, wsIsEnabled, lastTickAt, userWatchlist, loadSnapshotForSymbols]);
+    // Kick once immediately, then slowly retry while WS remains down.
+    void maybeRefresh();
+    const interval = window.setInterval(() => { void maybeRefresh(); }, POLL_MS);
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
+  }, [open, wsConnected, wsIsEnabled, userWatchlist, loadSnapshotForSymbols]);
 
   const watchlistIds = useMemo(
     () => userWatchlist.map((item) => String(item.instrument?.symbol ?? '')),
