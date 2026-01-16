@@ -26,7 +26,7 @@ import {
   Close as CloseIcon,
   DragIndicator as DragIndicatorIcon,
 } from '@mui/icons-material';
-import { useWsConnection, useWsMessage, wsEnabled } from '../../realtime';
+import { sendMessage, useWsConnection, useWsMessage, wsEnabled } from '../../realtime';
 import type { WsEnvelope } from '../../realtime/types';
 import api from '../../services/api';
 import { useSelectedAccount } from '../../context/SelectedAccountContext';
@@ -52,6 +52,11 @@ type WatchlistUpdatedPayload = {
     live?: unknown;
     paper?: unknown;
   };
+};
+
+type WatchlistsSnapshot = {
+  live: string[];
+  paper: string[];
 };
 
 
@@ -351,6 +356,7 @@ const Watchlist: React.FC<WatchlistProps> = ({ open, onLastTickAtChange }) => {
   const { accountId } = useSelectedAccount();
 
   const [userWatchlist, setUserWatchlist] = useState<WatchlistItem[]>([]);
+  const [watchlistsSnapshot, setWatchlistsSnapshot] = useState<WatchlistsSnapshot | null>(null);
   const [watchlistLoading, setWatchlistLoading] = useState(false);
   const [marketData, setMarketData] = useState<MarketDataMap>({});
   const [query, setQuery] = useState('');
@@ -467,27 +473,41 @@ const Watchlist: React.FC<WatchlistProps> = ({ open, onLastTickAtChange }) => {
     const watchlists = msg.data?.watchlists;
     if (!watchlists) return;
 
-    const modeKey = derivedMode ?? null;
-    if (!modeKey) return;
+    const rawLive = watchlists.live;
+    const rawPaper = watchlists.paper;
 
-    const raw = modeKey === 'live' ? watchlists.live : watchlists.paper;
-    if (!Array.isArray(raw)) return;
+    const toSymbols = (raw: unknown): string[] => {
+      if (!Array.isArray(raw)) return [];
+      return raw
+        .map((s) => (typeof s === 'string' ? s.trim().toUpperCase() : ''))
+        .filter(Boolean);
+    };
 
-    const symbols = raw
-      .map((s) => (typeof s === 'string' ? s.trim().toUpperCase() : ''))
-      .filter(Boolean);
+    const nextSnapshot: WatchlistsSnapshot = {
+      live: toSymbols(rawLive),
+      paper: toSymbols(rawPaper),
+    };
 
-    if (!symbols.length) {
-      setUserWatchlist([]);
-      return;
-    }
-
-    // Keep UI in sync without a DB fetch.
-    setUserWatchlist(symbols.map((s) => ({ instrument: { symbol: s } })));
-
-    // Best-effort snapshot to immediately fill any missing rows.
-    void loadSnapshotForSymbols(symbols);
+    setWatchlistsSnapshot(nextSnapshot);
+    setWatchlistError(null);
+    setWatchlistLoading(false);
   });
+
+  // Apply the latest snapshot to the currently derived mode.
+  useEffect(() => {
+    if (!open) return;
+    if (!derivedMode) return;
+    if (!watchlistsSnapshot) return;
+
+    const symbols = derivedMode === 'live'
+      ? watchlistsSnapshot.live
+      : watchlistsSnapshot.paper;
+
+    setUserWatchlist(symbols.map((s) => ({ instrument: { symbol: s } })));
+    if (symbols.length) {
+      void loadSnapshotForSymbols(symbols);
+    }
+  }, [open, derivedMode, watchlistsSnapshot, loadSnapshotForSymbols]);
 
   useWsMessage('quote_tick', (msg: WsEnvelope<QuoteTickPayload>) => {
     setTickNow();
@@ -518,7 +538,7 @@ const Watchlist: React.FC<WatchlistProps> = ({ open, onLastTickAtChange }) => {
   });
 
   // Actions
-  const loadUserWatchlist = useCallback(async (nextMode: 'paper' | 'live' | null) => {
+  const loadUserWatchlistHttp = useCallback(async (nextMode: 'paper' | 'live' | null) => {
     const res = await api.get('/instruments/watchlist/', {
       params: nextMode ? { mode: nextMode } : {},
     });
@@ -527,25 +547,11 @@ const Watchlist: React.FC<WatchlistProps> = ({ open, onLastTickAtChange }) => {
     return items;
   }, []);
 
-  const loadWatchlists = useCallback(async () => {
-    setWatchlistLoading(true);
-    setWatchlistError(null);
-    try {
-      const userItems = await loadUserWatchlist(derivedMode);
-
-      const symbols = [...userItems]
-        .map((w) => w.instrument?.symbol)
-        .filter((s): s is string => typeof s === 'string' && Boolean(s.trim()))
-        .map((s) => s.toUpperCase());
-
-      await loadSnapshotForSymbols(symbols);
-    } catch (err) {
-      console.error(err);
-      setWatchlistError('Failed to load watchlist');
-    } finally {
-      setWatchlistLoading(false);
-    }
-  }, [derivedMode, loadSnapshotForSymbols, loadUserWatchlist]);
+  const requestWatchlistsViaWs = useCallback(() => {
+    if (!(wsIsEnabled && wsConnected)) return;
+    // Backend will warm Redis from DB if needed, then respond as watchlist_updated.
+    sendMessage({ type: 'watchlists_request' });
+  }, [wsIsEnabled, wsConnected]);
 
   const persistWatchlistOrder = useCallback(async (items: WatchlistItem[]) => {
     if (!derivedMode) return;
@@ -604,12 +610,16 @@ const Watchlist: React.FC<WatchlistProps> = ({ open, onLastTickAtChange }) => {
         { items: next.map((item, i) => ({ symbol: item.instrument?.symbol ?? '', order: i })) },
         { params: { mode: derivedMode } }
       );
-      await loadWatchlists();
+      // If WS is active, we rely on the watchlist_updated event to refresh membership.
+      // If WS is disabled/unavailable, fall back to HTTP refresh.
+      if (!(wsIsEnabled && wsConnected)) {
+        await loadUserWatchlistHttp(derivedMode);
+      }
     } catch (e) {
       console.error(e);
       setWatchlistError('Failed to add symbol (check server response in console)');
     }
-  }, [derivedMode, loadSnapshotForSymbols, loadWatchlists, userWatchlist]);
+  }, [derivedMode, loadSnapshotForSymbols, loadUserWatchlistHttp, userWatchlist, wsConnected, wsIsEnabled]);
 
   const removeSymbol = useCallback(async (symbol: string) => {
     const next = userWatchlist.filter((w) => w.instrument?.symbol?.toUpperCase() !== symbol);
@@ -617,15 +627,53 @@ const Watchlist: React.FC<WatchlistProps> = ({ open, onLastTickAtChange }) => {
     await persistWatchlistOrder(next);
   }, [persistWatchlistOrder, userWatchlist]);
 
+  // Initial membership load: WS-driven when available, HTTP fallback only when WS is unavailable.
   useEffect(() => {
     if (!open) return;
-    void loadWatchlists();
-  }, [open, loadWatchlists]);
+    setWatchlistError(null);
 
+    if (wsIsEnabled && wsConnected) {
+      // Avoid HTTP membership fetch when WS is up.
+      // If we already have a snapshot, no need to show a spinner.
+      if (!watchlistsSnapshot) setWatchlistLoading(true);
+      requestWatchlistsViaWs();
+      return;
+    }
+
+    // WS disabled/disconnected: use HTTP.
+    setWatchlistLoading(true);
+    void (async () => {
+      try {
+        const items = await loadUserWatchlistHttp(derivedMode);
+        const symbols = [...items]
+          .map((w) => w.instrument?.symbol)
+          .filter((s): s is string => typeof s === 'string' && Boolean(s.trim()))
+          .map((s) => s.toUpperCase());
+        await loadSnapshotForSymbols(symbols);
+      } catch (err) {
+        console.error(err);
+        setWatchlistError('Failed to load watchlist');
+      } finally {
+        setWatchlistLoading(false);
+      }
+    })();
+  }, [
+    open,
+    derivedMode,
+    wsIsEnabled,
+    wsConnected,
+    watchlistsSnapshot,
+    requestWatchlistsViaWs,
+    loadUserWatchlistHttp,
+    loadSnapshotForSymbols,
+  ]);
+
+  // If the account/mode changes while the drawer is open, refresh membership via WS (no HTTP).
   useEffect(() => {
     if (!open) return;
-    void loadUserWatchlist(derivedMode);
-  }, [open, derivedMode, loadUserWatchlist]);
+    if (!(wsIsEnabled && wsConnected)) return;
+    requestWatchlistsViaWs();
+  }, [open, derivedMode, wsIsEnabled, wsConnected, requestWatchlistsViaWs]);
 
   // Snapshot fallback when WS is disabled/disconnected/stale.
   useEffect(() => {

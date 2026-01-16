@@ -17,6 +17,26 @@ def _wl_order_key(user_id: int, mode: str) -> str:
     return f"wl:{int(user_id)}:{mode}:order".lower()
 
 
+def _wl_hydrated_key(user_id: int) -> str:
+    # Sentinel to distinguish "cold cache" (unknown) from "known empty".
+    # When present, it means Redis watchlist keys are the current truth even if empty.
+    return f"wl:{int(user_id)}:hydrated".lower()
+
+
+def is_watchlists_hydrated(*, user_id: int) -> bool:
+    try:
+        return bool(live_data_redis.client.exists(_wl_hydrated_key(int(user_id))))
+    except Exception:
+        return False
+
+
+def mark_watchlists_hydrated(*, user_id: int, ttl_seconds: int = 6 * 60 * 60) -> None:
+    try:
+        live_data_redis.client.set(_wl_hydrated_key(int(user_id)), "1", ex=int(ttl_seconds))
+    except Exception:
+        logger.debug("Failed marking watchlists hydrated for user_id=%s", user_id, exc_info=True)
+
+
 def _norm_symbols(symbols: Iterable[str]) -> list[str]:
     out: list[str] = []
     seen: set[str] = set()
@@ -99,6 +119,7 @@ def sync_watchlist_sets_to_redis(user_id: int) -> None:
     live_key = _wl_key(user_id, "live")
     paper_order_key = _wl_order_key(user_id, "paper")
     live_order_key = _wl_order_key(user_id, "live")
+    hydrated_key = _wl_hydrated_key(user_id)
 
     try:
         pipe = live_data_redis.client.pipeline(transaction=False)
@@ -112,6 +133,10 @@ def sync_watchlist_sets_to_redis(user_id: int) -> None:
         if live_symbols:
             pipe.sadd(live_key, *live_symbols)
             pipe.zadd(live_order_key, live_order)
+
+        # Mark that watchlists have been synced from DB -> Redis, even if empty.
+        # This prevents repeated DB reads on every websocket connect for users with empty lists.
+        pipe.set(hydrated_key, "1", ex=6 * 60 * 60)
         pipe.execute()
     except Exception:
         logger.exception("Failed writing watchlist Redis sets for user_id=%s", user_id)

@@ -9,6 +9,13 @@ import json
 import logging
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.layers import get_channel_layer
+from channels.db import database_sync_to_async
+
+from Instruments.services.watchlist_redis_sets import (
+    get_watchlists_snapshot_from_redis,
+    is_watchlists_hydrated,
+    sync_watchlist_sets_to_redis,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -55,6 +62,15 @@ class MarketDataConsumer(AsyncWebsocketConsumer):
         
         await self.accept()
         logger.debug("WebSocket client connected")
+
+        # Push watchlist membership immediately for authenticated users.
+        # This makes the frontend "Redis truth" without an HTTP membership fetch.
+        try:
+            user = self.scope.get("user")
+            if user is not None and getattr(user, "is_authenticated", False):
+                await self._send_watchlists_snapshot(user_id=int(user.id))
+        except Exception:
+            logger.debug("Failed sending watchlists snapshot on connect", exc_info=True)
     
     async def disconnect(self, close_code):
         """
@@ -92,10 +108,47 @@ class MarketDataConsumer(AsyncWebsocketConsumer):
                         "type": "pong",
                         "timestamp": data.get("timestamp")
                     }))
+                elif message_type in {"watchlists_request", "watchlist_request", "watchlists_snapshot"}:
+                    user = self.scope.get("user")
+                    if user is not None and getattr(user, "is_authenticated", False):
+                        await self._send_watchlists_snapshot(user_id=int(user.id))
                 else:
                     logger.debug(f"Received message from client: {message_type}")
             except json.JSONDecodeError:
                 logger.error(f"Invalid JSON received from client")
+
+    @database_sync_to_async
+    def _ensure_watchlists_hydrated(self, *, user_id: int) -> dict:
+        """Ensure Redis has a current watchlists snapshot for this user.
+
+        - If Redis already has members, return it.
+        - If the hydrated sentinel is present (known-empty OK), return empty snapshot.
+        - Otherwise, cold-cache: hydrate from DB then return snapshot.
+        """
+
+        snapshot = get_watchlists_snapshot_from_redis(user_id=int(user_id))
+        if snapshot.get("paper") or snapshot.get("live"):
+            return snapshot
+
+        if is_watchlists_hydrated(user_id=int(user_id)):
+            return snapshot
+
+        sync_watchlist_sets_to_redis(int(user_id))
+        return get_watchlists_snapshot_from_redis(user_id=int(user_id))
+
+    async def _send_watchlists_snapshot(self, *, user_id: int) -> None:
+        snapshot = await self._ensure_watchlists_hydrated(user_id=int(user_id))
+        await self.send(
+            text_data=json.dumps(
+                {
+                    "type": "watchlist_updated",
+                    "data": {
+                        "user_id": int(user_id),
+                        "watchlists": snapshot,
+                    },
+                }
+            )
+        )
 
     def _event_payload(self, event):
         """Normalize a Channels event into the payload sent to the browser."""

@@ -369,16 +369,16 @@ class IntradaySupervisor:
                 )
 
                 try:
-                        # Bars are now tick-driven directly inside LiveDataRedis.publish_quote
-                        # (i.e., computed as the upstream feed publishes ticks), so the 1-second
-                        # supervisor should not re-aggregate bars from snapshots.
-                        if not bool(getattr(settings, "LIVE_DATA_ENABLE_INTRADAY_BARS", True)):
-                            live_data_redis.set_tick(routing_key, sym, tick, ttl=10)
+                    # Bars are now tick-driven directly inside LiveDataRedis.publish_quote
+                    # (i.e., computed as the upstream feed publishes ticks), so the 1-second
+                    # supervisor should not re-aggregate bars from snapshots.
+                    if not bool(getattr(settings, "LIVE_DATA_ENABLE_INTRADAY_BARS", True)):
+                        live_data_redis.set_tick(routing_key, sym, tick, ttl=10)
 
-                            closed_bar, _current_bar = live_data_redis.upsert_current_bar_1m(routing_key, sym, tick)
-                            if closed_bar:
-                                live_data_redis.enqueue_closed_bar(routing_key, closed_bar)
-                                captured_closed += 1
+                        closed_bar, _current_bar = live_data_redis.upsert_current_bar_1m(routing_key, sym, tick)
+                        if closed_bar:
+                            live_data_redis.enqueue_closed_bar(routing_key, closed_bar)
+                            captured_closed += 1
 
                     captured_ticks += 1
                 except Exception:
