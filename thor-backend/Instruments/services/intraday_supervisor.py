@@ -159,7 +159,9 @@ def _normalize_symbol(row: Dict[str, Any]) -> Optional[str]:
     sym = row.get("symbol")
     if not sym:
         return None
-    return str(sym).lstrip("/").upper()
+    # IMPORTANT: preserve leading '/' for futures (e.g. '/ES') to avoid collisions
+    # with equity tickers that can share the same base (e.g. 'ES').
+    return str(sym).strip().upper()
 
 
 def _active_symbols(max_age_seconds: int = 60, limit: int = 5000) -> list[str]:
@@ -173,7 +175,8 @@ def _active_symbols(max_age_seconds: int = 60, limit: int = 5000) -> list[str]:
             start=0,
             num=int(limit),
         )
-        return [str(s).lstrip("/").upper() for s in symbols if s]
+        # Preserve leading '/' for futures (see _normalize_symbol).
+        return [str(s).strip().upper() for s in symbols if s]
     except Exception:
         return []
 
