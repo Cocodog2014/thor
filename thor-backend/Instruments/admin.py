@@ -24,7 +24,7 @@ def _broadcast_watchlist_updated(*, user_id: int) -> None:
     # Best-effort; if WS is disabled, this is a no-op at the edge.
     broadcast_to_websocket_sync(
         channel_layer=None,
-        group_name=f"user:{int(user_id)}",
+        group_name=f"user.{int(user_id)}",
         message={
             "type": "watchlist_updated",
             "data": {

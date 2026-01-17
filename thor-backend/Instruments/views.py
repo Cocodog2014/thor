@@ -55,7 +55,7 @@ class UserWatchlistView(APIView):
         # Send only to the authenticated user's private group.
         broadcast_to_websocket_sync(
             channel_layer=None,
-            group_name=f"user:{int(user_id)}",
+            group_name=f"user.{int(user_id)}",
             message={
                 "type": "watchlist_updated",
                 "data": {
@@ -194,7 +194,7 @@ class UserWatchlistOrderView(APIView):
                 snapshot = get_watchlists_snapshot_from_redis(user_id=int(request.user.id))
                 broadcast_to_websocket_sync(
                     channel_layer=None,
-                    group_name=f"user:{int(request.user.id)}",
+                    group_name=f"user.{int(request.user.id)}",
                     message={
                         "type": "watchlist_updated",
                         "data": {

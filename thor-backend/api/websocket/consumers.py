@@ -7,6 +7,7 @@ quotes, and other real-time data from the heartbeat scheduler.
 
 import json
 import logging
+import time
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.layers import get_channel_layer
 from channels.db import database_sync_to_async
@@ -56,29 +57,39 @@ class MarketDataConsumer(AsyncWebsocketConsumer):
             try:
                 user = self.scope.get("user")
                 if user is not None and getattr(user, "is_authenticated", False):
-                    await self.channel_layer.group_add(f"user:{int(user.id)}", self.channel_name)
+                    await self.channel_layer.group_add(f"user.{int(user.id)}", self.channel_name)
             except Exception:
                 logger.debug("Failed to join user websocket group", exc_info=True)
         
         await self.accept()
         try:
             user = self.scope.get("user")
-            logger.debug(
-                "WebSocket client connected (authenticated=%s user_id=%s)",
+            client = self.scope.get("client")
+            headers = dict(self.scope.get("headers") or [])
+
+            def _hdr(name: bytes) -> str | None:
+                try:
+                    v = headers.get(name)
+                    return v.decode("utf-8", errors="replace") if v else None
+                except Exception:
+                    return None
+
+            logger.info(
+                "WS connect (client=%s authenticated=%s user_id=%s origin=%s ua=%s)",
+                client,
                 bool(user is not None and getattr(user, "is_authenticated", False)),
                 getattr(user, "id", None),
+                _hdr(b"origin"),
+                _hdr(b"user-agent"),
             )
         except Exception:
-            logger.debug("WebSocket client connected")
+            logger.debug("WebSocket client connected", exc_info=True)
 
-        # Push watchlist membership immediately for authenticated users.
-        # This makes the frontend "Redis truth" without an HTTP membership fetch.
-        try:
-            user = self.scope.get("user")
-            if user is not None and getattr(user, "is_authenticated", False):
-                await self._send_watchlists_snapshot(user_id=int(user.id))
-        except Exception:
-            logger.debug("Failed sending watchlists snapshot on connect", exc_info=True)
+        # NOTE:
+        # Watchlist membership is sent on explicit client request (watchlists_request).
+        # This avoids emitting watchlist_updated on every reconnect/background WS connect.
+        self._last_watchlists_snapshot_key = ""
+        self._last_watchlists_snapshot_sent_at = 0.0
     
     async def disconnect(self, close_code):
         """
@@ -95,7 +106,7 @@ class MarketDataConsumer(AsyncWebsocketConsumer):
             try:
                 user = self.scope.get("user")
                 if user is not None and getattr(user, "is_authenticated", False):
-                    await self.channel_layer.group_discard(f"user:{int(user.id)}", self.channel_name)
+                    await self.channel_layer.group_discard(f"user.{int(user.id)}", self.channel_name)
             except Exception:
                 logger.debug("Failed to leave user websocket group", exc_info=True)
         logger.debug("WebSocket client disconnected")
@@ -156,6 +167,23 @@ class MarketDataConsumer(AsyncWebsocketConsumer):
 
     async def _send_watchlists_snapshot(self, *, user_id: int) -> None:
         snapshot = await self._ensure_watchlists_hydrated(user_id=int(user_id))
+
+        # Per-connection dedupe: if the client spams watchlists_request, don't resend
+        # identical payloads back-to-back.
+        try:
+            snapshot_key = json.dumps(snapshot, sort_keys=True, separators=(",", ":"))
+        except Exception:
+            snapshot_key = ""
+
+        now = time.time()
+        if snapshot_key and snapshot_key == getattr(self, "_last_watchlists_snapshot_key", ""):
+            # Allow a periodic refresh if needed, but avoid tight loops.
+            if now - float(getattr(self, "_last_watchlists_snapshot_sent_at", 0.0)) < 2.0:
+                return
+
+        self._last_watchlists_snapshot_key = snapshot_key
+        self._last_watchlists_snapshot_sent_at = now
+
         await self.send(
             text_data=json.dumps(
                 {
