@@ -262,10 +262,15 @@ MEDIA_ROOT = BASE_DIR / 'media'
 # ============================================================================
 
 # Redis Configuration (live bus)
-REDIS_URL = config('REDIS_URL', default='redis://redis:6379/0')
+# In local Windows dev we typically run Redis in Docker and connect via localhost.
+# The Docker DNS name "redis" only works from inside Docker.
+_DEFAULT_REDIS_HOST = 'localhost' if os.name == 'nt' else 'redis'
+_DEFAULT_REDIS_URL = f'redis://{_DEFAULT_REDIS_HOST}:6379/0'
+
+REDIS_URL = config('REDIS_URL', default=_DEFAULT_REDIS_URL)
 
 # Redis Configuration (LiveData shared message bus)
-REDIS_HOST = config('REDIS_HOST', default='redis')
+REDIS_HOST = config('REDIS_HOST', default=_DEFAULT_REDIS_HOST)
 REDIS_PORT = config('REDIS_PORT', default=6379, cast=int)
 REDIS_DB = config('REDIS_DB', default=0, cast=int)
 
