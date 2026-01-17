@@ -270,7 +270,12 @@ class SchwabStreamingProducer:
         #   b = bid, a = ask, t = last/trade
         bid = _to_float(_get_any(tick, "bid", "bidPrice", "BID_PRICE", "BID", "b", "B", 1, "1"))
         ask = _to_float(_get_any(tick, "ask", "askPrice", "ASK_PRICE", "ASK", "a", "A", 2, "2"))
-        last = _to_float(
+
+        # Keep semantics crisp:
+        # - last_trade: explicit last/trade fields only
+        # - mark: provider mark (when available)
+        # - close: close field (when available)
+        last_trade = _to_float(
             _get_any(
                 tick,
                 "last",
@@ -280,12 +285,14 @@ class SchwabStreamingProducer:
                 "tradePrice",
                 "t",
                 "T",
-                "close",
-                "MARK",
                 3,
                 "3",
             )
         )
+        mark = _to_float(_get_any(tick, "mark", "MARK", "markPrice", "MARK_PRICE"))
+        close = _to_float(_get_any(tick, "close", "CLOSE_PRICE", "prevClose", "PREV_CLOSE"))
+
+        last = last_trade
         volume = _to_float(
             _get_any(
                 tick,
@@ -310,11 +317,25 @@ class SchwabStreamingProducer:
         if last is None:
             last = prev.get("last")
 
+        # For index-like symbols, Schwab can publish LAST_PRICE=0 while MARK is valid.
+        # Prefer MARK in that scenario so UI shows the expected real-time value.
+        main = (tick.get("assetMainType") or tick.get("assetType") or "").upper()
+        is_index = symbol.startswith("$") or ("INDEX" in main)
+        if is_index and (last is None or float(last) == 0.0):
+            if mark is not None and float(mark) != 0.0:
+                last = mark
+
+        # Generic fallback ordering when last trade is missing.
+        if last is None:
+            last = mark if mark is not None else close
+
         payload: Dict[str, Any] = {
             "symbol": symbol,
             "bid": bid,
             "ask": ask,
             "last": last,
+            "mark": mark,
+            "close": close,
             "volume": volume,
             "timestamp": ts,
             "source": "SCHWAB",

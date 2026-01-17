@@ -563,6 +563,107 @@ class Command(BaseCommand):
 
             producer = SchwabStreamingProducer()
 
+            def _build_field_id_map(enum_cls: Any, names: tuple[str, ...]) -> dict[str, str]:
+                """Build a mapping from Schwab numeric field-id -> field name.
+
+                schwab-py streaming payloads frequently encode fields using their numeric
+                IDs (serialized as strings). Those IDs are service-specific (equities vs
+                futures). We translate them to canonical names (e.g. LAST_PRICE) so the
+                downstream normalizer can be service-agnostic.
+                """
+
+                out: dict[str, str] = {}
+                for name in names:
+                    if not hasattr(enum_cls, name):
+                        continue
+                    member = getattr(enum_cls, name)
+                    fid: int | None
+                    try:
+                        fid = int(member)
+                    except Exception:
+                        fid = getattr(member, "value", None)
+                        try:
+                            fid = int(fid) if fid is not None else None
+                        except Exception:
+                            fid = None
+                    if fid is None:
+                        continue
+                    out[str(fid)] = str(name)
+                return out
+
+            equity_field_id_map: dict[str, str] = {}
+            futures_field_id_map: dict[str, str] = {}
+            try:
+                equity_field_id_map = _build_field_id_map(StreamClient.LevelOneEquityFields, SCHWAB_LEVEL_ONE_EQUITY_FIELDS)
+                futures_field_id_map = _build_field_id_map(StreamClient.LevelOneFuturesFields, SCHWAB_LEVEL_ONE_FUTURES_FIELDS)
+            except Exception:
+                # Never fail the streamer just because a field-map couldn't be built.
+                equity_field_id_map = {}
+                futures_field_id_map = {}
+
+            _logged_field_translate_for_service: set[str] = set()
+
+            def _translate_message_fields(msg: object) -> object:
+                """Rewrite numeric field IDs to canonical names on incoming messages."""
+                if not isinstance(msg, dict):
+                    return msg
+
+                service = (msg.get("service") or msg.get("serviceName") or msg.get("service_type") or "")
+                svc = str(service).strip().upper() if service else ""
+                field_map: dict[str, str] | None = None
+                if svc:
+                    if "FUTURE" in svc:
+                        field_map = futures_field_id_map
+                    elif "EQUITY" in svc:
+                        field_map = equity_field_id_map
+
+                if not field_map:
+                    return msg
+
+                def _translate_tick(tick: dict) -> dict:
+                    out_tick: dict | None = None
+                    for k, v in tick.items():
+                        kk = str(k)
+                        name = field_map.get(kk)
+                        if not name:
+                            continue
+                        if name in tick:
+                            continue
+                        if out_tick is None:
+                            out_tick = dict(tick)
+                        out_tick[name] = v
+                    return out_tick or tick
+
+                if isinstance(msg.get("content"), list):
+                    content = msg.get("content") or []
+                    changed_any = False
+                    next_content: list = []
+                    for t in content:
+                        if isinstance(t, dict):
+                            nt = _translate_tick(t)
+                            next_content.append(nt)
+                            changed_any = changed_any or (nt is not t)
+                        else:
+                            next_content.append(t)
+                    if changed_any:
+                        out_msg = dict(msg)
+                        out_msg["content"] = next_content
+
+                        if echo_ticks and svc and svc not in _logged_field_translate_for_service:
+                            _logged_field_translate_for_service.add(svc)
+                            with contextlib.suppress(Exception):
+                                sample_tick = next((t for t in next_content if isinstance(t, dict)), None)
+                                keys = sorted([str(k) for k in (sample_tick or {}).keys()])
+                                self.stdout.write(
+                                    f"translated_fields service={svc} mapped={len(field_map)} sample_tick_keys={keys}"
+                                )
+
+                        return out_msg
+                    return msg
+
+                # Single-tick message
+                return _translate_tick(msg)
+
             def _echo_message(msg: object) -> None:
                 if not echo_ticks:
                     return
@@ -790,10 +891,11 @@ class Command(BaseCommand):
                         first_message_seen = asyncio.Event()
 
                         def _handler(msg: object) -> None:
-                            producer.process_message(msg)
+                            translated = _translate_message_fields(msg)
+                            producer.process_message(translated)
                             _mark_service_seen(msg)
                             _echo_service_once(msg)
-                            _echo_message(msg)
+                            _echo_message(translated)
                             with contextlib.suppress(Exception):
                                 first_message_seen.set()
 

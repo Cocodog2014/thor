@@ -14,6 +14,9 @@ SCHWAB_LEVEL_ONE_EQUITY_FIELDS: tuple[str, ...] = (
     "BID_PRICE",
     "ASK_PRICE",
     "LAST_PRICE",
+    # Some symbols (notably indexes) may not populate LAST_PRICE reliably; MARK is
+    # often the most useful real-time value.
+    "MARK",
     "TOTAL_VOLUME",
     "QUOTE_TIME_MILLIS",
     "TRADE_TIME_MILLIS",
@@ -28,6 +31,8 @@ SCHWAB_LEVEL_ONE_FUTURES_FIELDS: tuple[str, ...] = (
     "BID_PRICE",
     "ASK_PRICE",
     "LAST_PRICE",
+    # Include MARK when available (guarded by hasattr() in schwab_stream).
+    "MARK",
     "TOTAL_VOLUME",
     "QUOTE_TIME_MILLIS",
     "TRADE_TIME_MILLIS",
